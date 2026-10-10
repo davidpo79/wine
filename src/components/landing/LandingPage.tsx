@@ -2,7 +2,7 @@
 
 // Rebuild of the approved reference design (trilogia-2160-claude-code-spec.html).
 // Markup and class names follow the reference; prices come from the DB bundles and
-// the order button opens Stripe Checkout. WhatsApp stays as a secondary channel.
+// the order button opens our checkout (/checkout). WhatsApp stays as a secondary channel.
 
 import { useEffect, useRef, useState } from "react";
 import { useBuy, type PublicBundle } from "./BuyContext";

@@ -28,13 +28,15 @@ function button(href: string, label: string) {
   return `<p style="margin:20px 0"><a href="${esc(href)}" style="background:#9E1B22;color:#fff;text-decoration:none;padding:12px 20px;display:inline-block;border-radius:4px;font-weight:bold">${esc(label)}</a></p>`;
 }
 
-function orderSummary(o: Order) {
+function orderSummary(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
   const addr = o.shippingAddress;
+  const total = o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   const lines = [
     `<strong>Encomenda ${esc(o.id)}</strong>`,
     `Trilogia 2160 · ${o.qtyBoxes} ${o.qtyBoxes === 1 ? "caixa" : "caixas"} (${o.qtyBoxes * 3} garrafas)`,
-    `Subtotal: ${eur(o.subtotalCents)} · Portes: ${o.shippingCents ? eur(o.shippingCents) : "grátis"}`,
-    `<strong>Total: ${eur(o.totalCents)}</strong> (IVA incluído)`,
+    ...addons.map((a) => `+ ${esc(a.label)}: ${eur(a.amountCents)}`),
+    `Subtotal: ${eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0))} · Portes: ${o.shippingCents ? eur(o.shippingCents) : "grátis"}`,
+    `<strong>Total: ${eur(total)}</strong> (IVA incluído)`,
   ];
   if (addr) {
     lines.push(
@@ -45,15 +47,37 @@ function orderSummary(o: Order) {
   return `<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253">${lines.join("<br>")}</p>`;
 }
 
+// Provider: Telnyx Email when EMAIL_PROVIDER=telnyx (same TELNYX_API_KEY as voice/SMS/WhatsApp), otherwise Resend.
 async function send(o: Order | null, to: string, subject: string, html: string, kind: string) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || !process.env.EMAIL_FROM) {
-    if (o) await logOrderEvent(o.id, "email_skipped", { kind, reason: "resend_not_configured" });
-    console.warn(`[email] skipped ${kind}: Resend not configured`);
+  const from = process.env.EMAIL_FROM;
+  const telnyx = process.env.EMAIL_PROVIDER === "telnyx";
+  const key = telnyx ? process.env.TELNYX_API_KEY : process.env.RESEND_API_KEY;
+  if (!key || !from) {
+    if (o) await logOrderEvent(o.id, "email_skipped", { kind, reason: "email_not_configured" });
+    console.warn(`[email] skipped ${kind}: email provider not configured`);
     return { skipped: true };
   }
+  if (telnyx) {
+    let id: string | undefined;
+    let error: string | undefined;
+    try {
+      const r = await fetch("https://api.telnyx.com/v2/email_messages", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+        body: JSON.stringify({ from, to: [to], reply_to: SITE.email, subject, html_body: html, tags: [kind] }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) id = j?.data?.id;
+      else error = `HTTP ${r.status} ${JSON.stringify(j?.errors ?? j).slice(0, 200)}`;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+    if (o) await logOrderEvent(o.id, error ? "email_error" : "email_sent", { kind, id, error, provider: "telnyx" });
+    return { id, error };
+  }
   const resend = new Resend(key);
-  const r = await resend.emails.send({ from: process.env.EMAIL_FROM, to, subject, html, replyTo: SITE.email });
+  const r = await resend.emails.send({ from, to, subject, html, replyTo: SITE.email });
   if (o) await logOrderEvent(o.id, r.error ? "email_error" : "email_sent", { kind, id: r.data?.id, error: r.error?.message });
   return r;
 }
@@ -63,7 +87,7 @@ export async function ebookLink(): Promise<string | null> {
   return presignedGet(SITE.ebookKey, EBOOK_LINK_SECONDS, "Sabores-de-Portugal-Receitas.pdf");
 }
 
-export async function sendConfirmation(o: Order) {
+export async function sendConfirmation(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
   if (!o.email) return;
   const link = await ebookLink();
   const first = (o.customerName ?? "").split(" ")[0];
@@ -71,7 +95,7 @@ export async function sendConfirmation(o: Order) {
     "Encomenda confirmada",
     `<p>Olá ${esc(first)},</p>
 <p>Obrigado! O pagamento foi confirmado e a sua encomenda está a ser preparada. Enviamos em até 48 horas úteis por CTT e receberá um email com o código de seguimento.</p>
-${orderSummary(o)}
+${orderSummary(o, addons)}
 <p><strong>A sua oferta:</strong> o livro de receitas <em>${esc(SITE.ebookTitle)}</em>, com sugestões para cada um dos três vinhos.</p>
 ${link ? button(link, "Descarregar o livro de receitas (PDF)") + `<p style="font-size:12px;color:#55606e">O link é válido durante 7 dias. Se expirar, responda a este email e enviamos um novo.</p>` : `<p>[[TODO: e-book ainda não carregado no bucket]] Enviaremos o link do livro em breve.</p>`}
 <p>A fatura será enviada para este email${o.nif ? ` com o NIF ${esc(o.nif)}` : ""}.</p>`,
@@ -79,21 +103,17 @@ ${link ? button(link, "Descarregar o livro de receitas (PDF)") + `<p style="font
   return send(o, o.email, `Encomenda ${o.id} confirmada · Trilogia 2160`, html, "confirmation");
 }
 
-export type MultibancoDetails = { entity?: string | null; reference?: string | null; expires_at?: number | null; hosted_voucher_url?: string | null };
+export type MultibancoDetails = { entity: string | null; reference: string | null; amountCents: number; expiresAt: Date | null };
 
-export async function sendPending(o: Order, mb: MultibancoDetails | null) {
+export async function sendPending(o: Order, mb: MultibancoDetails) {
   if (!o.email) return;
-  const exp = mb?.expires_at ? new Date(mb.expires_at * 1000).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : null;
+  const exp = mb.expiresAt ? mb.expiresAt.toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : null;
+  const ref = (mb.reference ?? "").replace(/\D/g, "").replace(/(\d{3})(?=\d)/g, "$1 ");
   const html = layout(
     "Pagamento pendente",
     `<p>Olá,</p>
-<p>Recebemos a sua encomenda. Falta apenas o pagamento por Multibanco. Assim que o pagamento for confirmado, enviamos a confirmação e o livro de receitas.</p>
-${
-  mb?.entity
-    ? `<p style="font-size:17px;background:#F6EFE2;padding:12px 14px">Entidade: <strong>${esc(mb.entity)}</strong><br>Referência: <strong>${esc(mb.reference ?? "")}</strong><br>Valor: <strong>${eur(o.totalCents)}</strong>${exp ? `<br>Pagar até: <strong>${esc(exp)}</strong>` : ""}</p>`
-    : ""
-}
-${mb?.hosted_voucher_url ? button(mb.hosted_voucher_url, "Ver referência Multibanco") : ""}
+<p>Recebemos a sua encomenda. Falta apenas o pagamento por Multibanco (no multibanco ou no homebanking, em Pagamentos de Serviços). Assim que o pagamento for confirmado, enviamos a confirmação e o livro de receitas.</p>
+<p style="font-size:17px;background:#F6EFE2;padding:12px 14px">Entidade: <strong>${esc(mb.entity ?? "")}</strong><br>Referência: <strong>${esc(ref)}</strong><br>Valor: <strong>${eur(mb.amountCents)}</strong>${exp ? `<br>Pagar até: <strong>${esc(exp)}</strong>` : ""}</p>
 ${orderSummary(o)}
 <p>Para entrega antes do Natal, o pagamento tem de ser feito até 30/11.</p>`,
   );
@@ -113,16 +133,16 @@ ${orderSummary(o)}
   return send(o, o.email, `Encomenda ${o.id} enviada · CTT ${o.trackingNumber}`, html, "shipped");
 }
 
-export async function sendAdminAlert(o: Order) {
+export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
   const to = process.env.ADMIN_ALERT_EMAIL;
   if (!to) return;
   const html = layout(
     "Nova encomenda",
-    `<p>Nova encomenda paga.</p>${orderSummary(o)}
+    `<p>Nova encomenda paga.</p>${orderSummary(o, addons)}
 <p>Cliente: ${esc(o.customerName ?? "")} · ${esc(o.email ?? "")} · ${esc(o.phone ?? "")}<br>Pagamento: ${esc(o.paymentMethodType ?? "")}${o.nif ? `<br>NIF: ${esc(o.nif)}` : ""}</p>
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
-  return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents)}`, html, "admin_alert");
+  return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
 }
 
 export async function sendLeadCode(lead: Lead, code: string, percent: number, maxQty: number) {
@@ -172,14 +192,11 @@ ${button(link, "Concluir a encomenda")}
   return send(o, o.email, kind === "first" ? "A sua Trilogia 2160 ficou à espera" : "Último lembrete: a sua prenda de Natal", html, `recovery_${kind}`);
 }
 
-export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
-  if (!o.email) return;
-  const html = layout(
-    "Oferta adicionada",
-    `<p>Olá ${esc((o.customerName ?? "").split(" ")[0])},</p>
-<p>Obrigado! Juntámos à sua encomenda <strong>${esc(o.id)}</strong>:</p>
-<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253"><strong>${esc(a.label)}</strong><br>${eur(a.amountCents)} (IVA incluído)</p>
-<p>Segue tudo na mesma entrega, sem portes adicionais.</p>`,
-  );
-  return send(o, o.email, `Encomenda ${o.id}: oferta adicionada`, html, "addon_confirmation");
+/** Payment anomalies (amount mismatch, duplicate payment) need a human: refund or contact the customer. */
+export async function sendPaymentIssueAlert(orderId: string, message: string) {
+  console.warn(`[payments] ${orderId}: ${message}`);
+  const to = process.env.ADMIN_ALERT_EMAIL;
+  if (!to) return;
+  const html = layout("Atenção: pagamento", `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
+  return send(null, to, `[Pagamento] ${orderId}: verificar`, html, "payment_issue");
 }

@@ -6,7 +6,9 @@ Last updated: 10/10/2026 (session 1)
 
 ## 10/10 (later): exit popup (5% code NATAL5, step 2 mobile → NATALMAIS free shipping), countdown, sticky checkout, smart checkout (details step before Stripe) with abandoned-checkout follow-up: 20 min message (WhatsApp/SMS + email), AI call via Telnyx at 2 h in call hours, final email next day. Setup: docs/RECOVERY-SETUP.md. Waiting for Telnyx + WhatsApp credentials.
 
-## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (Stripe test keys, Resend, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
+## 10/10 (later): Stripe replaced by ifthenpay (MB WAY, card, Apple/Google Pay, Multibanco). One-time offer moved before payment (ifthenpay has no stored cards / pre-authorization). Telnyx WhatsApp + Telnyx Email added as providers (nothing activated in Telnyx). Setup: docs/IFTHENPAY.md.
+
+## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (ifthenpay keys, email, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
 
 ## Done
 
@@ -31,7 +33,7 @@ Last updated: 10/10/2026 (session 1)
 
 ### Phase 3: Checkout and webhooks
 - `POST /api/checkout`: only `bundle_key`, gift fields and event id from the client; price, shipping and availability from DB; stock cap and closed-sales checks; order row `pending_payment` created before redirect.
-- Stripe Checkout: card (Apple/Google Pay), MB WAY, Multibanco (`allowed_payment_method_types`, configurable via `STRIPE_PAYMENT_METHODS`), PT shipping only, phone, optional NIF (9 digits), optional newsletter opt-in, locale pt, 2h expiry.
+- (Superseded 10/10 by ifthenpay, see below.) Stripe Checkout: card (Apple/Google Pay), MB WAY, Multibanco (`allowed_payment_method_types`, configurable via `STRIPE_PAYMENT_METHODS`), PT shipping only, phone, optional NIF (9 digits), optional newsletter opt-in, locale pt, 2h expiry.
 - Webhook: signature verified, idempotent via `webhook_log`, compare-and-set status transitions (no double emails on concurrent events). Handles completed (paid / unpaid Multibanco), async succeeded/failed, expired, charge.refunded.
 - Emails (Resend): confirmation with 7-day e-book link, Multibanco pending with entity/reference, shipped with CTT link, admin alert. Skipped and logged if Resend is not configured.
 - `/obrigado`: order number, next steps, Multibanco reference, e-book download when paid.
@@ -53,28 +55,28 @@ Last updated: 10/10/2026 (session 1)
 ### Phase 8 groundwork
 - `npm run report:daily` (Postgres part) and `/report-daily` Claude Code command (adds Meta data read only, proposes actions, never applies).
 
-## Done: own checkout + one-click upsell
-- `/checkout`: Shopify-style page (form left, summary right, collapsible summary on mobile), Stripe Payment Element embedded (card, Apple/Google Pay, MB WAY, Multibanco). Replaces Stripe-hosted Checkout.
+## Done: own checkout + ifthenpay + one-time offer
+- `/checkout`: Shopify-style page (form left, summary right, collapsible summary on mobile). Payment methods: MB WAY (push + 4 min countdown, status polling), card (ifthenpay hosted page, HMAC-signed return), Apple/Google Pay (Pay by Link, only if keys set), Multibanco (reference on thank-you page + email). Each method shows only when its key is set.
 - Every field autosaves to the order draft (800 ms debounce + flush on blur/pagehide), "Guardado" indicator, resume via `/checkout?o=&t=` and localStorage. Recovery starts once email + mobile exist.
-- Server-side pricing only (bundle + promo recomputed on every change), PT mainland postal code validation, NIF optional.
-- Trust list in the summary; reviews block only renders when real reviews are entered in Admin → Settings (empty by default).
-- Post-purchase `/oferta`: offer 1 = complete to next tier (x1 → 2 boxes price, x2 → 3 boxes price, x3 → one more box at the 3-box per-box price); offer 2 = Espumante D. Graça Bruto 14,90 € and Porto Vintage 2016 Água Alta 15,90 € (editable in admin). Card buyers pay with 1 click (saved card, 3DS handled); MB WAY / Multibanco buyers get a Payment Element. Add-ons stored in `order_addons`, separate Purchase events, included in shipping and accounting exports.
-- Webhook rewritten for PaymentIntent events. Tests: unit 13/13, webhooks 16/16, recovery 7/7, landing + checkout checks pass, upsell 5/5.
-- Telnyx: nothing created or activated (waiting for the new account).
+- Server-side pricing only, PT mainland postal code validation, NIF optional.
+- Payments: `payments` table (one row per attempt, ref <= 15 chars), callback `/api/ifthenpay/callback` (anti-phishing key, exact amount, idempotent via `webhook_log`, double payment flagged), reconciliation via List of Payments every 5 min, expiry of stale attempts, admin refund (API for MB WAY/card, manual for Multibanco).
+- One-time offer (before payment, once per order): "Oferta única", big discount, full product photo, "Ainda pode juntar à sua encomenda". Main: complete to the next tier (x1 +36,72 €, x2 +34,43 €, x3 +39,02 €); extras: Espumante 14,90 €, Porto Vintage 15,90 € (prices and photos in admin). Paid in the same payment.
+- Trust list in the summary; reviews only when real ones are entered in admin.
+- Tests: unit 14/14, payments 32/32 (mock ifthenpay), recovery 7/7, landing + checkout + offer browser checks pass.
 
 ## In progress
 - Nothing; waiting for Gate 1 inputs.
 
 ## Blocked (waiting for David)
-See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and the Meta Test Events checklist cannot be run on staging.
+See "Gate 1 inputs" below. Without ifthenpay keys the end-to-end checkout and the Meta Test Events checklist cannot be run on staging.
 
 ## Gate 1 inputs needed
 | Item | Where it goes |
 |---|---|
-| Stripe TEST keys: `STRIPE_SECRET_KEY` (sk_test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Railway → vinho-prendadenatal → web → Variables |
-| Stripe webhook secret: create endpoint `https://vinho.prendadenatal.com/api/webhooks/stripe` with events `payment_intent.succeeded`, `payment_intent.requires_action`, `payment_intent.processing`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET`. Also register the Apple Pay domain `vinho.prendadenatal.com` (Settings → Payment method domains) | Railway (web service) |
-| Confirm MB WAY and Multibanco are enabled in Stripe (Settings → Payment methods) | Stripe dashboard |
-| Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway (web service) |
+| ifthenpay keys: MB WAY, Multibanco, CCARD (+ test keys; MB WAY has no sandbox), Backoffice key; optional Gateway/Apple/Google keys → `IFTHENPAY_*` | Railway (web service), see docs/IFTHENPAY.md |
+| ifthenpay callbacks: set `IFTHENPAY_ANTI_PHISHING_KEY`, then `npx tsx scripts/ifthenpay-callbacks.ts --activate` (or send ifthenpay the printed URLs) | ifthenpay |
+| Photos of the Espumante and Porto Vintage for the offer (URL in Admin → Settings) | admin |
+| Email: Resend key, or Telnyx Email (`EMAIL_PROVIDER=telnyx`) with a verified domain → `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway (web service) |
 | Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway (web service) |
 | GA4 Measurement ID + Measurement Protocol API secret → `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (new, not in brief) | Railway (web service) |
 | Admin email + first password: set `ADMIN_EMAIL` and `ADMIN_INITIAL_PASSWORD` (12+ chars) on the web service; the next deploy creates the admin; then delete `ADMIN_INITIAL_PASSWORD` | Railway (web service) |
@@ -85,7 +87,7 @@ See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and 
 | Certified invoicing software name (accounting export format), CTT import template | exports |
 
 ## Open questions / flags for David
-1. Invoicing: Stripe receipts are not AT-certified invoices. Launch plan: admin shows "Fatura pendente", accounting CSV goes to the accountant's certified software, invoice number recorded per order.
+1. Invoicing: payment receipts are not AT-certified invoices. Launch plan: admin shows "Fatura pendente", accounting CSV goes to the accountant's certified software, invoice number recorded per order.
 2. Compare-at prices (91,80 € / 137,70 €) are "price of buying the boxes separately", not a previous price. Shown as strike-through with a screen-reader label. Legal review recommended (Omnibus price-reduction rules).
 3. Anonymous funnel counting (no cookies, no identifiers) runs without consent; UTM cookie is set without consent. Both flagged in the privacy policy for legal review.
 4. CAPI is sent only with Marketing consent (brief default). Change only after legal review.

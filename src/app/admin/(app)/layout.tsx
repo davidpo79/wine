@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
-import { stripeMode } from "@/lib/stripe";
+import { ifthenpayMode } from "@/lib/ifthenpay";
 import { logoutAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ const NAV = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
-  const mode = stripeMode();
+  const mode = ifthenpayMode();
   return (
     <>
       <header className="bg-night text-paper">
@@ -28,7 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-xs">
-            <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>Stripe {mode === "live" ? "LIVE" : mode === "test" ? "TEST" : "not configured"}</span>
+            <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>ifthenpay {mode === "live" ? "LIVE" : mode === "sandbox" ? "SANDBOX" : "not configured"}</span>
             <span className="hidden sm:inline">{admin.email}</span>
             <form action={logoutAction}>
               <button className="underline">Log out</button>

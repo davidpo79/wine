@@ -33,7 +33,7 @@ s = await steps(p);
 ok(Object.values(s).every((x) => x.status === "skipped"), "paid order: all steps skipped");
 
 const m = await mk("MB");
-await db.insert(schema.orderEvents).values({ orderId: m, type: "stripe:checkout.session.completed", payload: { payment_status: "unpaid" } });
+await db.insert(schema.orderEvents).values({ orderId: m, type: "mb_reference_issued", payload: { entity: "11111", reference: "123456789" } });
 await due(m);
 await processDueRecovery(50);
 s = await steps(m);

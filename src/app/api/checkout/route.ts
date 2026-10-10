@@ -2,7 +2,8 @@ import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { createDraft, draftToken, ensurePaymentIntent, loadDraft, PAID_STATUSES as PAID, publicDraft, updateDraft } from "@/lib/draft";
+import { createDraft, draftToken, loadDraft, PAID_STATUSES as PAID, publicAmounts, publicDraft, updateDraft } from "@/lib/draft";
+import { orderAddons } from "@/lib/payments";
 import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   );
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status });
   await logFunnel("CheckoutOpened", `co_${r.order.id}`, r.order.id);
-  return Response.json(publicDraft(r.order));
+  return Response.json(publicDraft(r.order, []));
 }
 
 // Resume an existing draft (recovery link or page reload).
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
     await db.update(schema.orders).set({ status: "pending_payment" }).where(eq(schema.orders.id, order.id));
     order.status = "pending_payment";
   }
-  return Response.json(publicDraft(await ensurePaymentIntent(order)));
+  return Response.json(publicDraft(order, await orderAddons(order.id, ["pending"])));
 }
 
 // Autosave (debounced from the page).
@@ -84,8 +85,6 @@ export async function PATCH(req: Request) {
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || PAID.includes(order.status)) return Response.json({ error: "not_found" }, { status: 404 });
   const updated = await updateDraft(order, parsed.data.patch);
-  const priced = parsed.data.patch.bundleKey !== undefined || parsed.data.patch.promo !== undefined;
-  const withPi = priced ? await ensurePaymentIntent(updated) : updated;
-  const d = publicDraft(withPi);
-  return Response.json({ amounts: d.amounts, bundle_key: d.bundle_key, promo_applied: !!updated.promoCode, saved_at: Date.now() });
+  const amounts = publicAmounts(updated, await orderAddons(order.id, ["pending"]));
+  return Response.json({ amounts, bundle_key: updated.bundleKey, promo_applied: !!updated.promoCode, saved_at: Date.now() });
 }

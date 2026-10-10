@@ -130,3 +130,25 @@ test("telnyx webhook signature (ed25519)", async () => {
   assert.equal(verifyTelnyxWebhook(body + " ", sig, ts), false);
   assert.equal(verifyTelnyxWebhook(body, sig, String(Number(ts) - 1000)), false);
 });
+
+test("ifthenpay helpers", async () => {
+  const ifp = await import("../src/lib/ifthenpay");
+  // Docs test vector: id+amount+requestId with CCARD key AAA-000000.
+  assert.equal(ifp.cardSignature("order_45678", "11.55", "36jvlEhUYeknQ8PHKprR", "AAA-000000"), "d7d2fd272233f0102e6dd0e50969025481cdfe3abb87cc3f135f74cfb47b2561");
+  assert.ok(ifp.verifyCardSignature("order_45678", "11.55", "36jvlEhUYeknQ8PHKprR", "d7d2fd272233f0102e6dd0e50969025481cdfe3abb87cc3f135f74cfb47b2561", "AAA-000000"));
+  assert.ok(!ifp.verifyCardSignature("order_45678", "11.56", "36jvlEhUYeknQ8PHKprR", "d7d2fd272233f0102e6dd0e50969025481cdfe3abb87cc3f135f74cfb47b2561", "AAA-000000"));
+  assert.equal(ifp.amountStr(8262), "82.62");
+  assert.equal(ifp.amountStr(500), "5.00");
+  assert.equal(ifp.parseAmountCents("102.42"), 10242);
+  assert.equal(ifp.parseAmountCents("45,9"), 4590);
+  assert.equal(ifp.mbwayPhone("+351 912 345 678"), "351#912345678");
+  assert.equal(ifp.mbwayPhone("912345678"), "351#912345678");
+  assert.equal(ifp.formatMbReference("000000291"), "000 000 291");
+  const c = ifp.parseCallback(new URLSearchParams("anti_phishing_key=k&order_id=WP-1&amount=5.00&reference=123&payment_datetime=28-10-2021 10:55:21"));
+  assert.deepEqual([c.key, c.ref, c.amount, c.reference], ["k", "WP-1", "5.00", "123"]);
+  // 30-11-2026 23:59:59 Lisbon (WET = UTC in winter)
+  assert.equal(ifp.parseIfthenpayDate("30-11-2026", true)?.toISOString(), "2026-11-30T23:59:59.000Z");
+  // summer time: 10:00 Lisbon = 09:00 UTC
+  assert.equal(ifp.parseIfthenpayDate("01-07-2026 10:00:00")?.toISOString(), "2026-07-01T09:00:00.000Z");
+  for (const t of Object.values(ifp.callbackTemplates("https://vinho.prendadenatal.com"))) assert.ok(t.length <= 300, `callback url <= 300 chars: ${t.length}`);
+});

@@ -1,12 +1,12 @@
 // In-house checkout ("draft" order): created when /checkout opens, autosaved field by field,
-// paid with a Stripe PaymentIntent (Payment Element). The order row is the single source of truth.
-import { eq } from "drizzle-orm";
+// paid through ifthenpay (MB WAY, card, Apple/Google Pay, Multibanco). The order row is the single source of truth.
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { Bundle, Order, Utm } from "@/db/schema";
+import type { Bundle, Order, OrderAddon, Utm } from "@/db/schema";
 import { getCatalog, paidBoxes, salesState, canBuy } from "./catalog";
 import { getSettings } from "./settings";
 import type { Settings } from "./settings-defaults";
-import { getStripe } from "./stripe";
+import { availableMethods } from "./ifthenpay";
 import { logOrderEvent, nextOrderId } from "./orders";
 import { normalizeCode, promoDiscountCents, promoShippingCents } from "./promo";
 import { resumeToken, scheduleRecovery, verifyResumeToken } from "./recovery";
@@ -26,8 +26,6 @@ export function computeAmounts(bundle: Bundle, settings: Settings, promo: string
 }
 
 export type DraftCtx = { utm: Utm | null; fbp: string | null; fbc: string | null; gaClientId: string | null; ip: string | null; ua: string | null; consentTracking: boolean };
-
-const PAYMENT_METHODS = (process.env.STRIPE_PAYMENT_METHODS ?? "card,mb_way,multibanco").split(",").map((s) => s.trim()).filter(Boolean);
 
 export async function createDraft(input: { bundleKey: string; promo?: string; isGift?: boolean; giftMessage?: string; eventId?: string }, ctx: DraftCtx) {
   const [catalog, settings, sold] = await Promise.all([getCatalog(), getSettings(), paidBoxes()]);
@@ -62,45 +60,7 @@ export async function createDraft(input: { bundleKey: string; promo?: string; is
     })
     .returning();
   await logOrderEvent(id, "checkout_opened", { bundle_key: bundle.key, total_cents: a.total });
-  return { ok: true as const, order: await ensurePaymentIntent(order) };
-}
-
-/** Creates (or updates the amount of) the Stripe PaymentIntent for an unpaid draft. Never throws: the form keeps working without Stripe. */
-export async function ensurePaymentIntent(order: Order): Promise<Order & { clientSecret: string | null; paymentError?: string }> {
-  try {
-    const stripe = getStripe();
-    let customerId = order.stripeCustomerId;
-    if (!customerId) {
-      const c = await stripe.customers.create({ metadata: { order_id: order.id } }, { idempotencyKey: `cust_${order.id}` });
-      customerId = c.id;
-    }
-    const metadata = { kind: "order", order_id: order.id, bundle_key: order.bundleKey, promo_code: order.promoCode ?? "" };
-    if (order.stripePaymentIntentId) {
-      const pi = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId);
-      if (["requires_payment_method", "requires_confirmation", "requires_action"].includes(pi.status) && pi.amount !== order.totalCents) {
-        await stripe.paymentIntents.update(pi.id, { amount: order.totalCents, metadata });
-      }
-      return { ...order, stripeCustomerId: customerId, clientSecret: pi.client_secret };
-    }
-    const pi = await stripe.paymentIntents.create(
-      {
-        amount: order.totalCents,
-        currency: "eur",
-        customer: customerId,
-        allowed_payment_method_types: PAYMENT_METHODS,
-        // Card/wallets are saved for this customer so the post-purchase offer can be accepted in one click.
-        payment_method_options: { card: { setup_future_usage: "on_session" } },
-        description: `Encomenda ${order.id}`,
-        metadata,
-      },
-      { idempotencyKey: `pi_${order.id}` },
-    );
-    const [updated] = await db.update(schema.orders).set({ stripeCustomerId: customerId, stripePaymentIntentId: pi.id }).where(eq(schema.orders.id, order.id)).returning();
-    return { ...updated, clientSecret: pi.client_secret };
-  } catch (e) {
-    console.error("[checkout] payment intent", e instanceof Error ? e.message : e);
-    return { ...order, clientSecret: null, paymentError: "O pagamento está temporariamente indisponível. Os seus dados ficam guardados." };
-  }
+  return { ok: true as const, order };
 }
 
 export type DraftPatch = Partial<{
@@ -165,6 +125,10 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
     if (bundle) {
       const a = computeAmounts(bundle, settings, patch.promo !== undefined ? patch.promo : order.promoCode);
       Object.assign(set, { bundleId: bundle.id, bundleKey: bundle.key, qtyBoxes: bundle.qty, subtotalCents: a.subtotal, discountCents: a.discount, promoCode: a.promoCode, shippingCents: a.shipping, totalCents: a.total });
+      // The extra-box offer is priced from the current tier: drop it if the tier changes.
+      if (bundle.key !== order.bundleKey) {
+        await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), eq(schema.orderAddons.kind, "boxes")));
+      }
     }
   }
 
@@ -199,16 +163,27 @@ export function validateForPayment(o: Order): FieldErrors {
 
 export const PAID_STATUSES = ["paid", "preparing", "shipped", "delivered", "refunded"];
 
-export function publicDraft(o: Order & { clientSecret?: string | null; paymentError?: string }) {
+export function publicAmounts(o: Order, addons: OrderAddon[]) {
+  const extras = addons.reduce((n, a) => n + a.amountCents, 0);
+  return {
+    subtotal: o.subtotalCents,
+    discount: o.discountCents,
+    shipping: o.shippingCents,
+    total: o.totalCents + extras,
+    promo: o.promoCode,
+    addons: addons.map((a) => ({ key: a.kind === "boxes" ? "boxes" : a.sku, label: a.label, amount: a.amountCents })),
+  };
+}
+
+export function publicDraft(o: Order, addons: OrderAddon[]) {
   const [firstName, ...rest] = (o.customerName ?? "").split(" ");
   const a = o.shippingAddress ?? {};
   return {
     order_id: o.id,
     token: draftToken(o.id),
-    client_secret: o.clientSecret ?? null,
-    payment_error: o.paymentError ?? null,
+    methods: availableMethods(),
     bundle_key: o.bundleKey,
-    amounts: { subtotal: o.subtotalCents, discount: o.discountCents, shipping: o.shippingCents, total: o.totalCents, promo: o.promoCode },
+    amounts: publicAmounts(o, addons),
     fields: {
       email: o.email ?? "",
       phone: o.phone ?? "",

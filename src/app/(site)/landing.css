@@ -19,7 +19,7 @@ body{overflow-wrap:break-word}button,a,select{-webkit-tap-highlight-color:transp
 /* Documented mobile overflow repair (spec: "Known original defect"). */
 @media(max-width:760px){.product>*{min-width:0}.thumbs{max-width:100%;overscroll-behavior-x:contain}}
 html,body{overflow-x:clip}
-/* Order button is a <button> here (Stripe Checkout), styled like the reference .cta link. */
+/* Order button is a <button> here (opens /checkout), styled like the reference .cta link. */
 button.cta{border:0;cursor:pointer;font-family:inherit;width:100%}
 button.cta[disabled]{opacity:.7;cursor:progress}
 .ordererror{margin:10px 0 0;padding:10px 12px;border:1px solid #a72d3955;background:#a72d390d;color:var(--red);border-radius:5px;font-size:13px}

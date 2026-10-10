@@ -15,11 +15,11 @@ export type Settings = {
   lead_plus_code: string; // step 2 (mobile number): same discount + free shipping
   recovery_enabled: boolean; // abandoned-checkout follow-ups (message, AI call, final email)
   upsell_enabled: boolean;
-  upsell_products: UpsellProduct[]; // offer 2 (shown if offer 1 is declined)
+  upsell_products: UpsellProduct[]; // shown with the one-time offer, before payment
   reviews: Review[]; // only real customer reviews; empty = section hidden
 };
 
-export type UpsellProduct = { key: string; name: string; description: string; price_cents: number; compare_cents: number; active: boolean };
+export type UpsellProduct = { key: string; name: string; description: string; price_cents: number; compare_cents: number; active: boolean; image?: string };
 export type Review = { name: string; city?: string; text: string; source?: string };
 
 export const DEFAULT_SETTINGS: Settings = {

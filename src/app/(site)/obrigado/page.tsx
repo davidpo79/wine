@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { loadDraft } from "@/lib/draft";
-import { getStripe, type MultibancoInfo } from "@/lib/stripe";
+import { latestPayment, refreshMbway } from "@/lib/payments";
+import { formatMbReference } from "@/lib/ifthenpay";
 import { AutoRefresh } from "@/components/checkout/AutoRefresh";
 import { ebookLink } from "@/lib/email";
 import { eur } from "@/lib/money";
@@ -28,31 +29,28 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
   }
 
   let paid = ["paid", "preparing", "shipped", "delivered"].includes(order.status);
-  let mb: MultibancoInfo | null = null;
-  let processing = false;
-  if (!paid && order.stripePaymentIntentId) {
-    try {
-      const pi = await getStripe().paymentIntents.retrieve(order.stripePaymentIntentId);
-      if (pi.status === "succeeded") paid = true;
-      else if (pi.status === "processing") processing = true;
-      else if (pi.next_action?.multibanco_display_details) {
-        const d = pi.next_action.multibanco_display_details;
-        mb = { entity: d.entity, reference: d.reference, expires_at: d.expires_at, hosted_voucher_url: d.hosted_voucher_url };
-      }
-    } catch {}
+  let p = paid ? null : await latestPayment(order.id);
+  if (p && p.method === "mbway" && p.status === "pending") {
+    await refreshMbway(p);
+    p = await latestPayment(order.id);
+    if (p?.status === "paid") paid = true;
   }
-  const addons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "paid")));
+  const mb = !paid && p?.method === "multibanco" && p.status === "pending" ? p : null;
+  // Card / wallet / MB WAY: money may be on its way and the callback not in yet.
+  const processing = !paid && !!p && p.status === "pending" && p.method !== "multibanco";
+  const addons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, paid ? "paid" : "pending")));
   const addonsTotal = addons.reduce((n, a) => n + a.amountCents, 0);
+  const due = mb ? mb.amountCents : order.totalCents + addonsTotal;
   const link = paid ? await ebookLink().catch(() => null) : null;
-  const exp = mb?.expires_at ? new Date(mb.expires_at * 1000).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : null;
+  const exp = mb?.expiresAt ? mb.expiresAt.toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : null;
 
   return (
     <Shell>
-      {paid && <PurchasePixel eventId={purchaseEventId(order.id)} value={order.totalCents / 100} numItems={order.qtyBoxes} orderId={order.id} />}
+      {paid && <PurchasePixel eventId={purchaseEventId(order.id)} value={due / 100} numItems={order.qtyBoxes} orderId={order.id} />}
       {processing && <AutoRefresh seconds={5} />}
       <p className="font-hand text-2xl text-terracotta-ink">{paid ? "Obrigado!" : "Quase lá"}</p>
       <h1 className="font-serif text-4xl font-semibold leading-tight text-night sm:text-5xl">
-        {paid ? "A sua encomenda está confirmada" : processing ? "Confirme o pagamento MB WAY" : "Pagamento pendente"}
+        {paid ? "A sua encomenda está confirmada" : processing ? (p?.method === "mbway" ? "Confirme o pagamento MB WAY" : "A confirmar o pagamento") : "Pagamento pendente"}
       </h1>
       <p className="mt-2 text-lg text-ink">
         Encomenda <strong>{order.id}</strong> · {order.qtyBoxes} {order.qtyBoxes === 1 ? "caixa" : "caixas"} Trilogia 2160 · {eur(order.totalCents)}
@@ -64,30 +62,34 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
               + {a.label} · {eur(a.amountCents)}
             </li>
           ))}
-          <li className="font-semibold">Total pago: {eur(order.totalCents + addonsTotal)}</li>
+          <li className="font-semibold">{paid ? "Total pago" : "Total"}: {eur(order.totalCents + addonsTotal)}</li>
         </ul>
       )}
 
       {processing && (
         <div className="mt-6 rounded-xl border border-gold/50 bg-white p-5 text-ink">
-          Abra a aplicação MB WAY no seu telemóvel e aceite o pagamento. Esta página atualiza sozinha.
+          {p?.method === "mbway" ? "Abra a aplicação MB WAY no seu telemóvel e aceite o pagamento." : "Estamos a receber a confirmação do pagamento."} Esta página atualiza sozinha.
         </div>
       )}
       {!paid && !processing && (
         <div className="mt-6 rounded-xl border border-gold/50 bg-white p-5">
-          <p className="text-ink">A sua encomenda fica confirmada assim que o pagamento Multibanco for recebido. Enviámos os dados de pagamento para o seu email.</p>
-          {mb?.entity && (
-            <dl className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-paper p-4 text-center">
-              <div><dt className="text-xs uppercase tracking-wider text-muted">Entidade</dt><dd className="text-3xl font-bold">{mb.entity}</dd></div>
-              <div><dt className="text-xs uppercase tracking-wider text-muted">Valor</dt><dd className="text-3xl font-bold">{eur(order.totalCents)}</dd></div>
-              <div className="col-span-2"><dt className="text-xs uppercase tracking-wider text-muted">Referência</dt><dd className="text-3xl font-bold tracking-wider">{mb.reference}</dd></div>
-              {exp && <div className="col-span-2 text-sm text-muted">Pagar até {exp}</div>}
-            </dl>
+          {mb ? (
+            <>
+              <p className="text-ink">Pague por Multibanco ou no homebanking (Pagamentos de Serviços). A encomenda fica confirmada assim que o pagamento chegar. Também enviámos estes dados para o seu email.</p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-paper p-4 text-center">
+                <div><dt className="text-xs uppercase tracking-wider text-muted">Entidade</dt><dd className="text-3xl font-bold">{mb.entity}</dd></div>
+                <div><dt className="text-xs uppercase tracking-wider text-muted">Valor</dt><dd className="text-3xl font-bold">{eur(mb.amountCents)}</dd></div>
+                <div className="col-span-2"><dt className="text-xs uppercase tracking-wider text-muted">Referência</dt><dd className="text-3xl font-bold tracking-wider">{formatMbReference(mb.reference ?? "")}</dd></div>
+                {exp && <div className="col-span-2 text-sm text-muted">Pagar até {exp}</div>}
+              </dl>
+              <p className="mt-3 text-sm text-muted">Para entrega antes do Natal, pague até 30/11.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-ink">O pagamento ainda não foi concluído. A sua encomenda continua guardada.</p>
+              <a href={`/checkout?o=${encodeURIComponent(order.id)}&t=${encodeURIComponent(t ?? "")}`} className="btn-primary mt-4 w-full">Concluir o pagamento</a>
+            </>
           )}
-          {mb?.hosted_voucher_url && (
-            <a href={mb.hosted_voucher_url} target="_blank" rel="noopener" className="btn-primary mt-4 w-full">Ver referência Multibanco</a>
-          )}
-          <p className="mt-3 text-sm text-muted">Para entrega antes do Natal, pague até 30/11.</p>
         </div>
       )}
 

@@ -223,6 +223,35 @@ export const orderAddons = pgTable(
   (t) => [index("order_addons_order_idx").on(t.orderId)],
 );
 
+// One row per payment attempt at ifthenpay (MB WAY push, Multibanco reference, card/wallet page).
+// `ref` is the orderId sent to ifthenpay (max 15 chars) and comes back in every callback.
+export const payments = pgTable(
+  "payments",
+  {
+    id: serial("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id),
+    provider: text("provider").notNull().default("ifthenpay"),
+    method: text("method").notNull(), // mbway | multibanco | card | wallet
+    ref: text("ref").notNull().unique(),
+    requestId: text("request_id"),
+    amountCents: integer("amount_cents").notNull(),
+    status: text("status").notNull().default("pending"), // pending | paid | expired | failed | refunded
+    phone: text("phone"),
+    entity: text("entity"),
+    reference: text("reference"),
+    redirectUrl: text("redirect_url"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    paidMethod: text("paid_method"), // from the callback: MB | MBWAY | CCARD | APPLE | GOOGLE
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    refundedCents: integer("refunded_cents").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("payments_order_idx").on(t.orderId), index("payments_status_idx").on(t.status, t.createdAt), index("payments_request_idx").on(t.requestId)],
+);
+
 export const recoverySteps = pgTable(
   "recovery_steps",
   {
@@ -275,3 +304,4 @@ export type Order = typeof orders.$inferSelect;
 export type Creative = typeof creatives.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type OrderAddon = typeof orderAddons.$inferSelect;
+export type Payment = typeof payments.$inferSelect;

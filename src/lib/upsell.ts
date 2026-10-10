@@ -12,6 +12,7 @@ export type Offer = {
   compareCents: number;
   boxes: number;
   image: string | null;
+  percentOff: number;
 };
 
 /**
@@ -33,18 +34,19 @@ export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
     key: "boxes",
     kind: "boxes",
     sku: "trilogia-2160",
-    title: current.qty === 1 ? "Mais uma prenda resolvida?" : current.qty === 2 ? "Complete as 3 caixas" : "Mais uma caixa para a lista?",
+    title: current.qty === 1 ? "Mais uma caixa Trilogia 2160" : current.qty === 2 ? "Complete as 3 caixas" : "Mais uma caixa Trilogia 2160",
     label: "Trilogia 2160 · mais 1 caixa (3 garrafas)",
     description:
       current.qty === 1
-        ? `Junte mais uma caixa à sua encomenda e fica com o preço de 2 caixas (${pct}% de desconto na segunda). Mais uma prenda resolvida, na mesma entrega.`
+        ? "Mais uma prenda resolvida: a segunda caixa fica ao preço da opção de 2 caixas. Segue na mesma entrega."
         : current.qty === 2
-          ? `Passe para 3 caixas e fica com o preço de 3 caixas (${pct}% de desconto nesta caixa). Segue na mesma entrega, sem portes.`
-          : `Mais uma caixa ao mesmo preço por caixa da opção de 3 (${pct}% de desconto). Segue na mesma entrega, sem portes.`,
+          ? "Passe para 3 caixas: a terceira fica ao preço da opção de 3 caixas. Segue na mesma entrega, sem portes."
+          : "Mais uma caixa ao preço por caixa da opção de 3. Segue na mesma entrega, sem portes.",
     priceCents: price,
     compareCents: compare,
     boxes: 1,
-    image: "/lp/giftbox-768.webp",
+    image: "/lp/box-cutout.webp",
+    percentOff: pct,
   };
 }
 
@@ -61,7 +63,8 @@ export function productOffers(settings: Settings): Offer[] {
       priceCents: p.price_cents,
       compareCents: p.compare_cents,
       boxes: 0,
-      image: null,
+      image: p.image || null,
+      percentOff: p.compare_cents > p.price_cents ? Math.round(((p.compare_cents - p.price_cents) / p.compare_cents) * 100) : 0,
     }));
 }
 

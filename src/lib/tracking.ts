@@ -163,7 +163,8 @@ export function purchaseEventId(orderId: string) {
 }
 
 /** Fires server-side Purchase (CAPI + GA4) exactly once per order. Caller must ensure money is confirmed. */
-export async function reportPurchase(o: Order) {
+/** valueCents: everything paid in this order (bundle + add-ons accepted before payment). */
+export async function reportPurchase(o: Order, valueCents = o.totalCents) {
   // Claim the report atomically so retries and concurrent webhooks never double-count.
   const claimed = await db
     .update(schema.orders)
@@ -172,7 +173,7 @@ export async function reportPurchase(o: Order) {
     .returning({ id: schema.orders.id });
   if (claimed.length === 0) return;
 
-  const value = o.totalCents / 100;
+  const value = valueCents / 100;
   await logFunnel("Purchase", purchaseEventId(o.id), o.id);
   if (o.consentTracking) {
     const [first, ...rest] = (o.customerName ?? "").trim().split(/\s+/);

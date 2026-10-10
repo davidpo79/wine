@@ -22,7 +22,7 @@ export default async function Products() {
             <ActionForm action={productAction} className="mt-3">
               <input type="hidden" name="id" value={p.id} />
               <input type="hidden" name="intent" value="details" />
-              <label className="block text-sm font-medium">Short description (Stripe and SEO)
+              <label className="block text-sm font-medium">Short description (SEO)
                 <textarea name="short_description" defaultValue={p.shortDescription} rows={2} className="mt-1 w-full rounded border p-2" />
               </label>
               <Submit className="mt-2">Save description</Submit>

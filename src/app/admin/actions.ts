@@ -10,6 +10,7 @@ import { login, logout, requireAdmin } from "@/lib/auth";
 import { clientIp } from "@/lib/request";
 import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
 import { ebookLink, sendConfirmation, sendShipped } from "@/lib/email";
+import { orderAddons, refundOrder } from "@/lib/payments";
 import { parseEuroToCents } from "@/lib/money";
 import { PER_BOX_FLOOR_CENTS, type PostCutoffMode } from "@/lib/settings-defaults";
 import { getSettings, setSetting } from "@/lib/settings";
@@ -67,11 +68,18 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await logOrderEvent(id, "note", { ...by, note });
         break;
       }
+      case "refund_api":
+      case "refund_manual": {
+        const r = await refundOrder(o, action === "refund_api" ? "api" : "manual");
+        if (!r.ok) return { error: r.error };
+        await logOrderEvent(id, "refunded", { ...by, mode: action });
+        break;
+      }
       case "resend_confirmation":
       case "regenerate_ebook": {
         if (!["paid", "preparing", "shipped", "delivered"].includes(o.status)) return { error: "Only for paid orders." };
         // Each send generates a fresh 7-day e-book link.
-        await sendConfirmation(o);
+        await sendConfirmation(o, await orderAddons(o.id, ["paid"]));
         await db.update(schema.orders).set({ ebookKeyIssuedAt: new Date() }).where(eq(schema.orders.id, id));
         await logOrderEvent(id, action, by);
         if (action === "regenerate_ebook") {
@@ -220,6 +228,10 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
       price_cents: price,
       compare_cents: compare,
       active: fd.get(`up_active_${i}`) === "on",
+      image: (() => {
+        const img = String(fd.get(`up_image_${i}`) ?? old?.image ?? "").trim();
+        return /^(https:\/\/|\/)[^\s"'<>]{1,400}$/.test(img) ? img : undefined;
+      })(),
     });
   }
   if (products.length) await setSetting("upsell_products", products);

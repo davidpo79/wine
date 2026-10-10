@@ -1,15 +1,18 @@
 import { cookies, headers } from "next/headers";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { ensurePaymentIntent, loadDraft, validateForPayment } from "@/lib/draft";
-import { getStripe } from "@/lib/stripe";
+import { loadDraft, publicAmounts, validateForPayment } from "@/lib/draft";
+import { getCatalog } from "@/lib/catalog";
+import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
+import { orderAddons } from "@/lib/payments";
+import { boxesOffer, productOffers } from "@/lib/upsell";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { SITE } from "@/lib/site";
 
-// Called right before stripe.confirmPayment: final validation + shipping/receipt on the PaymentIntent.
+// Called when the customer clicks "Pagar": final validation, InitiateCheckout, and (once per order) the one-time offer.
 export async function POST(req: Request) {
   const parsed = z.object({ o: z.string().max(40), t: z.string().max(80) }).safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
@@ -18,22 +21,7 @@ export async function POST(req: Request) {
   const errors = validateForPayment(order);
   if (Object.keys(errors).length) return Response.json({ errors }, { status: 422 });
 
-  const withPi = await ensurePaymentIntent(order);
-  if (!withPi.clientSecret || !withPi.stripePaymentIntentId) return Response.json({ error: withPi.paymentError ?? "Pagamento indisponível." }, { status: 502 });
   const a = order.shippingAddress ?? {};
-  try {
-    const stripe = getStripe();
-    await stripe.paymentIntents.update(withPi.stripePaymentIntentId, {
-      receipt_email: order.email!,
-      shipping: { name: order.customerName!, phone: order.phone ?? undefined, address: { line1: a.line1!, line2: a.line2 ?? undefined, postal_code: a.postal_code!, city: a.city!, country: "PT" } },
-      metadata: { kind: "order", order_id: order.id, bundle_key: order.bundleKey, promo_code: order.promoCode ?? "", is_gift: order.isGift ? "1" : "0" },
-    });
-    if (withPi.stripeCustomerId) await stripe.customers.update(withPi.stripeCustomerId, { email: order.email!, name: order.customerName!, phone: order.phone ?? undefined });
-  } catch (e) {
-    return Response.json({ error: "Não foi possível preparar o pagamento. Tente novamente." }, { status: 502 });
-  }
-
-  // InitiateCheckout (server side, deduplicated with the browser event via the same id).
   const eventId = `ic_${order.id}`;
   await logFunnel("InitiateCheckout", eventId, order.id);
   const jar = await cookies();
@@ -50,7 +38,24 @@ export async function POST(req: Request) {
       customData: { value: order.totalCents / 100, currency: "EUR", num_items: order.qtyBoxes, content_ids: ["trilogia-2160"], content_type: "product" },
     });
   }
-  await db.update(schema.orders).set({ consentTracking: consent.marketing || order.consentTracking }).where(eq(schema.orders.id, order.id));
-  await logOrderEvent(order.id, "payment_started", { total_cents: order.totalCents });
-  return Response.json({ ok: true, client_secret: withPi.clientSecret, initiate_event_id: eventId, value: order.totalCents / 100, num_items: order.qtyBoxes });
+  if (consent.marketing && !order.consentTracking) await db.update(schema.orders).set({ consentTracking: true }).where(eq(schema.orders.id, order.id));
+
+  // One-time offer: shown once per order, before payment, so it is paid together (no stored cards needed).
+  let offer = null;
+  let products: ReturnType<typeof productOffers> = [];
+  const [settings, catalog] = await Promise.all([getSettings(), getCatalog()]);
+  if (settings.upsell_enabled && catalog) {
+    const shown = await db
+      .select({ id: schema.orderEvents.id })
+      .from(schema.orderEvents)
+      .where(and(eq(schema.orderEvents.orderId, order.id), eq(schema.orderEvents.type, "upsell_shown")))
+      .limit(1);
+    if (!shown.length) {
+      offer = boxesOffer(order, catalog.bundles);
+      products = productOffers(settings);
+      if (offer || products.length) await logOrderEvent(order.id, "upsell_shown", { offer: offer?.priceCents ?? null, products: products.map((p) => p.key) });
+    }
+  }
+  const addons = await orderAddons(order.id, ["pending"]);
+  return Response.json({ ok: true, initiate_event_id: eventId, value: order.totalCents / 100, num_items: order.qtyBoxes, offer, products, amounts: publicAmounts(order, addons) });
 }

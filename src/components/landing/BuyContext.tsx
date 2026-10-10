@@ -80,7 +80,7 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
   const total = useCallback((b: PublicBundle) => b.priceCents - promoDiscountCents(b, promoConfig, promo) + promoShippingCents(b, promoConfig, promo), [promoConfig, promo]);
 
   useEffect(() => {
-    // Coming back from Stripe via the back button restores the page from bfcache: re-enable the button.
+    // Coming back from the checkout/payment page via the back button restores the page from bfcache: re-enable the button.
     const onShow = (e: PageTransitionEvent) => e.persisted && setLoading(false);
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);

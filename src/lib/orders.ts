@@ -12,10 +12,6 @@ export async function getOrder(id: string) {
   return o ?? null;
 }
 
-export async function getOrderBySession(sessionId: string) {
-  const [o] = await db.select().from(schema.orders).where(eq(schema.orders.stripeSessionId, sessionId)).limit(1);
-  return o ?? null;
-}
 
 export async function logOrderEvent(orderId: string, type: string, payload?: Record<string, unknown>) {
   await db.insert(schema.orderEvents).values({ orderId, type, payload: payload ?? null });

@@ -15,7 +15,7 @@ export default function Termos() {
       <h2>3. Produtos e preços</h2>
       <p>Os preços são apresentados em euros, com IVA incluído à taxa legal em vigor. Os portes são indicados antes da confirmação da encomenda. As imagens são ilustrativas; a colheita enviada é a indicada na descrição do produto.</p>
       <h2>4. Encomenda e pagamento</h2>
-      <p>O contrato considera-se celebrado quando o pagamento é confirmado. Aceitamos MB WAY, Multibanco, cartão de crédito ou débito, Apple Pay e Google Pay, processados pela Stripe. Nas encomendas pagas por Multibanco, a encomenda só é confirmada quando o pagamento for recebido; referências não pagas no prazo indicado são canceladas.</p>
+      <p>O contrato considera-se celebrado quando o pagamento é confirmado. Aceitamos MB WAY, Multibanco, cartão de crédito ou débito, Apple Pay e Google Pay, processados pela ifthenpay. Nas encomendas pagas por Multibanco, a encomenda só é confirmada quando o pagamento for recebido; referências não pagas no prazo indicado deixam de ser válidas.</p>
       <h2>5. Entrega</h2>
       <p>Entregamos em Portugal Continental, através dos CTT, no prazo indicado no site (preparação em até 48 horas e entrega em 2 a 4 dias úteis). Encomendas pagas até 30/11/2026 são entregues antes do Natal. [[TODO: confirmar regime em caso de atraso dos CTT]]</p>
       <h2>6. Direito de livre resolução</h2>

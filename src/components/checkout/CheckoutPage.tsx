@@ -1,13 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
 import { pixelEvent } from "@/lib/track-client";
+import type { Offer } from "@/lib/upsell";
+import { OfferDialog } from "./OfferDialog";
 
 const money = (c: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(c / 100);
 
 type BundleOpt = { key: string; label: string; qty: number; priceCents: number; compareAtCents: number | null; shippingCents: number };
-type Amounts = { subtotal: number; discount: number; shipping: number; total: number; promo: string | null };
+type Amounts = { subtotal: number; discount: number; shipping: number; total: number; promo: string | null; addons: { key: string; label: string; amount: number }[] };
+type Method = "mbway" | "card" | "wallet" | "multibanco";
+const METHOD_INFO: Record<Method, { title: string; note: string }> = {
+  mbway: { title: "MB WAY", note: "Recebe um pedido na app MB WAY e confirma em 4 minutos." },
+  card: { title: "Cartão de crédito ou débito", note: "Visa ou Mastercard, numa página segura da ifthenpay." },
+  wallet: { title: "Apple Pay ou Google Pay", note: "Paga numa página segura da ifthenpay." },
+  multibanco: { title: "Referência Multibanco", note: "Mostramos a entidade e a referência. A encomenda fica confirmada quando o pagamento chegar." },
+};
 type Fields = {
   email: string;
   phone: string;
@@ -28,15 +36,18 @@ type Review = { name: string; city?: string; text: string; source?: string };
 const EMPTY: Fields = { email: "", phone: "", firstName: "", lastName: "", address1: "", address2: "", postalCode: "", city: "", nif: "", isGift: false, giftMessage: "", consentMessages: false, consentCalls: false };
 const DRAFT_KEY = "wp_draft";
 
-export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: { bundles: BundleOpt[]; publishableKey: string | null; reviews: Review[]; cutoffLabel: string }) {
+export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: BundleOpt[]; reviews: Review[]; cutoffLabel: string }) {
   const [draft, setDraft] = useState<{ o: string; t: string } | null>(null);
   const [bundleKey, setBundleKey] = useState<string>("x2");
   const [amounts, setAmounts] = useState<Amounts | null>(null);
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof Fields, string>>>({});
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [methods, setMethods] = useState<Method[]>([]);
+  const [method, setMethod] = useState<Method>("mbway");
+  const [mbwayPhone, setMbwayPhone] = useState("");
+  const [offer, setOffer] = useState<{ main: Offer | null; products: Offer[] } | null>(null);
+  const [mbwayWait, setMbwayWait] = useState<{ until: number; state: "pending" | "failed" | "expired" } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -49,9 +60,6 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
-  const stripeRef = useRef<Stripe | null>(null);
-  const elementsRef = useRef<StripeElements | null>(null);
-  const paymentDivRef = useRef<HTMLDivElement>(null);
 
   // ---- load or create the draft -------------------------------------------------------------
   useEffect(() => {
@@ -87,8 +95,13 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
       } catch {}
       setFields(f);
       setWantsNif(!!f.nif);
-      setClientSecret((d.client_secret as string) ?? null);
-      setPaymentError((d.payment_error as string) ?? null);
+      const ms = (d.methods as Method[]) ?? [];
+      setMethods(ms);
+      if (ms.length && !ms.includes("mbway")) setMethod(ms[0]);
+      setMbwayPhone(f.phone);
+      const back = sp.get("pagamento");
+      if (back === "erro") setFormError("O pagamento não foi concluído. Pode tentar de novo ou escolher outro método.");
+      if (back === "cancelado") setFormError("Pagamento cancelado. A sua encomenda continua guardada.");
     };
 
     (async () => {
@@ -138,7 +151,6 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
       if (!r.ok) throw new Error();
       setAmounts(data.amounts);
       setSaveState("saved");
-      if ("bundleKey" in patch || "promo" in patch) await elementsRef.current?.fetchUpdates();
       return data;
     } catch {
       dirty.current = { ...patch, ...dirty.current };
@@ -172,35 +184,6 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
     queue({ [k]: v } as Partial<Fields>, immediate);
   };
 
-  // ---- Stripe Payment Element -------------------------------------------------------------
-  useEffect(() => {
-    if (!clientSecret || !publishableKey || !paymentDivRef.current || elementsRef.current) return;
-    let cancelled = false;
-    (async () => {
-      const stripe = await loadStripe(publishableKey);
-      if (!stripe || cancelled) return;
-      stripeRef.current = stripe;
-      const elements = stripe.elements({
-        clientSecret,
-        locale: "pt",
-        appearance: {
-          theme: "stripe",
-          variables: { colorPrimary: "#184b36", colorText: "#202b25", colorDanger: "#a72d39", fontFamily: "Arial, Helvetica, sans-serif", borderRadius: "6px", spacingUnit: "4px" },
-        },
-      });
-      elementsRef.current = elements;
-      const pe = elements.create("payment", {
-        layout: { type: "accordion", defaultCollapsed: false, radios: "always", spacedAccordionItems: false },
-        fields: { billingDetails: { name: "never", email: "never", phone: "never", address: "never" } },
-        wallets: { applePay: "auto", googlePay: "auto" },
-      });
-      pe.mount(paymentDivRef.current!);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [clientSecret, publishableKey]);
-
   // ---- actions ----------------------------------------------------------------------------
   const selected = bundles.find((b) => b.key === bundleKey) ?? bundles[0];
   const changeBundle = (key: string) => {
@@ -224,6 +207,10 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
     e.preventDefault();
     if (!draft || paying) return;
     setFormError(null);
+    if (!methods.includes(method)) {
+      setFormError("O pagamento ainda não está disponível. Os seus dados ficam guardados; tente mais tarde ou fale connosco por WhatsApp.");
+      return;
+    }
     setPaying(true);
     await flush();
     const r = await fetch("/api/checkout/prepare", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
@@ -241,36 +228,70 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
     }
     pixelEvent("InitiateCheckout", { value: data.value, currency: "EUR", num_items: data.num_items, content_ids: ["trilogia-2160"], content_type: "product" }, data.initiate_event_id);
     window.gtag?.("event", "begin_checkout", { currency: "EUR", value: data.value });
-    const stripe = stripeRef.current;
-    const elements = elementsRef.current;
-    if (!stripe || !elements) {
-      setFormError(paymentError ?? "O pagamento ainda está a carregar. Tente novamente.");
-      setPaying(false);
-      return;
+    if (data.amounts) setAmounts(data.amounts);
+    if (data.offer || data.products?.length) {
+      setOffer({ main: data.offer, products: data.products ?? [] });
+      return; // the dialog continues to startPayment()
     }
-    const doneUrl = `${location.origin}/checkout/concluido?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`;
-    const { error } = await stripe.confirmPayment({
-      elements,
-      redirect: "if_required",
-      confirmParams: {
-        return_url: doneUrl,
-        payment_method_data: {
-          billing_details: {
-            name: `${fields.firstName} ${fields.lastName}`.trim(),
-            email: fields.email.trim(),
-            phone: fields.phone.trim(),
-            address: { line1: fields.address1, line2: fields.address2 || "", postal_code: fields.postalCode, city: fields.city, state: "", country: "PT" },
-          },
-        },
-      },
-    });
-    if (error) {
-      setFormError(error.message ?? "O pagamento não foi concluído.");
-      setPaying(false);
-      return;
-    }
-    location.assign(doneUrl);
+    await startPayment();
   }
+
+  async function chooseAddons(keys: string[]) {
+    if (!draft) return;
+    const r = await fetch("/api/checkout/addons", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, keys }) });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error ?? "Não foi possível juntar à encomenda.");
+    setAmounts(data.amounts);
+    if (keys.length) window.gtag?.("event", "add_to_cart", { currency: "EUR", items: keys.map((k) => ({ item_id: k })) });
+    return data.amounts as Amounts;
+  }
+
+  async function startPayment() {
+    if (!draft) return;
+    setOffer(null);
+    setPaying(true);
+    const r = await fetch("/api/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, method, phone: method === "mbway" ? mbwayPhone || fields.phone : undefined }) });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422 && data.errors) {
+      setErrors(data.errors);
+      setPaying(false);
+      return;
+    }
+    if (!r.ok) {
+      setFormError(data.error ?? "O pagamento não foi iniciado.");
+      setPaying(false);
+      return;
+    }
+    if (data.kind === "redirect") {
+      location.assign(data.url);
+      return;
+    }
+    if (data.kind === "mbway") setMbwayWait({ until: Date.parse(data.expiresAt), state: "pending" });
+  }
+
+  // MB WAY: poll until approved in the app (or expired / rejected).
+  useEffect(() => {
+    if (!mbwayWait || mbwayWait.state !== "pending" || !draft) return;
+    let stop = false;
+    const tick = async () => {
+      if (stop) return;
+      const r = await fetch(`/api/pay/status?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`, { cache: "no-store" }).catch(() => null);
+      const d = r?.ok ? await r.json().catch(() => ({})) : {};
+      if (stop) return;
+      if (d.state === "paid") {
+        location.assign(`/obrigado?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`);
+        return;
+      }
+      if (d.state === "rejected" || d.state === "declined" || d.state === "failed") return setMbwayWait((w) => w && { ...w, state: "failed" });
+      if (d.state === "expired" || Date.now() > mbwayWait.until + 90_000) return setMbwayWait((w) => w && { ...w, state: "expired" });
+      setTimeout(tick, 4000);
+    };
+    const t0 = setTimeout(tick, 4000);
+    return () => {
+      stop = true;
+      clearTimeout(t0);
+    };
+  }, [mbwayWait, draft]);
 
   const savings = useMemo(() => (selected?.compareAtCents ? selected.compareAtCents - selected.priceCents : 0), [selected]);
 
@@ -340,7 +361,7 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
       <dl className="space-y-1.5 text-sm">
         <div className="flex justify-between">
           <dt>Subtotal</dt>
-          <dd>{amounts ? money(amounts.subtotal + amounts.discount) : "…"}</dd>
+          <dd>{amounts ? money(amounts.subtotal + amounts.discount + amounts.addons.reduce((n, a) => n + a.amount, 0)) : "…"}</dd>
         </div>
         {savings > 0 && (
           <div className="flex justify-between text-azulejo">
@@ -348,6 +369,12 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
             <dd>−{money(savings)}</dd>
           </div>
         )}
+        {amounts?.addons.map((a) => (
+          <div key={a.key} className="flex justify-between text-ink">
+            <dt>+ {a.label}</dt>
+            <dd>{money(a.amount)}</dd>
+          </div>
+        ))}
         {amounts && amounts.discount > 0 && (
           <div className="flex justify-between text-azulejo">
             <dt>Código {amounts.promo}</dt>
@@ -371,7 +398,7 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
       <ul className="space-y-2 rounded-lg border border-paper-2 bg-white p-4 text-sm">
         <li>🎁 Caixa de oferta pronta a entregar + guia digital de receitas oferecido</li>
         <li>🚚 Envio CTT com seguimento · 2 a 4 dias úteis · encomendas até {cutoffLabel} chegam antes do Natal</li>
-        <li>🔒 Pagamento seguro processado pela Stripe · não guardamos dados do cartão</li>
+        <li>🔒 Pagamento seguro via ifthenpay (MB WAY, cartão, Multibanco) · não guardamos dados do cartão</li>
         <li>↩️ Caixa danificada? Substituímos sem custos · 14 dias para livre resolução</li>
         <li>💬 Dúvidas? WhatsApp +351 910 348 577</li>
       </ul>
@@ -500,12 +527,45 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
           <section className="space-y-3">
             <h2 className="text-lg font-bold">Pagamento</h2>
             <p className="text-xs text-muted">Todas as transações são seguras e encriptadas.</p>
-            {clientSecret && publishableKey ? (
-              <div ref={paymentDivRef} className="min-h-24" />
+            {methods.length === 0 ? (
+              <p className="rounded-md border border-xmas/30 bg-xmas/5 p-3 text-sm text-xmas">{draft ? "O pagamento online está a ser ativado. Os seus dados ficam guardados; pode também encomendar por WhatsApp." : "A preparar o pagamento…"}</p>
             ) : (
-              <p className="rounded-md border border-xmas/30 bg-xmas/5 p-3 text-sm text-xmas">{paymentError ?? "A preparar o pagamento…"}</p>
+              <div role="radiogroup" aria-label="Método de pagamento" className="overflow-hidden rounded-md border border-paper-2">
+                {(["mbway", "card", "wallet", "multibanco"] as Method[])
+                  .filter((m) => methods.includes(m))
+                  .map((m, i) => (
+                    <div key={m} className={`${i ? "border-t border-paper-2" : ""} ${method === m ? "bg-azulejo-soft/60" : "bg-white"}`}>
+                      <label className="flex cursor-pointer items-center gap-3 px-4 py-3.5">
+                        <input type="radio" name="method" value={m} checked={method === m} onChange={() => setMethod(m)} className="h-4 w-4 accent-azulejo" />
+                        <span className="flex-1 text-[15px] font-semibold">{METHOD_INFO[m].title}</span>
+                        <MethodBadge m={m} />
+                      </label>
+                      {method === m && (
+                        <div className="space-y-2 px-4 pb-4 text-sm text-muted">
+                          <p>{METHOD_INFO[m].note}</p>
+                          {m === "mbway" && (
+                            <div>
+                              <label htmlFor="f-mbway" className="mb-1 block text-xs font-semibold text-ink">
+                                Telemóvel associado ao MB WAY
+                              </label>
+                              <input
+                                id="f-mbway"
+                                type="tel"
+                                inputMode="tel"
+                                autoComplete="tel"
+                                value={mbwayPhone}
+                                onChange={(e) => setMbwayPhone(e.target.value)}
+                                placeholder={fields.phone || "912 345 678"}
+                                className="w-full rounded-md border border-paper-2 bg-white px-3 py-3 text-[15px] text-ink outline-none focus:border-azulejo focus:ring-2 focus:ring-azulejo/20"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
             )}
-            <p className="text-xs text-muted">Ao pagar com cartão, Apple Pay ou Google Pay, o método fica guardado de forma segura pela Stripe para poder aceitar, com um clique, a oferta que mostramos a seguir à compra.</p>
             <label className="flex items-start gap-2.5 text-sm">
               <input type="checkbox" checked={fields.consentCalls} onChange={(e) => set("consentCalls", e.target.checked, true)} className="mt-0.5 h-4 w-4 accent-azulejo" />
               <span className="text-muted">Se não concluir a encomenda, aceito ser contactado/a por telefone, incluindo por um assistente virtual com inteligência artificial. (Opcional)</span>
@@ -518,7 +578,7 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
             </p>
           )}
           <button type="submit" disabled={paying || !draft} className="flex min-h-14 w-full items-center justify-center rounded-md bg-xmas px-4 text-lg font-bold text-white shadow-[0_3px_0_#71202b] hover:bg-xmas-dark disabled:opacity-60">
-            {paying ? "A processar…" : `Pagar ${amounts ? money(amounts.total) : ""}`}
+            {paying ? "A processar…" : method === "multibanco" ? `Gerar referência · ${amounts ? money(amounts.total) : ""}` : `Pagar ${amounts ? money(amounts.total) : ""}`}
           </button>
           <p className="text-center text-xs text-muted">
             Ao pagar confirma que tem 18 anos ou mais e aceita os <a href="/termos" className="underline">Termos</a> e a{" "}
@@ -536,6 +596,89 @@ export function CheckoutPage({ bundles, publishableKey, reviews, cutoffLabel }: 
 
         <aside className="hidden bg-paper px-10 py-10 lg:block">{summary}</aside>
       </div>
+
+      {offer && amounts && (
+        <OfferDialog
+          main={offer.main}
+          products={offer.products}
+          baseTotal={amounts.total - amounts.addons.reduce((n, a) => n + a.amount, 0)}
+          onChoose={chooseAddons}
+          onContinue={() => void startPayment()}
+          onClose={() => {
+            setOffer(null);
+            setPaying(false);
+          }}
+          payLabel={method === "multibanco" ? "Gerar referência" : "Continuar para o pagamento"}
+        />
+      )}
+
+      {mbwayWait && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-ink/60 p-4" role="dialog" aria-modal="true" aria-labelledby="mbway-title">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center shadow-xl">
+            {mbwayWait.state === "pending" ? (
+              <>
+                <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-azulejo/20 border-t-azulejo" aria-hidden="true" />
+                <h2 id="mbway-title" className="text-xl font-black">Confirme na app MB WAY</h2>
+                <p className="mt-2 text-sm text-muted">Enviámos um pedido de {amounts ? money(amounts.total) : ""} para o telemóvel {mbwayPhone || fields.phone}. Abra a app MB WAY e aceite o pagamento.</p>
+                <MbwayCountdown until={mbwayWait.until} />
+                <p className="mt-3 text-xs text-muted">Não feche esta página.</p>
+              </>
+            ) : (
+              <>
+                <h2 id="mbway-title" className="text-xl font-black">{mbwayWait.state === "expired" ? "O pedido MB WAY expirou" : "Pagamento MB WAY não concluído"}</h2>
+                <p className="mt-2 text-sm text-muted">A sua encomenda continua guardada. Pode enviar um novo pedido ou escolher outro método.</p>
+                <button
+                  type="button"
+                  className="mt-4 w-full rounded-md bg-xmas px-4 py-3 font-bold text-white hover:bg-xmas-dark"
+                  onClick={() => {
+                    setMbwayWait(null);
+                    void startPayment();
+                  }}
+                >
+                  Enviar novo pedido MB WAY
+                </button>
+                <button
+                  type="button"
+                  className="mt-2 w-full rounded-md border border-paper-2 px-4 py-3 text-sm font-semibold"
+                  onClick={() => {
+                    setMbwayWait(null);
+                    setPaying(false);
+                  }}
+                >
+                  Escolher outro método
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function MbwayCountdown({ until }: { until: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const left = Math.max(0, Math.round((until - now) / 1000));
+  return (
+    <p className="mt-4 text-3xl font-black tabular-nums text-azulejo" aria-live="off">
+      {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}
+    </p>
+  );
+}
+
+function MethodBadge({ m }: { m: Method }) {
+  const cls = "rounded border border-paper-2 bg-white px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-ink";
+  if (m === "mbway") return <span className={`${cls} text-xmas`}>MB WAY</span>;
+  if (m === "multibanco") return <span className={cls}>MB</span>;
+  if (m === "wallet") return <span className={cls}>Apple Pay · G Pay</span>;
+  return (
+    <span className="flex gap-1">
+      <span className={`${cls} text-[#1a1f71]`}>VISA</span>
+      <span className={cls}>Mastercard</span>
+    </span>
   );
 }

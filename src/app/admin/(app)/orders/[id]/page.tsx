@@ -13,6 +13,8 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const o = await getOrder(id);
   if (!o) notFound();
   const addons = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, id)).orderBy(asc(schema.orderAddons.createdAt));
+  const payments = await db.select().from(schema.payments).where(eq(schema.payments.orderId, id)).orderBy(asc(schema.payments.createdAt));
+  const paidPayment = payments.find((p) => p.status === "paid");
   const recovery = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.orderId, id)).orderBy(asc(schema.recoverySteps.scheduledAt));
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
   const a = o.shippingAddress;
@@ -33,14 +35,14 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             <Item k="Subtotal" v={eur(o.subtotalCents)} />
             {o.discountCents > 0 && <Item k="Discount" v={`−${eur(o.discountCents)} (${o.promoCode})`} />}
             <Item k="Shipping" v={eur(o.shippingCents)} />
-            <Item k="Total" v={eur(o.totalCents)} />
+            <Item k="Total" v={addons.some((x) => x.status === "paid") ? `${eur(o.totalCents + addons.filter((x) => x.status === "paid").reduce((n, x) => n + x.amountCents, 0))} (incl. add-ons)` : eur(o.totalCents)} />
             <Item k="Payment" v={o.paymentMethodType ?? "·"} />
             <Item k="Created" v={lisbonDateTime(o.createdAt)} />
             <Item k="Paid" v={lisbonDateTime(o.paidAt) || "·"} />
             <Item k="Shipped" v={lisbonDateTime(o.shippedAt) || "·"} />
             <Item k="CTT" v={o.trackingNumber ? <a className="text-azulejo underline" href={ctTrackingUrl(o.trackingNumber)} target="_blank">{o.trackingNumber}</a> : "·"} />
             <Item k="Invoice" v={o.invoiceNumber ?? "·"} />
-            <Item k="Stripe" v={o.stripePaymentIntentId ?? o.stripeSessionId ?? "·"} />
+            <Item k="ifthenpay ref" v={paidPayment ? `${paidPayment.ref}${paidPayment.requestId ? ` · ${paidPayment.requestId}` : ""}` : "·"} />
             <Item k="UTM" v={o.utm ? Object.values(o.utm).join(" / ") : "·"} />
           </dl>
           <h2 className="mt-5 font-semibold">Customer</h2>
@@ -101,17 +103,49 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             <Submit className="mt-2 w-full">Add note</Submit>
           </ActionForm>
           {["pending_payment", "paid", "preparing"].includes(o.status) && (
-            <ActionForm action={orderAction} confirm="Cancel this order? (refunds are done in Stripe)">
+            <ActionForm action={orderAction} confirm="Cancel this order? This does not refund the money (use the refund buttons).">
               <input type="hidden" name="id" value={o.id} />
               <Submit name="action" value="cancelled" className="!bg-white !text-red-700 border border-red-300">Cancel order</Submit>
             </ActionForm>
           )}
-          <p className="text-xs text-muted">Refunds: issue them in Stripe. The status changes to Refunded automatically.</p>
+          {paid && paidPayment && paidPayment.method !== "multibanco" && (
+            <ActionForm action={orderAction} confirm={`Refund ${eur(paidPayment.amountCents)} through ifthenpay (${paidPayment.method})?`}>
+              <input type="hidden" name="id" value={o.id} />
+              <Submit name="action" value="refund_api" className="!bg-white !text-red-700 border border-red-300">Refund {eur(paidPayment.amountCents)} via ifthenpay</Submit>
+            </ActionForm>
+          )}
+          {paid && (
+            <ActionForm action={orderAction} confirm="Mark as refunded? Only after you returned the money by bank transfer.">
+              <input type="hidden" name="id" value={o.id} />
+              <Submit name="action" value="refund_manual" className="!bg-white !text-ink border">Mark refunded (manual transfer)</Submit>
+            </ActionForm>
+          )}
+          <p className="text-xs text-muted">MB WAY and card payments can be refunded via ifthenpay (needs the backoffice key and enough daily balance). Multibanco has no refund API: return the money by bank transfer, then mark it refunded.</p>
         </section>
       </div>
+      {payments.length > 0 && (
+        <section className="rounded-lg border bg-white p-4">
+          <h2 className="font-semibold">Payment attempts (ifthenpay)</h2>
+          <table className="mt-2 w-full text-sm">
+            <thead className="text-left text-xs uppercase text-muted"><tr><th className="py-1">Ref</th><th>Method</th><th>Amount</th><th>Status</th><th>Details</th><th>Created</th></tr></thead>
+            <tbody>
+              {payments.map((p) => (
+                <tr key={p.id} className="border-t align-top">
+                  <td className="py-1 font-mono text-xs">{p.ref}</td>
+                  <td>{p.method}{p.paidMethod ? ` (${p.paidMethod})` : ""}</td>
+                  <td>{eur(p.amountCents)}</td>
+                  <td className={p.status === "paid" ? "font-semibold text-green-700" : ""}>{p.status}</td>
+                  <td className="text-xs text-muted">{p.entity ? `Ent. ${p.entity} · Ref. ${p.reference}` : p.phone ?? p.requestId ?? ""}</td>
+                  <td className="text-xs">{lisbonDateTime(p.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       {addons.length > 0 && (
         <section className="rounded-lg border bg-white p-4">
-          <h2 className="font-semibold">Post-purchase add-ons (ship together)</h2>
+          <h2 className="font-semibold">One-time offer add-ons (ship together)</h2>
           <ul className="mt-2 space-y-1 text-sm">
             {addons.map((a) => (
               <li key={a.id} className="flex justify-between gap-3 border-t py-1">

@@ -43,6 +43,13 @@
       "when": 1791648255518,
       "tag": "0005_checkout_upsell",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791650005357,
+      "tag": "0006_ifthenpay_payments",
+      "breakpoints": true
     }
   ]
 }

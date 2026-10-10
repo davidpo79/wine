@@ -55,9 +55,9 @@ export default async function SettingsPage() {
           <p className="mt-1 text-xs text-muted">The discount never takes a bundle below the €39.00 per-box floor. The code keeps working even if the popup is off.</p>
         </fieldset>
         <fieldset className="rounded border p-3">
-          <legend className="px-1 font-semibold">Post-purchase offer</legend>
-          <label className="flex items-center gap-2"><input type="checkbox" name="upsell_enabled" defaultChecked={s.upsell_enabled} className="h-4 w-4" /> Show the one-click offer after payment</label>
-          <p className="mt-1 text-xs text-muted">Offer 1 (automatic): one more Trilogia box at the next tier price. Offer 2 (if declined):</p>
+          <legend className="px-1 font-semibold">One-time offer (before payment)</legend>
+          <label className="flex items-center gap-2"><input type="checkbox" name="upsell_enabled" defaultChecked={s.upsell_enabled} className="h-4 w-4" /> Show the one-time offer when the customer clicks Pay</label>
+          <p className="mt-1 text-xs text-muted">Main offer (automatic): one more Trilogia box at the next tier price. Extra products shown below it:</p>
           {s.upsell_products.map((p, i) => (
             <div key={p.key} className="mt-2 grid gap-2 rounded border p-2 sm:grid-cols-[1fr_90px_90px_70px]">
               <input type="hidden" name={`up_key_${i}`} value={p.key} />
@@ -66,6 +66,7 @@ export default async function SettingsPage() {
               <label className="text-xs">Was €<input name={`up_compare_${i}`} defaultValue={(p.compare_cents / 100).toFixed(2).replace(".", ",")} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
               <label className="flex items-center gap-1 pt-5 text-xs"><input type="checkbox" name={`up_active_${i}`} defaultChecked={p.active} /> Active</label>
               <label className="text-xs sm:col-span-4">Description (pt-PT)<input name={`up_desc_${i}`} defaultValue={p.description} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs sm:col-span-4">Photo URL (https://… or /path; empty = no photo)<input name={`up_image_${i}`} defaultValue={p.image ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
             </div>
           ))}
         </fieldset>

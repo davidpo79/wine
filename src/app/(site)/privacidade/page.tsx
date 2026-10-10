@@ -13,7 +13,7 @@ export default function Privacidade() {
       <ul>
         <li><strong>Encomenda:</strong> nome, email, telefone, morada de entrega e faturação, NIF (opcional), mensagem de oferta. Finalidade: execução do contrato e obrigações fiscais. Fundamento: contrato e obrigação legal.</li>
         <li><strong>Dados antes do pagamento:</strong> nome, email e telemóvel, para a entrega e para o contactarmos sobre a encomenda. Com a sua autorização (opcional e separada): lembretes por email, SMS ou WhatsApp, e uma chamada telefónica, que pode ser feita por um assistente virtual de inteligência artificial que se identifica como tal e pode ser gravada, caso não conclua a encomenda. Pode cancelar pelo link em cada mensagem ou dizendo-o na chamada. Subcontratantes: Telnyx (SMS e chamadas), Meta (WhatsApp), Resend (email). [[TODO: revisão jurídica]]</li>
-        <li><strong>Pagamento:</strong> processado pela Stripe. Não guardamos dados de cartão.</li>
+        <li><strong>Pagamento:</strong> processado pela ifthenpay (MB WAY, Multibanco, cartão, Apple Pay e Google Pay). Os dados do cartão são introduzidos na página segura da ifthenpay; não os recebemos nem guardamos.</li>
         <li><strong>Código de desconto (janela ao sair do site):</strong> nome e email, para enviar o código e um lembrete antes do fecho das encomendas de Natal. Fundamento: consentimento, que pode retirar a qualquer momento pelo link no email. Conservação: até 31/01/2027. [[TODO: confirmar prazo]]</li>
         <li><strong>Telemóvel (opcional, segundo passo da mesma janela):</strong> para uma consultora o/a contactar por telefone ou WhatsApp sobre a oferta de Natal. Fundamento: consentimento separado e específico, que pode retirar a qualquer momento. Conservação: até 31/01/2027. [[TODO: confirmar prazo]]</li>
         <li><strong>Novidades por email:</strong> só se o indicar no pagamento. Fundamento: consentimento, que pode retirar a qualquer momento.</li>
@@ -22,7 +22,7 @@ export default function Privacidade() {
         <li><strong>Contagem agregada de visitas:</strong> registamos o número de visitas e de cliques nos passos de compra, sem identificadores nem cookies, para medir o funcionamento da loja. [[TODO: revisão jurídica]]</li>
       </ul>
       <h2>Subcontratantes</h2>
-      <p>Stripe (pagamentos), Resend (envio de emails), Railway (alojamento), CTT (entregas), Meta Platforms e Google (apenas com consentimento). [[TODO: confirmar lista e transferências internacionais]]</p>
+      <p>ifthenpay (pagamentos), Telnyx ou Resend (envio de emails, SMS, WhatsApp e chamadas), Railway (alojamento), CTT (entregas), Meta Platforms e Google (apenas com consentimento). [[TODO: confirmar lista e transferências internacionais]]</p>
       <h2>Prazo de conservação</h2>
       <p>Dados de faturação: 10 anos, por obrigação fiscal. Restantes dados de encomenda: [[TODO: prazo]]. Consentimentos de cookies: 6 meses.</p>
       <h2>Os seus direitos</h2>
