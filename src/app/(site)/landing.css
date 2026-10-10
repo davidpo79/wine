@@ -30,7 +30,7 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .giftopt textarea{display:block;width:100%;margin-top:9px;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font:italic 16px/1.4 Georgia,serif;color:var(--ink);resize:vertical}
 .giftopt textarea:focus{outline:2px solid var(--gold);outline-offset:1px}
 .giftopt small{display:block;margin-top:5px;color:var(--muted);font-size:11px}
-.sronly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sronly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;border:0!important;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .supportline a{color:inherit;text-decoration:underline;text-underline-offset:2px}
 .footlegal{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:18px;font-size:12px}
 .footlegal a,.footlegal button{color:#ffffffb3;background:none;border:0;padding:6px 0;font:inherit;cursor:pointer;text-decoration:none}
@@ -55,10 +55,10 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .sticky button.cta{width:auto;white-space:nowrap}
 @media(max-width:760px){.stickycount{font-size:9px}}
 /* Exit-intent popup */
-.exitdialog{border:0;padding:0;width:min(760px,94vw);max-height:92dvh;border-radius:12px;background:var(--cream);color:var(--ink);overflow:auto;box-shadow:0 25px 70px #0006}
+.exitdialog{border:0;padding:0;width:min(760px,94vw);max-height:92dvh;border-radius:12px;background:var(--cream);color:var(--ink);overflow-x:hidden;overflow-y:auto;box-shadow:0 25px 70px #0006}
 .exitdialog::backdrop{background:#142519cc}
 .exitclose{position:absolute;top:10px;right:10px;z-index:2;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:#fffffff0;font-size:22px;line-height:1;color:var(--ink)}
-.exitgrid{display:grid;grid-template-columns:.85fr 1fr}
+.exitgrid{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1fr)}
 .exitimg{width:100%;height:100%;object-fit:cover;min-height:100%}
 .exitbody{padding:30px 28px 22px}
 .exitbody h2{font-size:30px;margin:10px 0 12px}
@@ -72,7 +72,7 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .exitfine a{text-decoration:underline}
 .exitno{display:block;margin:8px auto 0;background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline;padding:6px}
 .exitcode{font-size:30px;font-weight:900;letter-spacing:4px;text-align:center;color:var(--green);background:#fff;border:2px dashed var(--gold);border-radius:8px;padding:12px;margin:6px 0 14px}
-@media(max-width:760px){.exitgrid{grid-template-columns:1fr}.exitimg{height:150px;min-height:0}.exitbody{padding:20px 18px 16px}.exitbody h2{font-size:25px}}
+@media(max-width:760px){.exitgrid{grid-template-columns:minmax(0,1fr)}.exitimg{height:150px;min-height:0}.exitbody{padding:20px 18px 16px}.exitbody h2{font-size:25px}}
 /* Tailwind preflight resets margin on <dialog>; restore native centering */
 .exitdialog,.previewdialog{margin:auto}
 .exitstep2{margin:2px 0 14px;padding:13px;border:1px dashed var(--gold);border-radius:8px;background:#fff}

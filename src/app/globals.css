@@ -122,49 +122,50 @@
   position: relative;
   aspect-ratio: 105 / 148;
   width: 100%;
-  background: #fbf6ec;
-  color: #1f3a2d;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px #e4d8bf;
+  background: #9e1b22;
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.06) 0 1.2cqw, transparent 1.2cqw 2.4cqw);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.giftcard .gc-band {
-  height: 13cqw;
-  background-color: #fbf6ec;
-  background-image: url("/img/azulejo-tile.svg");
-  background-size: 13cqw 13cqw;
-  background-repeat: repeat-x;
-  border-bottom: 0.6cqw solid #b8913a;
+.giftcard .gc-inner {
+  position: absolute;
+  inset: 4.5cqw;
+  background: radial-gradient(ellipse at 50% 30%, #fffaf0 0%, #fbf3e3 60%, #f4e6cc 100%);
+  border: 0.7cqw solid #c9a24a;
+  box-shadow: inset 0 0 0 1cqw #fbf3e3, inset 0 0 0 1.3cqw #c9a24a;
+  overflow: hidden;
 }
+.giftcard .gc-flake { position: absolute; transform: translate(-50%, -50%); color: #c9a24a; opacity: 0.45; line-height: 1; }
+.giftcard .gc-holly { position: absolute; width: 30cqw; height: auto; }
+.giftcard .gc-holly-tl { left: -3cqw; top: -1cqw; transform: rotate(-12deg); }
+.giftcard .gc-holly-br { right: -3cqw; bottom: -2cqw; width: 26cqw; transform: rotate(168deg); }
 .giftcard .gc-body {
   position: absolute;
-  inset: 17cqw 6.5cqw 6.5cqw;
-  border: 0.45cqw double #b8913a;
-  border-width: 1.1cqw;
+  inset: 9cqw 8cqw 17cqw;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 6cqw 6cqw 5cqw;
 }
-.giftcard .gc-eyebrow { margin: 0; font: 600 3.2cqw/1 Arial, Helvetica, sans-serif; letter-spacing: 0.4em; text-transform: uppercase; color: #b8913a; }
-.giftcard .gc-title { margin: 3.5cqw 0 0; font: italic 600 13cqw/1 "Cormorant Garamond", Georgia, serif; color: #a72d39; }
-.giftcard .gc-star { margin-top: 2cqw; font-size: 4.5cqw; line-height: 1; color: #b8913a; }
+.giftcard .gc-star { font-size: 7cqw; line-height: 1; color: #c9a24a; text-shadow: 0 0 2cqw rgba(201, 162, 74, 0.5); }
+.giftcard .gc-title { margin: 1.5cqw 0 0; font: italic 700 15cqw/0.95 "Cormorant Garamond", Georgia, serif; color: #9e1b22; }
+.giftcard .gc-sub { margin: 1.5cqw 0 0; font: italic 600 5cqw/1 "Cormorant Garamond", Georgia, serif; color: #1f5a3a; }
+.giftcard .gc-rule { width: 30cqw; height: 0.5cqw; margin-top: 3.5cqw; background: linear-gradient(90deg, transparent, #c9a24a, transparent); }
 .giftcard .gc-msg {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 3cqw 0;
+  margin: 2cqw 0;
   font-family: "Caveat", "Segoe Script", "Bradley Hand", cursive;
   font-weight: 500;
   color: #1d2f55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.giftcard .gc-lg { font-size: 10.5cqw; line-height: 1.1; }
-.giftcard .gc-md { font-size: 8.4cqw; line-height: 1.12; }
-.giftcard .gc-sm { font-size: 6.9cqw; line-height: 1.14; }
-.giftcard .gc-foot { margin: 0; font: 600 2.6cqw/1 Arial, Helvetica, sans-serif; letter-spacing: 0.25em; text-transform: uppercase; color: #6b7a70; }
-.giftcard .gc-ref { position: absolute; right: 2.5cqw; bottom: 1.6cqw; font: 2cqw/1 Arial, sans-serif; color: #c9bfa9; }
+.giftcard .gc-lg { font-size: 10cqw; line-height: 1.1; }
+.giftcard .gc-md { font-size: 8cqw; line-height: 1.12; }
+.giftcard .gc-sm { font-size: 6.6cqw; line-height: 1.14; }
+.giftcard .gc-foot { margin: 0; font: 600 2.5cqw/1 Arial, Helvetica, sans-serif; letter-spacing: 0.28em; text-transform: uppercase; color: #9e1b22; }
+.giftcard .gc-ref { position: absolute; right: 2cqw; bottom: 1cqw; font: 1.8cqw/1 Arial, sans-serif; color: rgba(255, 255, 255, 0.55); }

@@ -176,24 +176,6 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
     </>
   );
 
-  const giftOption = (id: string) =>
-    canBuy ? (
-      <div className="giftopt">
-        <label>
-          <input type="checkbox" checked={buy.isGift} onChange={(e) => buy.setIsGift(e.target.checked)} /> É para oferecer? Junte uma mensagem
-        </label>
-        {buy.isGift && (
-          <>
-            <label htmlFor={id} className="sronly">
-              Mensagem de oferta
-            </label>
-            <textarea id={id} rows={2} maxLength={200} value={buy.giftMessage} onChange={(e) => buy.setGiftMessage(e.target.value.slice(0, 200))} placeholder="Ex.: Feliz Natal! Para abrirmos juntos na Consoada." />
-            <small>{buy.giftMessage.length}/200 · No pagamento pode juntar esta mensagem num cartão de Natal impresso. Para enviar a quem recebe, indique a morada dessa pessoa.</small>
-          </>
-        )}
-      </div>
-    ) : null;
-
   const notice = () =>
     buy.mode === "open" ? null : (
       <p className="modenotice">
@@ -337,7 +319,6 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               </div>
               <b>GRÁTIS</b>
             </div>
-            {giftOption("gift-top")}
             {notice()}
             {promoNote && <p className={`promonote${promoOff ? "" : " muted"}`}>{promoNote}</p>}
             <div id="hero-cta">
@@ -719,7 +700,6 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
                 <span>Total</span>
                 <strong>{money(buy.total(sel.b))}</strong>
               </div>
-              {giftOption("gift-final")}
               {notice()}
               {orderButton(true)}
               <p className="fine">Pagamento seguro com MB WAY, Multibanco ou cartão. IVA incluído.</p>
