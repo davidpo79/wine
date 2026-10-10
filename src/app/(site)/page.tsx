@@ -71,7 +71,7 @@ export default async function Home() {
         <section id="produto" className="paper-grain">
           <div className="mx-auto grid max-w-6xl gap-x-12 gap-y-5 px-4 pb-10 pt-4 lg:grid-cols-2 lg:pt-10">
             <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-              <p className="font-hand text-2xl leading-none text-terracotta">Natal 2026</p>
+              <p className="font-hand text-2xl leading-none text-terracotta-ink">Natal 2026</p>
               <h1 className="mt-1 font-serif text-[2.3rem] font-semibold leading-[1.02] text-night sm:text-5xl">
                 Trilogia 2160 <span className="text-gold">·</span> <span className="font-medium italic">A prenda de Natal do Douro</span>
               </h1>
@@ -188,28 +188,39 @@ export default async function Home() {
             <p className="mx-auto mt-3 max-w-xl text-center text-paper/80">
               Um livro de receitas tradicionais para partilhar, com sugestões para cada um dos três vinhos. Recebe o PDF por email assim que o pagamento é confirmado.
             </p>
-            <div className="no-scrollbar -mx-4 mt-8 flex snap-x gap-4 overflow-x-auto px-4 pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-              {EBOOK_PAGES.map((p, i) => (
-                <article key={p.title} className="relative w-[70%] shrink-0 snap-center sm:w-[42%] lg:w-auto" style={{ transform: `rotate(${[-2, 1.5, -1, 2][i]}deg)` }}>
-                  <div className="aspect-[3/4] overflow-hidden rounded-sm bg-paper text-night shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)]">
-                    <div className="azulejo-field h-14 opacity-90" aria-hidden="true" />
-                    <div className="p-4">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-terracotta">{p.kicker}</p>
-                      <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight">{p.title}</h3>
-                      {p.wine && <span className="mt-2 block h-1 w-10 rounded" style={{ background: p.wine }} aria-hidden="true" />}
-                      <ul className="mt-3 space-y-1.5 text-sm">
-                        {p.lines.map((l, j) => (
-                          <li key={l} className={i === 0 && j === 1 ? "font-hand text-xl text-terracotta" : ""}>
-                            {i === 0 ? l : `· ${l}`}
-                          </li>
-                        ))}
-                      </ul>
+            {settings.ebook_previews?.length ? (
+              <div className="no-scrollbar -mx-4 mt-8 flex snap-x gap-4 overflow-x-auto px-4 pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+                {settings.ebook_previews.map((k, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={k} src={publicUrl(k)} alt={`Página ${i + 1} do livro Sabores de Portugal`} loading="lazy" width={600} height={800} className="w-[70%] shrink-0 snap-center rounded-sm shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)] sm:w-[42%] lg:w-auto" />
+                ))}
+              </div>
+            ) : (
+              <>
+              <div className="no-scrollbar -mx-4 mt-8 flex snap-x gap-4 overflow-x-auto px-4 pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+                {EBOOK_PAGES.map((p, i) => (
+                  <article key={p.title} className="relative w-[70%] shrink-0 snap-center sm:w-[42%] lg:w-auto" style={{ transform: `rotate(${[-2, 1.5, -1, 2][i]}deg)` }}>
+                    <div className="aspect-[3/4] overflow-hidden rounded-sm bg-paper text-night shadow-[0_18px_40px_-18px_rgba(0,0,0,0.7)]">
+                      <div className="azulejo-field h-14 opacity-90" aria-hidden="true" />
+                      <div className="p-4">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-terracotta-ink">{p.kicker}</p>
+                        <h3 className="mt-1 font-serif text-2xl font-semibold leading-tight">{p.title}</h3>
+                        {p.wine && <span className="mt-2 block h-1 w-10 rounded" style={{ background: p.wine }} aria-hidden="true" />}
+                        <ul className="mt-3 space-y-1.5 text-sm">
+                          {p.lines.map((l, j) => (
+                            <li key={l} className={i === 0 && j === 1 ? "font-hand text-xl text-terracotta-ink" : ""}>
+                              {i === 0 ? l : `· ${l}`}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-            <p className="mt-3 text-center text-[11px] text-paper/50">[[TODO: substituir por páginas reais do e-book quando o PDF final for entregue]]</p>
+                  </article>
+                ))}
+              </div>
+              <p className="mt-3 text-center text-[11px] text-paper/70">[[TODO: substituir por páginas reais do e-book quando o PDF final for entregue]]</p>
+              </>
+            )}
             <div className="mx-auto mt-10 grid max-w-4xl gap-6 sm:grid-cols-2 lg:grid-cols-5">
               {EBOOK_CATEGORIES.map((c) => (
                 <div key={c.title}>
@@ -228,7 +239,7 @@ export default async function Home() {
         {/* PAIRING */}
         <section className="paper-grain">
           <div className="mx-auto max-w-6xl px-4 py-14">
-            <p className="text-center font-hand text-2xl text-terracotta">Da nossa terra para a sua mesa</p>
+            <p className="text-center font-hand text-2xl text-terracotta-ink">Da nossa terra para a sua mesa</p>
             <h2 className="mt-1 text-center font-serif text-4xl font-semibold text-night sm:text-5xl">Um vinho para cada prato</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               {PAIRINGS.map((p) => (
@@ -259,7 +270,7 @@ export default async function Home() {
               {PARA_QUEM.map((c, i) => (
                 <article key={c.title} className="relative overflow-hidden rounded-xl border border-paper-2 bg-paper p-5">
                   <span className="absolute -right-3 -top-3 h-16 w-16 rotate-12 rounded-sm opacity-60 azulejo-field" aria-hidden="true" />
-                  <span className="font-hand text-xl text-terracotta">n.º {i + 1}</span>
+                  <span className="font-hand text-xl text-terracotta-ink">n.º {i + 1}</span>
                   <h3 className="mt-1 font-serif text-2xl font-semibold text-night">{c.title}</h3>
                   <p className="mt-2 text-sm text-ink">{c.text}</p>
                 </article>

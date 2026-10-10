@@ -85,25 +85,25 @@ export function Footer() {
         <div>
           <p className="font-semibold text-paper">Contactos</p>
           <p className="mt-2">
-            <a href={`mailto:${SITE.email}`} className="hover:text-gold">{SITE.email}</a>
+            <a href={`mailto:${SITE.email}`} className="inline-block py-1.5 hover:text-gold">{SITE.email}</a>
           </p>
           <p>
-            <a href={SITE.whatsappLink} target="_blank" rel="noopener" className="hover:text-gold">WhatsApp {SITE.whatsapp}</a>
+            <a href={SITE.whatsappLink} target="_blank" rel="noopener" className="inline-block py-1.5 hover:text-gold">WhatsApp {SITE.whatsapp}</a>
           </p>
           <p>
-            <a href={SITE.instagram} target="_blank" rel="noopener" className="hover:text-gold">Instagram @wineportugalofficial</a>
+            <a href={SITE.instagram} target="_blank" rel="noopener" className="inline-block py-1.5 hover:text-gold">Instagram @wineportugalofficial</a>
           </p>
         </div>
         <div>
           <p className="font-semibold text-paper">Informação legal</p>
-          <ul className="mt-2 space-y-1">
-            <li><a href="/termos" className="hover:text-gold">Termos e Condições</a></li>
-            <li><a href="/privacidade" className="hover:text-gold">Privacidade e Cookies</a></li>
-            <li><a href="/envios-devolucoes" className="hover:text-gold">Envios e Devoluções</a></li>
+          <ul className="mt-1">
+            <li><a href="/termos" className="inline-block py-1.5 hover:text-gold">Termos e Condições</a></li>
+            <li><a href="/privacidade" className="inline-block py-1.5 hover:text-gold">Privacidade e Cookies</a></li>
+            <li><a href="/envios-devolucoes" className="inline-block py-1.5 hover:text-gold">Envios e Devoluções</a></li>
             <li>
-              <a href="https://www.livroreclamacoes.pt" target="_blank" rel="noopener" className="hover:text-gold">Livro de Reclamações Eletrónico</a>
+              <a href="https://www.livroreclamacoes.pt" target="_blank" rel="noopener" className="inline-block py-1.5 hover:text-gold">Livro de Reclamações Eletrónico</a>
             </li>
-            <li><OpenConsentLink className="hover:text-gold" /></li>
+            <li><OpenConsentLink className="inline-block py-1.5 hover:text-gold" /></li>
           </ul>
           <p className="mt-3 text-xs">
             Resolução alternativa de litígios: {SITE.ralEntity}. Mais informação em{" "}
@@ -115,7 +115,7 @@ export function Footer() {
         <div className="mx-auto max-w-6xl px-4 py-5 text-center text-xs">
           <p className="font-semibold text-gold">Seja responsável. Beba com moderação.</p>
           <p className="mt-1">Venda proibida a menores de 18 anos.</p>
-          <p className="mt-2 text-paper/50">© 2026 Wine Portugal · Preços com IVA incluído</p>
+          <p className="mt-2 text-paper/70">© 2026 Wine Portugal · Preços com IVA incluído</p>
         </div>
       </div>
     </footer>

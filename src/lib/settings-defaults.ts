@@ -7,6 +7,7 @@ export type Settings = {
   announcement: string[];
   stock_cap_boxes: number | null;
   delivery_text: string;
+  ebook_previews: string[]; // bucket keys of rasterized e-book pages
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   stock_cap_boxes: null,
   delivery_text: "Entrega em 2 a 4 dias úteis · Portugal Continental",
+  ebook_previews: [],
 };
 
 export const PER_BOX_FLOOR_CENTS = 3900;

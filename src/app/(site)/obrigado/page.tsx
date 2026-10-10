@@ -38,7 +38,7 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
   return (
     <Shell>
       {paid && <PurchasePixel eventId={purchaseEventId(order.id)} value={order.totalCents / 100} numItems={order.qtyBoxes} orderId={order.id} />}
-      <p className="font-hand text-2xl text-terracotta">{paid ? "Obrigado!" : "Quase lá"}</p>
+      <p className="font-hand text-2xl text-terracotta-ink">{paid ? "Obrigado!" : "Quase lá"}</p>
       <h1 className="font-serif text-4xl font-semibold leading-tight text-night sm:text-5xl">
         {paid ? "A sua encomenda está confirmada" : "Pagamento pendente"}
       </h1>
