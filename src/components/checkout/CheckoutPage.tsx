@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
 import { pixelEvent } from "@/lib/track-client";
 import type { Offer } from "@/lib/upsell";
 import { OfferDialog } from "./OfferDialog";
@@ -12,7 +13,7 @@ type Amounts = { subtotal: number; discount: number; shipping: number; total: nu
 type Method = "mbway" | "card" | "wallet" | "multibanco";
 const METHOD_INFO: Record<Method, { title: string; note: string }> = {
   mbway: { title: "MB WAY", note: "Recebe um pedido na app MB WAY e confirma em 4 minutos." },
-  card: { title: "Cartão de crédito ou débito", note: "Visa ou Mastercard, numa página segura da ifthenpay." },
+  card: { title: "Cartão · Apple Pay · Google Pay", note: "Visa ou Mastercard, numa página segura da ifthenpay." },
   wallet: { title: "Apple Pay ou Google Pay", note: "Paga numa página segura da ifthenpay." },
   multibanco: { title: "Referência Multibanco", note: "Mostramos a entidade e a referência. A encomenda fica confirmada quando o pagamento chegar." },
 };
@@ -36,7 +37,7 @@ type Review = { name: string; city?: string; text: string; source?: string };
 const EMPTY: Fields = { email: "", phone: "", firstName: "", lastName: "", address1: "", address2: "", postalCode: "", city: "", nif: "", isGift: false, giftMessage: "", consentMessages: false, consentCalls: false };
 const DRAFT_KEY = "wp_draft";
 
-export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: BundleOpt[]; reviews: Review[]; cutoffLabel: string }) {
+export function CheckoutPage({ bundles, reviews, cutoffLabel, publishableKey }: { bundles: BundleOpt[]; reviews: Review[]; cutoffLabel: string; publishableKey: string | null }) {
   const [draft, setDraft] = useState<{ o: string; t: string } | null>(null);
   const [bundleKey, setBundleKey] = useState<string>("x2");
   const [amounts, setAmounts] = useState<Amounts | null>(null);
@@ -56,6 +57,11 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
   const [showSummary, setShowSummary] = useState(false);
   const [wantsNif, setWantsNif] = useState(false);
 
+  const stripeRef = useRef<Stripe | null>(null);
+  const elementsRef = useRef<StripeElements | null>(null);
+  const cardDivRef = useRef<HTMLDivElement>(null);
+  const [cardReady, setCardReady] = useState(false);
+  const stripeCard = !!publishableKey;
   const dirty = useRef<Partial<Fields & { bundleKey: string; promo: string }>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef(draft);
@@ -184,6 +190,42 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
     queue({ [k]: v } as Partial<Fields>, immediate);
   };
 
+  // ---- Stripe Payment Element (card + Apple Pay + Google Pay), deferred intent: created on "Pagar" ----
+  useEffect(() => {
+    if (!stripeCard || method !== "card" || !amounts || !cardDivRef.current) return;
+    if (elementsRef.current) {
+      void elementsRef.current.update({ amount: amounts.total });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const stripe = await loadStripe(publishableKey!);
+      if (!stripe || cancelled || !cardDivRef.current) return;
+      stripeRef.current = stripe;
+      const elements = stripe.elements({
+        mode: "payment",
+        amount: amounts.total,
+        currency: "eur",
+        allowedPaymentMethodTypes: ["card"],
+        setupFutureUsage: "on_session",
+        locale: "pt",
+        appearance: { theme: "stripe", variables: { colorPrimary: "#184b36", colorText: "#202b25", colorDanger: "#a72d39", fontFamily: "Arial, Helvetica, sans-serif", borderRadius: "6px" } },
+      });
+      elementsRef.current = elements;
+      const pe = elements.create("payment", {
+        layout: { type: "tabs" },
+        fields: { billingDetails: { name: "never", email: "never", phone: "never", address: "never" } },
+        wallets: { applePay: "auto", googlePay: "auto" },
+      });
+      pe.on("ready", () => setCardReady(true));
+      pe.mount(cardDivRef.current);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripeCard, method, amounts?.total]);
+
   // ---- actions ----------------------------------------------------------------------------
   const selected = bundles.find((b) => b.key === bundleKey) ?? bundles[0];
   const changeBundle = (key: string) => {
@@ -212,8 +254,17 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
       return;
     }
     setPaying(true);
+    if (method === "card" && stripeCard) {
+      // Must run first, inside the click (Apple Pay / Google Pay sheet).
+      const sub = await elementsRef.current?.submit();
+      if (!elementsRef.current || sub?.error) {
+        setFormError(sub?.error?.message ?? "O pagamento com cartão ainda está a carregar.");
+        setPaying(false);
+        return;
+      }
+    }
     await flush();
-    const r = await fetch("/api/checkout/prepare", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
+    const r = await fetch("/api/checkout/prepare", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, method }) });
     const data = await r.json().catch(() => ({}));
     if (r.status === 422 && data.errors) {
       setErrors(data.errors);
@@ -266,6 +317,32 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
       location.assign(data.url);
       return;
     }
+    if (data.kind === "stripe") {
+      const doneUrl = `${location.origin}/checkout/concluido?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`;
+      const { error } = await stripeRef.current!.confirmPayment({
+        elements: elementsRef.current!,
+        clientSecret: data.clientSecret,
+        redirect: "if_required",
+        confirmParams: {
+          return_url: doneUrl,
+          payment_method_data: {
+            billing_details: {
+              name: `${fields.firstName} ${fields.lastName}`.trim(),
+              email: fields.email.trim(),
+              phone: fields.phone.trim(),
+              address: { line1: fields.address1, line2: fields.address2 || "", postal_code: fields.postalCode, city: fields.city, state: "", country: "PT" },
+            },
+          },
+        },
+      });
+      if (error) {
+        setFormError(error.message ?? "O pagamento não foi concluído.");
+        setPaying(false);
+        return;
+      }
+      location.assign(doneUrl);
+      return;
+    }
     if (data.kind === "mbway") setMbwayWait({ until: Date.parse(data.expiresAt), state: "pending" });
   }
 
@@ -279,7 +356,7 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
       const d = r?.ok ? await r.json().catch(() => ({})) : {};
       if (stop) return;
       if (d.state === "paid") {
-        location.assign(`/obrigado?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`);
+        location.assign(d.next ?? `/obrigado?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`);
         return;
       }
       if (d.state === "rejected" || d.state === "declined" || d.state === "failed") return setMbwayWait((w) => w && { ...w, state: "failed" });
@@ -398,7 +475,7 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
       <ul className="space-y-2 rounded-lg border border-paper-2 bg-white p-4 text-sm">
         <li>🎁 Caixa de oferta pronta a entregar + guia digital de receitas oferecido</li>
         <li>🚚 Envio CTT com seguimento · 2 a 4 dias úteis · encomendas até {cutoffLabel} chegam antes do Natal</li>
-        <li>🔒 Pagamento seguro via ifthenpay (MB WAY, cartão, Multibanco) · não guardamos dados do cartão</li>
+        <li>🔒 Pagamento seguro: cartão pela Stripe, MB WAY e Multibanco pela ifthenpay · não guardamos dados do cartão</li>
         <li>↩️ Caixa danificada? Substituímos sem custos · 14 dias para livre resolução</li>
         <li>💬 Dúvidas? WhatsApp +351 910 348 577</li>
       </ul>
@@ -542,7 +619,14 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel }: { bundles: Bundl
                       </label>
                       {method === m && (
                         <div className="space-y-2 px-4 pb-4 text-sm text-muted">
-                          <p>{METHOD_INFO[m].note}</p>
+                          {m === "card" && stripeCard ? (
+                            <>
+                              <div ref={cardDivRef} className="min-h-24" />
+                              {!cardReady && <p>A carregar o pagamento seguro…</p>}
+                            </>
+                          ) : (
+                            <p>{METHOD_INFO[m].note}</p>
+                          )}
                           {m === "mbway" && (
                             <div>
                               <label htmlFor="f-mbway" className="mb-1 block text-xs font-semibold text-ink">

@@ -6,7 +6,7 @@ import type { Bundle, Order, OrderAddon, Utm } from "@/db/schema";
 import { getCatalog, paidBoxes, salesState, canBuy } from "./catalog";
 import { getSettings } from "./settings";
 import type { Settings } from "./settings-defaults";
-import { availableMethods } from "./ifthenpay";
+import { checkoutMethods } from "./payments";
 import { logOrderEvent, nextOrderId } from "./orders";
 import { normalizeCode, promoDiscountCents, promoShippingCents } from "./promo";
 import { resumeToken, scheduleRecovery, verifyResumeToken } from "./recovery";
@@ -181,7 +181,7 @@ export function publicDraft(o: Order, addons: OrderAddon[]) {
   return {
     order_id: o.id,
     token: draftToken(o.id),
-    methods: availableMethods(),
+    methods: checkoutMethods(),
     bundle_key: o.bundleKey,
     amounts: publicAmounts(o, addons),
     fields: {

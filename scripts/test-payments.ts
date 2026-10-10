@@ -7,6 +7,7 @@ import "./load-env";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { sql as pg, db, schema } from "../src/db";
 import { cardSignature } from "../src/lib/ifthenpay";
+import Stripe from "stripe";
 
 const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 const mock = process.env.IFTHENPAY_API_BASE ?? "http://localhost:4599";
@@ -96,8 +97,8 @@ const callback = (q: Record<string, string>) => fetch(`${base}/api/ifthenpay/cal
   check((await events(d.o, "duplicate_payment")).length === 1, "same reference paid twice -> flagged for manual refund");
 }
 
-// ---- Card (hosted page, signed return) ----------------------------------------------------------------
-{
+// ---- Card on ifthenpay's hosted page (only when Stripe is not configured) -----------------------------------
+if (!process.env.STRIPE_API_BASE) {
   const d = await draft("x3");
   await post("/api/checkout/prepare", d);
   await post("/api/checkout/addons", { ...d, keys: [] });
@@ -128,6 +129,86 @@ const callback = (q: Record<string, string>) => fetch(`${base}/api/ifthenpay/cal
   const { refundOrder } = await import("../src/lib/payments");
   const rf = await refundOrder(await order(d.o), "api");
   check(!rf.ok && /Multibanco/.test(rf.error ?? ""), "Multibanco refund by API is refused (manual transfer)");
+}
+
+// ---- Card via Stripe + one-click upsell with the saved card ---------------------------------------------
+if (process.env.STRIPE_API_BASE) {
+  const d = await draft("x2");
+  check(d.methods.includes("card"), "card offered (Stripe)");
+  const prep = await j(await post("/api/checkout/prepare", { ...d, method: "card" }));
+  check(!prep.offer, "card via Stripe: no offer before payment (it comes after, one click)");
+  const r = await j(await post("/api/pay", { ...d, method: "card" }));
+  check(r.kind === "stripe" && !!r.clientSecret, "Stripe PaymentIntent created");
+  const [p] = await pays(d.o);
+  check(p?.provider === "stripe" && p.amountCents === 8262, "payment row (stripe, 82,62 €)");
+  await fetch(`${mock}/__pi`, { method: "POST", body: JSON.stringify({ id: p.requestId, status: "succeeded", payment_method: "pm_card_visa" }) });
+  const back = await fetch(`${base}/checkout/concluido?o=${d.o}&t=${encodeURIComponent(d.t)}`, { redirect: "manual" });
+  check((back.headers.get("location") ?? "").includes("/oferta"), "after card payment -> one-time offer page");
+  let o = await order(d.o);
+  check(o.status === "paid" && o.stripePaymentMethodId === "pm_card_visa", "order paid, card saved for one click");
+  check(o.costs?.profit === 4070, `profit snapshot 40,70 € for 2 boxes (got ${o.costs?.profit})`);
+  const page = await (await fetch(`${base}/oferta?o=${d.o}&t=${encodeURIComponent(d.t)}`)).text();
+  check(page.includes("Oferta única") && page.includes("1 clique"), "offer page shows 'Oferta única' + one-click button");
+  const up = await j(await post("/api/upsell", { ...d, offer: "boxes" }));
+  check(up.status === "succeeded", "one click: +1 box charged on the saved card");
+  const addons = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, d.o));
+  check(addons.length === 1 && addons[0].status === "paid" && addons[0].amountCents === 3443, "add-on 34,43 € paid");
+  o = await order(d.o);
+  check(o.costs?.paid === 11705 && o.costs?.delivery === 1100 && o.costs?.profit === 5437, `snapshot updated: 117,05 € paid, 3 boxes in one parcel, profit 54,37 € (got ${o.costs?.profit})`);
+  check((await db.select().from(schema.trackingEvents).where(and(eq(schema.trackingEvents.eventId, `purchase_addon_${addons[0].id}`), eq(schema.trackingEvents.sentTo, "internal")))).length === 1, "add-on Purchase with its own event id");
+  const again = await j(await post("/api/upsell", { ...d, offer: "boxes" }));
+  check(again.already === true, "same offer cannot be charged twice");
+  if (process.env.STRIPE_WEBHOOK_SECRET) {
+    const stripe = new Stripe("sk_test_dummy");
+    const payload = JSON.stringify({ id: `evt_${Date.now()}`, object: "event", type: "payment_intent.succeeded", api_version: "2026-09-30", created: 1, data: { object: { id: p.requestId, object: "payment_intent", status: "succeeded", amount: 8262, amount_received: 8262 } } });
+    const wh = await fetch(`${base}/api/webhooks/stripe`, { method: "POST", headers: { "stripe-signature": stripe.webhooks.generateTestHeaderString({ payload, secret: process.env.STRIPE_WEBHOOK_SECRET }), "content-type": "application/json" }, body: payload });
+    check(wh.status === 200 && (await purchases(d.o)).length === 2, "late Stripe webhook is a no-op (order + add-on Purchase only)");
+    const bad = await fetch(`${base}/api/webhooks/stripe`, { method: "POST", headers: { "stripe-signature": "t=1,v1=bad" }, body: payload });
+    check(bad.status === 400, "Stripe webhook with bad signature rejected");
+  }
+  const { refundOrder } = await import("../src/lib/payments");
+  const rf = await refundOrder(await order(d.o), "api");
+  check(rf.ok && (await order(d.o)).status === "refunded", "Stripe refund from admin marks the order refunded");
+}
+
+// ---- MB WAY: offer after payment, new push to the same phone ----------------------------------------------
+{
+  const d = await draft("x1");
+  const prep = await j(await post("/api/checkout/prepare", { ...d, method: "mbway" }));
+  check(!prep.offer, "MB WAY: no offer before payment (it comes after)");
+  await post("/api/pay", { ...d, method: "mbway" });
+  const [p] = await pays(d.o);
+  await fetch(`${mock}/__mbway`, { method: "POST", body: JSON.stringify({ requestId: p.requestId, status: "000" }) });
+  await new Promise((res) => setTimeout(res, 3200));
+  const st = await j(await fetch(`${base}/api/pay/status?o=${d.o}&t=${encodeURIComponent(d.t)}`));
+  check(st.state === "paid" && String(st.next).includes("/oferta"), "MB WAY paid -> one-time offer page");
+  const page = await (await fetch(`${base}/oferta?o=${d.o}&t=${encodeURIComponent(d.t)}`)).text();
+  check(page.includes("MB WAY") && page.includes("36,72"), "offer page: +1 box 36,72 € by MB WAY");
+  const up = await j(await post("/api/upsell", { ...d, offer: "boxes" }));
+  check(up.kind === "mbway" && up.paymentId, "accepting sends a new MB WAY request to the same phone");
+  const [ap] = (await pays(d.o)).filter((x) => x.addonId);
+  check(ap?.phone === "+351912345678" && ap.amountCents === 3672, "add-on MB WAY request: same phone, 36,72 €");
+  await fetch(`${mock}/__mbway`, { method: "POST", body: JSON.stringify({ requestId: ap.requestId, status: "000" }) });
+  await new Promise((res) => setTimeout(res, 3200));
+  const s2 = await j(await fetch(`${base}/api/upsell/status?o=${d.o}&t=${encodeURIComponent(d.t)}&p=${up.paymentId}`));
+  check(s2.state === "paid", "approved in the app -> add-on paid");
+  const o = await order(d.o);
+  check(o.costs?.paid === 8752 && o.costs?.boxes === 2, `snapshot: 87,52 € paid, 2 boxes (got ${o.costs?.paid})`);
+}
+
+// ---- Multibanco keeps the offer before payment ---------------------------------------------------------
+{
+  const d = await draft("x1");
+  const prep = await j(await post("/api/checkout/prepare", { ...d, method: "multibanco" }));
+  check(prep.offer?.priceCents === 3672, "Multibanco: one-time offer shown before payment");
+}
+
+{
+  const { dailyPnl, lisbonDay } = await import("../src/lib/profit");
+  const { getSettings } = await import("../src/lib/settings");
+  const today = lisbonDay(new Date());
+  const pnl = await dailyPnl(today, today, await getSettings());
+  check(pnl.total.orders >= 3 && pnl.total.profit !== 0, `finance: today's P&L includes the paid test orders (${pnl.total.orders} orders)`);
 }
 
 check((await callback({ m: "mbway", key: apk, orderId: "NOPE-1", amount: "1.00", payment_datetime: "x" })).status === 200, "unknown order acknowledged (no retries)");

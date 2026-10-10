@@ -123,6 +123,23 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <p className="text-xs text-muted">MB WAY and card payments can be refunded via ifthenpay (needs the backoffice key and enough daily balance). Multibanco has no refund API: return the money by bank transfer, then mark it refunded.</p>
         </section>
       </div>
+      {o.costs && (
+        <section className="rounded-lg border bg-white p-4">
+          <h2 className="font-semibold">Profit (snapshot at payment, Admin → Finance costs)</h2>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-5">
+            <Item k="Customer paid" v={eur(o.costs.paid)} />
+            <Item k="VAT" v={eur(o.costs.vat)} />
+            <Item k="Wine" v={eur(o.costs.wine)} />
+            <Item k="Gift boxes" v={eur(o.costs.gift_boxes)} />
+            <Item k="Shipping cartons" v={eur(o.costs.shipping_boxes)} />
+            <Item k="Delivery" v={eur(o.costs.delivery)} />
+            <Item k="Payment fees" v={eur(o.costs.payment_fees)} />
+            {o.costs.products > 0 && <Item k="Add-on products" v={eur(o.costs.products)} />}
+            {o.costs.other > 0 && <Item k="Other" v={eur(o.costs.other)} />}
+            <Item k="Profit" v={<span className={`font-bold ${o.costs.profit >= 0 ? "text-green-800" : "text-red-700"}`}>{eur(o.costs.profit)}</span>} />
+          </dl>
+        </section>
+      )}
       {payments.length > 0 && (
         <section className="rounded-lg border bg-white p-4">
           <h2 className="font-semibold">Payment attempts (ifthenpay)</h2>

@@ -17,9 +17,22 @@ export type Settings = {
   upsell_enabled: boolean;
   upsell_products: UpsellProduct[]; // shown with the one-time offer, before payment
   reviews: Review[]; // only real customer reviews; empty = section hidden
+  cost_model: CostModel; // per-order costs for the profit screen (Admin → Finance)
 };
 
-export type UpsellProduct = { key: string; name: string; description: string; price_cents: number; compare_cents: number; active: boolean; image?: string };
+/** All amounts in cents, excluding recoverable VAT. Edited in Admin → Finance. */
+export type CostModel = {
+  vat_percent: number; // VAT included in the customer price (wine 13%)
+  wine_per_box_cents: number; // the 3 wines of one Trilogia box
+  gift_box_cents: number; // one gift box per Trilogia box
+  shipping_box_cents: number; // one shipping carton per parcel
+  delivery_tiers: { max_boxes: number; cents: number }[]; // CTT cost by Trilogia boxes per parcel; above the last tier a new parcel starts
+  payment_fees: Record<PaymentFeeKey, { percent: number; fixed_cents: number }>; // percent of the amount the customer pays
+  other_per_order_cents: number; // anything else per order (labels, flyer...)
+};
+export type PaymentFeeKey = "card" | "mb_way" | "multibanco" | "other";
+
+export type UpsellProduct = { key: string; name: string; description: string; price_cents: number; compare_cents: number; active: boolean; image?: string; cost_cents?: number };
 export type Review = { name: string; city?: string; text: string; source?: string };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -62,6 +75,24 @@ export const DEFAULT_SETTINGS: Settings = {
     },
   ],
   reviews: [],
+  // From David's profit calculation (10/10/2026). Payment fee: 3% of what the customer pays, for every method.
+  cost_model: {
+    vat_percent: 13,
+    wine_per_box_cents: 1000,
+    gift_box_cents: 80,
+    shipping_box_cents: 230,
+    delivery_tiers: [
+      { max_boxes: 2, cents: 604 },
+      { max_boxes: 3, cents: 1100 },
+    ],
+    payment_fees: {
+      card: { percent: 3, fixed_cents: 0 },
+      mb_way: { percent: 3, fixed_cents: 0 },
+      multibanco: { percent: 3, fixed_cents: 0 },
+      other: { percent: 3, fixed_cents: 0 },
+    },
+    other_per_order_cents: 0,
+  },
 };
 
 export const PER_BOX_FLOOR_CENTS = 3900;

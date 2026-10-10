@@ -152,3 +152,21 @@ test("ifthenpay helpers", async () => {
   assert.equal(ifp.parseIfthenpayDate("01-07-2026 10:00:00")?.toISOString(), "2026-07-01T09:00:00.000Z");
   for (const t of Object.values(ifp.callbackTemplates("https://vinho.prendadenatal.com"))) assert.ok(t.length <= 300, `callback url <= 300 chars: ${t.length}`);
 });
+
+test("profit model reproduces David's numbers", async () => {
+  const { computeOrderCosts, deliveryCost, expensesByDay } = await import("../src/lib/profit");
+  const s = { cost_model: DEFAULT_SETTINGS.cost_model, upsell_products: DEFAULT_SETTINGS.upsell_products };
+  const o = (total: number, qty: number) => ({ totalCents: total, qtyBoxes: qty, paymentMethodType: "card" });
+  assert.equal(computeOrderCosts(o(5080, 1), [], s).profit, 2429);
+  assert.equal(computeOrderCosts(o(8262, 2), [], s).profit, 4070);
+  const c3 = computeOrderCosts(o(11705, 3), [], s);
+  assert.deepEqual([c3.vat, c3.wine, c3.gift_boxes, c3.shipping_boxes, c3.delivery, c3.payment_fees, c3.profit], [1347, 3000, 240, 230, 1100, 351, 5437]);
+  // 4 boxes: one full parcel of 3 + one of 1
+  assert.equal(deliveryCost(4, DEFAULT_SETTINGS.cost_model.delivery_tiers), 1100 + 604);
+  // add-on box after a 2-box order: 3 boxes in one parcel
+  const up = computeOrderCosts(o(8262, 2), [{ amountCents: 3443, boxes: 1, kind: "boxes", sku: "trilogia-2160" }], s, 2);
+  assert.equal(up.paid, 11705);
+  assert.equal(up.delivery, 1100);
+  const m = expensesByDay([{ date: "2026-11-01", endDate: "2026-11-10", amountCents: 1000 }], "2026-11-05", "2026-11-06");
+  assert.equal(m.get("2026-11-05"), 100);
+});

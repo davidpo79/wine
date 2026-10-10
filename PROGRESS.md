@@ -8,6 +8,8 @@ Last updated: 10/10/2026 (session 1)
 
 ## 10/10 (later): Stripe replaced by ifthenpay (MB WAY, card, Apple/Google Pay, Multibanco). One-time offer moved before payment (ifthenpay has no stored cards / pre-authorization). Telnyx WhatsApp + Telnyx Email added as providers (nothing activated in Telnyx). Setup: docs/IFTHENPAY.md.
 
+## 10/10 (later): hybrid payments: cards/Apple Pay/Google Pay via Stripe (one-click upsell with the saved card), MB WAY + Multibanco via ifthenpay (MB WAY upsell = new push to the same phone, Multibanco keeps the offer before payment). Admin → Finance: daily P&L (revenue, VAT, wine/boxes, shipping, payment fees, expenses, net profit), editable cost model seeded with David's numbers (reproduces 24,29 / 40,70 / 54,37), expenses with date ranges, profit per order (orders list + order page), CSV.
+
 ## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (ifthenpay keys, email, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
 
 ## Done
@@ -73,6 +75,8 @@ See "Gate 1 inputs" below. Without ifthenpay keys the end-to-end checkout and th
 ## Gate 1 inputs needed
 | Item | Where it goes |
 |---|---|
+| Stripe TEST keys (`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`) + webhook `/api/webhooks/stripe` (payment_intent.succeeded, payment_intent.payment_failed, payment_intent.canceled, charge.refunded) → `STRIPE_WEBHOOK_SECRET`; register the Apple Pay domain in Stripe | Railway (web service) |
+| Cost of the Espumante and Porto (Admin → Finance) | admin |
 | ifthenpay keys: MB WAY, Multibanco, CCARD (+ test keys; MB WAY has no sandbox), Backoffice key; optional Gateway/Apple/Google keys → `IFTHENPAY_*` | Railway (web service), see docs/IFTHENPAY.md |
 | ifthenpay callbacks: set `IFTHENPAY_ANTI_PHISHING_KEY`, then `npx tsx scripts/ifthenpay-callbacks.ts --activate` (or send ifthenpay the printed URLs) | ifthenpay |
 | Photos of the Espumante and Porto Vintage for the offer (URL in Admin → Settings) | admin |

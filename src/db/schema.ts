@@ -118,6 +118,7 @@ export const orders = pgTable(
     discountCents: integer("discount_cents").notNull().default(0),
     ebookKeyIssuedAt: timestamp("ebook_key_issued_at", { withTimezone: true }),
     purchaseReportedAt: timestamp("purchase_reported_at", { withTimezone: true }),
+    costs: jsonb("costs").$type<Record<string, number>>(), // cost/profit snapshot (cents) taken when paid; see lib/profit.ts
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     shippedAt: timestamp("shipped_at", { withTimezone: true }),
@@ -247,6 +248,7 @@ export const payments = pgTable(
     paidMethod: text("paid_method"), // from the callback: MB | MBWAY | CCARD | APPLE | GOOGLE
     paidAt: timestamp("paid_at", { withTimezone: true }),
     refundedCents: integer("refunded_cents").notNull().default(0),
+    addonId: integer("addon_id"), // set when this payment is for a post-purchase add-on
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("payments_order_idx").on(t.orderId), index("payments_status_idx").on(t.status, t.createdAt), index("payments_request_idx").on(t.requestId)],
@@ -268,6 +270,22 @@ export const recoverySteps = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("recovery_due_idx").on(t.status, t.scheduledAt), index("recovery_order_idx").on(t.orderId)],
+);
+
+// Business expenses outside the per-order costs (ads, agency, tools, overheads). Amounts exclude recoverable VAT.
+// A range (date..endDate) is spread evenly per day, e.g. a monthly tool or a campaign budget.
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: serial("id").primaryKey(),
+    date: text("date").notNull(), // YYYY-MM-DD (Lisbon)
+    endDate: text("end_date"), // YYYY-MM-DD inclusive, optional
+    category: text("category").notNull(), // ads_meta | agency | packaging | tools | other ...
+    description: text("description").notNull().default(""),
+    amountCents: integer("amount_cents").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("expenses_date_idx").on(t.date)],
 );
 
 export const adminUsers = pgTable("admin_users", {
@@ -305,3 +323,4 @@ export type Creative = typeof creatives.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type OrderAddon = typeof orderAddons.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
+export type Expense = typeof expenses.$inferSelect;

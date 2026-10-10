@@ -11,10 +11,13 @@ import { boxesOffer, productOffers } from "@/lib/upsell";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { SITE } from "@/lib/site";
+import { stripeConfigured } from "@/lib/stripe";
 
 // Called when the customer clicks "Pagar": final validation, InitiateCheckout, and (once per order) the one-time offer.
 export async function POST(req: Request) {
-  const parsed = z.object({ o: z.string().max(40), t: z.string().max(80) }).safeParse(await req.json().catch(() => null));
+  const parsed = z
+    .object({ o: z.string().max(40), t: z.string().max(80), method: z.enum(["mbway", "multibanco", "card", "wallet"]).optional() })
+    .safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || order.status !== "pending_payment") return Response.json({ error: "Esta encomenda já não está disponível." }, { status: 409 });
@@ -40,11 +43,14 @@ export async function POST(req: Request) {
   }
   if (consent.marketing && !order.consentTracking) await db.update(schema.orders).set({ consentTracking: true }).where(eq(schema.orders.id, order.id));
 
-  // One-time offer: shown once per order, before payment, so it is paid together (no stored cards needed).
+  // One-time offer before payment only where no one-click offer is possible after it (Multibanco, ifthenpay card page).
+  // Card via Stripe (saved card) and MB WAY (new push to the same phone) get the offer right after paying instead.
   let offer = null;
   let products: ReturnType<typeof productOffers> = [];
   const [settings, catalog] = await Promise.all([getSettings(), getCatalog()]);
-  if (settings.upsell_enabled && catalog) {
+  const m = parsed.data.method;
+  const afterPayment = m === "mbway" || (m === "card" && stripeConfigured());
+  if (settings.upsell_enabled && catalog && !afterPayment) {
     const shown = await db
       .select({ id: schema.orderEvents.id })
       .from(schema.orderEvents)

@@ -200,3 +200,15 @@ export async function sendPaymentIssueAlert(orderId: string, message: string) {
   const html = layout("Atenção: pagamento", `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
   return send(null, to, `[Pagamento] ${orderId}: verificar`, html, "payment_issue");
 }
+
+export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
+  if (!o.email) return;
+  const html = layout(
+    "Oferta adicionada",
+    `<p>Olá ${esc((o.customerName ?? "").split(" ")[0])},</p>
+<p>Obrigado! Juntámos à sua encomenda <strong>${esc(o.id)}</strong>:</p>
+<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253"><strong>${esc(a.label)}</strong><br>${eur(a.amountCents)} (IVA incluído)</p>
+<p>Segue tudo na mesma entrega, sem portes adicionais.</p>`,
+  );
+  return send(o, o.email, `Encomenda ${o.id}: oferta adicionada`, html, "addon_confirmation");
+}

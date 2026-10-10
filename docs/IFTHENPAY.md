@@ -1,6 +1,6 @@
 # ifthenpay setup (payments)
 
-Stripe was replaced by ifthenpay (10/10/2026). Source: David's "ifthenpay Integration Pack" (built from the official docs, June 2026).
+Payments are split (10/10/2026): **cards, Apple Pay, Google Pay via Stripe** (saved card, one-click upsell); **MB WAY and Multibanco via ifthenpay** (lower fees). Without Stripe keys, cards fall back to the ifthenpay card page. Source: David's "ifthenpay Integration Pack" (built from the official docs, June 2026).
 
 ## How the checkout pays
 
@@ -23,7 +23,11 @@ Safety rules in code:
 
 ## One-time offer (upsell)
 
-ifthenpay has no stored cards / tokenization and no documented pre-authorization ("transaction on hold"), so a one-click charge after payment is not possible. The offer is shown once, when the customer clicks "Pagar", before the payment starts: "Oferta única", big discount, "Ainda pode juntar à sua encomenda". Accepted items go into `order_addons` (status `pending`) and are paid in the same payment; they become `paid` with the order.
+ifthenpay has no stored cards / tokenization and no documented pre-authorization, so:
+- **Card (Stripe)**: after payment → `/oferta`, "Sim, adicionar com 1 clique" charges the saved card (3-D Secure in the browser if the bank asks).
+- **MB WAY**: after payment → `/oferta`, "Sim, adicionar" sends a new MB WAY request to the same phone; the customer approves in the app.
+- **Multibanco / ifthenpay card page**: the offer is shown once when the customer clicks "Pagar", before payment, and is paid together.
+Each post-purchase add-on is its own payment row (`payments.addon_id`), with its own Purchase event and cost snapshot.
 
 ## What David needs to do
 
@@ -55,4 +59,4 @@ Admin → order → "Refund via ifthenpay" works for MB WAY, card, Apple/Google 
 ## Tests
 
 - `npx tsx --test tests/unit.test.ts`: signature test vector, amounts, phone format, callback parsing, Lisbon dates.
-- `npx tsx scripts/mock-ifthenpay.ts 4599` + app with `IFTHENPAY_API_BASE=http://localhost:4599` + `npx tsx scripts/test-payments.ts`: 32 checks (MB WAY with offer, Multibanco callbacks incl. wrong key / wrong amount / duplicate / paid twice, card signed return, cancel, reconciliation, refund rules).
+- `npx tsx scripts/mock-ifthenpay.ts 4599` (also mocks Stripe) + app with `IFTHENPAY_API_BASE=http://localhost:4599` (and `STRIPE_API_BASE` for the hybrid) + `npx tsx scripts/test-payments.ts`: 52 checks with Stripe, 41 ifthenpay-only (MB WAY with offer, Multibanco callbacks incl. wrong key / wrong amount / duplicate / paid twice, card signed return, cancel, reconciliation, refund rules).

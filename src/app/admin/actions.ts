@@ -12,7 +12,8 @@ import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
 import { ebookLink, sendConfirmation, sendShipped } from "@/lib/email";
 import { orderAddons, refundOrder } from "@/lib/payments";
 import { parseEuroToCents } from "@/lib/money";
-import { PER_BOX_FLOOR_CENTS, type PostCutoffMode } from "@/lib/settings-defaults";
+import { PER_BOX_FLOOR_CENTS, type PostCutoffMode, type Settings } from "@/lib/settings-defaults";
+import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
@@ -272,4 +273,71 @@ export async function creativeAction(_: FormState, fd: FormData): Promise<FormSt
   await db.update(schema.creatives).set({ status: decision, feedback }).where(inArray(schema.creatives.id, ids));
   revalidatePath("/admin/creatives");
   return { ok: decision === "approved" ? "Approved." : decision === "rejected" ? "Rejected." : "Reset." };
+}
+
+// ---- Finance -------------------------------------------------------------------------------------
+
+const euro = (fd: FormData, name: string) => parseEuroToCents(String(fd.get(name) ?? "0") || "0");
+const pct = (fd: FormData, name: string) => {
+  const n = Number(String(fd.get(name) ?? "").replace(",", "."));
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null;
+};
+
+export async function costModelAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  const settings = await getSettings();
+  const vat = pct(fd, "vat_percent");
+  const fields = ["wine_per_box", "gift_box", "shipping_box", "other_per_order"].map((k) => euro(fd, k));
+  if (vat == null || fields.some((v) => v == null)) return { error: "Invalid amount (use 12,50) or percentage." };
+  const tiers: { max_boxes: number; cents: number }[] = [];
+  for (let i = 0; i < 6; i++) {
+    const max = Number(fd.get(`tier_max_${i}`) ?? "");
+    const raw = String(fd.get(`tier_cost_${i}`) ?? "").trim();
+    if (!raw && !max) continue;
+    const c = parseEuroToCents(raw);
+    if (!Number.isInteger(max) || max < 1 || c == null) return { error: `Delivery row ${i + 1}: boxes must be a whole number and cost an amount.` };
+    tiers.push({ max_boxes: max, cents: c });
+  }
+  if (!tiers.length) return { error: "Add at least one delivery row." };
+  const fees = {} as Settings["cost_model"]["payment_fees"];
+  for (const k of ["card", "mb_way", "multibanco", "other"] as const) {
+    const p = pct(fd, `fee_pct_${k}`);
+    const f = euro(fd, `fee_fixed_${k}`);
+    if (p == null || f == null) return { error: `Invalid payment fee for ${k}.` };
+    fees[k] = { percent: p, fixed_cents: f };
+  }
+  const [wine, gift, ship, other] = fields as number[];
+  const model = { vat_percent: vat, wine_per_box_cents: wine, gift_box_cents: gift, shipping_box_cents: ship, delivery_tiers: tiers.sort((a, b) => a.max_boxes - b.max_boxes), payment_fees: fees, other_per_order_cents: other };
+  await setSetting("cost_model", model);
+  // Cost of the extra products offered in the upsell.
+  const products = settings.upsell_products.map((p) => {
+    const c = parseEuroToCents(String(fd.get(`product_cost_${p.key}`) ?? "") || "0");
+    return { ...p, cost_cents: c ?? p.cost_cents ?? 0 };
+  });
+  await setSetting("upsell_products", products);
+  let msg = "Costs saved. New orders use them.";
+  if (fd.get("apply_past") === "on") {
+    const n = await resnapshotAll({ cost_model: model, upsell_products: products });
+    msg = `Costs saved and applied to ${n} past paid orders.`;
+  }
+  revalidatePath("/admin/finance");
+  return { ok: msg };
+}
+
+export async function expenseAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  if (fd.get("action") === "delete") {
+    await db.delete(schema.expenses).where(eq(schema.expenses.id, Number(fd.get("id"))));
+    revalidatePath("/admin/finance");
+    return { ok: "Deleted." };
+  }
+  const date = String(fd.get("date") ?? "");
+  const endDate = String(fd.get("end_date") ?? "") || null;
+  const amount = parseEuroToCents(String(fd.get("amount") ?? ""));
+  const category = String(fd.get("category") ?? "other").slice(0, 40);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || (endDate && (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < date))) return { error: "Invalid date range." };
+  if (amount == null || amount <= 0) return { error: "Invalid amount (use 120,00)." };
+  await db.insert(schema.expenses).values({ date, endDate, category, description: String(fd.get("description") ?? "").trim().slice(0, 200), amountCents: amount });
+  revalidatePath("/admin/finance");
+  return { ok: "Expense added." };
 }

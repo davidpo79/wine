@@ -3,7 +3,10 @@
 Staging: https://vinho.prendadenatal.com (ifthenpay sandbox / test keys once set)
 Admin: https://vinho.prendadenatal.com/admin
 
-## Test payments (ifthenpay sandbox, see docs/IFTHENPAY.md)
+## Test payments
+Stripe test mode (cards): `4242 4242 4242 4242`, any future date/CVC; 3-D Secure `4000 0027 6000 3184`. After paying, accept the one-click offer on `/oferta`.
+
+ifthenpay sandbox (see docs/IFTHENPAY.md):
 - Card (sandbox): success `4012 0010 3714 1112`, CVC 212, exp 12/27. Error: `4761 7390 0101 0135`, CVC 608, exp 12/29.
 - Multibanco (sandbox): choose Multibanco; the thank-you page shows entity/reference. Simulate the payment with the ifthenpay Webhook Tester (method MB, same orderId/amount/reference).
 - MB WAY: no sandbox. Needs a test key from ifthenpay, or one real small payment refunded from the admin.

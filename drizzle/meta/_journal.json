@@ -50,6 +50,13 @@
       "when": 1791650005357,
       "tag": "0006_ifthenpay_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791654717299,
+      "tag": "0007_finance_and_upsell_payments",
+      "breakpoints": true
     }
   ]
 }

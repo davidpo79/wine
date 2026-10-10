@@ -56,20 +56,19 @@ for (const w of [390, 320, 1280]) {
     ok(((await p.textContent("#e-postalCode").catch(() => "")) ?? "").includes("Continental"), "islands postal code rejected");
     await p.fill("#f-postalCode", "1000-001");
     await p.fill("#f-city", "Lisboa");
+    // Multibanco: the one-time offer comes before payment (no one-click possible afterwards).
+    await p.check("input[name=method][value=multibanco]");
     await p.click("form button[type=submit]");
     await p.waitForTimeout(2500);
     const offerText = (await p.textContent("dialog[open]").catch(() => "")) ?? "";
-    ok(offerText.includes("Oferta única") && offerText.includes("Ainda pode juntar"), "Pagar opens the one-time offer (needs ifthenpay keys or the mock)");
+    ok(offerText.includes("Oferta única") && offerText.includes("Ainda pode juntar"), "Multibanco: Pagar opens the one-time offer (needs ifthenpay keys or the mock)");
     const img = await p.$eval("dialog[open] img", (i) => ({ ok: (i as HTMLImageElement).naturalWidth > 0, fit: getComputedStyle(i).objectFit })).catch(() => null);
     ok(!!img?.ok && img.fit === "contain", "offer photo loads and is not cropped (object-fit: contain)");
-    if (process.env.SHOTS) await p.screenshot({ path: `${process.env.SHOTS}/offer-${w}.png` });
-    await p.click("dialog[open] >> text=Sim, juntar à encomenda");
-    await p.waitForTimeout(2500);
-    const sheet = (await p.textContent("[role=dialog]").catch(() => "")) ?? "";
-    ok(sheet.includes("Confirme na app MB WAY"), "accepting the offer sends the MB WAY request (waiting screen)");
-    if (process.env.SHOTS) await p.screenshot({ path: `${process.env.SHOTS}/mbway-${w}.png` });
-    const after = await fetch(`${url.replace(/\/$/, "")}/api/checkout?o=${encodeURIComponent(o)}&t=${encodeURIComponent(new URL(p.url()).searchParams.get("t")!)}`).then((r) => r.json());
-    ok(after.amounts?.addons?.length === 1 && after.amounts.total === 8262 + 3443, `offer added to the same order (total ${after.amounts?.total})`);
+    const t = new URL(p.url()).searchParams.get("t")!;
+    await Promise.all([p.waitForURL(/\/obrigado/, { timeout: 15000 }), p.click("dialog[open] >> text=Sim, juntar à encomenda")]);
+    const ty = (await p.textContent("main")) ?? "";
+    ok(ty.includes("Entidade") && ty.includes("117,05"), "accepting adds the box and shows the Multibanco reference for 117,05 €");
+    await p.goto(`${url.replace(/\/$/, "")}/checkout?o=${encodeURIComponent(o)}&t=${encodeURIComponent(t)}`, { waitUntil: "networkidle" });
     await p.reload({ waitUntil: "networkidle" });
     ok((await p.inputValue("#f-city")) === "Lisboa", "reload resumes the same checkout with saved data");
   }
