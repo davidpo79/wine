@@ -2,24 +2,45 @@
 
 import { useEffect, useState } from "react";
 
-/** Real countdown to the Christmas cutoff from settings. Renders nothing before mount (no hydration mismatch) or after the cutoff. */
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Real countdown to the Christmas cutoff from settings (dias : horas : min : seg), ticking every second.
+ * Renders nothing before mount (no hydration mismatch) or after the cutoff.
+ */
 export function DeadlineCountdown({ cutoffIso, className, short = false }: { cutoffIso: string; className?: string; short?: boolean }) {
   const cutoff = new Date(cutoffIso).getTime();
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     setNow(Date.now());
-    const t = setInterval(() => setNow(Date.now()), 30_000);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
   if (now === null || now >= cutoff) return null;
-  const ms = cutoff - now;
-  const d = Math.floor(ms / 86_400_000);
-  const h = Math.floor((ms % 86_400_000) / 3_600_000);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
-  const left = d > 7 ? `${d} dias` : d >= 1 ? `${d}d ${String(h).padStart(2, "0")}h ${String(m).padStart(2, "0")}m` : `${h}h ${String(m).padStart(2, "0")}m`;
+  const s = Math.floor((cutoff - now) / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const label = `Faltam ${d} dias, ${h} horas e ${m} minutos para encomendar a tempo do Natal`;
+  if (short) {
+    return (
+      <span className={className} role="timer" aria-label={label}>
+        Natal: {d}d {pad(h)}:{pad(m)}:{pad(sec)}
+      </span>
+    );
+  }
   return (
-    <span className={className} role="timer" aria-live="off">
-      {short ? `Faltam ${left} para o Natal` : `Faltam ${left} para encomendar a tempo do Natal`}
+    <span className={`${className ?? ""} countdownbox`} role="timer" aria-label={label}>
+      <span className="cdtitle">Encomendas a tempo do Natal fecham em</span>
+      <span className="cdunits" aria-hidden="true">
+        {([[d, "dias"], [h, "horas"], [m, "min"], [sec, "seg"]] as const).map(([v, u]) => (
+          <span key={u} className="cdunit">
+            <b>{u === "dias" ? v : pad(v)}</b>
+            <small>{u}</small>
+          </span>
+        ))}
+      </span>
     </span>
   );
 }

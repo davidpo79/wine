@@ -45,7 +45,13 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .promonote{margin:12px 0 10px;padding:9px 12px;border-radius:6px;background:#edf5e9;border:1px solid #cfe0c8;color:var(--green);font-size:12px;font-weight:bold;text-align:center}
 .promonote.muted{background:#f6f3ea;border-color:var(--line);color:var(--muted);font-weight:normal}
 .countdownline{display:block;text-align:center;margin-top:9px;font-size:11px;font-weight:bold;color:var(--red)}
-.stickycount{display:block;font-size:10px;color:var(--red);font-weight:bold}
+.countdownbox{display:grid;justify-items:center;gap:6px;margin-top:12px}
+.countdownbox .cdtitle{font-size:12px;font-weight:bold;letter-spacing:.04em;color:var(--red)}
+.countdownbox .cdunits{display:flex;gap:6px}
+.countdownbox .cdunit{display:grid;justify-items:center;min-width:52px;padding:6px 4px 5px;border-radius:8px;background:var(--red);color:#fff;line-height:1}
+.countdownbox .cdunit b{font-size:22px;font-variant-numeric:tabular-nums}
+.countdownbox .cdunit small{margin-top:3px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.stickycount{display:block;font-size:10px;color:var(--red);font-weight:bold;font-variant-numeric:tabular-nums}
 .sticky button.cta{width:auto;white-space:nowrap}
 @media(max-width:760px){.stickycount{font-size:9px}}
 /* Exit-intent popup */
