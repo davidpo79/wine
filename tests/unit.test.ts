@@ -69,3 +69,14 @@ test("order transitions", () => {
 test("csv escaping", () => {
   assert.equal(toCsv(["a", "b"], [["x;y", 'q"z']]), '﻿a;b\r\n"x;y";"q""z"\r\n');
 });
+
+test("promo discount respects max qty and per-box floor", async () => {
+  const { promoDiscountCents } = await import("../src/lib/promo");
+  const cfg = { code: "NATAL5", percent: 5, maxQty: 2 };
+  assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, cfg, " natal5 "), 230);
+  assert.equal(promoDiscountCents({ priceCents: 8262, qty: 2 }, cfg, "NATAL5"), 413);
+  assert.equal(promoDiscountCents({ priceCents: 11705, qty: 3 }, cfg, "NATAL5"), 0);
+  assert.equal(promoDiscountCents({ priceCents: 8000, qty: 2 }, cfg, "NATAL5"), 200); // clamped to 2 x 39,00
+  assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, cfg, "WRONG"), 0);
+  assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, null, "NATAL5"), 0);
+});

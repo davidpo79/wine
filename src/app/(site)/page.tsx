@@ -50,9 +50,9 @@ export default async function Home() {
   };
 
   return (
-    <BuyProvider bundles={bundles} defaultKey={defaultKey} mode={mode}>
+    <BuyProvider bundles={bundles} defaultKey={defaultKey} mode={mode} promoConfig={settings.lead_code && settings.lead_discount_percent > 0 ? { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty } : null}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <LandingPage deliveryText={settings.delivery_text} cutoffLabel={cutoffLabel} />
+      <LandingPage deliveryText={settings.delivery_text} cutoffLabel={cutoffLabel} cutoffIso={settings.cutoff_at} exitPopup={settings.exit_popup_enabled} />
     </BuyProvider>
   );
 }

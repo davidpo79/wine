@@ -9,14 +9,14 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const rows = await queryOrders(Object.fromEntries(sp), ["paid", "preparing", "shipped", "delivered", "refunded"]);
   const csv = toCsv(
-    ["encomenda", "data_pagamento", "estado", "nome", "nif", "email", "morada_faturacao", "codigo_postal", "localidade", "produto", "caixas", "garrafas", "subtotal_iva_incl", "portes_iva_incl", "total_iva_incl", "metodo_pagamento", "stripe_payment_intent", "n_fatura"],
+    ["encomenda", "data_pagamento", "estado", "nome", "nif", "email", "morada_faturacao", "codigo_postal", "localidade", "produto", "caixas", "garrafas", "desconto_iva_incl", "codigo", "subtotal_iva_incl", "portes_iva_incl", "total_iva_incl", "metodo_pagamento", "stripe_payment_intent", "n_fatura"],
     rows.map((o) => {
       const b = o.billingAddress ?? o.shippingAddress ?? {};
       return [
         o.id, lisbonDateTime(o.paidAt), o.status, o.customerName, o.nif, o.email,
         [b.line1, b.line2].filter(Boolean).join(", "), b.postal_code, b.city,
         `Trilogia 2160 (${o.bundleKey})`, o.qtyBoxes, o.qtyBoxes * 3,
-        euros(o.subtotalCents), euros(o.shippingCents), euros(o.totalCents),
+        euros(o.discountCents), o.promoCode, euros(o.subtotalCents), euros(o.shippingCents), euros(o.totalCents),
         o.paymentMethodType, o.stripePaymentIntentId, o.invoiceNumber,
       ];
     }),

@@ -41,6 +41,37 @@ for (const w of [390, 320, 1280]) {
   ok(errs.length === 0, `${w}px no console errors ${errs.length ? JSON.stringify(errs) : ""}`);
   await ctx.close();
 }
+// Exit-intent popup + promo code (desktop)
+{
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+  const host = new URL(url).hostname;
+  await ctx.addCookies([{ name: "wp_consent", value: encodeURIComponent('{"v":1,"s":0,"m":0}'), domain: host, path: "/" }]);
+  const p = await ctx.newPage();
+  await p.goto(url, { waitUntil: "networkidle" });
+  await p.evaluate(() => document.dispatchEvent(new MouseEvent("mouseout", { clientY: 0, bubbles: true })));
+  ok(!(await p.$eval(".exitdialog", (d) => (d as HTMLDialogElement).open)), "exit popup does not open before 15s");
+  await p.waitForTimeout(15500);
+  await p.evaluate(() => document.dispatchEvent(new MouseEvent("mouseout", { clientY: 0, bubbles: true })));
+  ok(await p.$eval(".exitdialog", (d) => (d as HTMLDialogElement).open), "exit popup opens on exit intent after 15s");
+  await p.fill("#exit-name", "Teste Lead");
+  await p.fill("#exit-email", `lead${Date.now()}@example.com`);
+  await p.check(".exitconsent input");
+  await p.click(".exitform button[type=submit]");
+  await p.waitForSelector(".exitcode", { timeout: 8000 });
+  ok((await p.textContent(".exitcode"))?.trim() === "NATAL5", "popup shows code NATAL5");
+  await p.click(".exitdialog .cta");
+  await p.click('#bundles-final [data-qty="2"]');
+  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("78,49") ?? false, "2 boxes with code: total 78,49 €");
+  await p.click('#bundles-final [data-qty="3"]');
+  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("117,05") ?? false, "3 boxes: code not applied (117,05 €)");
+  await p.reload({ waitUntil: "networkidle" });
+  await p.waitForTimeout(16000);
+  await p.evaluate(() => document.dispatchEvent(new MouseEvent("mouseout", { clientY: 0, bubbles: true })));
+  ok(!(await p.$eval(".exitdialog", (d) => (d as HTMLDialogElement).open)), "popup not shown again after a lead");
+  ok((await p.textContent(".sticky small"))?.includes("NATAL5") ?? false, "code persists after reload");
+  await ctx.close();
+}
+
 await b.close();
 console.log(fails ? `${fails} FAILED` : "all landing checks passed");
 process.exit(fails ? 1 : 0);

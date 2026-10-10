@@ -11,12 +11,14 @@ import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent, sendCapi
 import { SITE } from "@/lib/site";
 import { clientIp } from "@/lib/request";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
+import { normalizeCode, promoDiscountCents } from "@/lib/promo";
 
 const Body = z.object({
   bundle_key: z.string().regex(/^[a-z0-9_]{1,20}$/),
   is_gift: z.boolean().optional().default(false),
   gift_message: z.string().max(200).optional().default(""),
   event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
+  promo: z.string().max(40).optional(),
 });
 
 const PAYMENT_METHODS = (process.env.STRIPE_PAYMENT_METHODS ?? "card,mb_way,multibanco")
@@ -65,7 +67,12 @@ export async function POST(req: Request) {
   const orderId = await nextOrderId();
   const eventId = input.event_id ?? `ic_${orderId}`;
   const initiateEventId = `ic_${orderId}`;
-  const total = bundle.priceCents + bundle.shippingCents;
+  // Promo code (exit popup): validated and computed on the server only.
+  const promoCfg = { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty };
+  const discount = promoDiscountCents(bundle, promoCfg, input.promo);
+  const promoCode = discount > 0 ? normalizeCode(input.promo) : null;
+  const subtotal = bundle.priceCents - discount;
+  const total = subtotal + bundle.shippingCents;
   const bottles = bundle.qty * 3;
 
   await db.insert(schema.orders).values({
@@ -74,7 +81,9 @@ export async function POST(req: Request) {
     bundleId: bundle.id,
     bundleKey: bundle.key,
     qtyBoxes: bundle.qty,
-    subtotalCents: bundle.priceCents,
+    subtotalCents: subtotal,
+    discountCents: discount,
+    promoCode,
     shippingCents: bundle.shippingCents,
     totalCents: total,
     currency: "eur",
@@ -102,6 +111,7 @@ export async function POST(req: Request) {
     gift_message: giftMessage,
     is_gift: input.is_gift ? "1" : "0",
     consent_tracking: consent.marketing ? "1" : "0",
+    promo_code: promoCode ?? "",
     ...Object.fromEntries(Object.entries(utm ?? {}).map(([k, v]) => [k, String(v).slice(0, 100)])),
   };
 
@@ -119,9 +129,9 @@ export async function POST(req: Request) {
             quantity: 1,
             price_data: {
               currency: "eur",
-              unit_amount: bundle.priceCents,
+              unit_amount: subtotal,
               product_data: {
-                name: `Trilogia 2160 · ${bundle.label}`,
+                name: `Trilogia 2160 · ${bundle.label}${promoCode ? ` · código ${promoCode} (−${(discount / 100).toFixed(2).replace(".", ",")} €)` : ""}`,
                 description: `${bundle.qty} ${bundle.qty === 1 ? "caixa de oferta" : "caixas de oferta"} com Rosé 2024, Branco 2025 e Tinto 2023, Douro DOC (${bottles} garrafas). Inclui o livro de receitas Sabores de Portugal.`,
                 images: imageUrl ? [imageUrl] : undefined,
               },
@@ -178,7 +188,7 @@ export async function POST(req: Request) {
   }
 
   await db.update(schema.orders).set({ stripeSessionId: session.id }).where(eq(schema.orders.id, orderId));
-  await logOrderEvent(orderId, "checkout_created", { session_id: session.id, bundle_key: bundle.key, total_cents: total });
+  await logOrderEvent(orderId, "checkout_created", { session_id: session.id, bundle_key: bundle.key, total_cents: total, promo_code: promoCode, discount_cents: discount });
 
   // InitiateCheckout: server side, deduplicated with the browser event via the same event_id.
   await logFunnel("InitiateCheckout", initiateEventId, orderId);

@@ -15,6 +15,13 @@
       "when": 1791644842920,
       "tag": "0001_reference_prices",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791646365338,
+      "tag": "0002_leads_and_promo",
+      "breakpoints": true
     }
   ]
 }

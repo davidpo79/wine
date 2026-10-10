@@ -40,6 +40,16 @@ export default async function SettingsPage() {
           <textarea name="ebook_previews" rows={4} defaultValue={(s.ebook_previews ?? []).join("\n")} placeholder="public/ebook/page-1.jpg" className="mt-1 w-full rounded border p-2 font-mono text-xs font-normal" />
           <span className="block text-xs font-normal text-muted">Generated with npm run ebook:previews. Empty: the site shows illustrated cards.</span>
         </label>
+        <fieldset className="rounded border p-3">
+          <legend className="px-1 font-semibold">Exit popup and discount code</legend>
+          <label className="flex items-center gap-2"><input type="checkbox" name="exit_popup_enabled" defaultChecked={s.exit_popup_enabled} className="h-4 w-4" /> Show exit-intent popup</label>
+          <div className="mt-2 flex flex-wrap gap-3">
+            <label>Code<input name="lead_code" defaultValue={s.lead_code} className="mt-1 block w-32 rounded border p-2 font-mono uppercase" /></label>
+            <label>Discount %<input name="lead_discount_percent" type="number" min={0} max={30} defaultValue={s.lead_discount_percent} className="mt-1 block w-24 rounded border p-2" /></label>
+            <label>Valid up to (boxes)<input name="lead_code_max_qty" type="number" min={1} max={10} defaultValue={s.lead_code_max_qty} className="mt-1 block w-24 rounded border p-2" /></label>
+          </div>
+          <p className="mt-1 text-xs text-muted">The discount never takes a bundle below the €39.00 per-box floor. The code keeps working even if the popup is off.</p>
+        </fieldset>
         <Submit>Save settings</Submit>
       </ActionForm>
     </div>

@@ -8,6 +8,10 @@ export type Settings = {
   stock_cap_boxes: number | null;
   delivery_text: string;
   ebook_previews: string[]; // bucket keys of rasterized e-book pages
+  exit_popup_enabled: boolean;
+  lead_code: string; // discount code given in the exit popup
+  lead_discount_percent: number;
+  lead_code_max_qty: number; // code applies to bundles up to this many boxes
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +28,10 @@ export const DEFAULT_SETTINGS: Settings = {
   stock_cap_boxes: null,
   delivery_text: "Entrega em 2 a 4 dias úteis · Portugal Continental",
   ebook_previews: [],
+  exit_popup_enabled: true,
+  lead_code: "NATAL5",
+  lead_discount_percent: 5,
+  lead_code_max_qty: 2,
 };
 
 export const PER_BOX_FLOOR_CENTS = 3900;

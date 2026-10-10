@@ -107,6 +107,8 @@ export const orders = pgTable(
     trackingNumber: text("tracking_number"),
     invoiceNumber: text("invoice_number"),
     notes: text("notes"),
+    promoCode: text("promo_code"),
+    discountCents: integer("discount_cents").notNull().default(0),
     ebookKeyIssuedAt: timestamp("ebook_key_issued_at", { withTimezone: true }),
     purchaseReportedAt: timestamp("purchase_reported_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -168,6 +170,25 @@ export const creatives = pgTable("creatives", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const leads = pgTable(
+  "leads",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    consentMarketing: boolean("consent_marketing").notNull(),
+    consentText: text("consent_text").notNull(),
+    source: text("source").notNull().default("exit_popup"),
+    promoCode: text("promo_code"),
+    utm: jsonb("utm").$type<Utm>(),
+    ipHash: text("ip_hash"),
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("leads_created_idx").on(t.createdAt)],
+);
+
 export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -200,3 +221,4 @@ export type Product = typeof products.$inferSelect;
 export type Bundle = typeof bundles.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Creative = typeof creatives.$inferSelect;
+export type Lead = typeof leads.$inferSelect;

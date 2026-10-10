@@ -1,5 +1,6 @@
 import { Resend } from "resend";
-import type { Order } from "@/db/schema";
+import type { Lead, Order } from "@/db/schema";
+import { unsubscribeUrl } from "./leads";
 import { eur } from "./money";
 import { SITE } from "./site";
 import { bucketConfigured, presignedGet } from "./bucket";
@@ -122,4 +123,32 @@ export async function sendAdminAlert(o: Order) {
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
   return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents)}`, html, "admin_alert");
+}
+
+export async function sendLeadCode(lead: Lead, code: string, percent: number, maxQty: number) {
+  const first = lead.name.split(" ")[0];
+  const scope = maxQty === 1 ? "em 1 caixa" : `em 1 a ${maxQty} caixas`;
+  const html = layout(
+    "O seu código de Natal",
+    `<p>Olá ${esc(first)},</p>
+<p>Aqui está o seu código com <strong>${percent}% de desconto</strong> ${scope} da Trilogia 2160:</p>
+<p style="font-size:26px;letter-spacing:3px;font-weight:bold;text-align:center;background:#F6EFE2;padding:14px;border:2px dashed #C8A253">${esc(code)}</p>
+${button(`${SITE.url}/?codigo=${encodeURIComponent(code)}#escolher`, "Usar o código agora")}
+<p>Três vinhos do Douro (branco, rosé e tinto) numa caixa de Natal, com o guia digital Sabores de Portugal oferecido. Encomendas até 30/11 chegam antes do Natal.</p>
+<p style="font-size:12px;color:#55606e">Recebeu este email porque pediu o código no nosso site. <a href="${unsubscribeUrl(SITE.url, lead.email)}" style="color:#55606e">Não quero receber mais emails</a>.</p>`,
+  );
+  return send(null, lead.email, `O seu código ${code}: ${percent}% na Trilogia 2160`, html, "lead_code");
+}
+
+export async function sendLeadReminder(lead: Lead, code: string, percent: number, cutoffLabel: string) {
+  const first = lead.name.split(" ")[0];
+  const html = layout(
+    "Últimos dias para o Natal",
+    `<p>Olá ${esc(first)},</p>
+<p>Só um lembrete: as encomendas para entrega antes do Natal fecham a <strong>${esc(cutoffLabel)}</strong>.</p>
+<p>O seu código <strong>${esc(code)}</strong> (${percent}% de desconto) continua válido.</p>
+${button(`${SITE.url}/?codigo=${encodeURIComponent(code)}#escolher`, "Escolher a minha prenda")}
+<p style="font-size:12px;color:#55606e"><a href="${unsubscribeUrl(SITE.url, lead.email)}" style="color:#55606e">Não quero receber mais emails</a>.</p>`,
+  );
+  return send(null, lead.email, `Faltam poucos dias: encomendas de Natal até ${cutoffLabel}`, html, "lead_reminder");
 }

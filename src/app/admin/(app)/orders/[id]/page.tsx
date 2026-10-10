@@ -29,6 +29,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
             <Item k="Bundle" v={`${o.bundleKey} · ${o.qtyBoxes} boxes · ${o.qtyBoxes * 3} bottles`} />
             <Item k="Subtotal" v={eur(o.subtotalCents)} />
+            {o.discountCents > 0 && <Item k="Discount" v={`−${eur(o.discountCents)} (${o.promoCode})`} />}
             <Item k="Shipping" v={eur(o.shippingCents)} />
             <Item k="Total" v={eur(o.totalCents)} />
             <Item k="Payment" v={o.paymentMethodType ?? "·"} />

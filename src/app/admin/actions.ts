@@ -190,6 +190,16 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
     .filter((x) => /^public\/[\w./-]+$/.test(x))
     .slice(0, 6);
   await setSetting("ebook_previews", previews);
+  const code = String(fd.get("lead_code") ?? "").trim().toUpperCase();
+  const pct = Number(fd.get("lead_discount_percent"));
+  const maxQty = Number(fd.get("lead_code_max_qty"));
+  if (code && !/^[A-Z0-9]{3,20}$/.test(code)) return { error: "Code must be 3-20 letters/digits." };
+  if (!Number.isFinite(pct) || pct < 0 || pct > 30) return { error: "Discount must be between 0 and 30%." };
+  if (!Number.isInteger(maxQty) || maxQty < 1) return { error: "Invalid max boxes for the code." };
+  await setSetting("exit_popup_enabled", fd.get("exit_popup_enabled") === "on");
+  await setSetting("lead_code", code);
+  await setSetting("lead_discount_percent", pct);
+  await setSetting("lead_code_max_qty", maxQty);
   await setSetting("delivery_text", String(fd.get("delivery_text") ?? "").trim().slice(0, 120));
   revalidatePath("/admin/settings");
   return { ok: "Settings saved." };

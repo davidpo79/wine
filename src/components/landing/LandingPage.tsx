@@ -5,9 +5,11 @@
 // the order button opens Stripe Checkout. WhatsApp stays as a secondary channel.
 
 import { useEffect, useRef, useState } from "react";
-import { totalOf, useBuy, type PublicBundle } from "./BuyContext";
+import { useBuy, type PublicBundle } from "./BuyContext";
 import { ViewContentObserver } from "./Interactive";
 import { OpenConsentLink } from "@/components/tracking/Consent";
+import { DeadlineCountdown } from "./Countdown";
+import { ExitIntent } from "./ExitIntent";
 
 const money = (cents: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(cents / 100);
 const WA = "351910348577";
@@ -53,7 +55,7 @@ const GALLERY: { key: string; alt: string; caption: string; label: string; thumb
 const img = (key: string) => `/lp/${key}.webp`;
 const srcSet = (key: string) => `/lp/${key}-768.webp 768w, /lp/${key}.webp 1536w`;
 
-export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: string; cutoffLabel: string }) {
+export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }: { deliveryText: string; cutoffLabel: string; cutoffIso: string; exitPopup: boolean }) {
   const buy = useBuy();
   const offers = buy.bundles.map(toOffer).sort((a, b) => a.qty - b.qty);
   const sel = offers.find((o) => o.b.key === buy.selected.key) ?? offers[0];
@@ -65,12 +67,29 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
   const next = offers.find((o) => o.qty === q + 1);
   const x1 = offers.find((o) => o.qty === 1);
 
+  const promoOff = buy.discount(sel.b);
+  const promoCfg = buy.promoConfig;
+
+  // Code from the lead email link (?codigo=NATAL5) is applied automatically.
+  useEffect(() => {
+    const c = new URLSearchParams(location.search).get("codigo");
+    if (c && promoCfg && c.trim().toUpperCase() === promoCfg.code.toUpperCase()) buy.applyPromo(promoCfg.code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const promoNote =
+    buy.promo && promoCfg
+      ? promoOff > 0
+        ? `Código ${buy.promo} aplicado: −${money(promoOff)}`
+        : `O código ${buy.promo} é válido em 1 ou ${promoCfg.maxQty} caixas. Esta opção já tem ${sel.discount}% de desconto.`
+      : null;
+
   const selectQty = (qty: number) => {
     const o = offers.find((x) => x.qty === qty);
     if (o) buy.select(o.b.key);
   };
 
-  const waMessage = `Olá! Quero encomendar ${boxes(q)} do Pack Trilogia 2160 com o guia digital Sabores de Portugal de oferta. Total: ${money(totalOf(sel.b))} (IVA incluído). ${
+  const waMessage = `Olá! Quero encomendar ${boxes(q)} do Pack Trilogia 2160 com o guia digital Sabores de Portugal de oferta. Total: ${money(buy.total(sel.b))} (IVA incluído). ${
     sel.freeShipping ? `${sel.discount ? `${sel.discount}% de desconto e ` : ""}envio grátis.` : `Inclui portes de ${money(sel.shipping)}.`
   } Podem confirmar disponibilidade e entrega?`;
   const waHref = `https://wa.me/${WA}?text=${encodeURIComponent(waMessage)}`;
@@ -96,12 +115,12 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
     document.querySelector("#escolher")?.scrollIntoView({ behavior: reduced() ? "instant" : "smooth" });
   };
 
-  const orderLabel = `Quero ${q === 1 ? "a minha caixa" : `${q} caixas`} · ${money(totalOf(sel.b))}`;
+  const orderLabel = `Quero ${q === 1 ? "a minha caixa" : `${q} caixas`} · ${money(buy.total(sel.b))}`;
 
   const orderButton = (short = false) =>
     canBuy ? (
       <button type="button" className="cta order" onClick={buy.checkout} disabled={buy.loading}>
-        {buy.loading ? "A abrir pagamento seguro…" : short ? `Quero a minha prenda · ${money(totalOf(sel.b))}` : orderLabel}
+        {buy.loading ? "A abrir pagamento seguro…" : short ? `Quero a minha prenda · ${money(buy.total(sel.b))}` : orderLabel}
       </button>
     ) : (
       <a className="cta order" href={`https://wa.me/${WA}`} target="_blank" rel="noopener">
@@ -318,9 +337,11 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
             </div>
             {giftOption("gift-top")}
             {notice()}
+            {promoNote && <p className={`promonote${promoOff ? "" : " muted"}`}>{promoNote}</p>}
             <div id="hero-cta">
               {orderButton()}
             </div>
+            {buy.mode === "open" && <DeadlineCountdown cutoffIso={cutoffIso} className="countdownline" />}
             {buy.error && (
               <p role="alert" className="ordererror">
                 {buy.error}
@@ -678,6 +699,12 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
                 </span>
                 <strong>{sel.saving ? `Poupa ${money(sel.saving)}` : "IVA incluído"}</strong>
               </div>
+              {promoOff > 0 && (
+                <div className="summaryrow">
+                  <span>Código {buy.promo}</span>
+                  <strong>−{money(promoOff)}</strong>
+                </div>
+              )}
               <div className="summaryrow">
                 <span>Guia digital Sabores de Portugal</span>
                 <strong>GRÁTIS</strong>
@@ -688,7 +715,7 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
               </div>
               <div className="summarytotal">
                 <span>Total</span>
-                <strong>{money(totalOf(sel.b))}</strong>
+                <strong>{money(buy.total(sel.b))}</strong>
               </div>
               {giftOption("gift-final")}
               {notice()}
@@ -804,15 +831,23 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
           <div>
             <b>Trilogia 2160 + guia de oferta</b>
             <small>
-              {boxes(q)} · {money(totalOf(sel.b))}
+              {boxes(q)}
               {sel.discount ? ` · −${sel.discount}%` : ""}
+              {promoOff ? ` · código ${buy.promo}` : ""}
             </small>
+            {buy.mode === "open" && <DeadlineCountdown cutoffIso={cutoffIso} className="stickycount" short />}
           </div>
           <div className="stickright">
-            <strong>{money(totalOf(sel.b))}</strong>
-            <a className="cta" href="#escolher">
-              Escolher a minha caixa ↑
-            </a>
+            <strong>{money(buy.total(sel.b))}</strong>
+            {canBuy ? (
+              <button type="button" className="cta" onClick={buy.checkout} disabled={buy.loading}>
+                {buy.loading ? "A abrir…" : `Encomendar · ${money(buy.total(sel.b))}`}
+              </button>
+            ) : (
+              <a className="cta" href={`https://wa.me/${WA}`} target="_blank" rel="noopener">
+                WhatsApp ↗
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -852,6 +887,7 @@ export function LandingPage({ deliveryText, cutoffLabel }: { deliveryText: strin
           </div>
         </div>
       </dialog>
+      {exitPopup && promoCfg && <ExitIntent percent={promoCfg.percent} maxQty={promoCfg.maxQty} />}
     </div>
   );
 }
