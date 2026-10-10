@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description:
     "Rosé, Branco e Tinto Douro DOC em caixa de oferta, com livro de receitas oferecido. Encomende até 30/11 para entrega antes do Natal em Portugal Continental.",
   icons: { icon: "/favicon.svg" },
+  // Pre-launch: SITE_NOINDEX=1 keeps search engines out until Gate 1 is approved.
+  robots: process.env.SITE_NOINDEX === "1" ? { index: false, follow: false } : { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "pt_PT",
