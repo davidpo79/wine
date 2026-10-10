@@ -11,7 +11,8 @@ Last updated: 10/10/2026 (session 1)
 - Schema per brief section 3, plus: `login_attempts` (admin rate limit), `orders.bundle_key`, `client_ip`/`user_agent`/`ga_client_id` (CAPI and GA4, stored only with consent), `purchase_reported_at` (Purchase sent exactly once), `delivered_at`.
 - Idempotent seed (`npm run db:seed`): Trilogia 2160 product, bundles x1/x2/x3, default settings. Never overwrites admin edits.
 - Bucket client (S3 SDK), `public/` served through `/media/...`, `private/` only by presigned URL.
-- Railway project `vinho-prendadenatal` (workspace "davidpo79's Projects"), environment `staging`: Postgres, Bucket (ams), service `web` deploying branch `claude/wine-portugal-natal-df8491`. Domain: https://web-staging-7e03.up.railway.app
+- Hosting (per David, 10/10): Railway project **Dropshipping v2**, environment `production`, service `wine` (branch `claude/wine-portugal-natal-df8491`), with its own `Postgres` and `wine-bucket` (ams). Domain `vinho.prendadenatal.com` already attached by David (CNAME verified, SSL valid). `SITE_NOINDEX=1` until launch. Stripe stays in TEST mode until Gate 1.
+- A separate project `vinho-prendadenatal` (staging) was created first; it is no longer used and can be deleted (waiting for David's OK).
 - Migrations and seed run as Railway pre-deploy command (`railway.json`). Health check `/api/health`.
 
 ### Phase 2: Landing page
@@ -49,7 +50,7 @@ Last updated: 10/10/2026 (session 1)
 - `npm run report:daily` (Postgres part) and `/report-daily` Claude Code command (adds Meta data read only, proposes actions, never applies).
 
 ## In progress
-- First Railway staging deploy (build started 10/10 14:03 UTC).
+- First deploy on `wine` service (Dropshipping v2).
 
 ## Blocked (waiting for David)
 See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and the Meta Test Events checklist cannot be run on staging.
@@ -57,13 +58,13 @@ See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and 
 ## Gate 1 inputs needed
 | Item | Where it goes |
 |---|---|
-| Stripe TEST keys: `STRIPE_SECRET_KEY` (sk_test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Railway → web → Variables (staging) |
-| Stripe webhook secret: create endpoint `https://web-staging-7e03.up.railway.app/api/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET` | Railway |
+| Stripe TEST keys: `STRIPE_SECRET_KEY` (sk_test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Railway → Dropshipping v2 → wine → Variables |
+| Stripe webhook secret: create endpoint `https://vinho.prendadenatal.com/api/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET` | Railway (wine service) |
 | Confirm MB WAY and Multibanco are enabled in Stripe (Settings → Payment methods) | Stripe dashboard |
-| Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway |
-| Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway |
-| GA4 Measurement ID + Measurement Protocol API secret → `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (new, not in brief) | Railway |
-| Admin email + first password: set `ADMIN_EMAIL` and `ADMIN_INITIAL_PASSWORD` (12+ chars) on the web service; the next deploy creates the admin; then delete `ADMIN_INITIAL_PASSWORD` | Railway |
+| Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway (wine service) |
+| Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway (wine service) |
+| GA4 Measurement ID + Measurement Protocol API secret → `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (new, not in brief) | Railway (wine service) |
+| Admin email + first password: set `ADMIN_EMAIL` and `ADMIN_INITIAL_PASSWORD` (12+ chars) on the web service; the next deploy creates the admin; then delete `ADMIN_INITIAL_PASSWORD` | Railway (wine service) |
 | Real photos (box closed/open, 3 bottles, lifestyle), logo SVG, e-book PDF final | Upload in admin / send files |
 | Legal entity (name, NIF, address), RAL entity, returns policy details | `src/lib/site.ts` and legal pages |
 | Tasting notes for the 3 wines, bottle volume | `src/components/landing/content.ts` |

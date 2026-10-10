@@ -1,7 +1,7 @@
 # Gate 1 · Landing page approval
 
-Staging: https://web-staging-7e03.up.railway.app (Stripe TEST mode once keys are set)
-Admin: https://web-staging-7e03.up.railway.app/admin
+Staging: https://vinho.prendadenatal.com (Stripe TEST mode once keys are set)
+Admin: https://vinho.prendadenatal.com/admin
 
 ## Test payments (Stripe test mode)
 - Card: `4242 4242 4242 4242`, any future date, any CVC.
