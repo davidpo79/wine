@@ -120,9 +120,13 @@ export type DayRow = {
   shipping: number; // cartons + delivery
   fees: number;
   other: number;
-  expenses: number;
-  profit: number; // order profit - expenses
+  before_ads: number; // order profit before advertising and other expenses
+  ads: number; // advertising spend (expense categories ads_*)
+  expenses: number; // other expenses
+  profit: number; // order profit - ads - expenses
 };
+
+export const isAdCategory = (c: string) => c.startsWith("ads_");
 
 export const lisbonDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Europe/Lisbon" });
 
@@ -165,10 +169,11 @@ export async function dailyPnl(from: string, to: string, settings: Settings) {
     .select()
     .from(schema.expenses)
     .where(or(and(gte(schema.expenses.date, from), lte(schema.expenses.date, to)), and(lte(schema.expenses.date, to), gte(schema.expenses.endDate, from))));
-  const expMap = expensesByDay(exps, from, to);
+  const adsMap = expensesByDay(exps.filter((e) => isAdCategory(e.category)), from, to);
+  const expMap = expensesByDay(exps.filter((e) => !isAdCategory(e.category)), from, to);
 
   const rows = new Map<string, DayRow>();
-  for (const day of eachDay(from, to)) rows.set(day, { day, orders: 0, boxes: 0, paid: 0, vat: 0, net: 0, product: 0, shipping: 0, fees: 0, other: 0, expenses: Math.round(expMap.get(day) ?? 0), profit: 0 });
+  for (const day of eachDay(from, to)) rows.set(day, { day, orders: 0, boxes: 0, paid: 0, vat: 0, net: 0, product: 0, shipping: 0, fees: 0, other: 0, before_ads: 0, ads: Math.round(adsMap.get(day) ?? 0), expenses: Math.round(expMap.get(day) ?? 0), profit: 0 });
   for (const o of orders) {
     const r = rows.get(lisbonDay(o.paidAt!));
     if (!r) continue;
@@ -182,15 +187,21 @@ export async function dailyPnl(from: string, to: string, settings: Settings) {
     r.shipping += c.shipping_boxes + c.delivery;
     r.fees += c.payment_fees;
     r.other += c.other;
-    r.profit += c.profit;
+    r.before_ads += c.profit;
   }
-  const list = [...rows.values()].map((r) => ({ ...r, profit: r.profit - r.expenses }));
+  const list = [...rows.values()].map((r) => ({ ...r, profit: r.before_ads - r.ads - r.expenses }));
   const total = list.reduce(
     (t, r) => {
       for (const k of Object.keys(t) as (keyof typeof t)[]) t[k] += r[k];
       return t;
     },
-    { orders: 0, boxes: 0, paid: 0, vat: 0, net: 0, product: 0, shipping: 0, fees: 0, other: 0, expenses: 0, profit: 0 },
+    { orders: 0, boxes: 0, paid: 0, vat: 0, net: 0, product: 0, shipping: 0, fees: 0, other: 0, before_ads: 0, ads: 0, expenses: 0, profit: 0 },
   );
-  return { days: list.reverse(), total, expenses: exps };
+  // Ad spend by platform in the period (ranges counted only for the days inside the period).
+  const byPlatform = new Map<string, number>();
+  for (const e of exps.filter((x) => isAdCategory(x.category))) {
+    const m = expensesByDay([e], from, to);
+    byPlatform.set(e.category, (byPlatform.get(e.category) ?? 0) + [...m.values()].reduce((n, v) => n + v, 0));
+  }
+  return { days: list.reverse(), total, expenses: exps, adsByPlatform: [...byPlatform.entries()].map(([k, v]) => ({ category: k, cents: Math.round(v) })) };
 }

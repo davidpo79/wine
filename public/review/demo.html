@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Trilogia 2160 Journey Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Public+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: guide panel on the left, a phone with the live screen on the right; stacked on small screens. */
+:root {
+  --bg: #f4f1eb; --surface: #ffffff; --ink: #1d2621; --muted: #5b645d; --line: #ddd6c9;
+  --accent: #a72d39; --green: #184b36; --hot: #e3a32b;
+  --display: "Fraunces", Georgia, serif; --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; padding-inline: 16px; padding-block: 24px 48px; }
+.app { max-width: 1080px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 36px; align-items: start; }
+@media (max-width: 860px) { .app { grid-template-columns: minmax(0, 1fr); } .guide { order: 2; } }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--display); font-size: clamp(28px, 4vw, 40px); line-height: 1.08; margin: 6px 0 10px; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0 0 18px; max-width: 60ch; }
+.paths { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.paths button, .btn { font: inherit; font-size: 14px; font-weight: 600; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.paths button[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #fff; }
+button:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 10px; }
+.step .where { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.step h2 { font-family: var(--display); font-size: 26px; line-height: 1.15; margin: 0; text-wrap: balance; }
+.step p { margin: 0; }
+.hint { color: var(--muted); font-size: 14px; }
+.sims { display: flex; flex-wrap: wrap; gap: 8px; }
+.sims .btn { background: var(--hot); border-color: var(--hot); color: #1d1606; }
+.trail { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; font-size: 12.5px; color: var(--muted); }
+.trail span { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+.trail span:last-child { border-color: var(--green); color: var(--green); font-weight: 600; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; align-items: center; }
+.controls label { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+.phone { width: min(390px, calc(100vw - 32px)); border-radius: 44px; padding: 12px; background: #111; box-shadow: 0 20px 60px rgba(20, 30, 25, .25); margin: 0 auto; }
+.screen { position: relative; height: min(780px, 80vh); border-radius: 32px; overflow-y: auto; overflow-x: hidden; background: #fff; overscroll-behavior: contain; }
+.screen.fixedbg { background: #3a3f3c; display: grid; align-content: center; }
+.canvas { position: relative; width: 100%; }
+.canvas img { display: block; width: 100%; height: auto; }
+.hot { position: absolute; border: 0; padding: 0; margin: 0; background: transparent; cursor: pointer; border-radius: 8px; }
+.show .hot { box-shadow: 0 0 0 2px var(--hot), 0 0 0 6px rgba(227, 163, 43, .28); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 2px var(--hot), 0 0 0 10px rgba(227, 163, 43, .08); } }
+@media (prefers-reduced-motion: reduce) { .show .hot { animation: none; } }
+.foot { max-width: 1080px; margin: 36px auto 0; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="guide">
+    <span class="eyebrow">Wine Portugal · Trilogia 2160 · review</span>
+    <h1>Customer journey after the landing page</h1>
+    <p class="lede">Tap the highlighted buttons on the phone to move through checkout, the one-time offer and the thank-you page, exactly as a customer would. Real screens from the app; payments are simulated.</p>
+    <div class="paths" role="group" aria-label="Start a path">
+      <button type="button" data-start="checkout-empty">Start at checkout</button>
+      <button type="button" data-start="checkout-mbway">MB WAY path</button>
+      <button type="button" data-start="checkout-card">Card path</button>
+      <button type="button" data-start="checkout-mb">Multibanco path</button>
+    </div>
+    <div class="step" aria-live="polite">
+      <span class="where" id="where"></span>
+      <h2 id="title"></h2>
+      <p id="desc"></p>
+      <p class="hint" id="hint"></p>
+      <div class="sims" id="sims"></div>
+    </div>
+    <div class="controls">
+      <button type="button" class="btn" id="back">Back</button>
+      <button type="button" class="btn" id="restart">Restart</button>
+      <label><input type="checkbox" id="showhot" checked> Highlight clickable buttons</label>
+    </div>
+    <div class="trail" id="trail" aria-label="Your path"></div>
+  </div>
+  <div class="phone"><div class="screen" id="screen"><div class="canvas show" id="canvas"></div></div></div>
+</div>
+<p class="foot">Customer-facing copy is in pt-PT. Card payments run through Stripe (its card form could not load where these screens were captured), MB WAY and Multibanco through ifthenpay. No money was charged.</p>
+<script>
+const SCREENS = [{"id": "checkout-empty", "w": 390, "h": 1765, "fixed": false, "hot": []}, {"id": "checkout-mbway", "w": 390, "h": 1765, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-summary"}, {"x": 17, "y": 1218.921875, "w": 356, "h": 73, "to": "checkout-card"}, {"x": 17, "y": 1292.921875, "w": 356, "h": 50.5, "to": "checkout-mb"}, {"x": 16, "y": 1448.421875, "w": 358, "h": 56, "to": "mbway-wait"}]}, {"id": "checkout-summary", "w": 390, "h": 2426, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-mbway"}]}, {"id": "checkout-card", "w": 390, "h": 1774, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-summary"}, {"x": 17, "y": 1036, "w": 356, "h": 50.5, "to": "checkout-mbway"}, {"x": 17, "y": 1301.5, "w": 356, "h": 50.5, "to": "checkout-mb"}, {"x": 16, "y": 1457, "w": 358, "h": 56, "to": "offer-card"}]}, {"id": "checkout-mb", "w": 390, "h": 1690, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-summary"}, {"x": 17, "y": 1036, "w": 356, "h": 50.5, "to": "checkout-mbway"}, {"x": 17, "y": 1087.5, "w": 356, "h": 73, "to": "checkout-card"}, {"x": 16, "y": 1373, "w": 358, "h": 56, "to": "mb-offer"}]}, {"id": "mbway-wait", "w": 390, "h": 844, "fixed": true, "hot": []}, {"id": "offer-mbway", "w": 390, "h": 1171, "fixed": false, "hot": [{"x": 38, "y": 869, "w": 314, "h": 56, "to": "offer-mbway-wait"}, {"x": 143.015625, "y": 971, "w": 103.953125, "h": 36, "to": "products-mbway-declined"}]}, {"id": "products-mbway-declined", "w": 390, "h": 1263, "fixed": false, "hot": [{"x": 36.96875, "y": 1053, "w": 316.0625, "h": 46, "to": "thankyou-plain"}]}, {"id": "offer-mbway-wait", "w": 390, "h": 844, "fixed": true, "hot": []}, {"id": "products-mbway-added", "w": 390, "h": 1323, "fixed": false, "hot": [{"x": 141.609375, "y": 1113, "w": 106.78125, "h": 46, "to": "thankyou-mbway"}]}, {"id": "thankyou-mbway", "w": 390, "h": 1911, "fixed": false, "hot": []}, {"id": "thankyou-plain", "w": 390, "h": 1859, "fixed": false, "hot": []}, {"id": "offer-card", "w": 390, "h": 1171, "fixed": false, "hot": [{"x": 38, "y": 869, "w": 314, "h": 56, "to": "products-card-added"}, {"x": 143.015625, "y": 971, "w": 103.953125, "h": 36, "to": "products-card-declined"}]}, {"id": "products-card-declined", "w": 390, "h": 1263, "fixed": false, "hot": [{"x": 36.96875, "y": 1053, "w": 316.0625, "h": 46, "to": "thankyou-plain"}]}, {"id": "products-card-added", "w": 390, "h": 1323, "fixed": false, "hot": [{"x": 141.609375, "y": 1113, "w": 106.78125, "h": 46, "to": "thankyou-card"}]}, {"id": "thankyou-card", "w": 390, "h": 1911, "fixed": false, "hot": []}, {"id": "mb-offer", "w": 390, "h": 1128, "fixed": true, "hot": [{"x": 20, "y": 960, "w": 350, "h": 60, "to": "thankyou-mb-added"}, {"x": 20, "y": 1032, "w": 350, "h": 36, "to": "thankyou-mb"}]}, {"id": "thankyou-mb-added", "w": 390, "h": 2004, "fixed": false, "hot": []}, {"id": "thankyou-mb", "w": 390, "h": 1952, "fixed": false, "hot": []}];
+const INFO = {
+  "checkout-empty": ["Checkout", "Empty checkout", "Contact, delivery and payment on one page, with the order total always visible in the top bar.", "Use the button on the left to fill in the form."],
+  "checkout-mbway": ["Checkout", "Details filled, MB WAY selected", "Every field is saved as the customer types, so an abandoned checkout keeps the data for follow-up messages.", "Try the order summary, switch payment method, or tap Pagar."],
+  "checkout-summary": ["Checkout", "Order summary opened", "On phones the summary folds into the top bar: box selector, discount code, totals and the trust list.", "Tap the top bar again to close it."],
+  "checkout-card": ["Checkout", "Card, Apple Pay, Google Pay", "Stripe's secure card form appears inside this option; the card is kept so the next offer takes one click.", "Tap Pagar to pay by card."],
+  "checkout-mb": ["Checkout", "Multibanco selected", "Multibanco customers get the one-time offer before the reference is created, because a reference cannot be charged again later.", "Tap the button to continue."],
+  "mbway-wait": ["MB WAY", "Waiting for approval", "The customer has 4 minutes to approve the request in the MB WAY app; the page moves on by itself.", "Simulate the customer's approval."],
+  "offer-mbway": ["MB WAY", "One-time offer after payment", "The paid customer is offered the next tier at its real price difference, here 2 boxes to 3 for 34,43 €.", "Accept or decline the offer."],
+  "offer-mbway-wait": ["MB WAY", "Approving the offer", "Accepting sends a second MB WAY request for the offer amount only; nothing is charged unless approved.", "Simulate the approval in the app."],
+  "products-mbway-added": ["MB WAY", "Box added, extra products", "The sparkling wine and the 2016 Vintage Port are offered next, paid the same way (photos to be added in admin).", "Tap Concluir to finish."],
+  "products-mbway-declined": ["MB WAY", "Extra products", "Declining the box still shows the sparkling wine and the Vintage Port before the thank-you page.", "Tap the button to see the order."],
+  "thankyou-mbway": ["MB WAY", "Thank-you page", "Confirmation with the added box, the total paid, next steps and the recipe e-book gift.", "End of this path."],
+  "thankyou-plain": ["Thank you", "Thank-you page", "Confirmation of the order as bought, with next steps and the recipe e-book gift.", "End of this path."],
+  "offer-card": ["Card", "One-click offer", "Right after a card payment, one tap charges the same card for the extra box; the bank may ask for confirmation.", "Accept or decline the offer."],
+  "products-card-added": ["Card", "Box added, extra products", "The extra box is already charged; the sparkling wine and Vintage Port are one click each.", "Tap Concluir to finish."],
+  "products-card-declined": ["Card", "Extra products", "Declining the box still shows the extra products before the thank-you page.", "Tap the button to see the order."],
+  "thankyou-card": ["Card", "Thank-you page", "Confirmation with the added box and the total paid on the card.", "End of this path."],
+  "mb-offer": ["Multibanco", "One-time offer before payment", "Tapping the button opens the offer first, saying the box can still be added to the order and paid in one reference.", "Accept or decline the offer."],
+  "thankyou-mb-added": ["Multibanco", "Reference with the offer", "Entity, reference and amount (117,05 € with the added box) to pay at an ATM or in home banking, also sent by email.", "End of this path."],
+  "thankyou-mb": ["Multibanco", "Reference without the offer", "Entity, reference and amount (82,62 €) to pay at an ATM or in home banking, also sent by email.", "End of this path."],
+};
+const SIMS = {
+  "checkout-empty": [["Fill in the form", "checkout-mbway"]],
+  "mbway-wait": [["Customer approves in MB WAY", "offer-mbway"]],
+  "offer-mbway-wait": [["Customer approves in MB WAY", "products-mbway-added"]],
+};
+const byId = Object.fromEntries(SCREENS.map((s) => [s.id, s]));
+const $ = (id) => document.getElementById(id);
+let steps = [];
+
+function render(id, push = true) {
+  const s = byId[id];
+  if (!s) return;
+  if (push) steps.push(id);
+  const [where, title, desc, hint] = INFO[id] || ["", id, "", ""];
+  $("where").textContent = where;
+  $("title").textContent = title;
+  $("desc").textContent = desc;
+  $("hint").textContent = hint;
+  const sims = $("sims");
+  sims.replaceChildren();
+  const extra = SIMS[id] || (id.startsWith("thankyou") ? [["Start again", "checkout-mbway"]] : []);
+  for (const [label, to] of extra) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.textContent = label;
+    b.onclick = () => (to === "checkout-mbway" && id.startsWith("thankyou") ? restart() : render(to));
+    sims.append(b);
+  }
+  const screen = $("screen");
+  screen.classList.toggle("fixedbg", s.fixed);
+  const canvas = $("canvas");
+  canvas.replaceChildren();
+  const img = new Image();
+  img.src = `/review/${s.id}.webp`;
+  img.alt = title;
+  img.width = s.w; img.height = s.h;
+  canvas.append(img);
+  for (const h of s.hot) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "hot";
+    b.setAttribute("aria-label", `Go to: ${(INFO[h.to] || [, h.to])[1]}`);
+    b.style.left = `${(h.x / s.w) * 100}%`;
+    b.style.top = `${(h.y / s.h) * 100}%`;
+    b.style.width = `${(h.w / s.w) * 100}%`;
+    b.style.height = `${(h.h / s.h) * 100}%`;
+    b.onclick = () => render(h.to);
+    canvas.append(b);
+  }
+  screen.scrollTop = 0;
+  // Scroll the first button into view on long screens so the next step is obvious.
+  const first = s.hot.find((h) => h.to !== "checkout-summary");
+  if (first && !s.fixed) setTimeout(() => (screen.scrollTop = Math.max(0, (first.y / s.h) * canvas.clientHeight - screen.clientHeight * 0.55)), 450);
+  $("trail").replaceChildren(...steps.slice(-8).map((h) => Object.assign(document.createElement("span"), { textContent: (INFO[h] || [, h])[1] })));
+  document.querySelectorAll("[data-start]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.start === steps[0])));
+}
+function restart(start = "checkout-empty") { steps = []; render(start); }
+document.querySelectorAll("[data-start]").forEach((b) => (b.onclick = () => restart(b.dataset.start)));
+$("back").onclick = () => { if (steps.length > 1) { steps.pop(); render(steps[steps.length - 1], false); } };
+$("restart").onclick = () => restart(steps[0] || "checkout-empty");
+$("showhot").onchange = (e) => $("canvas").classList.toggle("show", e.target.checked);
+SCREENS.forEach((s) => { const i = new Image(); i.src = `/review/${s.id}.webp`; });
+restart();
+</script>
+</body>
+</html>

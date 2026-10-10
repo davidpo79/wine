@@ -10,6 +10,8 @@ Last updated: 10/10/2026 (session 1)
 
 ## 10/10 (later): hybrid payments: cards/Apple Pay/Google Pay via Stripe (one-click upsell with the saved card), MB WAY + Multibanco via ifthenpay (MB WAY upsell = new push to the same phone, Multibanco keeps the offer before payment). Admin → Finance: daily P&L (revenue, VAT, wine/boxes, shipping, payment fees, expenses, net profit), editable cost model seeded with David's numbers (reproduces 24,29 / 40,70 / 54,37), expenses with date ranges, profit per order (orders list + order page), CSV.
 
+## 10/10 (later): `/review` = clickable customer-journey demo (real screens, hotspots on the real buttons; rebuild with `scripts/demo-capture.ts`). Finance: Advertising section (ad spend per platform with date ranges, ROAS, ad cost per order, break-even per order/ROAS, profit before/after ads per day).
+
 ## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (ifthenpay keys, email, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
 
 ## Done

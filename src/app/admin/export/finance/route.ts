@@ -11,9 +11,9 @@ export async function GET(req: Request) {
   const to = ok(sp.get("to")) ?? lisbonDay(new Date());
   const from = ok(sp.get("from")) ?? to;
   const { days, total } = await dailyPnl(from, to, await getSettings());
-  const row = (d: string, r: typeof total) => [d, r.orders, r.boxes, euros(r.paid), euros(r.vat), euros(r.net), euros(r.product), euros(r.shipping), euros(r.fees), euros(r.other), euros(r.expenses), euros(r.profit)];
+  const row = (d: string, r: typeof total) => [d, r.orders, r.boxes, euros(r.paid), euros(r.vat), euros(r.net), euros(r.product), euros(r.shipping), euros(r.fees), euros(r.other), euros(r.before_ads), euros(r.ads), euros(r.expenses), euros(r.profit)];
   const csv = toCsv(
-    ["dia", "encomendas", "caixas", "receita_iva_incl", "iva", "receita_liquida", "vinho_e_caixas", "envio", "comissoes_pagamento", "outros", "despesas", "lucro_liquido"],
+    ["dia", "encomendas", "caixas", "receita_iva_incl", "iva", "receita_liquida", "vinho_e_caixas", "envio", "comissoes_pagamento", "outros", "lucro_antes_publicidade", "publicidade", "outras_despesas", "lucro_liquido"],
     [...[...days].reverse().map((r) => row(r.day, r)), row("TOTAL", total)],
   );
   return new Response(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="lucro-${from}-${to}.csv"` } });
