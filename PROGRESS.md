@@ -63,7 +63,7 @@ See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and 
 | Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway |
 | Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway |
 | GA4 Measurement ID + Measurement Protocol API secret → `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (new, not in brief) | Railway |
-| Admin email | I run `admin:create` on staging |
+| Admin email + first password: set `ADMIN_EMAIL` and `ADMIN_INITIAL_PASSWORD` (12+ chars) on the web service; the next deploy creates the admin; then delete `ADMIN_INITIAL_PASSWORD` | Railway |
 | Real photos (box closed/open, 3 bottles, lifestyle), logo SVG, e-book PDF final | Upload in admin / send files |
 | Legal entity (name, NIF, address), RAL entity, returns policy details | `src/lib/site.ts` and legal pages |
 | Tasting notes for the 3 wines, bottle volume | `src/components/landing/content.ts` |

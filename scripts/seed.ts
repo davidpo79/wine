@@ -3,6 +3,7 @@
 import "./load-env";
 import { sql as pg, db, schema } from "../src/db";
 import { DEFAULT_SETTINGS } from "../src/lib/settings-defaults";
+import { hash } from "@node-rs/argon2";
 
 const [existing] = await db.select().from(schema.products).limit(1);
 let productId = existing?.id;
@@ -40,6 +41,20 @@ await db
   .insert(schema.settings)
   .values(Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({ key, value })))
   .onConflictDoNothing();
+
+// First admin bootstrap: only when no admin exists yet. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD in Railway,
+// deploy once, log in, then delete ADMIN_INITIAL_PASSWORD. Later changes go through `npm run admin:create`.
+const [anyAdmin] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).limit(1);
+const bootEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+const bootPw = process.env.ADMIN_INITIAL_PASSWORD;
+if (!anyAdmin && bootEmail && bootPw) {
+  if (bootPw.length < 12) {
+    console.warn("ADMIN_INITIAL_PASSWORD must have at least 12 characters; admin not created");
+  } else {
+    await db.insert(schema.adminUsers).values({ email: bootEmail, passwordHash: await hash(bootPw, { memoryCost: 19456, timeCost: 2, parallelism: 1 }) });
+    console.log(`admin created: ${bootEmail}`);
+  }
+}
 
 console.log("seed done");
 await pg.end();
