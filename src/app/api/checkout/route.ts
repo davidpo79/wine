@@ -1,59 +1,91 @@
 import { cookies, headers } from "next/headers";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createCheckout } from "@/lib/checkout";
-import { CONSENT_COOKIE, gaClientIdFromCookie, parseConsent } from "@/lib/tracking";
+import { db, schema } from "@/db";
+import { createDraft, draftToken, ensurePaymentIntent, loadDraft, PAID_STATUSES as PAID, publicDraft, updateDraft } from "@/lib/draft";
+import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
-import { normalizePtMobile } from "@/lib/leads";
 
-const Body = z.object({
+// Create a new draft when /checkout opens.
+const Create = z.object({
   bundle_key: z.string().regex(/^[a-z0-9_]{1,20}$/),
-  is_gift: z.boolean().optional().default(false),
-  gift_message: z.string().max(200).optional().default(""),
-  event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
   promo: z.string().max(40).optional(),
-  // Pre-checkout details (smart checkout step on the site, before Stripe)
-  name: z.string().trim().min(2).max(80),
-  email: z.string().trim().toLowerCase().email().max(160),
-  phone: z.string().max(30),
-  consent_messages: z.boolean().optional().default(false),
-  consent_calls: z.boolean().optional().default(false),
+  is_gift: z.boolean().optional(),
+  gift_message: z.string().max(200).optional(),
+  event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
 });
 
 export async function POST(req: Request) {
-  const parsed = Body.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return Response.json({ error: "Verifique o nome, o email e o telemóvel." }, { status: 400 });
-  const input = parsed.data;
-  const phone = normalizePtMobile(input.phone);
-  if (!phone) return Response.json({ error: "Indique um telemóvel português válido (9 dígitos)." }, { status: 400 });
-
+  const parsed = Create.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const jar = await cookies();
   const h = await headers();
   const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value);
-  const r = await createCheckout(
+  const r = await createDraft(
+    { bundleKey: parsed.data.bundle_key, promo: parsed.data.promo, isGift: parsed.data.is_gift, giftMessage: parsed.data.gift_message, eventId: parsed.data.event_id },
     {
-      bundle_key: input.bundle_key,
-      is_gift: input.is_gift,
-      gift_message: input.gift_message,
-      event_id: input.event_id,
-      promo: input.promo,
-      customer: { name: input.name, email: input.email, phone },
-      consent_messages: input.consent_messages,
-      consent_calls: input.consent_calls,
-      source: "site",
-    },
-    {
-      consent,
       utm: parseUtmCookie(jar.get(UTM_COOKIE)?.value),
       fbp: consent.marketing ? jar.get("_fbp")?.value ?? null : null,
       fbc: consent.marketing ? jar.get("_fbc")?.value ?? null : null,
       gaClientId: consent.statistics ? gaClientIdFromCookie(jar.get("_ga")?.value) : null,
       ip: clientIp(h),
       ua: h.get("user-agent")?.slice(0, 400) ?? null,
-      referer: req.headers.get("referer"),
+      consentTracking: consent.marketing,
     },
   );
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status });
-  const { ok: _ok, ...data } = r;
-  return Response.json(data);
+  await logFunnel("CheckoutOpened", `co_${r.order.id}`, r.order.id);
+  return Response.json(publicDraft(r.order));
+}
+
+// Resume an existing draft (recovery link or page reload).
+export async function GET(req: Request) {
+  const u = new URL(req.url);
+  const order = await loadDraft(u.searchParams.get("o"), u.searchParams.get("t"));
+  if (!order) return Response.json({ error: "not_found" }, { status: 404 });
+  if (PAID.includes(order.status)) return Response.json({ paid: true, order_id: order.id, token: draftToken(order.id) });
+  if (order.status !== "pending_payment") {
+    // Expired/failed attempt: reopen it so the same data can be paid.
+    await db.update(schema.orders).set({ status: "pending_payment" }).where(eq(schema.orders.id, order.id));
+    order.status = "pending_payment";
+  }
+  return Response.json(publicDraft(await ensurePaymentIntent(order)));
+}
+
+// Autosave (debounced from the page).
+const Patch = z.object({
+  o: z.string().max(40),
+  t: z.string().max(80),
+  patch: z
+    .object({
+      email: z.string().max(200),
+      phone: z.string().max(40),
+      firstName: z.string().max(80),
+      lastName: z.string().max(100),
+      address1: z.string().max(150),
+      address2: z.string().max(150),
+      postalCode: z.string().max(12),
+      city: z.string().max(80),
+      nif: z.string().max(15),
+      isGift: z.boolean(),
+      giftMessage: z.string().max(200),
+      consentMessages: z.boolean(),
+      consentCalls: z.boolean(),
+      bundleKey: z.string().regex(/^[a-z0-9_]{1,20}$/),
+      promo: z.string().max(40),
+    })
+    .partial(),
+});
+
+export async function PATCH(req: Request) {
+  const parsed = Patch.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
+  const order = await loadDraft(parsed.data.o, parsed.data.t);
+  if (!order || PAID.includes(order.status)) return Response.json({ error: "not_found" }, { status: 404 });
+  const updated = await updateDraft(order, parsed.data.patch);
+  const priced = parsed.data.patch.bundleKey !== undefined || parsed.data.patch.promo !== undefined;
+  const withPi = priced ? await ensurePaymentIntent(updated) : updated;
+  const d = publicDraft(withPi);
+  return Response.json({ amounts: d.amounts, bundle_key: d.bundle_key, promo_applied: !!updated.promoCode, saved_at: Date.now() });
 }

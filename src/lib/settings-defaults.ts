@@ -14,7 +14,13 @@ export type Settings = {
   lead_code_max_qty: number; // code applies to bundles up to this many boxes
   lead_plus_code: string; // step 2 (mobile number): same discount + free shipping
   recovery_enabled: boolean; // abandoned-checkout follow-ups (message, AI call, final email)
+  upsell_enabled: boolean;
+  upsell_products: UpsellProduct[]; // offer 2 (shown if offer 1 is declined)
+  reviews: Review[]; // only real customer reviews; empty = section hidden
 };
+
+export type UpsellProduct = { key: string; name: string; description: string; price_cents: number; compare_cents: number; active: boolean };
+export type Review = { name: string; city?: string; text: string; source?: string };
 
 export const DEFAULT_SETTINGS: Settings = {
   // 30/11/2026 23:59 Europe/Lisbon (WET, UTC+0 in November)
@@ -36,6 +42,26 @@ export const DEFAULT_SETTINGS: Settings = {
   lead_code_max_qty: 2,
   lead_plus_code: "NATALMAIS",
   recovery_enabled: true,
+  upsell_enabled: true,
+  upsell_products: [
+    {
+      key: "espumante-dgraca-bruto",
+      name: "D. Graça Espumante Bruto",
+      description: "Espumante do Douro, fresco e elegante, em caixa de oferta. Para brindar na passagem de ano.",
+      price_cents: 1490,
+      compare_cents: 1690,
+      active: true,
+    },
+    {
+      key: "porto-vintage-2016-agua-alta",
+      name: "Quinta da Água Alta Porto Vintage 2016",
+      description: "Porto Vintage de 2016, um dos grandes anos do Douro, em caixa de oferta. Para fechar a ceia com queijos ou sobremesas.",
+      price_cents: 1590,
+      compare_cents: 1790,
+      active: true,
+    },
+  ],
+  reviews: [],
 };
 
 export const PER_BOX_FLOOR_CENTS = 3900;

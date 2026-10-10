@@ -86,6 +86,10 @@ export const orders = pgTable(
     currency: text("currency").notNull().default("eur"),
     stripeSessionId: text("stripe_session_id").unique(),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripePaymentMethodId: text("stripe_payment_method_id"), // saved (card/wallet) for the one-click upsell
+    lastSavedAt: timestamp("last_saved_at", { withTimezone: true }), // checkout autosave
+    recoveryScheduledAt: timestamp("recovery_scheduled_at", { withTimezone: true }),
     paymentMethodType: text("payment_method_type"),
     customerName: text("customer_name"),
     email: text("email"),
@@ -198,6 +202,27 @@ export const leads = pgTable(
   (t) => [index("leads_created_idx").on(t.createdAt)],
 );
 
+export const orderAddons = pgTable(
+  "order_addons",
+  {
+    id: serial("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id),
+    kind: text("kind").notNull(), // boxes | product
+    sku: text("sku").notNull(), // e.g. trilogia-2160 | espumante-dgraca-bruto
+    label: text("label").notNull(),
+    qty: integer("qty").notNull(),
+    boxes: integer("boxes").notNull().default(0), // Trilogia boxes added (counts for stock and shipping)
+    amountCents: integer("amount_cents").notNull(),
+    status: text("status").notNull().default("pending"), // pending | paid | failed
+    stripePaymentIntentId: text("stripe_payment_intent_id").unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+  },
+  (t) => [index("order_addons_order_idx").on(t.orderId)],
+);
+
 export const recoverySteps = pgTable(
   "recovery_steps",
   {
@@ -249,3 +274,4 @@ export type Bundle = typeof bundles.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Creative = typeof creatives.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
+export type OrderAddon = typeof orderAddons.$inferSelect;

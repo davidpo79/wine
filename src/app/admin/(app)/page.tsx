@@ -1,10 +1,10 @@
 import { eur } from "@/lib/money";
 import { getSettings } from "@/lib/settings";
-import { funnel, pendingMultibanco, periodStats, trackingHealth } from "@/lib/stats";
+import { funnel, pendingMultibanco, periodStats, trackingHealth, upsellStats } from "@/lib/stats";
 import { startOfLisbonDay } from "@/lib/time";
 
 export default async function Dashboard() {
-  const [today, week, total, pending, f7, fAll, settings, health] = await Promise.all([
+  const [today, week, total, pending, f7, fAll, settings, health, ups] = await Promise.all([
     periodStats(startOfLisbonDay(0)),
     periodStats(startOfLisbonDay(6)),
     periodStats(null),
@@ -13,6 +13,7 @@ export default async function Dashboard() {
     funnel(null),
     getSettings(),
     trackingHealth(startOfLisbonDay(6)),
+    upsellStats(),
   ]);
   const daysLeft = Math.ceil((new Date(settings.cutoff_at).getTime() - Date.now()) / 86400000);
   return (
@@ -46,6 +47,11 @@ export default async function Dashboard() {
           );
         })}
       </div>
+      <section className="rounded-lg border bg-white p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Post-purchase upsells (all time)</h2>
+        <p className="mt-1 text-2xl font-semibold">{ups.count} add-ons · {eur(ups.valueCents)}</p>
+        <p className="text-xs text-muted">{total.orders ? `${Math.round((ups.ordersAccepted / total.orders) * 100)}% of paid orders accepted an offer` : ""}</p>
+      </section>
       <section className="rounded-lg border bg-white p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Pending Multibanco</h2>
         <p className="mt-1 text-2xl font-semibold">{pending.count} orders · {eur(pending.valueCents)}</p>

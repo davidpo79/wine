@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import type { Lead, Order } from "@/db/schema";
+import type { Lead, Order, OrderAddon } from "@/db/schema";
 import { unsubscribeUrl } from "./leads";
 import { eur } from "./money";
 import { SITE } from "./site";
@@ -170,4 +170,16 @@ ${button(link, "Concluir a encomenda")}
 <p style="font-size:12px;color:#55606e"><a href="${esc(stopLink)}" style="color:#55606e">Não quero receber mais mensagens sobre esta encomenda</a>.</p>`,
   );
   return send(o, o.email, kind === "first" ? "A sua Trilogia 2160 ficou à espera" : "Último lembrete: a sua prenda de Natal", html, `recovery_${kind}`);
+}
+
+export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
+  if (!o.email) return;
+  const html = layout(
+    "Oferta adicionada",
+    `<p>Olá ${esc((o.customerName ?? "").split(" ")[0])},</p>
+<p>Obrigado! Juntámos à sua encomenda <strong>${esc(o.id)}</strong>:</p>
+<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253"><strong>${esc(a.label)}</strong><br>${eur(a.amountCents)} (IVA incluído)</p>
+<p>Segue tudo na mesma entrega, sem portes adicionais.</p>`,
+  );
+  return send(o, o.email, `Encomenda ${o.id}: oferta adicionada`, html, "addon_confirmation");
 }

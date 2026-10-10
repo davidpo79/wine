@@ -10,7 +10,6 @@ import { ViewContentObserver } from "./Interactive";
 import { OpenConsentLink } from "@/components/tracking/Consent";
 import { DeadlineCountdown } from "./Countdown";
 import { ExitIntent } from "./ExitIntent";
-import { CheckoutDetails } from "./CheckoutDetails";
 
 const money = (cents: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(cents / 100);
 const WA = "351910348577";
@@ -891,7 +890,6 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
         </div>
       </dialog>
       {exitPopup && promoCfg && <ExitIntent percent={promoCfg.percent} maxQty={promoCfg.maxQty} />}
-      <CheckoutDetails />
     </div>
   );
 }

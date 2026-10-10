@@ -53,8 +53,17 @@ Last updated: 10/10/2026 (session 1)
 ### Phase 8 groundwork
 - `npm run report:daily` (Postgres part) and `/report-daily` Claude Code command (adds Meta data read only, proposes actions, never applies).
 
+## Done: own checkout + one-click upsell
+- `/checkout`: Shopify-style page (form left, summary right, collapsible summary on mobile), Stripe Payment Element embedded (card, Apple/Google Pay, MB WAY, Multibanco). Replaces Stripe-hosted Checkout.
+- Every field autosaves to the order draft (800 ms debounce + flush on blur/pagehide), "Guardado" indicator, resume via `/checkout?o=&t=` and localStorage. Recovery starts once email + mobile exist.
+- Server-side pricing only (bundle + promo recomputed on every change), PT mainland postal code validation, NIF optional.
+- Trust list in the summary; reviews block only renders when real reviews are entered in Admin → Settings (empty by default).
+- Post-purchase `/oferta`: offer 1 = complete to next tier (x1 → 2 boxes price, x2 → 3 boxes price, x3 → one more box at the 3-box per-box price); offer 2 = Espumante D. Graça Bruto 14,90 € and Porto Vintage 2016 Água Alta 15,90 € (editable in admin). Card buyers pay with 1 click (saved card, 3DS handled); MB WAY / Multibanco buyers get a Payment Element. Add-ons stored in `order_addons`, separate Purchase events, included in shipping and accounting exports.
+- Webhook rewritten for PaymentIntent events. Tests: unit 13/13, webhooks 16/16, recovery 7/7, landing + checkout checks pass, upsell 5/5.
+- Telnyx: nothing created or activated (waiting for the new account).
+
 ## In progress
-- First deploy on `wine` service (Dropshipping v2).
+- Nothing; waiting for Gate 1 inputs.
 
 ## Blocked (waiting for David)
 See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and the Meta Test Events checklist cannot be run on staging.
@@ -63,7 +72,7 @@ See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and 
 | Item | Where it goes |
 |---|---|
 | Stripe TEST keys: `STRIPE_SECRET_KEY` (sk_test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Railway → vinho-prendadenatal → web → Variables |
-| Stripe webhook secret: create endpoint `https://vinho.prendadenatal.com/api/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET` | Railway (web service) |
+| Stripe webhook secret: create endpoint `https://vinho.prendadenatal.com/api/webhooks/stripe` with events `payment_intent.succeeded`, `payment_intent.requires_action`, `payment_intent.processing`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET`. Also register the Apple Pay domain `vinho.prendadenatal.com` (Settings → Payment method domains) | Railway (web service) |
 | Confirm MB WAY and Multibanco are enabled in Stripe (Settings → Payment methods) | Stripe dashboard |
 | Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway (web service) |
 | Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway (web service) |

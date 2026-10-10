@@ -27,7 +27,11 @@ export async function paidBoxes(): Promise<number> {
     .select({ n: sql<number>`coalesce(sum(${schema.orders.qtyBoxes}), 0)::int` })
     .from(schema.orders)
     .where(inArray(schema.orders.status, ["paid", "preparing", "shipped", "delivered"]));
-  return r?.n ?? 0;
+  const [ad] = await db
+    .select({ n: sql<number>`coalesce(sum(${schema.orderAddons.boxes}), 0)::int` })
+    .from(schema.orderAddons)
+    .where(eq(schema.orderAddons.status, "paid"));
+  return (r?.n ?? 0) + (ad?.n ?? 0);
 }
 
 export type SalesState =

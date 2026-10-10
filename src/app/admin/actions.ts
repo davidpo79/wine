@@ -12,7 +12,7 @@ import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
 import { ebookLink, sendConfirmation, sendShipped } from "@/lib/email";
 import { parseEuroToCents } from "@/lib/money";
 import { PER_BOX_FLOOR_CENTS, type PostCutoffMode } from "@/lib/settings-defaults";
-import { setSetting } from "@/lib/settings";
+import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
 
@@ -204,6 +204,32 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
   if (plus && (!/^[A-Z0-9]{3,20}$/.test(plus) || plus === code)) return { error: "Step-2 code must be 3-20 letters/digits and different from the main code." };
   await setSetting("lead_plus_code", plus);
   await setSetting("recovery_enabled", fd.get("recovery_enabled") === "on");
+  await setSetting("upsell_enabled", fd.get("upsell_enabled") === "on");
+  const prev = (await getSettings()).upsell_products;
+  const products = [];
+  for (let i = 0; fd.get(`up_key_${i}`) !== null; i++) {
+    const price = parseEuroToCents(String(fd.get(`up_price_${i}`) ?? ""));
+    const compare = parseEuroToCents(String(fd.get(`up_compare_${i}`) ?? ""));
+    if (price == null || compare == null) return { error: "Invalid upsell price." };
+    const key = String(fd.get(`up_key_${i}`));
+    const old = prev.find((p) => p.key === key);
+    products.push({
+      key,
+      name: String(fd.get(`up_name_${i}`) ?? old?.name ?? "").trim(),
+      description: String(fd.get(`up_desc_${i}`) ?? old?.description ?? "").trim(),
+      price_cents: price,
+      compare_cents: compare,
+      active: fd.get(`up_active_${i}`) === "on",
+    });
+  }
+  if (products.length) await setSetting("upsell_products", products);
+  const reviews = String(fd.get("reviews") ?? "")
+    .split("\n")
+    .map((l) => l.split("|").map((x) => x.trim()))
+    .filter((p) => p.length >= 3 && p[0] && p[2])
+    .slice(0, 12)
+    .map(([name, city, text, source]) => ({ name, city: city || undefined, text, source: source || undefined }));
+  await setSetting("reviews", reviews);
   await setSetting("delivery_text", String(fd.get("delivery_text") ?? "").trim().slice(0, 120));
   revalidatePath("/admin/settings");
   return { ok: "Settings saved." };

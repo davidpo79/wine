@@ -1,11 +1,9 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import type Stripe from "stripe";
 import { db, schema } from "@/db";
-import type { Order } from "@/db/schema";
-import { getStripe, multibancoDetails } from "@/lib/stripe";
-import { getOrder, getOrderBySession, logOrderEvent, setStatus } from "@/lib/orders";
-import { sendAdminAlert, sendConfirmation, sendPending } from "@/lib/email";
-import { reportPurchase } from "@/lib/tracking";
+import { getStripe } from "@/lib/stripe";
+import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
+import { markAddonPaid, markOrderPaid, multibancoIssued } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -45,52 +43,41 @@ export async function POST(req: Request) {
 
 async function handle(event: Stripe.Event) {
   switch (event.type) {
-    case "checkout.session.completed": {
-      const s = event.data.object;
-      const order = await findOrder(s);
+    case "payment_intent.succeeded":
+    case "payment_intent.requires_action":
+    case "payment_intent.processing":
+    case "payment_intent.payment_failed":
+    case "payment_intent.canceled": {
+      const pi = event.data.object;
+      if (pi.metadata?.kind === "addon") return handleAddon(event.type, pi);
+      const order = pi.metadata?.order_id ? await getOrder(pi.metadata.order_id) : null;
       if (!order) return;
-      const withCustomer = await saveCustomer(order, s);
-      await logOrderEvent(order.id, "stripe:checkout.session.completed", { event_id: event.id, payment_status: s.payment_status });
-      if (s.payment_status === "paid" || s.payment_status === "no_payment_required") {
-        await markPaid(withCustomer, s, event.id);
-      } else {
-        // Async method (Multibanco): stays pending until async_payment_succeeded.
-        const mb = await multibancoDetails(s);
-        await sendPending(withCustomer, mb);
+      if (event.type === "payment_intent.succeeded") return markOrderPaid(order, pi, event.id);
+      if (event.type === "payment_intent.requires_action") return multibancoIssued(order, pi);
+      if (event.type === "payment_intent.processing") return logOrderEvent(order.id, "payment_processing", { method: pi.payment_method_types });
+      if (event.type === "payment_intent.payment_failed") {
+        // Card declines can be retried on the same page: just log. Async methods (MB WAY/Multibanco) failing ends the attempt.
+        await logOrderEvent(order.id, "payment_failed", { code: pi.last_payment_error?.code, type: pi.last_payment_error?.payment_method?.type });
+        const t = pi.last_payment_error?.payment_method?.type;
+        if (t === "multibanco" || t === "mb_way") await setStatus(order, "payment_failed", {}, { stripe_event: event.id });
+        return;
       }
-      return;
-    }
-    case "checkout.session.async_payment_succeeded": {
-      const s = event.data.object;
-      const order = await findOrder(s);
-      if (!order) return;
-      const withCustomer = await saveCustomer(order, s);
-      await markPaid(withCustomer, s, event.id);
-      return;
-    }
-    case "checkout.session.async_payment_failed": {
-      const s = event.data.object;
-      const order = await findOrder(s);
-      if (order) await setStatus(order, "payment_failed", {}, { stripe_event: event.id });
-      return;
-    }
-    case "checkout.session.expired": {
-      const s = event.data.object;
-      const order = await findOrder(s);
-      if (order && order.status === "pending_payment") await setStatus(order, "cancelled", {}, { stripe_event: event.id, reason: "session_expired" });
+      if (event.type === "payment_intent.canceled" && order.status === "pending_payment") await setStatus(order, "cancelled", {}, { stripe_event: event.id, reason: "payment_intent_canceled" });
       return;
     }
     case "charge.refunded": {
       const ch = event.data.object;
       const pi = typeof ch.payment_intent === "string" ? ch.payment_intent : ch.payment_intent?.id;
       if (!pi) return;
+      const [addon] = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.stripePaymentIntentId, pi)).limit(1);
+      if (addon) {
+        await logOrderEvent(addon.orderId, "upsell_refunded", { addon_id: addon.id, amount_refunded: ch.amount_refunded });
+        return;
+      }
       const [order] = await db.select().from(schema.orders).where(eq(schema.orders.stripePaymentIntentId, pi)).limit(1);
       if (!order) return;
-      if (ch.refunded) {
-        await setStatus(order, "refunded", {}, { stripe_event: event.id, amount_refunded: ch.amount_refunded });
-      } else {
-        await logOrderEvent(order.id, "partial_refund", { stripe_event: event.id, amount_refunded: ch.amount_refunded });
-      }
+      if (ch.refunded) await setStatus(order, "refunded", {}, { stripe_event: event.id, amount_refunded: ch.amount_refunded });
+      else await logOrderEvent(order.id, "partial_refund", { stripe_event: event.id, amount_refunded: ch.amount_refunded });
       return;
     }
     default:
@@ -98,66 +85,12 @@ async function handle(event: Stripe.Event) {
   }
 }
 
-async function findOrder(s: Stripe.Checkout.Session): Promise<Order | null> {
-  const id = s.metadata?.order_id || s.client_reference_id;
-  const o = (id ? await getOrder(id) : null) ?? (await getOrderBySession(s.id));
-  if (!o) console.warn("[webhook] order not found for session", s.id);
-  return o;
-}
-
-async function saveCustomer(order: Order, s: Stripe.Checkout.Session): Promise<Order> {
-  const cd = s.customer_details;
-  const ship = s.collected_information?.shipping_details;
-  const nif = s.custom_fields?.find((f) => f.key === "nif")?.numeric?.value ?? null;
-  const news = s.custom_fields?.find((f) => f.key === "news")?.dropdown?.value === "sim";
-  const pi = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id ?? null;
-  const [updated] = await db
-    .update(schema.orders)
-    .set({
-      customerName: ship?.name ?? cd?.name ?? order.customerName,
-      email: cd?.email ?? order.email,
-      phone: cd?.phone ?? order.phone,
-      shippingAddress: ship ? { name: ship.name, ...ship.address } : order.shippingAddress,
-      billingAddress: cd?.address ? { ...cd.address } : order.billingAddress,
-      nif: nif ?? order.nif,
-      consentMarketing: news || order.consentMarketing,
-      stripeSessionId: s.id,
-      stripePaymentIntentId: pi ?? order.stripePaymentIntentId,
-    })
-    .where(eq(schema.orders.id, order.id))
-    .returning();
-  return updated;
-}
-
-async function paymentMethodType(s: Stripe.Checkout.Session): Promise<string | null> {
-  const piId = typeof s.payment_intent === "string" ? s.payment_intent : s.payment_intent?.id;
-  if (!piId) return null;
-  try {
-    const pi = await getStripe().paymentIntents.retrieve(piId, { expand: ["latest_charge"] });
-    const ch = pi.latest_charge as Stripe.Charge | null;
-    const t = ch?.payment_method_details?.type ?? null;
-    const wallet = ch?.payment_method_details?.card?.wallet?.type;
-    return wallet ? `card:${wallet}` : t;
-  } catch {
-    return null;
+async function handleAddon(type: string, pi: Stripe.PaymentIntent) {
+  const [addon] = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.stripePaymentIntentId, pi.id)).limit(1);
+  if (!addon) return;
+  if (type === "payment_intent.succeeded") return markAddonPaid(addon, pi);
+  if (type === "payment_intent.payment_failed" || type === "payment_intent.canceled") {
+    await db.update(schema.orderAddons).set({ status: "failed" }).where(eq(schema.orderAddons.id, addon.id));
+    await logOrderEvent(addon.orderId, "upsell_failed", { addon_id: addon.id });
   }
-}
-
-async function markPaid(order: Order, s: Stripe.Checkout.Session, eventId: string) {
-  if (["paid", "preparing", "shipped", "delivered"].includes(order.status)) {
-    // Already paid (duplicate signal from completed + async_succeeded): make sure Purchase was reported once.
-    await reportPurchase(order);
-    return;
-  }
-  const pmt = await paymentMethodType(s);
-  const amount = s.amount_total ?? order.totalCents;
-  if (amount !== order.totalCents) {
-    await logOrderEvent(order.id, "amount_mismatch", { expected: order.totalCents, got: amount });
-  }
-  const paid = await setStatus(order, "paid", { paymentMethodType: pmt }, { stripe_event: eventId, amount_total: amount });
-  if (!paid) return;
-  await sendConfirmation(paid);
-  await db.update(schema.orders).set({ ebookKeyIssuedAt: new Date() }).where(eq(schema.orders.id, paid.id));
-  await reportPurchase(paid);
-  await sendAdminAlert(paid);
 }

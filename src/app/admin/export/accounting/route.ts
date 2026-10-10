@@ -1,5 +1,7 @@
 import { getAdmin } from "@/lib/auth";
 import { euros, toCsv } from "@/lib/csv";
+import { and, eq, inArray } from "drizzle-orm";
+import { db, schema } from "@/db";
 import { queryOrders } from "@/lib/order-query";
 import { lisbonDateTime } from "@/lib/time";
 
@@ -8,17 +10,30 @@ export async function GET(req: Request) {
   if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
   const sp = new URL(req.url).searchParams;
   const rows = await queryOrders(Object.fromEntries(sp), ["paid", "preparing", "shipped", "delivered", "refunded"]);
+  const addons = rows.length
+    ? await db.select().from(schema.orderAddons).where(and(inArray(schema.orderAddons.orderId, rows.map((o) => o.id)), eq(schema.orderAddons.status, "paid")))
+    : [];
   const csv = toCsv(
     ["encomenda", "data_pagamento", "estado", "nome", "nif", "email", "morada_faturacao", "codigo_postal", "localidade", "produto", "caixas", "garrafas", "desconto_iva_incl", "codigo", "subtotal_iva_incl", "portes_iva_incl", "total_iva_incl", "metodo_pagamento", "stripe_payment_intent", "n_fatura"],
-    rows.map((o) => {
+    rows.flatMap((o) => {
       const b = o.billingAddress ?? o.shippingAddress ?? {};
-      return [
+      const main = [
         o.id, lisbonDateTime(o.paidAt), o.status, o.customerName, o.nif, o.email,
         [b.line1, b.line2].filter(Boolean).join(", "), b.postal_code, b.city,
         `Trilogia 2160 (${o.bundleKey})`, o.qtyBoxes, o.qtyBoxes * 3,
         euros(o.discountCents), o.promoCode, euros(o.subtotalCents), euros(o.shippingCents), euros(o.totalCents),
         o.paymentMethodType, o.stripePaymentIntentId, o.invoiceNumber,
       ];
+      const extra = addons
+        .filter((x) => x.orderId === o.id)
+        .map((x) => [
+          `${o.id}-A${x.id}`, lisbonDateTime(x.paidAt), "paid", o.customerName, o.nif, o.email,
+          [b.line1, b.line2].filter(Boolean).join(", "), b.postal_code, b.city,
+          x.label, x.boxes, x.boxes * 3,
+          "0,00", "", euros(x.amountCents), "0,00", euros(x.amountCents),
+          "upsell", x.stripePaymentIntentId, "",
+        ]);
+      return [main, ...extra];
     }),
   );
   return new Response(csv, {

@@ -81,7 +81,7 @@ export async function scheduleRecovery(orderId: string, email: string) {
 async function skipReason(order: Order): Promise<string | null> {
   if ((PAID as readonly string[]).includes(order.status)) return `order_${order.status}`;
   const events = await db.select({ type: schema.orderEvents.type, payload: schema.orderEvents.payload }).from(schema.orderEvents).where(eq(schema.orderEvents.orderId, order.id));
-  if (events.some((e) => e.type === "stripe:checkout.session.completed")) return "checkout_completed"; // e.g. Multibanco reference issued
+  if (events.some((e) => e.type === "stripe:checkout.session.completed" || e.type === "mb_reference_issued")) return "multibanco_reference_issued";
   if (events.some((e) => e.type === "status:cancelled" && e.payload && "by" in e.payload)) return "cancelled_by_admin";
   if (events.some((e) => e.type === "recovery_stopped")) return "customer_opted_out";
   if (order.email) {

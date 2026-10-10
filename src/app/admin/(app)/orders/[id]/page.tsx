@@ -12,6 +12,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const o = await getOrder(id);
   if (!o) notFound();
+  const addons = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, id)).orderBy(asc(schema.orderAddons.createdAt));
   const recovery = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.orderId, id)).orderBy(asc(schema.recoverySteps.scheduledAt));
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
   const a = o.shippingAddress;
@@ -108,6 +109,19 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <p className="text-xs text-muted">Refunds: issue them in Stripe. The status changes to Refunded automatically.</p>
         </section>
       </div>
+      {addons.length > 0 && (
+        <section className="rounded-lg border bg-white p-4">
+          <h2 className="font-semibold">Post-purchase add-ons (ship together)</h2>
+          <ul className="mt-2 space-y-1 text-sm">
+            {addons.map((a) => (
+              <li key={a.id} className="flex justify-between gap-3 border-t py-1">
+                <span>{a.label}{a.boxes ? ` (+${a.boxes} box)` : ""}</span>
+                <span className={a.status === "paid" ? "font-semibold text-green-700" : "text-muted"}>{eur(a.amountCents)} · {a.status}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {recovery.length > 0 && (
         <section className="rounded-lg border bg-white p-4">
           <h2 className="font-semibold">Abandoned-checkout follow-up</h2>

@@ -6,7 +6,8 @@ Admin: https://vinho.prendadenatal.com/admin
 ## Test payments (Stripe test mode)
 - Card: `4242 4242 4242 4242`, any future date, any CVC.
 - 3-D Secure: `4000 0027 6000 3184`.
-- Multibanco: choose Multibanco in Checkout. The order stays "Pagamento pendente". In the Stripe dashboard (test mode) the payment completes automatically after a few minutes, or use the test voucher page to simulate payment, which fires `checkout.session.async_payment_succeeded`.
+- Multibanco: choose Multibanco in the checkout. The order stays "Pagamento pendente" and the thank-you page shows the entity/reference. In test mode the payment completes automatically after a few minutes, which fires `payment_intent.succeeded`.
+- Upsell: pay by card (4242 4242 4242 4242), accept the offer on `/oferta` with one click, check the add-on on the admin order page and in both CSV exports.
 - MB WAY: test mode shows an authorize/fail page.
 
 ## Tracking verification checklist

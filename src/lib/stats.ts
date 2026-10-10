@@ -34,6 +34,15 @@ export async function pendingMultibanco() {
   return { count: r?.n ?? 0, valueCents: r?.v ?? 0 };
 }
 
+export async function upsellStats() {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int`, v: sql<number>`coalesce(sum(${schema.orderAddons.amountCents}),0)::int` })
+    .from(schema.orderAddons)
+    .where(eq(schema.orderAddons.status, "paid"));
+  const [shown] = await db.select({ n: sql<number>`count(distinct ${schema.orderEvents.orderId})::int` }).from(schema.orderEvents).where(eq(schema.orderEvents.type, "upsell_accepted"));
+  return { count: r?.n ?? 0, valueCents: r?.v ?? 0, ordersAccepted: shown?.n ?? 0 };
+}
+
 export const FUNNEL = ["PageView", "ViewContent", "SelectBundle", "AddToCart", "InitiateCheckout", "Purchase"] as const;
 
 export async function funnel(since: Date | null) {

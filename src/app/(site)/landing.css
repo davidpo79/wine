@@ -75,12 +75,3 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .exitsecondary{border:2px solid var(--green);background:#fff;color:var(--green);border-radius:5px;padding:12px;font-weight:800;font-size:14px}
 .exitsecondary:hover{background:#edf5e9}
 .exitsecondary[disabled]{opacity:.6}
-/* Checkout details step */
-.detailsdialog{width:min(520px,94vw)}
-.detailsdialog .exitbody{padding:26px 24px 20px}
-.detailsdialog h2{font-size:28px;margin:8px 0 12px}
-.detailssummary{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:11px 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font-size:13px}
-.detailssummary strong{font-size:20px;color:var(--red)}
-.detailsship{display:block;font-size:11px;color:var(--muted);margin:5px 0 14px}
-.fieldlabel{font-size:12px;font-weight:bold;margin-bottom:-4px}
-.fieldhelp{font-size:11px;color:var(--muted);margin-top:-4px}
