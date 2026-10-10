@@ -47,6 +47,14 @@ button:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
 .show .hot { box-shadow: 0 0 0 2px var(--hot), 0 0 0 6px rgba(227, 163, 43, .28); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 2px var(--hot), 0 0 0 10px rgba(227, 163, 43, .08); } }
 @media (prefers-reduced-motion: reduce) { .show .hot { animation: none; } }
+.all { max-width: 1080px; margin: 40px auto 0; display: grid; gap: 22px; }
+.all h2 { font-family: var(--display); font-size: 26px; margin: 0; }
+.all h3 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 10px; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+.thumb { font: inherit; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px; cursor: pointer; display: grid; gap: 6px; color: var(--ink); }
+.thumb:hover, .thumb[aria-current="true"] { border-color: var(--green); box-shadow: 0 0 0 2px var(--green); }
+.thumb span { display: block; height: 190px; border-radius: 8px; background-size: 100% auto; background-repeat: no-repeat; background-position: top center; background-color: #fff; border: 1px solid var(--line); }
+.thumb b { font-size: 13px; line-height: 1.25; }
 .foot { max-width: 1080px; margin: 36px auto 0; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 14px; }
 </style>
 </head>
@@ -61,6 +69,11 @@ button:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
       <button type="button" data-start="checkout-mbway">MB WAY path</button>
       <button type="button" data-start="checkout-card">Card path</button>
       <button type="button" data-start="checkout-mb">Multibanco path</button>
+    </div>
+    <div class="paths" role="group" aria-label="Jump to the one-time offer">
+      <button type="button" data-start="offer-mbway">Upsell · MB WAY</button>
+      <button type="button" data-start="offer-card">Upsell · card (1 click)</button>
+      <button type="button" data-start="mb-offer">Upsell · Multibanco</button>
     </div>
     <div class="step" aria-live="polite">
       <span class="where" id="where"></span>
@@ -78,6 +91,10 @@ button:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
   </div>
   <div class="phone"><div class="screen" id="screen"><div class="canvas show" id="canvas"></div></div></div>
 </div>
+<section class="all" aria-label="All screens">
+  <h2>All screens</h2>
+  <div id="groups"></div>
+</section>
 <p class="foot">Customer-facing copy is in pt-PT. Card payments run through Stripe (its card form could not load where these screens were captured), MB WAY and Multibanco through ifthenpay. No money was charged.</p>
 <script>
 const SCREENS = [{"id": "checkout-empty", "w": 390, "h": 1765, "fixed": false, "hot": []}, {"id": "checkout-mbway", "w": 390, "h": 1765, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-summary"}, {"x": 17, "y": 1218.921875, "w": 356, "h": 73, "to": "checkout-card"}, {"x": 17, "y": 1292.921875, "w": 356, "h": 50.5, "to": "checkout-mb"}, {"x": 16, "y": 1448.421875, "w": 358, "h": 56, "to": "mbway-wait"}]}, {"id": "checkout-summary", "w": 390, "h": 2426, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-mbway"}]}, {"id": "checkout-card", "w": 390, "h": 1774, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-summary"}, {"x": 17, "y": 1036, "w": 356, "h": 50.5, "to": "checkout-mbway"}, {"x": 17, "y": 1301.5, "w": 356, "h": 50.5, "to": "checkout-mb"}, {"x": 16, "y": 1457, "w": 358, "h": 56, "to": "offer-card"}]}, {"id": "checkout-mb", "w": 390, "h": 1690, "fixed": false, "hot": [{"x": 0, "y": 73, "w": 390, "h": 60, "to": "checkout-summary"}, {"x": 17, "y": 1036, "w": 356, "h": 50.5, "to": "checkout-mbway"}, {"x": 17, "y": 1087.5, "w": 356, "h": 73, "to": "checkout-card"}, {"x": 16, "y": 1373, "w": 358, "h": 56, "to": "mb-offer"}]}, {"id": "mbway-wait", "w": 390, "h": 844, "fixed": true, "hot": []}, {"id": "offer-mbway", "w": 390, "h": 1171, "fixed": false, "hot": [{"x": 38, "y": 869, "w": 314, "h": 56, "to": "offer-mbway-wait"}, {"x": 143.015625, "y": 971, "w": 103.953125, "h": 36, "to": "products-mbway-declined"}]}, {"id": "products-mbway-declined", "w": 390, "h": 1263, "fixed": false, "hot": [{"x": 36.96875, "y": 1053, "w": 316.0625, "h": 46, "to": "thankyou-plain"}]}, {"id": "offer-mbway-wait", "w": 390, "h": 844, "fixed": true, "hot": []}, {"id": "products-mbway-added", "w": 390, "h": 1323, "fixed": false, "hot": [{"x": 141.609375, "y": 1113, "w": 106.78125, "h": 46, "to": "thankyou-mbway"}]}, {"id": "thankyou-mbway", "w": 390, "h": 1911, "fixed": false, "hot": []}, {"id": "thankyou-plain", "w": 390, "h": 1859, "fixed": false, "hot": []}, {"id": "offer-card", "w": 390, "h": 1171, "fixed": false, "hot": [{"x": 38, "y": 869, "w": 314, "h": 56, "to": "products-card-added"}, {"x": 143.015625, "y": 971, "w": 103.953125, "h": 36, "to": "products-card-declined"}]}, {"id": "products-card-declined", "w": 390, "h": 1263, "fixed": false, "hot": [{"x": 36.96875, "y": 1053, "w": 316.0625, "h": 46, "to": "thankyou-plain"}]}, {"id": "products-card-added", "w": 390, "h": 1323, "fixed": false, "hot": [{"x": 141.609375, "y": 1113, "w": 106.78125, "h": 46, "to": "thankyou-card"}]}, {"id": "thankyou-card", "w": 390, "h": 1911, "fixed": false, "hot": []}, {"id": "mb-offer", "w": 390, "h": 1128, "fixed": true, "hot": [{"x": 20, "y": 960, "w": 350, "h": 60, "to": "thankyou-mb-added"}, {"x": 20, "y": 1032, "w": 350, "h": 36, "to": "thankyou-mb"}]}, {"id": "thankyou-mb-added", "w": 390, "h": 2004, "fixed": false, "hot": []}, {"id": "thankyou-mb", "w": 390, "h": 1952, "fixed": false, "hot": []}];
@@ -152,7 +169,8 @@ function render(id, push = true) {
   screen.scrollTop = 0;
   // Scroll the first button into view on long screens so the next step is obvious.
   const first = s.hot.find((h) => h.to !== "checkout-summary");
-  if (first && !s.fixed) setTimeout(() => (screen.scrollTop = Math.max(0, (first.y / s.h) * canvas.clientHeight - screen.clientHeight * 0.55)), 450);
+  clearTimeout(window.__scrollT);
+  if (first && !s.fixed) window.__scrollT = setTimeout(() => (screen.scrollTop = Math.max(0, (first.y / s.h) * canvas.clientHeight - screen.clientHeight * 0.55)), 450);
   $("trail").replaceChildren(...steps.slice(-8).map((h) => Object.assign(document.createElement("span"), { textContent: (INFO[h] || [, h])[1] })));
   document.querySelectorAll("[data-start]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.start === steps[0])));
 }
@@ -162,6 +180,35 @@ $("back").onclick = () => { if (steps.length > 1) { steps.pop(); render(steps[st
 $("restart").onclick = () => restart(steps[0] || "checkout-empty");
 $("showhot").onchange = (e) => $("canvas").classList.toggle("show", e.target.checked);
 SCREENS.forEach((s) => { const i = new Image(); i.src = `/review/${s.id}.webp`; });
+const GROUPS = [
+  ["Checkout", ["checkout-empty", "checkout-mbway", "checkout-summary", "checkout-card", "checkout-mb", "mbway-wait"]],
+  ["One-time offer (upsell)", ["offer-mbway", "offer-mbway-wait", "products-mbway-added", "products-mbway-declined", "offer-card", "products-card-added", "products-card-declined", "mb-offer"]],
+  ["Thank-you pages", ["thankyou-mbway", "thankyou-card", "thankyou-plain", "thankyou-mb-added", "thankyou-mb"]],
+];
+const groups = $("groups");
+for (const [name, ids] of GROUPS) {
+  const wrap = document.createElement("div");
+  const h = document.createElement("h3");
+  h.textContent = name;
+  const grid = document.createElement("div");
+  grid.className = "thumbs";
+  for (const id of ids) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "thumb"; b.dataset.id = id;
+    const pic = document.createElement("span");
+    pic.style.backgroundImage = `url(/review/${id}.webp)`;
+    const label = document.createElement("b");
+    label.textContent = `${INFO[id][0]} · ${INFO[id][1]}`;
+    b.append(pic, label);
+    b.onclick = () => { steps = []; render(id); window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+    grid.append(b);
+  }
+  wrap.append(h, grid);
+  groups.append(wrap);
+}
+const markCurrent = () => document.querySelectorAll(".thumb").forEach((b) => b.setAttribute("aria-current", String(b.dataset.id === steps[steps.length - 1])));
+const _render = render;
+render = (id, push) => { _render(id, push); markCurrent(); };
 restart();
 </script>
 </body>
