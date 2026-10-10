@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { serif, sans, hand } from "./fonts";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -21,11 +20,11 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#0F2340", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#184b36", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-PT" className={`${serif.variable} ${sans.variable} ${hand.variable}`}>
+    <html lang="pt-PT">
       <body>{children}</body>
     </html>
   );

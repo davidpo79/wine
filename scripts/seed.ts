@@ -29,8 +29,8 @@ if (!productId) {
 
 const bundles = [
   { key: "x1", label: "1 caixa · 3 garrafas", qty: 1, priceCents: 4590, compareAtCents: null, shippingCents: 490, badge: null, sort: 1 },
-  { key: "x2", label: "2 caixas · 6 garrafas · 1 para si, 1 para oferecer", qty: 2, priceCents: 8490, compareAtCents: 9180, shippingCents: 0, badge: "Mais escolhido", sort: 2 },
-  { key: "x3", label: "3 caixas · 9 garrafas · a melhor escolha", qty: 3, priceCents: 11990, compareAtCents: 13770, shippingCents: 0, badge: "Melhor valor", sort: 3 },
+  { key: "x2", label: "2 caixas · 6 garrafas · 1 para si, 1 para oferecer", qty: 2, priceCents: 8262, compareAtCents: 9180, shippingCents: 0, badge: "Mais escolhido", sort: 2 },
+  { key: "x3", label: "3 caixas · 9 garrafas · a melhor escolha", qty: 3, priceCents: 11705, compareAtCents: 13770, shippingCents: 0, badge: "Melhor valor", sort: 3 },
 ];
 await db
   .insert(schema.bundles)

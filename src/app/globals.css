@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --color-night: #0f2340;
-  --color-night-2: #162d52;
-  --color-azulejo: #1f4e9c;
-  --color-azulejo-soft: #dfe7f4;
-  --color-paper: #f6efe2;
-  --color-paper-2: #efe5d2;
+  --color-night: #102d21;
+  --color-night-2: #133927;
+  --color-azulejo: #184b36;
+  --color-azulejo-soft: #edf5e9;
+  --color-paper: #fbf7ee;
+  --color-paper-2: #dddccf;
   --color-terracotta: #c2643a;
   --color-terracotta-ink: #9c4521;
-  --color-xmas: #9e1b22;
-  --color-xmas-dark: #7f141a;
-  --color-gold: #c8a253;
+  --color-xmas: #a72d39;
+  --color-xmas-dark: #71202b;
+  --color-gold: #c19d55;
   --color-gold-soft: #e9d9b0;
   --color-rose: #e7a98c;
   --color-branco: #e9e4d2;
   --color-tinto: #2b2b2b;
-  --color-ink: #1b2636;
-  --color-muted: #5a6474;
+  --color-ink: #202b25;
+  --color-muted: #5f6a60;
 
-  --font-serif: var(--nf-serif), Georgia, serif;
-  --font-sans: var(--nf-sans), system-ui, sans-serif;
-  --font-hand: var(--nf-hand), cursive;
+  --font-serif: Arial, Helvetica, sans-serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-hand: Georgia, "Times New Roman", serif;
 
   --animate-marquee: marquee 38s linear infinite;
   --animate-twinkle: twinkle 4s ease-in-out infinite;
@@ -50,8 +50,8 @@
   }
   h1, h2, h3, .font-serif {
     font-family: var(--font-serif);
-    letter-spacing: -0.01em;
-    font-variant-numeric: lining-nums;
+    font-weight: 800;
+    letter-spacing: -0.02em;
   }
   :focus-visible {
     outline: 2px solid var(--color-gold);
@@ -75,13 +75,13 @@
   }
   .paper-grain {
     background-color: var(--color-paper);
-    background-image: radial-gradient(rgba(15, 35, 64, 0.035) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(16, 45, 33, 0.03) 1px, transparent 1px);
     background-size: 3px 3px;
   }
   .night-sky {
     background:
-      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200, 162, 83, 0.16), transparent 70%),
-      linear-gradient(180deg, #0b1a31 0%, var(--color-night) 55%, #132b4f 100%);
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(193, 157, 85, 0.16), transparent 70%),
+      linear-gradient(180deg, #0b2218 0%, var(--color-night) 55%, #184b36 100%);
   }
   .gold-rule {
     height: 1px;
