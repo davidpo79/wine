@@ -6,11 +6,11 @@ import { logoutAction } from "../actions";
 export const dynamic = "force-dynamic";
 
 const NAV = [
-  ["/admin", "Painel"],
-  ["/admin/orders", "Encomendas"],
-  ["/admin/products", "Produto e preços"],
-  ["/admin/settings", "Definições"],
-  ["/admin/creatives", "Anúncios"],
+  ["/admin", "Dashboard"],
+  ["/admin/orders", "Orders"],
+  ["/admin/products", "Product & pricing"],
+  ["/admin/settings", "Settings"],
+  ["/admin/creatives", "Ads"],
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -27,10 +27,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-xs">
-            <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>Stripe {mode === "live" ? "LIVE" : mode === "test" ? "TESTE" : "não configurado"}</span>
+            <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>Stripe {mode === "live" ? "LIVE" : mode === "test" ? "TEST" : "not configured"}</span>
             <span className="hidden sm:inline">{admin.email}</span>
             <form action={logoutAction}>
-              <button className="underline">Sair</button>
+              <button className="underline">Log out</button>
             </form>
           </div>
         </div>

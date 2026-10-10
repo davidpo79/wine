@@ -32,7 +32,7 @@ export async function logoutAction() {
 
 async function orderOr404(id: string) {
   const o = await getOrder(id);
-  if (!o) throw new Error("Encomenda não encontrada");
+  if (!o) throw new Error("Order not found");
   return o;
 }
 
@@ -48,20 +48,20 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
       case "delivered":
       case "cancelled": {
         const r = await setStatus(o, action as OrderStatus, {}, by);
-        if (!r) return { error: `Não é possível passar de "${o.status}" para "${action}".` };
+        if (!r) return { error: `Cannot change status from "${o.status}" to "${action}".` };
         break;
       }
       case "shipped": {
         const tracking = String(fd.get("tracking") ?? "").trim().toUpperCase();
-        if (!/^[A-Z0-9]{8,30}$/.test(tracking)) return { error: "Código CTT inválido." };
+        if (!/^[A-Z0-9]{8,30}$/.test(tracking)) return { error: "Invalid CTT tracking number." };
         const r = await setStatus(o, "shipped", { trackingNumber: tracking }, { ...by, tracking });
-        if (!r) return { error: `Não é possível marcar como enviado a partir de "${o.status}".` };
+        if (!r) return { error: `Cannot mark as shipped from "${o.status}".` };
         await sendShipped(r);
         break;
       }
       case "note": {
         const note = String(fd.get("note") ?? "").trim().slice(0, 2000);
-        if (!note) return { error: "Nota vazia." };
+        if (!note) return { error: "Note is empty." };
         const notes = [o.notes, `[${new Date().toISOString().slice(0, 16).replace("T", " ")} ${admin.email}] ${note}`].filter(Boolean).join("\n");
         await db.update(schema.orders).set({ notes }).where(eq(schema.orders.id, id));
         await logOrderEvent(id, "note", { ...by, note });
@@ -69,7 +69,7 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
       }
       case "resend_confirmation":
       case "regenerate_ebook": {
-        if (!["paid", "preparing", "shipped", "delivered"].includes(o.status)) return { error: "Só para encomendas pagas." };
+        if (!["paid", "preparing", "shipped", "delivered"].includes(o.status)) return { error: "Only for paid orders." };
         // Each send generates a fresh 7-day e-book link.
         await sendConfirmation(o);
         await db.update(schema.orders).set({ ebookKeyIssuedAt: new Date() }).where(eq(schema.orders.id, id));
@@ -77,25 +77,25 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         if (action === "regenerate_ebook") {
           const link = await ebookLink();
           revalidatePath(`/admin/orders/${id}`);
-          return { ok: link ? `Email reenviado. Link novo (7 dias): ${link}` : "Email reenviado (bucket sem e-book configurado)." };
+          return { ok: link ? `Email resent. New link (valid 7 days): ${link}` : "Email resent (no e-book in the bucket yet)." };
         }
         break;
       }
       case "invoice": {
         const inv = String(fd.get("invoice") ?? "").trim().slice(0, 60);
-        if (!inv) return { error: "Número de fatura vazio." };
+        if (!inv) return { error: "Invoice number is empty." };
         await db.update(schema.orders).set({ invoiceNumber: inv }).where(eq(schema.orders.id, id));
         await logOrderEvent(id, "invoice_recorded", { ...by, invoice: inv });
         break;
       }
       default:
-        return { error: "Ação desconhecida." };
+        return { error: "Unknown action." };
     }
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) };
   }
   revalidatePath(`/admin/orders/${id}`);
-  return { ok: "Feito." };
+  return { ok: "Done." };
 }
 
 export async function bundleAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -110,35 +110,35 @@ export async function bundleAction(_: FormState, fd: FormData): Promise<FormStat
   const badge = String(fd.get("badge") ?? "").trim() || null;
   const sort = Number(fd.get("sort") ?? 0);
   const active = fd.get("active") === "on";
-  if (!Number.isInteger(qty) || qty < 1 || qty > 20) return { error: "Quantidade inválida." };
-  if (price == null || shipping == null || (compareRaw && compare == null)) return { error: "Valores em euros inválidos (ex.: 84,90)." };
-  if (!label) return { error: "A etiqueta é obrigatória." };
+  if (!Number.isInteger(qty) || qty < 1 || qty > 20) return { error: "Invalid quantity." };
+  if (price == null || shipping == null || (compareRaw && compare == null)) return { error: "Invalid euro amounts (e.g. 84,90)." };
+  if (!label) return { error: "Label is required." };
   // Floor rule: never below €39,00 per box, to protect the B2B channel.
   if (price / qty < PER_BOX_FLOOR_CENTS) {
-    return { error: `Preço por caixa (${(price / qty / 100).toFixed(2)} €) abaixo do mínimo de ${(PER_BOX_FLOOR_CENTS / 100).toFixed(2)} €.` };
+    return { error: `Price per box (€${(price / qty / 100).toFixed(2)}) is below the €${(PER_BOX_FLOOR_CENTS / 100).toFixed(2)} floor.` };
   }
-  if (compare != null && compare <= price) return { error: "O preço de comparação tem de ser superior ao preço." };
+  if (compare != null && compare <= price) return { error: "Compare-at price must be higher than the price." };
   await db
     .update(schema.bundles)
     .set({ qty, priceCents: price, compareAtCents: compare, shippingCents: shipping, label, badge, sort, active })
     .where(eq(schema.bundles.id, id));
   revalidatePath("/admin/products");
-  return { ok: "Guardado." };
+  return { ok: "Saved." };
 }
 
 export async function productAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin();
   const id = Number(fd.get("id"));
   const [p] = await db.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
-  if (!p) return { error: "Produto não encontrado." };
+  if (!p) return { error: "Product not found." };
   const intent = String(fd.get("intent"));
   let images = [...p.images];
   if (intent === "upload") {
-    if (!bucketConfigured()) return { error: "Bucket não configurado." };
+    if (!bucketConfigured()) return { error: "Bucket is not configured." };
     const files = fd.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
     for (const f of files) {
-      if (!/^image\/(jpeg|png|webp|avif)$/.test(f.type)) return { error: `Formato não suportado: ${f.name}` };
-      if (f.size > 8 * 1024 * 1024) return { error: `Ficheiro demasiado grande: ${f.name}` };
+      if (!/^image\/(jpeg|png|webp|avif)$/.test(f.type)) return { error: `Unsupported format: ${f.name}` };
+      if (f.size > 8 * 1024 * 1024) return { error: `File too large: ${f.name}` };
       const ext = f.type.split("/")[1].replace("jpeg", "jpg");
       const key = `public/products/${p.slug}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       await putObject(key, Buffer.from(await f.arrayBuffer()), f.type);
@@ -156,24 +156,24 @@ export async function productAction(_: FormState, fd: FormData): Promise<FormSta
     const shortDescription = String(fd.get("short_description") ?? "").trim();
     await db.update(schema.products).set({ shortDescription }).where(eq(schema.products.id, id));
     revalidatePath("/admin/products");
-    return { ok: "Guardado." };
+    return { ok: "Saved." };
   }
   await db.update(schema.products).set({ images }).where(eq(schema.products.id, id));
   revalidatePath("/admin/products");
-  return { ok: "Imagens atualizadas." };
+  return { ok: "Images updated." };
 }
 
 export async function settingsAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin();
   const date = String(fd.get("cutoff_date") ?? "");
   const time = String(fd.get("cutoff_time") ?? "23:59");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return { error: "Data/hora inválida." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return { error: "Invalid date/time." };
   const cutoff = lisbonToUtc(date, time);
   const stockRaw = String(fd.get("stock_cap") ?? "").trim();
   const stock = stockRaw === "" ? null : Number(stockRaw);
-  if (stock !== null && (!Number.isInteger(stock) || stock < 0)) return { error: "Stock inválido." };
+  if (stock !== null && (!Number.isInteger(stock) || stock < 0)) return { error: "Invalid stock value." };
   const mode = String(fd.get("post_cutoff_mode")) as PostCutoffMode;
-  if (mode !== "closed" && mode !== "after_christmas") return { error: "Modo inválido." };
+  if (mode !== "closed" && mode !== "after_christmas") return { error: "Invalid mode." };
   const announcement = String(fd.get("announcement") ?? "")
     .split("\n")
     .map((s) => s.trim())
@@ -192,7 +192,7 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
   await setSetting("ebook_previews", previews);
   await setSetting("delivery_text", String(fd.get("delivery_text") ?? "").trim().slice(0, 120));
   revalidatePath("/admin/settings");
-  return { ok: "Definições guardadas." };
+  return { ok: "Settings saved." };
 }
 
 export async function creativeAction(_: FormState, fd: FormData): Promise<FormState> {
@@ -202,9 +202,9 @@ export async function creativeAction(_: FormState, fd: FormData): Promise<FormSt
   if (ids.length === 0) ids.push(Number(fd.get("id")));
   const decision = String(fd.get("decision"));
   const feedback = String(fd.get("feedback") ?? "").trim().slice(0, 2000) || null;
-  if (decision !== "approved" && decision !== "rejected" && decision !== "draft") return { error: "Decisão inválida." };
-  if (decision === "rejected" && !feedback) return { error: "Indique o motivo da rejeição para podermos corrigir." };
+  if (decision !== "approved" && decision !== "rejected" && decision !== "draft") return { error: "Invalid decision." };
+  if (decision === "rejected" && !feedback) return { error: "Please add the reason for rejecting so it can be fixed." };
   await db.update(schema.creatives).set({ status: decision, feedback }).where(inArray(schema.creatives.id, ids));
   revalidatePath("/admin/creatives");
-  return { ok: decision === "approved" ? "Aprovado." : decision === "rejected" ? "Rejeitado." : "Reposto." };
+  return { ok: decision === "approved" ? "Approved." : decision === "rejected" ? "Rejected." : "Reset." };
 }

@@ -64,15 +64,16 @@ export async function setStatus(
   return updated;
 }
 
+/** Admin-facing (English) status labels. */
 export const STATUS_LABEL: Record<OrderStatus, string> = {
-  pending_payment: "Pagamento pendente",
-  paid: "Pago",
-  preparing: "Em preparação",
-  shipped: "Enviado",
-  delivered: "Entregue",
-  payment_failed: "Pagamento falhou",
-  cancelled: "Cancelado",
-  refunded: "Reembolsado",
+  pending_payment: "Pending payment",
+  paid: "Paid",
+  preparing: "Preparing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  payment_failed: "Payment failed",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
 };
 
 export function ctTrackingUrl(tracking: string) {

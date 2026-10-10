@@ -17,10 +17,10 @@ export default async function Login() {
           <input name="email" type="email" required autoComplete="username" className="mt-1 w-full rounded border p-2" />
         </label>
         <label className="mt-3 block text-sm font-medium">
-          Palavra-passe
+          Password
           <input name="password" type="password" required autoComplete="current-password" className="mt-1 w-full rounded border p-2" />
         </label>
-        <Submit className="mt-5 w-full">Entrar</Submit>
+        <Submit className="mt-5 w-full">Log in</Submit>
       </ActionForm>
     </main>
   );
