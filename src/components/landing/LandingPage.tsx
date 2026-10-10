@@ -188,7 +188,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               Mensagem de oferta
             </label>
             <textarea id={id} rows={2} maxLength={200} value={buy.giftMessage} onChange={(e) => buy.setGiftMessage(e.target.value.slice(0, 200))} placeholder="Ex.: Feliz Natal! Para abrirmos juntos na Consoada." />
-            <small>{buy.giftMessage.length}/200 · Para enviar a quem recebe, indique a morada dessa pessoa no pagamento.</small>
+            <small>{buy.giftMessage.length}/200 · No pagamento pode juntar esta mensagem num cartão de Natal impresso. Para enviar a quem recebe, indique a morada dessa pessoa.</small>
           </>
         )}
       </div>
@@ -290,7 +290,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
             <p className="intro">Três vinhos do Douro numa caixa de Natal. Uma escolha pronta a oferecer, com um guia de receitas para aproveitar cada garrafa.</p>
             <ul className="benefits">
               <li>
-                <b>Não sabe qual escolher?</b> Leva branco, tinto e rosé.
+                <b>Não sabe qual escolher?</b> Leve branco, tinto e rosé.
               </li>
               <li>
                 <b>Quer uma prenda cuidada?</b> A caixa já faz parte da oferta.

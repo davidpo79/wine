@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { loadDraft, publicAmounts } from "@/lib/draft";
+import { GIFT_CARD_SKU, loadDraft, publicAmounts } from "@/lib/draft";
 import { getCatalog, paidBoxes } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
@@ -24,7 +24,8 @@ export async function POST(req: Request) {
   if (extraBoxes && settings.stock_cap_boxes != null && (await paidBoxes()) + order.qtyBoxes + extraBoxes > settings.stock_cap_boxes) {
     return Response.json({ error: "Já não há stock para juntar mais uma caixa." }, { status: 409 });
   }
-  await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending")));
+  // The printed-card order bump is managed by the checkout form, not by the offer window: keep it.
+  await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), ne(schema.orderAddons.sku, GIFT_CARD_SKU)));
   if (wanted.length) {
     await db.insert(schema.orderAddons).values(
       wanted.map((w) => ({ orderId: order.id, kind: w.kind, sku: w.kind === "boxes" ? "trilogia-2160" : w.sku, label: w.label, qty: 1, boxes: w.boxes, amountCents: w.priceCents })),

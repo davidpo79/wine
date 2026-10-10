@@ -196,6 +196,33 @@ if (process.env.STRIPE_API_BASE) {
   check(o.costs?.paid === 8752 && o.costs?.boxes === 2, `snapshot: 87,52 € paid, 2 boxes (got ${o.costs?.paid})`);
 }
 
+// ---- Order bump: printed card with the message -------------------------------------------------------
+{
+  const d = await draft("x2");
+  const patch = (p: Record<string, unknown>) => fetch(`${base}/api/checkout`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...d, patch: p }) }).then(j);
+  const on = await patch({ giftCard: true });
+  check(on.amounts?.total === 8262 + 390 && on.amounts.addons?.some((a: { key: string }) => a.key === "gift-card"), `card ticked: total 86,52 € (got ${on.amounts?.total})`);
+  const noMsg = await post("/api/checkout/prepare", { ...d, method: "mbway" });
+  check(noMsg.status === 422 && !!(await j(noMsg)).errors?.giftMessage, "card without a message is refused");
+  await patch({ giftMessage: "Feliz Natal, mãe! Beijinhos, Ana" });
+  await post("/api/checkout/prepare", { ...d, method: "multibanco" });
+  const kept = await j(await post("/api/checkout/addons", { ...d, keys: [] }));
+  check(kept.amounts?.total === 8652, "declining the one-time offer keeps the card");
+  const off = await patch({ giftCard: false });
+  check(off.amounts?.total === 8262, "unticking removes the card");
+  await patch({ giftCard: true });
+  await post("/api/pay", { ...d, method: "multibanco" });
+  const [p] = await pays(d.o);
+  check(p.amountCents === 8652, "payment includes the card (86,52 €)");
+  await callback({ m: "mb", key: apk, orderId: p.ref, amount: "86.52", requestId: p.requestId!, entity: p.entity!, reference: p.reference!, payment_datetime: "12-10-2026 10:00:00" });
+  const o = await order(d.o);
+  const card = (await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, d.o))).find((a) => a.sku === "gift-card");
+  check(o.status === "paid" && card?.status === "paid" && o.isGift && o.giftMessage === "Feliz Natal, mãe! Beijinhos, Ana", "paid: card add-on paid, message stored");
+  check(o.costs?.paid === 8652, "profit snapshot includes the card");
+  const { giftCardOrders } = await import("../src/lib/gift-cards");
+  check((await giftCardOrders([d.o])).length === 1, "order listed in Admin → Gift cards");
+}
+
 // ---- Multibanco keeps the offer before payment ---------------------------------------------------------
 {
   const d = await draft("x1");

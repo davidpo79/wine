@@ -7,6 +7,7 @@ import { lisbonDateTime } from "@/lib/time";
 import { orderAction } from "../../../actions";
 import { ActionForm, Submit } from "../../../ui";
 import { StatusPill } from "../../../status-pill";
+import { GiftCard } from "@/components/GiftCard";
 
 export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -59,6 +60,15 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </dl>
           <h2 className="mt-5 font-semibold">Shipping address</h2>
           <p className="text-sm">{a ? [a.name, a.line1, a.line2, `${a.postal_code ?? ""} ${a.city ?? ""}`, a.country].filter(Boolean).join(", ") : "·"}</p>
+          {addons.some((x) => x.sku === "gift-card" && x.status === "paid") && (
+            <div className="mt-4 grid grid-cols-[140px_1fr] items-start gap-3">
+              <GiftCard message={o.giftMessage ?? ""} orderId={o.id} className="rounded shadow" />
+              <div className="text-sm">
+                <p className="font-semibold">Printed gift card (paid)</p>
+                <a href={`/admin/print-cards?ids=${o.id}`} target="_blank" className="mt-2 inline-block rounded bg-night px-3 py-1.5 text-xs font-semibold text-white">Print this card</a>
+              </div>
+            </div>
+          )}
           {o.isGift && (
             <div className="mt-4 rounded border border-amber-300 bg-amber-50 p-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-900">Gift · message</p>

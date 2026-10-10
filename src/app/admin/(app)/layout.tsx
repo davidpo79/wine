@@ -9,6 +9,7 @@ const NAV = [
   ["/admin", "Dashboard"],
   ["/admin/orders", "Orders"],
   ["/admin/finance", "Finance"],
+  ["/admin/gift-cards", "Gift cards"],
   ["/admin/products", "Product & pricing"],
   ["/admin/leads", "Leads"],
   ["/admin/settings", "Settings"],

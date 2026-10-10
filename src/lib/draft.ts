@@ -79,7 +79,10 @@ export type DraftPatch = Partial<{
   consentCalls: boolean;
   bundleKey: string;
   promo: string;
+  giftCard: boolean; // order bump: printed Christmas card with the message
 }>;
+
+export const GIFT_CARD_SKU = "gift-card";
 
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, n) : undefined);
 
@@ -111,7 +114,12 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
   }
   if (patch.nif !== undefined) set.nif = (patch.nif ?? "").replace(/\D/g, "").slice(0, 9) || null;
   if (patch.isGift !== undefined) set.isGift = patch.isGift;
-  if (patch.giftMessage !== undefined) set.giftMessage = clip(patch.giftMessage, 200)?.trim() || null;
+  if (patch.giftMessage !== undefined) {
+    // Keep the customer's line breaks (at most 4) for the printed card; strip other control characters.
+    const m = String(patch.giftMessage).replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").replace(/\n{3,}/g, "\n\n").slice(0, 200);
+    const lines = m.split("\n");
+    set.giftMessage = (lines.length > 5 ? [...lines.slice(0, 4), lines.slice(4).join(" ")].join("\n") : m).trim() || null;
+  }
   if (patch.consentMessages !== undefined) {
     set.consentMessages = patch.consentMessages;
     set.consentMarketing = patch.consentMessages;
@@ -129,6 +137,16 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
       if (bundle.key !== order.bundleKey) {
         await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), eq(schema.orderAddons.kind, "boxes")));
       }
+    }
+  }
+
+  // Order bump: printed card. A pending add-on paid with the order; ticking it also marks the order as a gift.
+  if (patch.giftCard !== undefined) {
+    await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), eq(schema.orderAddons.sku, GIFT_CARD_SKU)));
+    const settings = await getSettings();
+    if (patch.giftCard && settings.gift_card.enabled) {
+      await db.insert(schema.orderAddons).values({ orderId: order.id, kind: "card", sku: GIFT_CARD_SKU, label: "Cartão de Natal impresso com mensagem", qty: 1, boxes: 0, amountCents: settings.gift_card.price_cents });
+      set.isGift = true;
     }
   }
 
@@ -198,6 +216,7 @@ export function publicDraft(o: Order, addons: OrderAddon[]) {
       giftMessage: o.giftMessage ?? "",
       consentMessages: o.consentMessages,
       consentCalls: o.consentCalls,
+      giftCard: addons.some((x) => x.sku === GIFT_CARD_SKU),
     },
   };
 }

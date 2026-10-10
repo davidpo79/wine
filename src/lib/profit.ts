@@ -15,7 +15,7 @@ export type OrderCosts = {
   shipping_boxes: number;
   delivery: number;
   payment_fees: number;
-  products: number; // cost of non-Trilogia add-ons (espumante, porto...)
+  products: number; // cost of non-Trilogia add-ons (espumante, porto, printed gift card...)
   other: number;
   costs: number; // all costs except VAT
   profit: number;
@@ -57,19 +57,22 @@ export function feeKey(paymentMethodType: string | null | undefined): PaymentFee
 export function computeOrderCosts(
   order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType">,
   addons: Pick<OrderAddon, "amountCents" | "boxes" | "kind" | "sku">[],
-  settings: Pick<Settings, "cost_model" | "upsell_products">,
+  settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card">>,
   payments = 1,
 ): OrderCosts {
   const m = settings.cost_model;
   const paid = order.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
-  const vatExact = paid - paid / (1 + m.vat_percent / 100);
+  // The printed card is not wine: its VAT rate is its own (23% by default).
+  const card = addons.filter((a) => a.kind === "card").reduce((n, a) => n + a.amountCents, 0);
+  const cardVat = settings.gift_card?.vat_percent ?? m.vat_percent;
+  const vatExact = paid - card - (paid - card) / (1 + m.vat_percent / 100) + (card - card / (1 + cardVat / 100));
   const vat = Math.round(vatExact);
   const boxes = order.qtyBoxes + addons.reduce((n, a) => n + (a.boxes ?? 0), 0);
   const parcels = parcelsFor(boxes, m.delivery_tiers).length;
   const fee = m.payment_fees[feeKey(order.paymentMethodType)] ?? m.payment_fees.other;
-  const productCost = addons
-    .filter((a) => a.kind === "product")
-    .reduce((n, a) => n + (settings.upsell_products.find((p) => p.key === a.sku)?.cost_cents ?? 0), 0);
+  const productCost =
+    addons.filter((a) => a.kind === "product").reduce((n, a) => n + (settings.upsell_products.find((p) => p.key === a.sku)?.cost_cents ?? 0), 0) +
+    addons.filter((a) => a.kind === "card").length * (settings.gift_card?.cost_cents ?? 0);
   const parts = {
     wine: boxes * m.wine_per_box_cents,
     gift_boxes: boxes * m.gift_box_cents,
@@ -87,7 +90,7 @@ export function computeOrderCosts(
 const PAID = ["paid", "preparing", "shipped", "delivered"] as const;
 
 /** Recomputes and stores the cost snapshot of one order (called when it is paid and when an add-on is paid). */
-export async function snapshotCosts(orderId: string, settings: Pick<Settings, "cost_model" | "upsell_products">) {
+export async function snapshotCosts(orderId: string, settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card">>) {
   const [o] = await db.select().from(schema.orders).where(sql`${schema.orders.id} = ${orderId}`).limit(1);
   if (!o) return null;
   const addons = await db.select().from(schema.orderAddons).where(and(sql`${schema.orderAddons.orderId} = ${orderId}`, sql`${schema.orderAddons.status} = 'paid'`));
@@ -101,7 +104,7 @@ export async function snapshotCosts(orderId: string, settings: Pick<Settings, "c
   return c;
 }
 
-export async function resnapshotAll(settings: Pick<Settings, "cost_model" | "upsell_products">) {
+export async function resnapshotAll(settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card">>) {
   const rows = await db.select({ id: schema.orders.id }).from(schema.orders).where(inArray(schema.orders.status, [...PAID]));
   for (const r of rows) await snapshotCosts(r.id, settings);
   return rows.length;

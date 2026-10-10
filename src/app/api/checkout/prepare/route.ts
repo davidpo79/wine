@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { loadDraft, publicAmounts, validateForPayment } from "@/lib/draft";
+import { GIFT_CARD_SKU, loadDraft, publicAmounts, validateForPayment } from "@/lib/draft";
 import { getCatalog } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
@@ -22,6 +22,8 @@ export async function POST(req: Request) {
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || order.status !== "pending_payment") return Response.json({ error: "Esta encomenda já não está disponível." }, { status: 409 });
   const errors = validateForPayment(order);
+  const pendingAddons = await orderAddons(order.id, ["pending"]);
+  if (pendingAddons.some((x) => x.sku === GIFT_CARD_SKU) && !(order.giftMessage ?? "").trim()) errors.giftMessage = "Escreva a mensagem para o cartão.";
   if (Object.keys(errors).length) return Response.json({ errors }, { status: 422 });
 
   const a = order.shippingAddress ?? {};

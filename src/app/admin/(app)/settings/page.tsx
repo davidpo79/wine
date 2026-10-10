@@ -70,6 +70,16 @@ export default async function SettingsPage() {
             </div>
           ))}
         </fieldset>
+        <fieldset className="rounded border p-3">
+          <legend className="px-1 font-semibold">Printed gift card (checkout order bump)</legend>
+          <label className="flex items-center gap-2"><input type="checkbox" name="gc_enabled" defaultChecked={s.gift_card.enabled} className="h-4 w-4" /> Offer the printed card in the checkout (unticked by default, as EU law requires)</label>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+            <label>Price €<input name="gc_price" defaultValue={(s.gift_card.price_cents / 100).toFixed(2).replace(".", ",")} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+            <label>Cost per card €<input name="gc_cost" defaultValue={(s.gift_card.cost_cents / 100).toFixed(2).replace(".", ",")} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+            <label>VAT %<input name="gc_vat" defaultValue={String(s.gift_card.vat_percent)} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+          </div>
+          <p className="mt-1 text-xs text-muted">Cards to print: Admin → Gift cards. Cost and VAT feed the profit in Finance.</p>
+        </fieldset>
         <label className="block font-semibold">Real customer reviews (one per line: Name | City | Text | Source)
           <textarea name="reviews" rows={4} defaultValue={(s.reviews ?? []).map((r) => [r.name, r.city ?? "", r.text, r.source ?? ""].join(" | ")).join("\n")} placeholder="Ana | Porto | Chegou impecável, a caixa é linda. | Google" className="mt-1 w-full rounded border p-2 font-normal" />
           <span className="block text-xs font-normal text-muted">Only real reviews (EU law). Shown on the checkout page; empty = hidden.</span>

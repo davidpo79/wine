@@ -141,7 +141,7 @@ export function GiftOptions({ idPrefix }: { idPrefix: string }) {
             placeholder="Ex.: Feliz Natal, pai! Para abrirmos juntos na Consoada."
             className="w-full rounded border border-paper-2 bg-white p-2 font-hand text-xl leading-tight text-night placeholder:text-muted/60 focus:border-azulejo focus:outline-none"
           />
-          <p className="text-right text-xs text-muted">{giftMessage.length}/200 · Incluímos a sua mensagem na encomenda. [[TODO: confirmar formato, cartão impresso ou manuscrito]]</p>
+          <p className="text-right text-xs text-muted">{giftMessage.length}/200 · No pagamento pode juntar esta mensagem num cartão de Natal impresso.</p>
           <p className="text-xs text-muted">Para enviar diretamente a quem recebe, indique a morada dessa pessoa no passo seguinte.</p>
         </div>
       )}

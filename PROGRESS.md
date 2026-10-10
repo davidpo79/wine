@@ -12,6 +12,8 @@ Last updated: 10/10/2026 (session 1)
 
 ## 10/10 (later): `/review` = clickable customer-journey demo (real screens, hotspots on the real buttons; rebuild with `scripts/demo-capture.ts`). Finance: Advertising section (ad spend per platform with date ranges, ROAS, ad cost per order, break-even per order/ROAS, profit before/after ads per day).
 
+## 10/10 (later): order bump in the checkout: printed Christmas card with the customer's message (+3,90 €, unticked, editable in Settings; VAT 23% and cost in the profit). Designed A6 card (azulejo band, "Feliz Natal", message in Caveat handwriting); Admin → Gift cards lists paid cards, prints them one per A6 page, marks them printed. Landing countdown now ticks (dias/horas/min/seg). Copy fix "Leve branco, tinto e rosé".
+
 ## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (ifthenpay keys, email, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
 
 ## Done

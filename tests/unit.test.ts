@@ -170,3 +170,14 @@ test("profit model reproduces David's numbers", async () => {
   const m = expensesByDay([{ date: "2026-11-01", endDate: "2026-11-10", amountCents: 1000 }], "2026-11-05", "2026-11-06");
   assert.equal(m.get("2026-11-05"), 100);
 });
+
+test("printed card add-on: own VAT rate and cost", async () => {
+  const { computeOrderCosts } = await import("../src/lib/profit");
+  const s = { cost_model: DEFAULT_SETTINGS.cost_model, upsell_products: DEFAULT_SETTINGS.upsell_products, gift_card: { enabled: true, price_cents: 390, cost_cents: 60, vat_percent: 23 } };
+  const base = computeOrderCosts({ totalCents: 8262, qtyBoxes: 2, paymentMethodType: "card" }, [], s);
+  const withCard = computeOrderCosts({ totalCents: 8262, qtyBoxes: 2, paymentMethodType: "card" }, [{ amountCents: 390, boxes: 0, kind: "card", sku: "gift-card" }], s);
+  assert.equal(withCard.paid, 8652);
+  // 3,90 incl. 23% VAT = 0,73 VAT; cost 0,60; fee 3% of 3,90 = 0,12 -> +2,45 profit
+  assert.equal(withCard.vat - base.vat, 73);
+  assert.equal(withCard.profit - base.profit, 245);
+});

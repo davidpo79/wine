@@ -5,6 +5,7 @@ import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js"
 import { pixelEvent } from "@/lib/track-client";
 import type { Offer } from "@/lib/upsell";
 import { OfferDialog } from "./OfferDialog";
+import { GiftCard } from "@/components/GiftCard";
 
 const money = (c: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(c / 100);
 
@@ -31,13 +32,26 @@ type Fields = {
   giftMessage: string;
   consentMessages: boolean;
   consentCalls: boolean;
+  giftCard: boolean;
 };
 type Review = { name: string; city?: string; text: string; source?: string };
 
-const EMPTY: Fields = { email: "", phone: "", firstName: "", lastName: "", address1: "", address2: "", postalCode: "", city: "", nif: "", isGift: false, giftMessage: "", consentMessages: false, consentCalls: false };
+const EMPTY: Fields = { email: "", phone: "", firstName: "", lastName: "", address1: "", address2: "", postalCode: "", city: "", nif: "", isGift: false, giftMessage: "", consentMessages: false, consentCalls: false, giftCard: false };
 const DRAFT_KEY = "wp_draft";
 
-export function CheckoutPage({ bundles, reviews, cutoffLabel, publishableKey }: { bundles: BundleOpt[]; reviews: Review[]; cutoffLabel: string; publishableKey: string | null }) {
+export function CheckoutPage({
+  bundles,
+  reviews,
+  cutoffLabel,
+  publishableKey,
+  giftCardPrice,
+}: {
+  bundles: BundleOpt[];
+  reviews: Review[];
+  cutoffLabel: string;
+  publishableKey: string | null;
+  giftCardPrice: number | null; // null = order bump disabled in admin
+}) {
   const [draft, setDraft] = useState<{ o: string; t: string } | null>(null);
   const [bundleKey, setBundleKey] = useState<string>("x2");
   const [amounts, setAmounts] = useState<Amounts | null>(null);
@@ -573,28 +587,6 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel, publishableKey }: 
             </div>
             <p className="text-xs text-muted">Para oferecer, use a morada de quem recebe a prenda.</p>
             <label className="flex items-start gap-2.5 text-sm">
-              <input type="checkbox" checked={fields.isGift} onChange={(e) => set("isGift", e.target.checked, true)} className="mt-0.5 h-4 w-4 accent-azulejo" />
-              <span>É uma prenda: juntar uma mensagem</span>
-            </label>
-            {fields.isGift && (
-              <div>
-                <label htmlFor="f-gift" className="sr-only">
-                  Mensagem
-                </label>
-                <textarea
-                  id="f-gift"
-                  rows={3}
-                  maxLength={200}
-                  value={fields.giftMessage}
-                  onChange={(e) => set("giftMessage", e.target.value.slice(0, 200))}
-                  onBlur={() => void flush()}
-                  placeholder="Ex.: Feliz Natal! Para abrirmos juntos na Consoada."
-                  className="w-full rounded-md border border-paper-2 px-3 py-2.5 font-hand text-base italic"
-                />
-                <p className="text-right text-xs text-muted">{fields.giftMessage.length}/200</p>
-              </div>
-            )}
-            <label className="flex items-start gap-2.5 text-sm">
               <input type="checkbox" checked={wantsNif} onChange={(e) => setWantsNif(e.target.checked)} className="mt-0.5 h-4 w-4 accent-azulejo" />
               <span>Quero fatura com NIF</span>
             </label>
@@ -603,6 +595,57 @@ export function CheckoutPage({ bundles, reviews, cutoffLabel, publishableKey }: 
 
           <section className="space-y-3">
             <h2 className="text-lg font-bold">Pagamento</h2>
+            {giftCardPrice != null && (
+              <div className={`rounded-lg border-2 border-dashed p-4 ${fields.giftCard ? "border-xmas bg-[#fff6f2]" : "border-xmas/50 bg-[#fffaf3]"}`}>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    id="f-giftCard"
+                    type="checkbox"
+                    checked={fields.giftCard}
+                    onChange={(e) => {
+                      set("giftCard", e.target.checked, true);
+                      if (e.target.checked) setFields((f) => ({ ...f, isGift: true }));
+                    }}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-xmas"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="text-[15px] font-bold text-ink">Sim, juntar um cartão de Natal com a minha mensagem</span>
+                      <span className="text-base font-black text-xmas">+{money(giftCardPrice)}</span>
+                    </span>
+                    <span className="mt-1 block text-sm text-muted">Imprimimos a sua mensagem num cartão de Natal e seguimos com a prenda, para quem a recebe saber que é sua.</span>
+                  </span>
+                </label>
+                <div className="mt-3 grid grid-cols-[120px_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[150px_minmax(0,1fr)]">
+                  <GiftCard message={fields.giftMessage} className="rounded shadow-md" />
+                  <div className="min-w-0">
+                    <label htmlFor="f-giftMessage" className="mb-1 block text-xs font-semibold text-ink">
+                      Mensagem do cartão
+                    </label>
+                    <textarea
+                      id="f-giftMessage"
+                      rows={4}
+                      maxLength={200}
+                      value={fields.giftMessage}
+                      onChange={(e) => set("giftMessage", e.target.value.slice(0, 200))}
+                      onBlur={() => void flush()}
+                      placeholder="Ex.: Feliz Natal, mãe! Para abrirmos juntos na Consoada. Beijinhos, Ana"
+                      aria-invalid={!!errors.giftMessage}
+                      aria-describedby={errors.giftMessage ? "e-giftMessage" : undefined}
+                      className={`w-full rounded-md border bg-white px-3 py-2.5 text-[15px] outline-none focus:border-azulejo focus:ring-2 focus:ring-azulejo/20 ${errors.giftMessage ? "border-xmas" : "border-paper-2"}`}
+                    />
+                    <p className="flex justify-between gap-2 text-xs text-muted">
+                      {errors.giftMessage ? (
+                        <span id="e-giftMessage" className="text-xmas">{errors.giftMessage}</span>
+                      ) : (
+                        <span>{fields.giftCard ? "Fica exatamente assim, em letra manuscrita." : "A mensagem só segue impressa se juntar o cartão."}</span>
+                      )}
+                      <span>{fields.giftMessage.length}/200</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <p className="text-xs text-muted">Todas as transações são seguras e encriptadas.</p>
             {methods.length === 0 ? (
               <p className="rounded-md border border-xmas/30 bg-xmas/5 p-3 text-sm text-xmas">{draft ? "O pagamento online está a ser ativado. Os seus dados ficam guardados; pode também encomendar por WhatsApp." : "A preparar o pagamento…"}</p>

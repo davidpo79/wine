@@ -236,6 +236,13 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
     });
   }
   if (products.length) await setSetting("upsell_products", products);
+  if (fd.get("gc_price") !== null) {
+    const gcPrice = parseEuroToCents(String(fd.get("gc_price") ?? ""));
+    const gcCost = parseEuroToCents(String(fd.get("gc_cost") ?? "0") || "0");
+    const gcVat = Number(String(fd.get("gc_vat") ?? "23").replace(",", "."));
+    if (gcPrice == null || gcPrice <= 0 || gcCost == null || !Number.isFinite(gcVat) || gcVat < 0 || gcVat > 30) return { error: "Invalid gift card price, cost or VAT." };
+    await setSetting("gift_card", { enabled: fd.get("gc_enabled") === "on", price_cents: gcPrice, cost_cents: gcCost, vat_percent: gcVat });
+  }
   const reviews = String(fd.get("reviews") ?? "")
     .split("\n")
     .map((l) => l.split("|").map((x) => x.trim()))
@@ -317,7 +324,7 @@ export async function costModelAction(_: FormState, fd: FormData): Promise<FormS
   await setSetting("upsell_products", products);
   let msg = "Costs saved. New orders use them.";
   if (fd.get("apply_past") === "on") {
-    const n = await resnapshotAll({ cost_model: model, upsell_products: products });
+    const n = await resnapshotAll({ cost_model: model, upsell_products: products, gift_card: settings.gift_card });
     msg = `Costs saved and applied to ${n} past paid orders.`;
   }
   revalidatePath("/admin/finance");
@@ -340,4 +347,12 @@ export async function expenseAction(_: FormState, fd: FormData): Promise<FormSta
   await db.insert(schema.expenses).values({ date, endDate, category, description: String(fd.get("description") ?? "").trim().slice(0, 200), amountCents: amount });
   revalidatePath("/admin/finance");
   return { ok: "Expense added." };
+}
+
+export async function giftCardAction(_: FormState, fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const ids = String(fd.get("ids") ?? "").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 300);
+  for (const id of ids) await logOrderEvent(id, "gift_card_printed", { by: admin.email });
+  revalidatePath("/admin/gift-cards");
+  return { ok: `${ids.length} card${ids.length === 1 ? "" : "s"} marked as printed.` };
 }

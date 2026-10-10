@@ -75,6 +75,7 @@ const Patch = z.object({
       consentCalls: z.boolean(),
       bundleKey: z.string().regex(/^[a-z0-9_]{1,20}$/),
       promo: z.string().max(40),
+      giftCard: z.boolean(),
     })
     .partial(),
 });
