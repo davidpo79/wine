@@ -2,11 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { newEventId } from "@/lib/track-client";
-import { useBuy } from "./BuyContext";
+import { CUSTOMER_KEY, useBuy } from "./BuyContext";
 
 const SEEN = "wp_exit_seen";
 const LEAD = "wp_lead";
 const MIN_MS_ON_PAGE = 15_000;
+
+/** Prefills the checkout details step with what the visitor already gave us. */
+function remember(patch: Record<string, string>) {
+  try {
+    const cur = JSON.parse(localStorage.getItem(CUSTOMER_KEY) ?? "{}");
+    localStorage.setItem(CUSTOMER_KEY, JSON.stringify({ ...cur, ...patch }));
+  } catch {}
+}
 
 function flag(store: "local" | "session", key: string, set = false) {
   try {
@@ -93,6 +101,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       if (!r.ok || !data.code) throw new Error(data.error ?? "Não foi possível enviar. Tente novamente.");
       setCode(data.code);
       setLead({ email: String(fd.get("email")).trim().toLowerCase(), token: data.token, plus: !!data.plus });
+      remember({ name: String(fd.get("name")).trim(), email: String(fd.get("email")).trim() });
       setState("done");
       flag("local", LEAD, true);
       buy.applyPromo(data.code);
@@ -121,6 +130,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       if (!r.ok || !data.code) throw new Error(data.error ?? "Não foi possível guardar. Tente novamente.");
       setCode(data.code);
       buy.applyPromo(data.code);
+      remember({ phone: String(fd.get("phone")).trim() });
       setPhoneState("done");
       window.gtag?.("event", "generate_lead", { method: "exit_popup_phone" });
     } catch (err) {

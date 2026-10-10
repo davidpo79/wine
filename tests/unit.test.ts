@@ -99,3 +99,34 @@ test("PT mobile normalization", async () => {
   assert.equal(normalizePtMobile("94123456"), null);
   assert.equal(leadToken("A@B.pt"), leadToken("a@b.pt"));
 });
+
+test("recovery: call window and resume token", async () => {
+  process.env.SESSION_SECRET = "x".repeat(40);
+  const { nextCallSlot, resumeToken, verifyResumeToken } = await import("../src/lib/recovery");
+  // Wed 2026-11-11 15:00 Lisbon (WET = UTC) is inside the window
+  const inside = new Date("2026-11-11T15:00:00Z");
+  assert.equal(nextCallSlot(inside).toISOString(), inside.toISOString());
+  // Wed 21:30 -> Thu 10:00
+  assert.equal(nextCallSlot(new Date("2026-11-11T21:30:00Z")).toISOString(), "2026-11-12T10:00:00.000Z");
+  // Wed 07:00 -> same day 10:00
+  assert.equal(nextCallSlot(new Date("2026-11-11T07:00:00Z")).toISOString(), "2026-11-11T10:00:00.000Z");
+  // Sat 20:30 -> Mon 10:00 (no Sunday calls)
+  assert.equal(nextCallSlot(new Date("2026-11-14T20:30:00Z")).toISOString(), "2026-11-16T10:00:00.000Z");
+  const t = resumeToken("WP-2026-0007");
+  assert.equal(verifyResumeToken(t), "WP-2026-0007");
+  assert.equal(verifyResumeToken(t.slice(0, -1) + "x"), null);
+});
+
+test("telnyx webhook signature (ed25519)", async () => {
+  const { generateKeyPairSync, sign } = await import("node:crypto");
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const raw = publicKey.export({ format: "der", type: "spki" }).subarray(12);
+  process.env.TELNYX_PUBLIC_KEY = Buffer.from(raw).toString("base64");
+  const { verifyTelnyxWebhook } = await import("../src/lib/telnyx");
+  const body = '{"data":{"event_type":"call.hangup"}}';
+  const ts = String(Math.floor(Date.now() / 1000));
+  const sig = sign(null, Buffer.from(`${ts}|${body}`), privateKey).toString("base64");
+  assert.equal(verifyTelnyxWebhook(body, sig, ts), true);
+  assert.equal(verifyTelnyxWebhook(body + " ", sig, ts), false);
+  assert.equal(verifyTelnyxWebhook(body, sig, String(Number(ts) - 1000)), false);
+});

@@ -12,6 +12,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const o = await getOrder(id);
   if (!o) notFound();
+  const recovery = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.orderId, id)).orderBy(asc(schema.recoverySteps.scheduledAt));
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
   const a = o.shippingAddress;
   const paid = ["paid", "preparing", "shipped", "delivered"].includes(o.status);
@@ -49,6 +50,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             <Item k="NIF" v={o.nif ?? "·"} />
             <Item k="Newsletter" v={o.consentMarketing ? "Yes" : "No"} />
             <Item k="Tracking consent" v={o.consentTracking ? "Yes" : "No"} />
+            <Item k="Messages consent (email/SMS/WA)" v={o.consentMessages ? "Yes" : "No"} />
+            <Item k="Calls consent (incl. AI)" v={o.consentCalls ? "Yes" : "No"} />
+            <Item k="Source" v={o.source} />
           </dl>
           <h2 className="mt-5 font-semibold">Shipping address</h2>
           <p className="text-sm">{a ? [a.name, a.line1, a.line2, `${a.postal_code ?? ""} ${a.city ?? ""}`, a.country].filter(Boolean).join(", ") : "·"}</p>
@@ -104,6 +108,25 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <p className="text-xs text-muted">Refunds: issue them in Stripe. The status changes to Refunded automatically.</p>
         </section>
       </div>
+      {recovery.length > 0 && (
+        <section className="rounded-lg border bg-white p-4">
+          <h2 className="font-semibold">Abandoned-checkout follow-up</h2>
+          <table className="mt-2 w-full text-sm">
+            <thead className="text-left text-xs uppercase text-muted"><tr><th className="py-1">Step</th><th>Scheduled</th><th>Status</th><th>Channels</th><th>Result</th></tr></thead>
+            <tbody>
+              {recovery.map((r) => (
+                <tr key={r.id} className="border-t align-top">
+                  <td className="py-1 font-medium">{r.step}</td>
+                  <td>{lisbonDateTime(r.scheduledAt)}</td>
+                  <td>{r.status}</td>
+                  <td>{(r.channels ?? []).join(", ")}</td>
+                  <td className="max-w-md truncate text-xs text-muted">{r.result ? JSON.stringify(r.result) : ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       <section className="rounded-lg border bg-white p-4">
         <h2 className="font-semibold">Timeline</h2>
         <ol className="mt-2 space-y-1 text-sm">

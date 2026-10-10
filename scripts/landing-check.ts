@@ -11,7 +11,7 @@ for (const w of [390, 320, 1280]) {
   const p = await ctx.newPage();
   const errs: string[] = [];
   p.on("pageerror", (e) => errs.push(e.message));
-  p.on("console", (m) => m.type() === "error" && !m.text().includes("502") && errs.push(m.text().slice(0, 200)));
+  p.on("console", (m) => m.type() === "error" && !m.text().includes("502") && !m.text().includes("400") && errs.push(m.text().slice(0, 200)));
   await p.goto(url, { waitUntil: "networkidle" });
   const ov = await p.evaluate(() => ({ cw: document.documentElement.clientWidth, sw: document.documentElement.scrollWidth }));
   ok(ov.sw <= ov.cw, `${w}px no horizontal overflow (client ${ov.cw}, scroll ${ov.sw})`);
@@ -35,8 +35,17 @@ for (const w of [390, 320, 1280]) {
     ok(!(await p.$eval("dialog", (d) => (d as HTMLDialogElement).open)), "Escape closes dialog");
     await p.click('#bundles-top [data-qty="2"]');
     await p.click("#hero-cta button");
+    ok(await p.$eval(".detailsdialog", (d) => (d as HTMLDialogElement).open), "order button opens the details step");
+    await p.fill("#co-name", "Ana Teste");
+    await p.fill("#co-email", "ana@example.com");
+    await p.fill("#co-phone", "12345");
+    await p.click(".detailsdialog button[type=submit]");
+    await p.waitForTimeout(1200);
+    ok(((await p.textContent(".detailsdialog .ordererror").catch(() => "")) ?? "").includes("telemóvel"), "invalid mobile rejected");
+    await p.fill("#co-phone", "912 345 678");
+    await p.click(".detailsdialog button[type=submit]");
     await p.waitForTimeout(2500);
-    ok((await p.textContent(".ordererror").catch(() => null)) !== null || p.url().includes("stripe"), "order button calls checkout (error shown without Stripe keys, or redirect)");
+    ok((await p.textContent(".detailsdialog .ordererror").catch(() => null)) !== null || p.url().includes("stripe"), "details submit calls checkout (error without Stripe keys, or redirect)");
   }
   ok(errs.length === 0, `${w}px no console errors ${errs.length ? JSON.stringify(errs) : ""}`);
   await ctx.close();

@@ -29,6 +29,13 @@
       "when": 1791646972905,
       "tag": "0003_lead_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791647430695,
+      "tag": "0004_checkout_recovery",
+      "breakpoints": true
     }
   ]
 }

@@ -97,6 +97,9 @@ export const orders = pgTable(
     isGift: boolean("is_gift").notNull().default(false),
     consentMarketing: boolean("consent_marketing").notNull().default(false),
     consentTracking: boolean("consent_tracking").notNull().default(false),
+    consentMessages: boolean("consent_messages").notNull().default(false), // email/SMS/WhatsApp reminders (pre-checkout)
+    consentCalls: boolean("consent_calls").notNull().default(false), // phone calls incl. AI assistant (pre-checkout)
+    source: text("source").notNull().default("site"), // site | recovery
     utm: jsonb("utm").$type<Utm>(),
     fbp: text("fbp"),
     fbc: text("fbc"),
@@ -193,6 +196,24 @@ export const leads = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("leads_created_idx").on(t.createdAt)],
+);
+
+export const recoverySteps = pgTable(
+  "recovery_steps",
+  {
+    id: serial("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id),
+    step: text("step").notNull(), // reminder_20m | ai_call | final_email
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("pending"), // pending | running | done | skipped | failed
+    channels: jsonb("channels").$type<string[]>(),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("recovery_due_idx").on(t.status, t.scheduledAt), index("recovery_order_idx").on(t.orderId)],
 );
 
 export const adminUsers = pgTable("admin_users", {

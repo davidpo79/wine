@@ -5,6 +5,9 @@ import { newEventId, pixelEvent, track } from "@/lib/track-client";
 import { promoDiscountCents, promoShippingCents, type PromoConfig } from "@/lib/promo";
 
 const PROMO_KEY = "wp_promo";
+export const CUSTOMER_KEY = "wp_customer";
+
+export type CustomerDetails = { name: string; email: string; phone: string; consentMessages: boolean; consentCalls: boolean };
 
 export type PublicBundle = {
   key: string;
@@ -26,7 +29,11 @@ type Ctx = {
   setIsGift: (v: boolean) => void;
   giftMessage: string;
   setGiftMessage: (v: string) => void;
+  /** Opens the on-site details step (name, email, mobile, consents). */
   checkout: () => Promise<void>;
+  submitCheckout: (d: CustomerDetails) => Promise<void>;
+  detailsOpen: boolean;
+  setDetailsOpen: (v: boolean) => void;
   loading: boolean;
   error: string | null;
   mode: SalesMode;
@@ -94,36 +101,60 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
     [key, bundles],
   );
 
+  // "Encomendar" opens the on-site details step; Stripe opens after submitCheckout.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const checkout = useCallback(async () => {
     if (loading) return;
-    setLoading(true);
     setError(null);
-    const value = total(selected) / 100;
     try {
       sessionStorage.setItem("wp_checkout_started", "1");
     } catch {}
-    const atcId = track("AddToCart", { content_ids: ["trilogia-2160"], content_type: "product", value, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
-    try {
-      const r = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bundle_key: selected.key, is_gift: isGift, gift_message: isGift ? giftMessage : "", event_id: atcId, promo: promo ?? undefined }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok || !data.url) throw new Error(data.error ?? "Não foi possível iniciar o pagamento.");
-      // InitiateCheckout is sent by the server (CAPI); the browser fires the same event_id for deduplication.
-      pixelEvent("InitiateCheckout", { value: data.value, currency: "EUR", num_items: data.num_items, content_ids: ["trilogia-2160"], content_type: "product" }, data.initiate_event_id);
-      window.gtag?.("event", "begin_checkout", { currency: "EUR", value: data.value, items: [{ item_id: "trilogia-2160", item_variant: selected.key, quantity: 1 }] });
-      setTimeout(() => location.assign(data.url), 150);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro inesperado.");
-      setLoading(false);
-    }
-  }, [loading, selected, isGift, giftMessage, promo, total]);
+    track("AddToCart", { content_ids: ["trilogia-2160"], content_type: "product", value: total(selected) / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
+    setDetailsOpen(true);
+  }, [loading, selected, total]);
+
+  const submitCheckout = useCallback(
+    async (d: CustomerDetails) => {
+      if (loading) return;
+      setLoading(true);
+      setError(null);
+      try {
+        localStorage.setItem(CUSTOMER_KEY, JSON.stringify({ name: d.name, email: d.email, phone: d.phone }));
+      } catch {}
+      try {
+        const r = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bundle_key: selected.key,
+            is_gift: isGift,
+            gift_message: isGift ? giftMessage : "",
+            event_id: newEventId("co"),
+            promo: promo ?? undefined,
+            name: d.name,
+            email: d.email,
+            phone: d.phone,
+            consent_messages: d.consentMessages,
+            consent_calls: d.consentCalls,
+          }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.url) throw new Error(data.error ?? "Não foi possível iniciar o pagamento.");
+        // InitiateCheckout is sent by the server (CAPI); the browser fires the same event_id for deduplication.
+        pixelEvent("InitiateCheckout", { value: data.value, currency: "EUR", num_items: data.num_items, content_ids: ["trilogia-2160"], content_type: "product" }, data.initiate_event_id);
+        window.gtag?.("event", "begin_checkout", { currency: "EUR", value: data.value, items: [{ item_id: "trilogia-2160", item_variant: selected.key, quantity: 1 }] });
+        setTimeout(() => location.assign(data.url), 150);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Erro inesperado.");
+        setLoading(false);
+      }
+    },
+    [loading, selected, isGift, giftMessage, promo],
+  );
 
   const value = useMemo(
-    () => ({ bundles, selected, select, isGift, setIsGift, giftMessage, setGiftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total }),
-    [bundles, selected, select, isGift, giftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total],
+    () => ({ bundles, selected, select, isGift, setIsGift, giftMessage, setGiftMessage, checkout, submitCheckout, detailsOpen, setDetailsOpen, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total }),
+    [bundles, selected, select, isGift, giftMessage, checkout, submitCheckout, detailsOpen, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total],
   );
   return <BuyCtx.Provider value={value}>{children}</BuyCtx.Provider>;
 }

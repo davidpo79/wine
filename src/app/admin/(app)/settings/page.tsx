@@ -40,6 +40,9 @@ export default async function SettingsPage() {
           <textarea name="ebook_previews" rows={4} defaultValue={(s.ebook_previews ?? []).join("\n")} placeholder="public/ebook/page-1.jpg" className="mt-1 w-full rounded border p-2 font-mono text-xs font-normal" />
           <span className="block text-xs font-normal text-muted">Generated with npm run ebook:previews. Empty: the site shows illustrated cards.</span>
         </label>
+        <label className="flex items-center gap-2 font-semibold">
+          <input type="checkbox" name="recovery_enabled" defaultChecked={s.recovery_enabled} className="h-4 w-4" /> Abandoned-checkout follow-up (20 min message, AI call at 2 h in call hours, final email next day)
+        </label>
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Exit popup and discount code</legend>
           <label className="flex items-center gap-2"><input type="checkbox" name="exit_popup_enabled" defaultChecked={s.exit_popup_enabled} className="h-4 w-4" /> Show exit-intent popup</label>

@@ -152,3 +152,22 @@ ${button(`${SITE.url}/?codigo=${encodeURIComponent(code)}#escolher`, "Escolher a
   );
   return send(null, lead.email, `Faltam poucos dias: encomendas de Natal até ${cutoffLabel}`, html, "lead_reminder");
 }
+
+export async function sendRecoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string) {
+  if (!o.email) return;
+  const first = (o.customerName ?? "").split(" ")[0];
+  const html = layout(
+    kind === "first" ? "A sua prenda ficou à espera" : "Último lembrete",
+    `<p>Olá ${esc(first)},</p>
+<p>${
+      kind === "first"
+        ? "Reparámos que a sua encomenda da Trilogia 2160 ficou por concluir. Guardámos a sua escolha:"
+        : "Só um último lembrete: a sua encomenda da Trilogia 2160 continua por concluir."
+    }</p>
+${orderSummary(o)}
+${button(link, "Concluir a encomenda")}
+<p>Encomendas pagas até 30/11 chegam antes do Natal. Se teve alguma dúvida, responda a este email ou fale connosco por WhatsApp: ${esc(SITE.whatsapp)}.</p>
+<p style="font-size:12px;color:#55606e"><a href="${esc(stopLink)}" style="color:#55606e">Não quero receber mais mensagens sobre esta encomenda</a>.</p>`,
+  );
+  return send(o, o.email, kind === "first" ? "A sua Trilogia 2160 ficou à espera" : "Último lembrete: a sua prenda de Natal", html, `recovery_${kind}`);
+}

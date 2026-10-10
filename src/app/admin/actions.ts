@@ -203,6 +203,7 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
   const plus = String(fd.get("lead_plus_code") ?? "").trim().toUpperCase();
   if (plus && (!/^[A-Z0-9]{3,20}$/.test(plus) || plus === code)) return { error: "Step-2 code must be 3-20 letters/digits and different from the main code." };
   await setSetting("lead_plus_code", plus);
+  await setSetting("recovery_enabled", fd.get("recovery_enabled") === "on");
   await setSetting("delivery_text", String(fd.get("delivery_text") ?? "").trim().slice(0, 120));
   revalidatePath("/admin/settings");
   return { ok: "Settings saved." };

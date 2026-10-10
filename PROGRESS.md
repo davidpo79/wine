@@ -4,6 +4,8 @@ Last updated: 10/10/2026 (session 1)
 
 ## 10/10 (session 1, later): landing page rebuilt from David's reference (trilogia-2160-claude-code-spec.html): exact markup/CSS/interactions, real photos, prices 45,90 / 82,62 / 117,05, Stripe as main CTA + WhatsApp secondary. Admin in English.
 
+## 10/10 (later): exit popup (5% code NATAL5, step 2 mobile → NATALMAIS free shipping), countdown, sticky checkout, smart checkout (details step before Stripe) with abandoned-checkout follow-up: 20 min message (WhatsApp/SMS + email), AI call via Telnyx at 2 h in call hours, final email next day. Setup: docs/RECOVERY-SETUP.md. Waiting for Telnyx + WhatsApp credentials.
+
 ## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (Stripe test keys, Resend, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
 
 ## Done
