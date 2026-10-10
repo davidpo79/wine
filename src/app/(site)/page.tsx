@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { getCatalog, paidBoxes, salesState } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { SITE } from "@/lib/site";
 import { BuyProvider, type PublicBundle, type SalesMode } from "@/components/landing/BuyContext";
-import { AgeGate } from "@/components/landing/Interactive";
 import { LandingPage } from "@/components/landing/LandingPage";
 import "./landing.css";
 
@@ -16,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [catalog, settings, sold, jar] = await Promise.all([getCatalog(), getSettings(), paidBoxes(), cookies()]);
+  const [catalog, settings, sold] = await Promise.all([getCatalog(), getSettings(), paidBoxes()]);
   if (!catalog || catalog.bundles.length === 0) {
     return <main style={{ padding: 40, textAlign: "center" }}>Loja em preparação. Volte em breve.</main>;
   }
@@ -30,7 +28,6 @@ export default async function Home() {
     shippingCents: b.shippingCents,
     badge: b.badge,
   }));
-  const ageOk = jar.get("wp_age")?.value === "1";
   const cutoffLabel = new Date(settings.cutoff_at).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric" });
   const defaultKey = bundles.find((b) => b.qty === 2)?.key ?? bundles[0].key;
 
@@ -54,7 +51,6 @@ export default async function Home() {
 
   return (
     <BuyProvider bundles={bundles} defaultKey={defaultKey} mode={mode}>
-      {!ageOk && <AgeGate />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <LandingPage deliveryText={settings.delivery_text} cutoffLabel={cutoffLabel} />
     </BuyProvider>

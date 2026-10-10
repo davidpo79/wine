@@ -26,7 +26,6 @@ export default function Privacidade() {
       <p>Pode pedir acesso, retificação, apagamento, limitação, portabilidade ou opor-se ao tratamento, através de {SITE.email}. Pode também reclamar junto da CNPD (www.cnpd.pt).</p>
       <h2>Cookies</h2>
       <ul>
-        <li><strong>wp_age</strong> (essencial, 30 dias): confirmação de idade.</li>
         <li><strong>wp_consent</strong> (essencial, 6 meses): a sua escolha de cookies.</li>
         <li><strong>wp_utm</strong> (30 dias): origem da visita (campanha), associada à encomenda. [[TODO: revisão jurídica, classificar como essencial ou estatística]]</li>
         <li><strong>_ga, _ga_*</strong> (estatística, até 2 anos): Google Analytics.</li>

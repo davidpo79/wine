@@ -126,49 +126,30 @@ export function Consent({ pixelId }: { pixelId: string | null }) {
   }
 
   if (!open) return null;
+  // Slim bottom bar. "Rejeitar" is as easy as "Aceitar" (GDPR); "Opções" expands the per-category choice.
+  const btn = "min-h-9 rounded px-3 text-xs font-semibold whitespace-nowrap";
   return (
-    <div role="dialog" aria-modal="false" aria-labelledby="consent-title" className="fixed inset-x-0 bottom-0 z-[60] p-3 sm:p-4">
-      <div className="mx-auto max-w-3xl rounded-lg border border-gold/40 bg-night text-paper shadow-2xl">
-        <div className="p-4 sm:p-5">
-          <h2 id="consent-title" className="font-serif text-xl">Cookies e privacidade</h2>
-          <p className="mt-1 text-sm text-paper/80">
-            Usamos cookies essenciais para o site funcionar. Com a sua autorização, usamos também cookies de estatística (Google Analytics) e de
-            marketing (Meta) para medir e melhorar os nossos anúncios. Pode mudar a escolha a qualquer momento no rodapé.{" "}
-            <a href="/privacidade" className="underline decoration-gold underline-offset-2">Saber mais</a>
-          </p>
-          {prefs && (
-            <div className="mt-3 space-y-2 text-sm">
-              <label className="flex items-start gap-3 rounded bg-white/5 p-3">
-                <input type="checkbox" checked disabled className="mt-1 h-4 w-4 accent-gold" />
-                <span><strong>Essenciais</strong> · sempre ativos (sessão, verificação de idade, a sua escolha de cookies).</span>
-              </label>
-              <label className="flex items-start gap-3 rounded bg-white/5 p-3">
-                <input type="checkbox" checked={s} onChange={(e) => setS(e.target.checked)} className="mt-1 h-4 w-4 accent-gold" />
-                <span><strong>Estatística</strong> · Google Analytics, para perceber como o site é usado.</span>
-              </label>
-              <label className="flex items-start gap-3 rounded bg-white/5 p-3">
-                <input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="mt-1 h-4 w-4 accent-gold" />
-                <span><strong>Marketing</strong> · Meta Pixel e Conversions API, para medir anúncios no Facebook e Instagram.</span>
-              </label>
-            </div>
-          )}
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <button onClick={() => decide({ s: false, m: false })} className="min-h-11 rounded border border-paper/40 px-4 text-sm font-semibold hover:bg-white/10">
-              Rejeitar tudo
-            </button>
-            {prefs ? (
-              <button onClick={() => decide({ s, m })} className="min-h-11 rounded border border-paper/40 px-4 text-sm font-semibold hover:bg-white/10">
-                Guardar escolha
-              </button>
-            ) : (
-              <button onClick={() => setPrefs(true)} className="min-h-11 rounded border border-paper/40 px-4 text-sm font-semibold hover:bg-white/10">
-                Preferências
-              </button>
-            )}
-            <button onClick={() => decide({ s: true, m: true })} className="min-h-11 rounded bg-gold px-4 text-sm font-semibold text-night hover:bg-gold-soft">
-              Aceitar tudo
-            </button>
+    <div role="dialog" aria-modal="false" aria-label="Cookies" className="fixed inset-x-0 bottom-0 z-[60] border-t border-gold/40 bg-night text-paper shadow-[0_-4px_20px_rgba(0,0,0,0.25)]">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4">
+        <p className="min-w-0 flex-1 basis-64 text-xs leading-snug text-paper/85">
+          Usamos cookies para medir os nossos anúncios e melhorar o site.{" "}
+          <a href="/privacidade" className="underline underline-offset-2">Saber mais</a>
+        </p>
+        {prefs && (
+          <div className="flex w-full flex-wrap gap-x-4 gap-y-1 text-xs sm:order-last">
+            <label className="flex items-center gap-1.5 opacity-70"><input type="checkbox" checked disabled className="accent-gold" /> Essenciais</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={s} onChange={(e) => setS(e.target.checked)} className="accent-gold" /> Estatística (Google Analytics)</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="accent-gold" /> Marketing (Meta)</label>
           </div>
+        )}
+        <div className="flex shrink-0 gap-2">
+          {prefs ? (
+            <button onClick={() => decide({ s, m })} className={`${btn} border border-paper/40 hover:bg-white/10`}>Guardar</button>
+          ) : (
+            <button onClick={() => setPrefs(true)} className={`${btn} underline underline-offset-2 hover:bg-white/10`}>Opções</button>
+          )}
+          <button onClick={() => decide({ s: false, m: false })} className={`${btn} border border-paper/40 hover:bg-white/10`}>Rejeitar</button>
+          <button onClick={() => decide({ s: true, m: true })} className={`${btn} bg-gold text-night hover:bg-gold-soft`}>Aceitar</button>
         </div>
       </div>
     </div>

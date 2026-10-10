@@ -19,7 +19,7 @@ Last updated: 10/10/2026 (session 1)
 
 ### Phase 2: Landing page
 - All 17 sections of brief section 4, pt-PT, no em-dashes, mobile first. Reviews section omitted (no real reviews).
-- Age gate (cookie 30 days), consent banner, marquee, sticky mobile CTA, real countdown to `settings.cutoff_at`, post-cutoff modes (closed / after Christmas / sold out).
+- Consent banner (slim bottom bar; age gate removed per David, 18+ stated at checkout and in footer), marquee, sticky mobile CTA, real countdown to `settings.cutoff_at`, post-cutoff modes (closed / after Christmas / sold out).
 - Bundles always read from DB; x2 preselected; per-bottle price; savings vs. compare-at.
 - Illustrated placeholders (abstract bottles with blank labels, clearly tagged) until real photos arrive. Real photos uploaded in admin replace them automatically.
 - E-book section uses styled placeholder cards; real page previews replace them once `npm run ebook:previews` is run and the keys are set in admin.
