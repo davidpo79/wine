@@ -2,6 +2,8 @@
 
 Last updated: 10/10/2026 (session 1)
 
+## 10/10 (session 1, later): landing page rebuilt from David's reference (trilogia-2160-claude-code-spec.html): exact markup/CSS/interactions, real photos, prices 45,90 / 82,62 / 117,05, Stripe as main CTA + WhatsApp secondary. Admin in English.
+
 ## Status: Phases 1 to 5 built. Waiting for Gate 1 inputs (Stripe test keys, Resend, Meta/GA4 IDs) before the tracking checklist can be completed. Stopped at GATE 1.
 
 ## Done
@@ -11,8 +13,8 @@ Last updated: 10/10/2026 (session 1)
 - Schema per brief section 3, plus: `login_attempts` (admin rate limit), `orders.bundle_key`, `client_ip`/`user_agent`/`ga_client_id` (CAPI and GA4, stored only with consent), `purchase_reported_at` (Purchase sent exactly once), `delivered_at`.
 - Idempotent seed (`npm run db:seed`): Trilogia 2160 product, bundles x1/x2/x3, default settings. Never overwrites admin edits.
 - Bucket client (S3 SDK), `public/` served through `/media/...`, `private/` only by presigned URL.
-- Hosting (per David, 10/10): Railway project **Dropshipping v2**, environment `production`, service `wine` (branch `claude/wine-portugal-natal-df8491`), with its own `Postgres` and `wine-bucket` (ams). Domain `vinho.prendadenatal.com` already attached by David (CNAME verified, SSL valid). `SITE_NOINDEX=1` until launch. Stripe stays in TEST mode until Gate 1.
-- A separate project `vinho-prendadenatal` (staging) was created first; it is no longer used and can be deleted (waiting for David's OK).
+- Hosting (per David, 10/10, final): Railway project **vinho-prendadenatal**, environment `staging`, service `web` (branch `claude/wine-portugal-natal-df8491`), with `Postgres` and `Bucket` (ams). Custom domain `vinho.prendadenatal.com` attached to `web`; DNS must point CNAME `vinho` → `7feenjry.up.railway.app` plus TXT `_railway-verify.vinho` (David, at the DNS provider). `SITE_NOINDEX=1` until launch.
+- The temporary `wine` service and `wine-bucket` in Dropshipping v2 were removed. Removal of the extra `Postgres` there is staged and needs David's 2FA approval in the Railway dashboard.
 - Migrations and seed run as Railway pre-deploy command (`railway.json`). Health check `/api/health`.
 
 ### Phase 2: Landing page
@@ -58,13 +60,13 @@ See "Gate 1 inputs" below. Without Stripe test keys the end-to-end checkout and 
 ## Gate 1 inputs needed
 | Item | Where it goes |
 |---|---|
-| Stripe TEST keys: `STRIPE_SECRET_KEY` (sk_test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Railway → Dropshipping v2 → wine → Variables |
-| Stripe webhook secret: create endpoint `https://vinho.prendadenatal.com/api/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET` | Railway (wine service) |
+| Stripe TEST keys: `STRIPE_SECRET_KEY` (sk_test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Railway → vinho-prendadenatal → web → Variables |
+| Stripe webhook secret: create endpoint `https://vinho.prendadenatal.com/api/webhooks/stripe` with events `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded` → `STRIPE_WEBHOOK_SECRET` | Railway (web service) |
 | Confirm MB WAY and Multibanco are enabled in Stripe (Settings → Payment methods) | Stripe dashboard |
-| Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway (wine service) |
-| Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway (wine service) |
-| GA4 Measurement ID + Measurement Protocol API secret → `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (new, not in brief) | Railway (wine service) |
-| Admin email + first password: set `ADMIN_EMAIL` and `ADMIN_INITIAL_PASSWORD` (12+ chars) on the web service; the next deploy creates the admin; then delete `ADMIN_INITIAL_PASSWORD` | Railway (wine service) |
+| Resend API key + verified sender domain → `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_ALERT_EMAIL` | Railway (web service) |
+| Meta Pixel ID, CAPI token, Test Event Code → `META_PIXEL_ID`, `META_CAPI_ACCESS_TOKEN`, `META_TEST_EVENT_CODE` | Railway (web service) |
+| GA4 Measurement ID + Measurement Protocol API secret → `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (new, not in brief) | Railway (web service) |
+| Admin email + first password: set `ADMIN_EMAIL` and `ADMIN_INITIAL_PASSWORD` (12+ chars) on the web service; the next deploy creates the admin; then delete `ADMIN_INITIAL_PASSWORD` | Railway (web service) |
 | Real photos (box closed/open, 3 bottles, lifestyle), logo SVG, e-book PDF final | Upload in admin / send files |
 | Legal entity (name, NIF, address), RAL entity, returns policy details | `src/lib/site.ts` and legal pages |
 | Tasting notes for the 3 wines, bottle volume | `src/components/landing/content.ts` |
