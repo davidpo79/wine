@@ -133,6 +133,8 @@ async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Or
   } else if (step.step === "ai_call") {
     if (!order.consentCalls) return { status: "skipped", result: { reason: "no_call_consent" }, channels };
     if (!order.phone) return { status: "skipped", result: { reason: "no_phone" }, channels };
+    // Calls only to Portuguese numbers (Lisbon call hours, PT caller ID); foreign numbers get messages only.
+    if (!order.phone.startsWith("+351")) return { status: "skipped", result: { reason: "non_pt_phone" }, channels };
     if (!telnyxConfigured("voice")) return { status: "skipped", result: { reason: "telnyx_voice_not_configured" }, channels };
     const slot = nextCallSlot(new Date());
     if (slot.getTime() > Date.now() + 60_000) return { status: "pending", reschedule: slot, result: { reason: "outside_call_window" }, channels };

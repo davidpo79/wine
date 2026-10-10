@@ -38,6 +38,19 @@ type Review = { name: string; city?: string; text: string; source?: string };
 
 const EMPTY: Fields = { email: "", phone: "", firstName: "", lastName: "", address1: "", address2: "", postalCode: "", city: "", nif: "", isGift: false, giftMessage: "", consentMessages: false, consentCalls: false, giftCard: false };
 const DRAFT_KEY = "wp_draft";
+// Standard names help Safari and Chrome autofill (alongside the autocomplete tokens).
+const FIELD_NAME: Partial<Record<keyof Fields, string>> = {
+  email: "email",
+  phone: "tel",
+  firstName: "given-name",
+  lastName: "family-name",
+  address1: "address-line1",
+  address2: "address-line2",
+  postalCode: "postal-code",
+  city: "city",
+  nif: "nif",
+};
+const TEXT_FIELDS = ["email", "phone", "firstName", "lastName", "address1", "address2", "postalCode", "city", "nif"] as const;
 
 export function CheckoutPage({
   bundles,
@@ -90,11 +103,13 @@ export function CheckoutPage({
       stored = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
     } catch {}
     const wantedBundle = sp.get("b");
-    const resume = fromUrl ?? (stored && Date.now() - stored.ts < 48 * 3600_000 && !wantedBundle ? stored : null);
+    // Coming back (even from the landing page with a new choice) reopens the same checkout with what was typed.
+    const resume = fromUrl ?? (stored && Date.now() - stored.ts < 7 * 86400_000 ? stored : null);
 
     const apply = (d: Record<string, unknown>) => {
       const next = { o: d.order_id as string, t: d.token as string };
       setDraft(next);
+      draftRef.current = next; // available to flush() right away, before the next render
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...next, ts: Date.now() }));
       } catch {}
@@ -129,12 +144,32 @@ export function CheckoutPage({
         const r = await fetch(`/api/checkout?o=${encodeURIComponent(resume.o)}&t=${encodeURIComponent(resume.t)}`);
         if (r.ok) {
           const d = await r.json();
-          if (d.paid) {
+          if (d.paid && fromUrl) {
             location.replace(`/obrigado?o=${encodeURIComponent(d.order_id)}&t=${encodeURIComponent(d.token)}`);
             return;
           }
-          apply(d);
-          return;
+          if (!d.paid) {
+            apply(d);
+            // New choice made on the landing page: apply it to the saved checkout.
+            const patch: Record<string, unknown> = {};
+            if (wantedBundle && wantedBundle !== d.bundle_key) {
+              setBundleKey(wantedBundle);
+              patch.bundleKey = wantedBundle;
+            }
+            try {
+              const g = JSON.parse(sessionStorage.getItem("wp_gift") ?? "{}");
+              if (g.msg && !(d.fields?.giftMessage ?? "")) {
+                setFields((f) => ({ ...f, isGift: true, giftMessage: g.msg }));
+                Object.assign(patch, { isGift: true, giftMessage: g.msg });
+              }
+            } catch {}
+            if (Object.keys(patch).length) {
+              dirty.current = { ...dirty.current, ...patch };
+              void flush();
+            }
+            return;
+          }
+          // An already paid checkout: a new visit from the landing page starts a new order.
         }
       }
       let gift: { isGift?: boolean; msg?: string } = {};
@@ -188,8 +223,35 @@ export function CheckoutPage({
     [flush],
   );
 
+  // Some browsers autofill without firing input events: read what is really in the fields and autosave it,
+  // so a customer who only starts filling in (or only autofills) is saved without pressing anything.
+  const fieldsRef = useRef(fields);
+  fieldsRef.current = fields;
+  const syncFromDom = useCallback(() => {
+    const patch: Partial<Fields> = {};
+    for (const k of TEXT_FIELDS) {
+      const el = document.getElementById(`f-${k}`) as HTMLInputElement | null;
+      if (el && el.value !== fieldsRef.current[k]) (patch as Record<string, string>)[k] = el.value;
+    }
+    if (Object.keys(patch).length) {
+      setFields((f) => ({ ...f, ...patch }));
+      dirty.current = { ...dirty.current, ...patch };
+      return true;
+    }
+    return false;
+  }, []);
   useEffect(() => {
-    const onHide = () => void flush();
+    const t = setInterval(() => {
+      if (syncFromDom()) void flush();
+    }, 1500);
+    return () => clearInterval(t);
+  }, [syncFromDom, flush]);
+
+  useEffect(() => {
+    const onHide = () => {
+      syncFromDom();
+      void flush();
+    };
     window.addEventListener("pagehide", onHide);
     document.addEventListener("visibilitychange", onHide);
     return () => {
@@ -259,12 +321,29 @@ export function CheckoutPage({
     } else setPromoMsg("Código inválido ou não aplicável a esta opção.");
   };
 
+
   async function pay(e: React.FormEvent) {
     e.preventDefault();
     if (!draft || paying) return;
     setFormError(null);
+    syncFromDom();
     if (!methods.includes(method)) {
-      setFormError("O pagamento ainda não está disponível. Os seus dados ficam guardados; tente mais tarde ou fale connosco por WhatsApp.");
+      // No payment method configured yet: still save, validate and record the checkout attempt.
+      setPaying(true);
+      await flush();
+      const r = await fetch("/api/checkout/prepare", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, check_only: true }) });
+      const data = await r.json().catch(() => ({}));
+      setPaying(false);
+      if (r.status === 422 && data.errors) {
+        setErrors(data.errors);
+        document.querySelector("[aria-invalid=true]")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      if (r.ok) {
+        pixelEvent("InitiateCheckout", { value: data.value, currency: "EUR", num_items: data.num_items, content_ids: ["trilogia-2160"], content_type: "product" }, data.initiate_event_id);
+        window.gtag?.("event", "begin_checkout", { currency: "EUR", value: data.value });
+      }
+      setFormError("O pagamento online está a ser ativado. Os seus dados ficaram guardados; pode também encomendar por WhatsApp.");
       return;
     }
     setPaying(true);
@@ -518,6 +597,7 @@ export function CheckoutPage({
       </label>
       <input
         id={`f-${k}`}
+        name={FIELD_NAME[k] ?? k}
         {...props}
         className={`w-full rounded-md border bg-white px-3 py-3 text-[15px] outline-none focus:border-azulejo focus:ring-2 focus:ring-azulejo/20 ${errors[k] ? "border-xmas" : "border-paper-2"}`}
         value={fields[k] as string}
@@ -556,7 +636,7 @@ export function CheckoutPage({
       </div>
 
       <div className="mx-auto grid max-w-6xl lg:grid-cols-[1fr_440px]">
-        <form onSubmit={pay} noValidate className="space-y-8 px-4 pb-28 pt-8 lg:border-r lg:border-paper-2 lg:py-10 lg:pr-12">
+        <form onSubmit={pay} noValidate autoComplete="on" className="space-y-8 px-4 pb-28 pt-8 lg:border-r lg:border-paper-2 lg:py-10 lg:pr-12">
           <section className="space-y-3">
             <div className="flex items-baseline justify-between">
               <h2 className="text-lg font-bold">Contacto</h2>

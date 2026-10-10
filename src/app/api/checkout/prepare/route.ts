@@ -16,7 +16,7 @@ import { stripeConfigured } from "@/lib/stripe";
 // Called when the customer clicks "Pagar": final validation, InitiateCheckout, and (once per order) the one-time offer.
 export async function POST(req: Request) {
   const parsed = z
-    .object({ o: z.string().max(40), t: z.string().max(80), method: z.enum(["mbway", "multibanco", "card", "wallet"]).optional() })
+    .object({ o: z.string().max(40), t: z.string().max(80), method: z.enum(["mbway", "multibanco", "card", "wallet"]).optional(), check_only: z.boolean().optional() })
     .safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const [settings, catalog] = await Promise.all([getSettings(), getCatalog()]);
   const m = parsed.data.method;
   const afterPayment = m === "mbway" || (m === "card" && stripeConfigured());
-  if (settings.upsell_enabled && catalog && !afterPayment) {
+  if (settings.upsell_enabled && catalog && !afterPayment && !parsed.data.check_only) {
     const shown = await db
       .select({ id: schema.orderEvents.id })
       .from(schema.orderEvents)

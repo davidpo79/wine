@@ -104,7 +104,6 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
     try {
       sessionStorage.setItem("wp_checkout_started", "1");
       sessionStorage.setItem("wp_gift", JSON.stringify({ isGift, msg: isGift ? giftMessage : "" }));
-      localStorage.removeItem("wp_draft"); // a new choice on the landing page starts a fresh checkout
     } catch {}
     track("AddToCart", { content_ids: ["trilogia-2160"], content_type: "product", value: total(selected) / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
     location.assign(`/checkout?b=${encodeURIComponent(selected.key)}`);

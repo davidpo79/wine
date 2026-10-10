@@ -10,7 +10,7 @@ import { checkoutMethods } from "./payments";
 import { logOrderEvent, nextOrderId } from "./orders";
 import { normalizeCode, promoDiscountCents, promoShippingCents } from "./promo";
 import { resumeToken, scheduleRecovery, verifyResumeToken } from "./recovery";
-import { normalizePtMobile } from "./leads";
+import { normalizePhone } from "./leads";
 
 export const draftToken = resumeToken;
 
@@ -90,7 +90,7 @@ const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0
 export async function updateDraft(order: Order, patch: DraftPatch) {
   const set: Partial<typeof schema.orders.$inferInsert> = { lastSavedAt: new Date() };
   if (patch.email !== undefined) set.email = clip(patch.email, 160)?.trim().toLowerCase() || null;
-  if (patch.phone !== undefined) set.phone = normalizePtMobile(patch.phone) ?? (clip(patch.phone, 30)?.trim() || null);
+  if (patch.phone !== undefined) set.phone = normalizePhone(patch.phone) ?? (clip(patch.phone, 30)?.trim() || null);
   if (patch.firstName !== undefined || patch.lastName !== undefined) {
     const [f0, ...l0] = (order.customerName ?? "").split(" ");
     const first = patch.firstName !== undefined ? clip(patch.firstName, 60)!.trim() : f0;
@@ -168,7 +168,7 @@ export function validateForPayment(o: Order): FieldErrors {
   const a = o.shippingAddress ?? {};
   const [first, ...rest] = (o.customerName ?? "").split(" ");
   if (!o.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) e.email = "Indique um email válido.";
-  if (!o.phone || !normalizePtMobile(o.phone)) e.phone = "Indique um telemóvel português válido (9 dígitos).";
+  if (!o.phone || !normalizePhone(o.phone)) e.phone = "Indique um telemóvel válido (ex.: 912 345 678 ou +44 7700 900123).";
   if (!first) e.firstName = "Indique o nome.";
   if (!rest.join(" ")) e.lastName = "Indique o apelido.";
   if (!a.line1 || a.line1.length < 4) e.address1 = "Indique a morada.";

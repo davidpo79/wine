@@ -32,5 +32,14 @@ export function normalizePtMobile(input: string): string | null {
   return /^9[1236]\d{7}$/.test(d) ? `+351${d}` : null;
 }
 
+/** Any phone in international form: Portuguese mobiles as +3519XXXXXXXX, others as +<country><number> (8-15 digits). */
+export function normalizePhone(input: string): string | null {
+  const pt = normalizePtMobile(input);
+  if (pt) return pt;
+  let d = input.replace(/[\s().-]/g, "");
+  if (d.startsWith("00")) d = `+${d.slice(2)}`;
+  return /^\+[1-9]\d{7,14}$/.test(d) ? d : null;
+}
+
 export const PHONE_CONSENT_TEXT =
   "Aceito ser contactado/a pela Wine Portugal por telefone ou WhatsApp sobre esta oferta de Natal. Posso cancelar a qualquer momento.";
