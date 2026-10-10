@@ -3,10 +3,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { db, schema } from "@/db";
 import type { OrderStatus } from "@/db/schema";
-import { login, logout, requireAdmin } from "@/lib/auth";
+import { hashPassword, login, logout, requireAdmin, setSessionCookie } from "@/lib/auth";
 import { clientIp } from "@/lib/request";
 import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
 import { ebookLink, sendConfirmation, sendShipped } from "@/lib/email";
@@ -42,6 +43,7 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
   const admin = await requireAdmin();
   const id = String(fd.get("id"));
   const action = String(fd.get("action"));
+  if (admin.role !== "admin" && ["cancelled", "refund_api", "refund_manual"].includes(action)) return { error: "Only admins can cancel or refund orders." };
   const o = await orderOr404(id);
   const by = { by: admin.email };
   try {
@@ -108,7 +110,7 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
 }
 
 export async function bundleAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   const id = Number(fd.get("id"));
   const qty = Number(fd.get("qty"));
   const price = parseEuroToCents(String(fd.get("price") ?? ""));
@@ -136,7 +138,7 @@ export async function bundleAction(_: FormState, fd: FormData): Promise<FormStat
 }
 
 export async function productAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   const id = Number(fd.get("id"));
   const [p] = await db.select().from(schema.products).where(eq(schema.products.id, id)).limit(1);
   if (!p) return { error: "Product not found." };
@@ -173,7 +175,7 @@ export async function productAction(_: FormState, fd: FormData): Promise<FormSta
 }
 
 export async function settingsAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   const date = String(fd.get("cutoff_date") ?? "");
   const time = String(fd.get("cutoff_time") ?? "23:59");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return { error: "Invalid date/time." };
@@ -258,7 +260,7 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
 const CONTACT_STATUSES = ["new", "contacted", "no_answer", "not_interested", "converted"];
 
 export async function leadAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   const id = Number(fd.get("id"));
   const status = String(fd.get("contact_status") ?? "new");
   if (!CONTACT_STATUSES.includes(status)) return { error: "Invalid status." };
@@ -269,7 +271,7 @@ export async function leadAction(_: FormState, fd: FormData): Promise<FormState>
 }
 
 export async function creativeAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   // One decision applies to all formats (1x1, 4x5, 9x16) of the same ad.
   const ids = fd.getAll("ids").map(Number).filter(Number.isInteger);
   if (ids.length === 0) ids.push(Number(fd.get("id")));
@@ -291,7 +293,7 @@ const pct = (fd: FormData, name: string) => {
 };
 
 export async function costModelAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   const settings = await getSettings();
   const vat = pct(fd, "vat_percent");
   const fields = ["wine_per_box", "gift_box", "shipping_box", "other_per_order"].map((k) => euro(fd, k));
@@ -332,7 +334,7 @@ export async function costModelAction(_: FormState, fd: FormData): Promise<FormS
 }
 
 export async function expenseAction(_: FormState, fd: FormData): Promise<FormState> {
-  await requireAdmin();
+  await requireAdmin({ role: "admin" });
   if (fd.get("action") === "delete") {
     await db.delete(schema.expenses).where(eq(schema.expenses.id, Number(fd.get("id"))));
     revalidatePath("/admin/finance");
@@ -355,4 +357,83 @@ export async function giftCardAction(_: FormState, fd: FormData): Promise<FormSt
   for (const id of ids) await logOrderEvent(id, "gift_card_printed", { by: admin.email });
   revalidatePath("/admin/gift-cards");
   return { ok: `${ids.length} card${ids.length === 1 ? "" : "s"} marked as printed.` };
+}
+
+// ---- Team (admins only) ---------------------------------------------------------------------------
+
+function tempPassword() {
+  // 14 chars, no look-alike characters; shown once to the admin who creates or resets the account.
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  return Array.from(randomBytes(14), (b) => alphabet[b % alphabet.length]).join("");
+}
+
+async function adminCount() {
+  const rows = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(and(eq(schema.adminUsers.role, "admin"), isNull(schema.adminUsers.disabledAt)));
+  return rows.length;
+}
+
+export async function teamAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ role: "admin" });
+  const action = String(fd.get("action") ?? "");
+  if (action === "add") {
+    const email = String(fd.get("email") ?? "").trim().toLowerCase();
+    const role = fd.get("role") === "admin" ? "admin" : "fulfilment";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email." };
+    const [exists] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.email, email)).limit(1);
+    if (exists) return { error: "This email already has an account." };
+    const pw = tempPassword();
+    await db.insert(schema.adminUsers).values({ email, role, passwordHash: await hashPassword(pw), mustChangePassword: true, createdBy: me.email });
+    revalidatePath("/admin/team");
+    return { ok: `Account created for ${email} (${role}). Temporary password: ${pw} (shown once; they choose their own at first login).` };
+  }
+  const id = Number(fd.get("id"));
+  const [u] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, id)).limit(1);
+  if (!u) return { error: "User not found." };
+  const isLastAdmin = u.role === "admin" && !u.disabledAt && (await adminCount()) <= 1;
+  if (u.id === me.id && ["disable", "delete", "role"].includes(action)) return { error: "You cannot change your own access. Ask another admin." };
+  switch (action) {
+    case "role": {
+      const role = fd.get("role") === "admin" ? "admin" : "fulfilment";
+      if (role !== "admin" && isLastAdmin) return { error: "Keep at least one active admin." };
+      await db.update(schema.adminUsers).set({ role }).where(eq(schema.adminUsers.id, id));
+      break;
+    }
+    case "disable":
+      if (isLastAdmin) return { error: "Keep at least one active admin." };
+      // Bumping the session version logs them out everywhere immediately.
+      await db.update(schema.adminUsers).set({ disabledAt: new Date(), sessionVersion: sql`${schema.adminUsers.sessionVersion} + 1` }).where(eq(schema.adminUsers.id, id));
+      break;
+    case "enable":
+      await db.update(schema.adminUsers).set({ disabledAt: null }).where(eq(schema.adminUsers.id, id));
+      break;
+    case "reset": {
+      const pw = tempPassword();
+      await db.update(schema.adminUsers).set({ passwordHash: await hashPassword(pw), mustChangePassword: true, sessionVersion: sql`${schema.adminUsers.sessionVersion} + 1` }).where(eq(schema.adminUsers.id, id));
+      revalidatePath("/admin/team");
+      return { ok: `New temporary password for ${u.email}: ${pw} (shown once).` };
+    }
+    case "delete":
+      if (isLastAdmin) return { error: "Keep at least one active admin." };
+      await db.delete(schema.adminUsers).where(eq(schema.adminUsers.id, id));
+      break;
+    default:
+      return { error: "Unknown action." };
+  }
+  revalidatePath("/admin/team");
+  return { ok: "Saved." };
+}
+
+export async function passwordAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ allowPasswordChange: true });
+  const pw = String(fd.get("password") ?? "");
+  const pw2 = String(fd.get("password2") ?? "");
+  if (pw.length < 12) return { error: "Use at least 12 characters." };
+  if (pw !== pw2) return { error: "The two passwords do not match." };
+  const [u] = await db
+    .update(schema.adminUsers)
+    .set({ passwordHash: await hashPassword(pw), mustChangePassword: false, sessionVersion: sql`${schema.adminUsers.sessionVersion} + 1` })
+    .where(eq(schema.adminUsers.id, me.id))
+    .returning();
+  await setSessionCookie(u.id, u.sessionVersion); // other devices are logged out, this one stays in
+  redirect(u.role === "admin" ? "/admin" : "/admin/orders");
 }

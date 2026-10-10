@@ -5,7 +5,8 @@ import { getAdmin } from "@/lib/auth";
 import { getObject } from "@/lib/bucket";
 
 export async function GET() {
-  if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
+  const me = await getAdmin();
+  if (!me || me.mustChangePassword || me.role !== "admin") return new Response("unauthorized", { status: 401 });
   const rows = await db.select().from(schema.creatives).where(eq(schema.creatives.status, "approved"));
   const files: Record<string, Uint8Array> = {};
   const manifest = rows.map((c) => ({ name: `${c.conceptKey}_v${c.variation}`, format: c.format, primary_text: c.primaryText, headline: c.headline, description: c.description, cta: c.cta, utm_content: c.utmContent }));

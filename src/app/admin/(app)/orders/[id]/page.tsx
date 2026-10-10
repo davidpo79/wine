@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -11,6 +12,8 @@ import { GiftCard } from "@/components/GiftCard";
 
 export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const me = await requireAdmin();
+  const isAdmin = me.role === "admin";
   const o = await getOrder(id);
   if (!o) notFound();
   const addons = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, id)).orderBy(asc(schema.orderAddons.createdAt));
@@ -112,28 +115,28 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             </label>
             <Submit className="mt-2 w-full">Add note</Submit>
           </ActionForm>
-          {["pending_payment", "paid", "preparing"].includes(o.status) && (
+          {isAdmin && ["pending_payment", "paid", "preparing"].includes(o.status) && (
             <ActionForm action={orderAction} confirm="Cancel this order? This does not refund the money (use the refund buttons).">
               <input type="hidden" name="id" value={o.id} />
               <Submit name="action" value="cancelled" className="!bg-white !text-red-700 border border-red-300">Cancel order</Submit>
             </ActionForm>
           )}
-          {paid && paidPayment && paidPayment.method !== "multibanco" && (
+          {isAdmin && paid && paidPayment && paidPayment.method !== "multibanco" && (
             <ActionForm action={orderAction} confirm={`Refund ${eur(paidPayment.amountCents)} through ifthenpay (${paidPayment.method})?`}>
               <input type="hidden" name="id" value={o.id} />
               <Submit name="action" value="refund_api" className="!bg-white !text-red-700 border border-red-300">Refund {eur(paidPayment.amountCents)} via ifthenpay</Submit>
             </ActionForm>
           )}
-          {paid && (
+          {isAdmin && paid && (
             <ActionForm action={orderAction} confirm="Mark as refunded? Only after you returned the money by bank transfer.">
               <input type="hidden" name="id" value={o.id} />
               <Submit name="action" value="refund_manual" className="!bg-white !text-ink border">Mark refunded (manual transfer)</Submit>
             </ActionForm>
           )}
-          <p className="text-xs text-muted">MB WAY and card payments can be refunded via ifthenpay (needs the backoffice key and enough daily balance). Multibanco has no refund API: return the money by bank transfer, then mark it refunded.</p>
+          {isAdmin && <p className="text-xs text-muted">MB WAY and card payments can be refunded via ifthenpay (needs the backoffice key and enough daily balance). Multibanco has no refund API: return the money by bank transfer, then mark it refunded.</p>}
         </section>
       </div>
-      {o.costs && (
+      {isAdmin && o.costs && (
         <section className="rounded-lg border bg-white p-4">
           <h2 className="font-semibold">Profit (snapshot at payment, Admin → Finance costs)</h2>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-5">

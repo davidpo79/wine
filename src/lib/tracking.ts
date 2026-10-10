@@ -147,8 +147,8 @@ export async function sendGa4(clientId: string | null, events: { name: string; p
 }
 
 /** Anonymous funnel counter (no identifiers), used for the admin funnel regardless of consent. */
-export async function logFunnel(eventName: string, eventId: string | null, orderId?: string | null) {
-  await logTracking({ eventName, eventId, orderId: orderId ?? null, sentTo: "internal", status: "ok", response: null });
+export async function logFunnel(eventName: string, eventId: string | null, orderId?: string | null, visit?: { sessionId?: string | null; source?: string | null }) {
+  await logTracking({ eventName, eventId, orderId: orderId ?? null, sessionId: visit?.sessionId ?? null, source: visit?.source ?? null, sentTo: "internal", status: "ok", response: null });
 }
 
 /** _ga cookie "GA1.1.123.456" -> "123.456" */

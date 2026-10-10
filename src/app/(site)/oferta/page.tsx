@@ -7,6 +7,7 @@ import { getCatalog } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { boxesOffer, productOffers } from "@/lib/upsell";
 import { upsellMode } from "@/lib/payments";
+import { logOrderEvent } from "@/lib/orders";
 import { stripePublishableKey } from "@/lib/stripe";
 import { UpsellFlow } from "@/components/checkout/UpsellFlow";
 
@@ -25,6 +26,9 @@ export default async function Oferta({ searchParams }: { searchParams: Promise<{
   const taken = new Set(paidAddons.map((a) => a.sku));
   const first = boxesOffer(order, catalog.bundles);
   const others = productOffers(settings).filter((p) => !taken.has(p.sku));
+  // For the funnel (Admin → Dashboard): the post-purchase offer was seen, once per order.
+  const seen = await db.select({ id: schema.orderEvents.id }).from(schema.orderEvents).where(and(eq(schema.orderEvents.orderId, order.id), eq(schema.orderEvents.type, "upsell_offer_viewed"))).limit(1);
+  if (!seen.length) await logOrderEvent(order.id, "upsell_offer_viewed", { mode });
   return (
     <UpsellFlow
       orderId={order.id}

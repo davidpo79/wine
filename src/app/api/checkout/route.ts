@@ -6,7 +6,7 @@ import { createDraft, draftToken, loadDraft, PAID_STATUSES as PAID, publicAmount
 import { orderAddons } from "@/lib/payments";
 import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
-import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
+import { UTM_COOKIE, parseUtmCookie, sourceFromUtm } from "@/lib/utm";
 
 // Create a new draft when /checkout opens.
 const Create = z.object({
@@ -15,6 +15,8 @@ const Create = z.object({
   is_gift: z.boolean().optional(),
   gift_message: z.string().max(200).optional(),
   event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
+  sid: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
+  src: z.string().max(60).optional(),
 });
 
 export async function POST(req: Request) {
@@ -36,7 +38,7 @@ export async function POST(req: Request) {
     },
   );
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status });
-  await logFunnel("CheckoutOpened", `co_${r.order.id}`, r.order.id);
+  await logFunnel("CheckoutOpened", `co_${r.order.id}`, r.order.id, { sessionId: parsed.data.sid, source: parsed.data.src ?? sourceFromUtm(r.order.utm, r.order.fbc) });
   return Response.json(publicDraft(r.order, []));
 }
 

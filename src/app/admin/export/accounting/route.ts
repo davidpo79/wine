@@ -7,7 +7,8 @@ import { lisbonDateTime } from "@/lib/time";
 
 // Accounting export: one line per paid order plus one per add-on (same payment and invoice), ready to be keyed into the AT-certified invoicing software.
 export async function GET(req: Request) {
-  if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
+  const me = await getAdmin();
+  if (!me || me.mustChangePassword || me.role !== "admin") return new Response("unauthorized", { status: 401 });
   const sp = new URL(req.url).searchParams;
   const rows = await queryOrders(Object.fromEntries(sp), ["paid", "preparing", "shipped", "delivered", "refunded"]);
   const addons = rows.length

@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { publicUrl, bucketConfigured } from "@/lib/bucket";
@@ -9,6 +10,7 @@ import { ActionForm, Submit } from "../../ui";
 const money = (c: number | null) => (c == null ? "" : (c / 100).toFixed(2).replace(".", ","));
 
 export default async function Products() {
+  await requireAdmin({ role: "admin" });
   const products = await db.select().from(schema.products).orderBy(asc(schema.products.id));
   const bundles = await db.select().from(schema.bundles).orderBy(asc(schema.bundles.sort));
   return (

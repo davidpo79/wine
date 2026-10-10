@@ -57,6 +57,20 @@
       "when": 1791654717299,
       "tag": "0007_finance_and_upsell_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791669030330,
+      "tag": "0008_admin_team_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791669364785,
+      "tag": "0009_funnel_sessions",
+      "breakpoints": true
     }
   ]
 }

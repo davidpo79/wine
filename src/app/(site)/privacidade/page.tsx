@@ -30,7 +30,8 @@ export default function Privacidade() {
       <h2>Cookies</h2>
       <ul>
         <li><strong>wp_consent</strong> (essencial, 6 meses): a sua escolha de cookies.</li>
-        <li><strong>wp_utm</strong> (30 dias): origem da visita (campanha), associada à encomenda. [[TODO: revisão jurídica, classificar como essencial ou estatística]]</li>
+        <li><strong>wp_sid / wp_src</strong> (armazenamento da sessão, apagado ao fechar o separador): identificador anónimo da visita e a sua origem, para contar visitas e conversões de forma agregada. [[TODO: revisão jurídica]]</li>
+          <li><strong>wp_utm</strong> (30 dias): origem da visita (campanha), associada à encomenda. [[TODO: revisão jurídica, classificar como essencial ou estatística]]</li>
         <li><strong>_ga, _ga_*</strong> (estatística, até 2 anos): Google Analytics.</li>
         <li><strong>_fbp, _fbc</strong> (marketing, até 90 dias): Meta Pixel.</li>
       </ul>

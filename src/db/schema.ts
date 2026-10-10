@@ -148,12 +148,14 @@ export const trackingEvents = pgTable(
     eventName: text("event_name").notNull(),
     eventId: text("event_id"),
     orderId: text("order_id"),
+    sessionId: text("session_id"), // anonymous per-tab visit id (sessionStorage), for the funnel
+    source: text("source"), // traffic source of that visit: Meta ads, Google ads, Direct...
     sentTo: text("sent_to").notNull(), // pixel | capi | ga4
     status: text("status").notNull(), // ok | error | skipped
     response: jsonb("response"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("tracking_events_name_idx").on(t.eventName, t.createdAt)],
+  (t) => [index("tracking_events_name_idx").on(t.eventName, t.createdAt), index("tracking_events_order_idx").on(t.orderId)],
 );
 
 export const settings = pgTable("settings", {
@@ -292,6 +294,12 @@ export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("admin"), // admin | fulfilment
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
+  sessionVersion: integer("session_version").notNull().default(1), // bumped to log the user out everywhere
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  createdBy: text("created_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -324,3 +332,4 @@ export type Lead = typeof leads.$inferSelect;
 export type OrderAddon = typeof orderAddons.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
+export type AdminUser = typeof adminUsers.$inferSelect;

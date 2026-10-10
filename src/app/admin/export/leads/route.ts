@@ -5,7 +5,8 @@ import { toCsv } from "@/lib/csv";
 import { lisbonDateTime } from "@/lib/time";
 
 export async function GET() {
-  if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
+  const me = await getAdmin();
+  if (!me || me.mustChangePassword || me.role !== "admin") return new Response("unauthorized", { status: 401 });
   const rows = await db.select().from(schema.leads).orderBy(desc(schema.leads.createdAt));
   const csv = toCsv(
     ["data", "nome", "email", "telemovel", "consentimento_telefone", "estado_contacto", "notas", "codigo", "consentimento", "texto_consentimento", "cancelado", "utm_source", "utm_campaign", "utm_content"],

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
-import { pixelEvent } from "@/lib/track-client";
+import { pixelEvent, visit } from "@/lib/track-client";
 import type { Offer } from "@/lib/upsell";
 import { OfferDialog } from "./OfferDialog";
 import { GiftCard } from "@/components/GiftCard";
@@ -181,7 +181,7 @@ export function CheckoutPage({
       const r = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bundle_key: wantedBundle ?? "x2", promo, is_gift: !!gift.isGift, gift_message: gift.msg ?? "" }),
+        body: JSON.stringify({ bundle_key: wantedBundle ?? "x2", promo, is_gift: !!gift.isGift, gift_message: gift.msg ?? "", ...visit() }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {

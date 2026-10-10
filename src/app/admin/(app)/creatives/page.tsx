@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { publicUrl } from "@/lib/bucket";
@@ -7,6 +8,7 @@ import { ActionForm, Submit } from "../../ui";
 type SP = { concept?: string; status?: string };
 
 export default async function Creatives({ searchParams }: { searchParams: Promise<SP> }) {
+  await requireAdmin({ role: "admin" });
   const sp = await searchParams;
   const all = await db.select().from(schema.creatives).orderBy(asc(schema.creatives.conceptKey), asc(schema.creatives.variation), asc(schema.creatives.format));
   const rows = all.filter((c) => (!sp.concept || c.conceptKey === sp.concept) && (!sp.status || c.status === sp.status));

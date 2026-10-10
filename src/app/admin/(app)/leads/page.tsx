@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { desc, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -8,6 +9,7 @@ import { ActionForm, Submit } from "../../ui";
 const STATUS: Record<string, string> = { new: "New", contacted: "Contacted", no_answer: "No answer", not_interested: "Not interested", converted: "Converted" };
 
 export default async function Leads({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  await requireAdmin({ role: "admin" });
   const { view } = await searchParams;
   const all = await db.select().from(schema.leads).orderBy(desc(schema.leads.createdAt)).limit(2000);
   const buyers = await db

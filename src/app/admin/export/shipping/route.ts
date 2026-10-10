@@ -7,7 +7,8 @@ import { queryOrders } from "@/lib/order-query";
 // Shipping export for CTT labels. Default: orders paid or in preparation.
 // [[TODO: map columns to the exact CTT bulk import template David uses]]
 export async function GET(req: Request) {
-  if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
+  const me = await getAdmin();
+  if (!me || me.mustChangePassword) return new Response("unauthorized", { status: 401 });
   const sp = new URL(req.url).searchParams;
   const rows = await queryOrders(Object.fromEntries(sp), ["paid", "preparing"]);
   const addons = rows.length

@@ -10,6 +10,8 @@ const Body = z.object({
   event_name: z.enum(["PageView", "ViewContent", "SelectBundle", "AddToCart"]),
   event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/),
   url: z.string().max(1000).optional(),
+  sid: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
+  src: z.string().max(60).optional(),
   custom_data: z
     .object({
       value: z.number().min(0).max(10000).optional(),
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
   const h = await headers();
   const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value);
 
-  await logFunnel(ev.event_name, ev.event_id);
+  await logFunnel(ev.event_name, ev.event_id, null, { sessionId: ev.sid, source: ev.src });
   if (consent.marketing) {
     const url = ev.url && ev.url.startsWith(SITE.url) ? ev.url : SITE.url;
     await sendCapi({

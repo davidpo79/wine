@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { eur } from "@/lib/money";
@@ -30,6 +31,7 @@ const OTHER_CATEGORIES = CATEGORIES.filter(([k]) => !isAdCategory(k));
 const toInput = (c: number) => (c / 100).toFixed(2).replace(".", ",");
 
 export default async function Finance({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  await requireAdmin({ role: "admin" });
   const sp = await searchParams;
   const today = lisbonDay(new Date());
   const d14 = new Date();

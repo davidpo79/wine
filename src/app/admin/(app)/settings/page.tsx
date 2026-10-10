@@ -1,9 +1,11 @@
+import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
 import { settingsAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 
 export default async function SettingsPage() {
+  await requireAdmin({ role: "admin" });
   const s = await getSettings();
   const cutoff = new Date(s.cutoff_at);
   const time = cutoff.toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit", hour12: false });

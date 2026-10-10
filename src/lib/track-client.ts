@@ -55,6 +55,46 @@ export function ga4Event(name: TrackName, data: TrackData) {
   });
 }
 
+const META_SOURCES = new Set(["facebook", "fb", "instagram", "ig", "meta"]);
+
+/** Where this visit came from, decided on its first page (Shopify-style "sessions by source"). */
+export function trafficSource(url: URL, referrer: string) {
+  const p = url.searchParams;
+  const utm = (p.get("utm_source") ?? "").toLowerCase();
+  const medium = (p.get("utm_medium") ?? "").toLowerCase();
+  const organic = ["social", "organic", "bio", "post"].includes(medium);
+  if (p.get("fbclid") && !organic) return "Meta ads";
+  if (META_SOURCES.has(utm)) return organic ? "Meta (organic)" : "Meta ads";
+  if (p.get("gclid") || p.get("gbraid") || p.get("wbraid") || (utm === "google" && /cpc|paid|ads|pmax/.test(medium))) return "Google ads";
+  if (p.get("ttclid") || utm === "tiktok") return "TikTok ads";
+  if (utm) return utm.slice(0, 40);
+  let host = "";
+  try {
+    host = referrer ? new URL(referrer).hostname.replace(/^www\./, "") : "";
+  } catch {}
+  if (!host || host === url.hostname) return "Direct";
+  if (/(^|\.)(facebook|instagram|fb)\.com$|^l\.facebook|^lm\.facebook/.test(host)) return "Meta (organic)";
+  if (/(^|\.)google\.|bing\.com$|duckduckgo\.com$|yahoo\./.test(host)) return "Search";
+  return host.slice(0, 40);
+}
+
+/** Anonymous visit id kept only for this browser tab (sessionStorage), with its traffic source. */
+export function visit(): { sid?: string; src?: string } {
+  try {
+    let sid = sessionStorage.getItem("wp_sid");
+    let src = sessionStorage.getItem("wp_src");
+    if (!sid || !src) {
+      sid = newEventId("s");
+      src = trafficSource(new URL(location.href), document.referrer);
+      sessionStorage.setItem("wp_sid", sid);
+      sessionStorage.setItem("wp_src", src);
+    }
+    return { sid, src };
+  } catch {
+    return {};
+  }
+}
+
 function mirror(name: TrackName, data: TrackData, eventId: string) {
   if (!SERVER_MIRROR.has(name)) return;
   const { order_id: _o, ...custom } = data;
@@ -62,7 +102,7 @@ function mirror(name: TrackName, data: TrackData, eventId: string) {
     fetch("/api/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_name: name, event_id: eventId, url: location.href, custom_data: custom }),
+      body: JSON.stringify({ event_name: name, event_id: eventId, url: location.href, custom_data: custom, ...visit() }),
       keepalive: true,
     }).catch(() => {});
   } catch {}

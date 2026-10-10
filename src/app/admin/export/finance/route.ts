@@ -5,7 +5,8 @@ import { dailyPnl, lisbonDay } from "@/lib/profit";
 
 // Daily P&L as CSV (same numbers as Admin → Finance).
 export async function GET(req: Request) {
-  if (!(await getAdmin())) return new Response("unauthorized", { status: 401 });
+  const me = await getAdmin();
+  if (!me || me.mustChangePassword || me.role !== "admin") return new Response("unauthorized", { status: 401 });
   const sp = new URL(req.url).searchParams;
   const ok = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
   const to = ok(sp.get("to")) ?? lisbonDay(new Date());

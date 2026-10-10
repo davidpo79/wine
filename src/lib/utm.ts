@@ -23,3 +23,13 @@ export function parseUtmCookie(raw?: string | null): Utm | null {
     return null;
   }
 }
+
+/** Fallback traffic source for an order when the browser did not send one. */
+export function sourceFromUtm(utm: Utm | null | undefined, fbc?: string | null) {
+  const src = (utm?.utm_source ?? "").toLowerCase();
+  if (["facebook", "fb", "instagram", "ig", "meta"].includes(src)) return "Meta ads";
+  if (fbc) return "Meta ads";
+  if (src === "google") return "Google ads";
+  if (src === "tiktok") return "TikTok ads";
+  return src ? src.slice(0, 40) : "Direct";
+}
