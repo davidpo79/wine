@@ -27,6 +27,9 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
   const buy = useBuy();
   const ref = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<"form" | "sending" | "done">("form");
+  const [lead, setLead] = useState<{ email: string; token: string; plus: boolean } | null>(null);
+  const [phoneState, setPhoneState] = useState<"form" | "sending" | "done">("form");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState("");
 
@@ -89,6 +92,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.code) throw new Error(data.error ?? "Não foi possível enviar. Tente novamente.");
       setCode(data.code);
+      setLead({ email: String(fd.get("email")).trim().toLowerCase(), token: data.token, plus: !!data.plus });
       setState("done");
       flag("local", LEAD, true);
       buy.applyPromo(data.code);
@@ -98,6 +102,30 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
       setState("form");
+    }
+  }
+
+  async function submitPhone(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!lead) return;
+    const fd = new FormData(e.currentTarget);
+    setPhoneState("sending");
+    setPhoneError(null);
+    try {
+      const r = await fetch("/api/leads/phone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: lead.email, token: lead.token, phone: fd.get("phone"), consent: fd.get("phoneconsent") === "on" }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || !data.code) throw new Error(data.error ?? "Não foi possível guardar. Tente novamente.");
+      setCode(data.code);
+      buy.applyPromo(data.code);
+      setPhoneState("done");
+      window.gtag?.("event", "generate_lead", { method: "exit_popup_phone" });
+    } catch (err) {
+      setPhoneError(err instanceof Error ? err.message : "Erro inesperado.");
+      setPhoneState("form");
     }
   }
 
@@ -175,7 +203,33 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
                 <em>{percent}% de desconto.</em>
               </h2>
               <p className="exitcode">{code}</p>
-              <p className="exitlead">Também o enviámos para o seu email. O desconto aparece no total ao escolher {scope}.</p>
+              <p className="exitlead">
+                {phoneState === "done"
+                  ? `Código atualizado: ${percent}% de desconto ${scope} + envio grátis. Uma consultora pode contactá-lo/a para ajudar a escolher.`
+                  : `Também o enviámos para o seu email. O desconto aparece no total ao escolher ${scope}.`}
+              </p>
+              {lead?.plus && phoneState !== "done" && (
+                <form onSubmit={submitPhone} className="exitform exitstep2">
+                  <b className="exitstep2title">Quer também envio grátis?</b>
+                  <small>Deixe o seu telemóvel. Uma consultora pode ajudar a escolher e lembrar o prazo de Natal.</small>
+                  <label className="sronly" htmlFor="exit-phone">
+                    Telemóvel
+                  </label>
+                  <input id="exit-phone" name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="Telemóvel (ex.: 912 345 678)" maxLength={20} />
+                  <label className="exitconsent">
+                    <input type="checkbox" name="phoneconsent" required />
+                    <span>Aceito ser contactado/a pela Wine Portugal por telefone ou WhatsApp sobre esta oferta de Natal. Posso cancelar a qualquer momento.</span>
+                  </label>
+                  {phoneError && (
+                    <p role="alert" className="ordererror">
+                      {phoneError}
+                    </p>
+                  )}
+                  <button type="submit" className="exitsecondary" disabled={phoneState === "sending"}>
+                    {phoneState === "sending" ? "A guardar…" : "Quero envio grátis"}
+                  </button>
+                </form>
+              )}
               <button type="button" className="cta" onClick={goChoose}>
                 Escolher a minha prenda ↑
               </button>

@@ -59,7 +59,14 @@ for (const w of [390, 320, 1280]) {
   await p.click(".exitform button[type=submit]");
   await p.waitForSelector(".exitcode", { timeout: 8000 });
   ok((await p.textContent(".exitcode"))?.trim() === "NATAL5", "popup shows code NATAL5");
+  await p.fill("#exit-phone", "912 000 111");
+  await p.check(".exitstep2 .exitconsent input");
+  await p.click(".exitstep2 button[type=submit]");
+  await p.waitForFunction(() => document.querySelector(".exitcode")?.textContent?.trim() === "NATALMAIS", null, { timeout: 8000 }).catch(() => {});
+  ok((await p.textContent(".exitcode"))?.trim() === "NATALMAIS", "step 2 (mobile) upgrades code to NATALMAIS");
   await p.click(".exitdialog .cta");
+  await p.click('#bundles-final [data-qty="1"]');
+  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("43,60") ?? false, "1 box with NATALMAIS: 43,60 € incl. free shipping");
   await p.click('#bundles-final [data-qty="2"]');
   ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("78,49") ?? false, "2 boxes with code: total 78,49 €");
   await p.click('#bundles-final [data-qty="3"]');
@@ -68,7 +75,7 @@ for (const w of [390, 320, 1280]) {
   await p.waitForTimeout(16000);
   await p.evaluate(() => document.dispatchEvent(new MouseEvent("mouseout", { clientY: 0, bubbles: true })));
   ok(!(await p.$eval(".exitdialog", (d) => (d as HTMLDialogElement).open)), "popup not shown again after a lead");
-  ok((await p.textContent(".sticky small"))?.includes("NATAL5") ?? false, "code persists after reload");
+  ok((await p.textContent(".sticky small"))?.includes("NATALMAIS") ?? false, "code persists after reload");
   await ctx.close();
 }
 

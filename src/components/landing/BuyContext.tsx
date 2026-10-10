@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { newEventId, pixelEvent, track } from "@/lib/track-client";
-import { promoDiscountCents, type PromoConfig } from "@/lib/promo";
+import { promoDiscountCents, promoShippingCents, type PromoConfig } from "@/lib/promo";
 
 const PROMO_KEY = "wp_promo";
 
@@ -35,6 +35,8 @@ type Ctx = {
   applyPromo: (code: string) => void;
   /** Discount for a bundle with the applied promo code (0 if none or not eligible). */
   discount: (b: PublicBundle) => number;
+  /** Shipping after promo (plus code makes it free). */
+  shipping: (b: PublicBundle) => number;
   /** Price after discount plus shipping. */
   total: (b: PublicBundle) => number;
 };
@@ -72,7 +74,8 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
     } catch {}
   }, []);
   const discount = useCallback((b: PublicBundle) => promoDiscountCents(b, promoConfig, promo), [promoConfig, promo]);
-  const total = useCallback((b: PublicBundle) => b.priceCents - promoDiscountCents(b, promoConfig, promo) + b.shippingCents, [promoConfig, promo]);
+  const shipping = useCallback((b: PublicBundle) => promoShippingCents(b, promoConfig, promo), [promoConfig, promo]);
+  const total = useCallback((b: PublicBundle) => b.priceCents - promoDiscountCents(b, promoConfig, promo) + promoShippingCents(b, promoConfig, promo), [promoConfig, promo]);
 
   useEffect(() => {
     // Coming back from Stripe via the back button restores the page from bfcache: re-enable the button.
@@ -119,8 +122,8 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
   }, [loading, selected, isGift, giftMessage, promo, total]);
 
   const value = useMemo(
-    () => ({ bundles, selected, select, isGift, setIsGift, giftMessage, setGiftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, total }),
-    [bundles, selected, select, isGift, giftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, total],
+    () => ({ bundles, selected, select, isGift, setIsGift, giftMessage, setGiftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total }),
+    [bundles, selected, select, isGift, giftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total],
   );
   return <BuyCtx.Provider value={value}>{children}</BuyCtx.Provider>;
 }

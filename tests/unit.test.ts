@@ -80,3 +80,22 @@ test("promo discount respects max qty and per-box floor", async () => {
   assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, cfg, "WRONG"), 0);
   assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, null, "NATAL5"), 0);
 });
+
+test("plus code: same discount + free shipping", async () => {
+  const { promoDiscountCents, promoShippingCents } = await import("../src/lib/promo");
+  const cfg = { code: "NATAL5", percent: 5, maxQty: 2, plusCode: "NATALMAIS" };
+  assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, cfg, "natalmais"), 230);
+  assert.equal(promoShippingCents({ shippingCents: 490 }, cfg, "NATALMAIS"), 0);
+  assert.equal(promoShippingCents({ shippingCents: 490 }, cfg, "NATAL5"), 490);
+  assert.equal(promoShippingCents({ shippingCents: 490 }, { ...cfg, plusCode: "" }, "NATALMAIS"), 490);
+});
+
+test("PT mobile normalization", async () => {
+  const { normalizePtMobile, leadToken } = await import("../src/lib/leads");
+  assert.equal(normalizePtMobile("912 345 678"), "+351912345678");
+  assert.equal(normalizePtMobile("+351 93-123-4567"), "+351931234567");
+  assert.equal(normalizePtMobile("00351961234567"), "+351961234567");
+  assert.equal(normalizePtMobile("212345678"), null); // landline
+  assert.equal(normalizePtMobile("94123456"), null);
+  assert.equal(leadToken("A@B.pt"), leadToken("a@b.pt"));
+});

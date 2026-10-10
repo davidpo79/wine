@@ -182,6 +182,12 @@ export const leads = pgTable(
     promoCode: text("promo_code"),
     utm: jsonb("utm").$type<Utm>(),
     ipHash: text("ip_hash"),
+    phone: text("phone"),
+    consentPhone: boolean("consent_phone").notNull().default(false),
+    phoneConsentText: text("phone_consent_text"),
+    phoneAddedAt: timestamp("phone_added_at", { withTimezone: true }),
+    contactStatus: text("contact_status").notNull().default("new"), // new | contacted | no_answer | not_interested | converted
+    contactNotes: text("contact_notes"),
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

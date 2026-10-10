@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { getSettings } from "@/lib/settings";
 import { clientIp } from "@/lib/request";
-import { hashIp, LEAD_CONSENT_TEXT } from "@/lib/leads";
+import { hashIp, leadToken, LEAD_CONSENT_TEXT } from "@/lib/leads";
 import { sendLeadCode } from "@/lib/email";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
@@ -68,5 +68,5 @@ export async function POST(req: Request) {
     });
   }
 
-  return Response.json({ code: settings.lead_code, percent: settings.lead_discount_percent, max_qty: settings.lead_code_max_qty });
+  return Response.json({ code: settings.lead_code, percent: settings.lead_discount_percent, max_qty: settings.lead_code_max_qty, token: leadToken(lead.email), plus: !!settings.lead_plus_code });
 }

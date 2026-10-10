@@ -68,6 +68,8 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
   const x1 = offers.find((o) => o.qty === 1);
 
   const promoOff = buy.discount(sel.b);
+  const selShip = buy.shipping(sel.b);
+  const promoFreeShip = selShip === 0 && sel.shipping > 0;
   const promoCfg = buy.promoConfig;
 
   // Code from the lead email link (?codigo=NATAL5) is applied automatically.
@@ -80,7 +82,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
   const promoNote =
     buy.promo && promoCfg
       ? promoOff > 0
-        ? `Código ${buy.promo} aplicado: −${money(promoOff)}`
+        ? `Código ${buy.promo} aplicado: −${money(promoOff)}${promoFreeShip ? " + envio grátis" : ""}`
         : `O código ${buy.promo} é válido em 1 ou ${promoCfg.maxQty} caixas. Esta opção já tem ${sel.discount}% de desconto.`
       : null;
 
@@ -90,7 +92,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
   };
 
   const waMessage = `Olá! Quero encomendar ${boxes(q)} do Pack Trilogia 2160 com o guia digital Sabores de Portugal de oferta. Total: ${money(buy.total(sel.b))} (IVA incluído). ${
-    sel.freeShipping ? `${sel.discount ? `${sel.discount}% de desconto e ` : ""}envio grátis.` : `Inclui portes de ${money(sel.shipping)}.`
+    selShip === 0 ? `${sel.discount ? `${sel.discount}% de desconto e ` : ""}envio grátis.` : `Inclui portes de ${money(selShip)}.`
   } Podem confirmar disponibilidade e entrega?`;
   const waHref = `https://wa.me/${WA}?text=${encodeURIComponent(waMessage)}`;
 
@@ -152,7 +154,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               <span className="was">{o.compare ? money(o.compare) : "Preço por caixa"}</span>
               <span className="saving">{o.saving ? `Poupa ${money(o.saving)}` : "IVA incluído"}</span>
               <span className="perbox">
-                {o.qty === 1 ? (o.freeShipping ? "Envio grátis" : `+ ${money(o.shipping)} portes`) : `${money(Math.round(o.price / o.qty))} / caixa${o.price % o.qty ? "¹" : ""}`}
+                {o.qty === 1 ? (buy.shipping(o.b) === 0 ? "Envio grátis" : `+ ${money(o.shipping)} portes`) : `${money(Math.round(o.price / o.qty))} / caixa${o.price % o.qty ? "¹" : ""}`}
               </span>
               <span className="choose">
                 <span className="radio" />
@@ -348,7 +350,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               </p>
             )}
             <p aria-live="polite" className="shipping">
-              {sel.saving ? `Poupa ${money(sel.saving)} (${sel.discount}%)${sel.freeShipping ? " + envio grátis" : ""}` : `IVA incluído · portes ${money(sel.shipping)}`}
+              {sel.saving ? `Poupa ${money(sel.saving)} (${sel.discount}%)${selShip === 0 ? " + envio grátis" : ""}` : selShip === 0 ? "IVA incluído · envio grátis" : `IVA incluído · portes ${money(selShip)}`}
             </p>
             <p className="fine">Pagamento seguro · {buy.mode === "after_christmas" ? "Entrega após o Natal · Portugal Continental" : deliveryText}</p>
             <div className="payrow">
@@ -711,7 +713,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               </div>
               <div className="summaryrow">
                 <span>Envio CTT · Portugal Continental</span>
-                <strong>{sel.freeShipping ? "GRÁTIS" : money(sel.shipping)}</strong>
+                <strong>{selShip === 0 ? "GRÁTIS" : money(selShip)}</strong>
               </div>
               <div className="summarytotal">
                 <span>Total</span>

@@ -69,3 +69,9 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 @media(max-width:760px){.exitgrid{grid-template-columns:1fr}.exitimg{height:150px;min-height:0}.exitbody{padding:20px 18px 16px}.exitbody h2{font-size:25px}}
 /* Tailwind preflight resets margin on <dialog>; restore native centering */
 .exitdialog,.previewdialog{margin:auto}
+.exitstep2{margin:2px 0 14px;padding:13px;border:1px dashed var(--gold);border-radius:8px;background:#fff}
+.exitstep2title{font-size:15px}
+.exitstep2 small{font-size:11px;color:var(--muted);margin-top:-4px}
+.exitsecondary{border:2px solid var(--green);background:#fff;color:var(--green);border-radius:5px;padding:12px;font-weight:800;font-size:14px}
+.exitsecondary:hover{background:#edf5e9}
+.exitsecondary[disabled]{opacity:.6}

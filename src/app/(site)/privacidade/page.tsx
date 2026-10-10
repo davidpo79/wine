@@ -14,6 +14,7 @@ export default function Privacidade() {
         <li><strong>Encomenda:</strong> nome, email, telefone, morada de entrega e faturação, NIF (opcional), mensagem de oferta. Finalidade: execução do contrato e obrigações fiscais. Fundamento: contrato e obrigação legal.</li>
         <li><strong>Pagamento:</strong> processado pela Stripe. Não guardamos dados de cartão.</li>
         <li><strong>Código de desconto (janela ao sair do site):</strong> nome e email, para enviar o código e um lembrete antes do fecho das encomendas de Natal. Fundamento: consentimento, que pode retirar a qualquer momento pelo link no email. Conservação: até 31/01/2027. [[TODO: confirmar prazo]]</li>
+        <li><strong>Telemóvel (opcional, segundo passo da mesma janela):</strong> para uma consultora o/a contactar por telefone ou WhatsApp sobre a oferta de Natal. Fundamento: consentimento separado e específico, que pode retirar a qualquer momento. Conservação: até 31/01/2027. [[TODO: confirmar prazo]]</li>
         <li><strong>Novidades por email:</strong> só se o indicar no pagamento. Fundamento: consentimento, que pode retirar a qualquer momento.</li>
         <li><strong>Medição de anúncios (Meta Pixel e Conversions API):</strong> só com consentimento para cookies de marketing. Enviamos à Meta dados de evento e, no caso de compra, dados de contacto cifrados (hash SHA-256) para medir a eficácia dos anúncios.</li>
         <li><strong>Estatística (Google Analytics 4):</strong> só com consentimento para cookies de estatística.</li>

@@ -11,7 +11,7 @@ import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent, sendCapi
 import { SITE } from "@/lib/site";
 import { clientIp } from "@/lib/request";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
-import { normalizeCode, promoDiscountCents } from "@/lib/promo";
+import { normalizeCode, promoDiscountCents, promoShippingCents } from "@/lib/promo";
 
 const Body = z.object({
   bundle_key: z.string().regex(/^[a-z0-9_]{1,20}$/),
@@ -68,11 +68,12 @@ export async function POST(req: Request) {
   const eventId = input.event_id ?? `ic_${orderId}`;
   const initiateEventId = `ic_${orderId}`;
   // Promo code (exit popup): validated and computed on the server only.
-  const promoCfg = { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty };
+  const promoCfg = { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty, plusCode: settings.lead_plus_code };
   const discount = promoDiscountCents(bundle, promoCfg, input.promo);
-  const promoCode = discount > 0 ? normalizeCode(input.promo) : null;
+  const shipping = promoShippingCents(bundle, promoCfg, input.promo);
+  const promoCode = discount > 0 || shipping !== bundle.shippingCents ? normalizeCode(input.promo) : null;
   const subtotal = bundle.priceCents - discount;
-  const total = subtotal + bundle.shippingCents;
+  const total = subtotal + shipping;
   const bottles = bundle.qty * 3;
 
   await db.insert(schema.orders).values({
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
     subtotalCents: subtotal,
     discountCents: discount,
     promoCode,
-    shippingCents: bundle.shippingCents,
+    shippingCents: shipping,
     totalCents: total,
     currency: "eur",
     isGift: input.is_gift,
@@ -142,8 +143,8 @@ export async function POST(req: Request) {
           {
             shipping_rate_data: {
               type: "fixed_amount",
-              display_name: bundle.shippingCents ? "Envio CTT · Portugal Continental" : "Envio CTT grátis · Portugal Continental",
-              fixed_amount: { amount: bundle.shippingCents, currency: "eur" },
+              display_name: shipping ? "Envio CTT · Portugal Continental" : "Envio CTT grátis · Portugal Continental",
+              fixed_amount: { amount: shipping, currency: "eur" },
               delivery_estimate: { minimum: { unit: "business_day", value: 2 }, maximum: { unit: "business_day", value: 4 } },
             },
           },

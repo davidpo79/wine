@@ -12,6 +12,7 @@ export type Settings = {
   lead_code: string; // discount code given in the exit popup
   lead_discount_percent: number;
   lead_code_max_qty: number; // code applies to bundles up to this many boxes
+  lead_plus_code: string; // step 2 (mobile number): same discount + free shipping
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lead_code: "NATAL5",
   lead_discount_percent: 5,
   lead_code_max_qty: 2,
+  lead_plus_code: "NATALMAIS",
 };
 
 export const PER_BOX_FLOOR_CENTS = 3900;

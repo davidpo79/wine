@@ -200,9 +200,25 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
   await setSetting("lead_code", code);
   await setSetting("lead_discount_percent", pct);
   await setSetting("lead_code_max_qty", maxQty);
+  const plus = String(fd.get("lead_plus_code") ?? "").trim().toUpperCase();
+  if (plus && (!/^[A-Z0-9]{3,20}$/.test(plus) || plus === code)) return { error: "Step-2 code must be 3-20 letters/digits and different from the main code." };
+  await setSetting("lead_plus_code", plus);
   await setSetting("delivery_text", String(fd.get("delivery_text") ?? "").trim().slice(0, 120));
   revalidatePath("/admin/settings");
   return { ok: "Settings saved." };
+}
+
+const CONTACT_STATUSES = ["new", "contacted", "no_answer", "not_interested", "converted"];
+
+export async function leadAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  const id = Number(fd.get("id"));
+  const status = String(fd.get("contact_status") ?? "new");
+  if (!CONTACT_STATUSES.includes(status)) return { error: "Invalid status." };
+  const notes = String(fd.get("contact_notes") ?? "").trim().slice(0, 1000) || null;
+  await db.update(schema.leads).set({ contactStatus: status, contactNotes: notes }).where(eq(schema.leads.id, id));
+  revalidatePath("/admin/leads");
+  return { ok: "Saved." };
 }
 
 export async function creativeAction(_: FormState, fd: FormData): Promise<FormState> {

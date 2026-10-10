@@ -18,3 +18,19 @@ export function hashIp(ip: string | null) {
 
 export const LEAD_CONSENT_TEXT =
   "Aceito receber da Wine Portugal, por email, o código de desconto e lembretes sobre a oferta de Natal. Posso cancelar a qualquer momento.";
+
+/** Token returned after step 1 so only that visitor can add a phone number to the lead. */
+export function leadToken(email: string) {
+  return createHmac("sha256", secret()).update(`lead:${email.toLowerCase()}`).digest("base64url").slice(0, 32);
+}
+
+/** Portuguese mobile numbers (91/92/93/96), with or without +351/00351. Returns +3519XXXXXXXX or null. */
+export function normalizePtMobile(input: string): string | null {
+  let d = input.replace(/[\s().-]/g, "");
+  if (d.startsWith("+351")) d = d.slice(4);
+  else if (d.startsWith("00351")) d = d.slice(5);
+  return /^9[1236]\d{7}$/.test(d) ? `+351${d}` : null;
+}
+
+export const PHONE_CONSENT_TEXT =
+  "Aceito ser contactado/a pela Wine Portugal por telefone ou WhatsApp sobre esta oferta de Natal. Posso cancelar a qualquer momento.";
