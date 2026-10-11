@@ -19,7 +19,11 @@ export type Settings = {
   reviews: Review[]; // only real customer reviews; empty = section hidden
   cost_model: CostModel; // per-order costs for the profit screen (Admin → Finance)
   gift_card: GiftCardSettings; // order bump in the checkout: printed Christmas card with the customer's message
+  profit_split: ProfitSplit; // partnership split of the net profit (Admin → Finance); empty until agreed
 };
+
+/** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
+export type ProfitSplit = { my_name: string; partner_name: string; my_percent: number | null; min_per_box_cents: number | null };
 
 export type GiftCardSettings = { enabled: boolean; price_cents: number; cost_cents: number; vat_percent: number };
 
@@ -80,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reviews: [],
   gift_card: { enabled: true, price_cents: 390, cost_cents: 0, vat_percent: 23 },
   // From David's profit calculation (10/10/2026). Payment fee: 3% of what the customer pays, for every method.
+  profit_split: { my_name: "David", partner_name: "Partner", my_percent: null, min_per_box_cents: null },
   cost_model: {
     vat_percent: 13,
     wine_per_box_cents: 1000,

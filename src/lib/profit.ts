@@ -4,7 +4,7 @@
 import { and, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Expense, Order, OrderAddon } from "@/db/schema";
-import type { CostModel, PaymentFeeKey, Settings } from "./settings-defaults";
+import type { CostModel, PaymentFeeKey, ProfitSplit, Settings } from "./settings-defaults";
 
 export type OrderCosts = {
   paid: number; // what the customer paid (order + paid add-ons)
@@ -207,4 +207,16 @@ export async function dailyPnl(from: string, to: string, settings: Settings) {
     byPlatform.set(e.category, (byPlatform.get(e.category) ?? 0) + [...m.values()].reduce((n, v) => n + v, 0));
   }
   return { days: list.reverse(), total, expenses: exps, adsByPlatform: [...byPlatform.entries()].map(([k, v]) => ({ category: k, cents: Math.round(v) })) };
+}
+
+/**
+ * Partner split of a net profit (cents) over a period. My part = my % of the profit, never below the minimum per box
+ * (if agreed); a loss is not shared (my part is then only the minimum). The partner gets the rest. null = not agreed yet.
+ */
+export function splitProfit(profit: number, boxes: number, split: ProfitSplit | undefined) {
+  if (!split || split.my_percent == null) return null;
+  const share = Math.round((Math.max(0, profit) * split.my_percent) / 100);
+  const floor = (split.min_per_box_cents ?? 0) * boxes;
+  const mine = Math.max(share, floor);
+  return { mine, partner: profit - mine, floorApplied: floor > share };
 }

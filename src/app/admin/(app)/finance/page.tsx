@@ -4,8 +4,8 @@ import { db, schema } from "@/db";
 import { eur } from "@/lib/money";
 import { getCatalog } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
-import { computeOrderCosts, dailyPnl, isAdCategory, lisbonDay } from "@/lib/profit";
-import { costModelAction, expenseAction } from "../../actions";
+import { computeOrderCosts, dailyPnl, isAdCategory, lisbonDay, splitProfit } from "@/lib/profit";
+import { costModelAction, expenseAction, profitSplitAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,8 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const breakEvenRoas = total.before_ads > 0 ? total.paid / total.before_ads : null;
   const m = settings.cost_model;
   const margin = total.paid ? Math.round((total.profit / total.net) * 100) : 0;
+  const ps = settings.profit_split;
+  const split = splitProfit(total.profit, total.boxes, ps);
   const examples = (catalog?.bundles ?? []).map((b) => ({ b, c: computeOrderCosts({ totalCents: b.priceCents + b.shippingCents, qtyBoxes: b.qty, paymentMethodType: "card" }, [], settings) }));
 
   return (
@@ -88,7 +90,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
         <table className="w-full min-w-[1200px] text-sm">
           <thead className="bg-paper text-right text-xs uppercase tracking-wider text-muted">
             <tr>
-              <th className="p-2 text-left">Day</th><th>Orders</th><th>Boxes</th><th>Revenue</th><th>VAT</th><th>Wine + boxes</th><th>Shipping</th><th>Payment fees</th><th>Other</th><th>Before ads</th><th>Ads</th><th>ROAS</th><th>Ads / order</th><th>Expenses</th><th className="pr-3">Net profit</th>
+              <th className="p-2 text-left">Day</th><th>Orders</th><th>Boxes</th><th>Revenue</th><th>VAT</th><th>Wine + boxes</th><th>Shipping</th><th>Payment fees</th><th>Other</th><th>Before ads</th><th>Ads</th><th>ROAS</th><th>Ads / order</th><th>Expenses</th><th className="pr-3">Net profit</th>{split && <th className="pr-3">{ps.my_name}</th>}
             </tr>
           </thead>
           <tbody className="text-right tabular-nums">
@@ -109,6 +111,7 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
                 <td className={breakEvenCpa != null && r.ads && r.orders && r.ads / r.orders > breakEvenCpa ? "text-red-700" : "text-muted"}>{r.ads && r.orders ? eur(Math.round(r.ads / r.orders)) : r.ads ? "no orders" : "·"}</td>
                 <td className="text-muted">{r.expenses ? eur(r.expenses) : "·"}</td>
                 <td className={`pr-3 font-semibold ${r.profit < 0 ? "text-red-700" : r.profit > 0 ? "text-green-800" : "text-muted"}`}>{r.profit || r.expenses ? eur(r.profit) : "·"}</td>
+                {split && <td className="pr-3 text-azulejo">{r.profit || r.boxes ? eur(splitProfit(r.profit, r.boxes, ps)!.mine) : "·"}</td>}
               </tr>
             ))}
           </tbody>
@@ -116,9 +119,49 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
             <tr>
               <td className="p-2 text-left">Total</td><td>{total.orders}</td><td>{total.boxes}</td><td>{eur(total.paid)}</td><td>{eur(total.vat)}</td><td>{eur(total.product)}</td><td>{eur(total.shipping)}</td><td>{eur(total.fees)}</td><td>{eur(total.other)}</td><td>{eur(total.before_ads)}</td><td>{eur(total.ads)}</td><td>{roas != null ? roas.toFixed(2) : "·"}</td><td>{cpa != null ? eur(cpa) : "·"}</td><td>{eur(total.expenses)}</td>
               <td className={`pr-3 ${total.profit < 0 ? "text-red-700" : "text-green-800"}`}>{eur(total.profit)}</td>
+              {split && <td className="pr-3 text-azulejo">{eur(split.mine)}</td>}
             </tr>
           </tfoot>
         </table>
+      </section>
+
+      <section className="rounded-lg border border-azulejo/30 bg-white p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold">Profit split</h2>
+          <p className="text-xs text-muted">Split of the net profit in this period: after VAT, order costs, ad spend and other expenses.</p>
+        </div>
+        {split ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded border bg-paper/60 p-3">
+              <p className="text-xs uppercase tracking-wider text-muted">Net profit to split</p>
+              <p className="mt-0.5 text-2xl font-bold tabular-nums">{eur(total.profit)}</p>
+              <p className="text-xs text-muted">{total.orders} orders · {total.boxes} boxes</p>
+            </div>
+            <div className="rounded border border-azulejo/40 bg-azulejo-soft/50 p-3">
+              <p className="text-xs uppercase tracking-wider text-muted">{ps.my_name} · {String(ps.my_percent).replace(".", ",")}%</p>
+              <p className="mt-0.5 text-2xl font-bold tabular-nums text-azulejo">{eur(split.mine)}</p>
+              <p className="text-xs text-muted">
+                {total.boxes ? `${eur(Math.round(split.mine / total.boxes))} per box` : "·"}
+                {split.floorApplied ? ` · minimum ${eur(ps.min_per_box_cents ?? 0)} per box applied` : ""}
+              </p>
+            </div>
+            <div className="rounded border bg-paper/60 p-3">
+              <p className="text-xs uppercase tracking-wider text-muted">{ps.partner_name} · {String(100 - (ps.my_percent ?? 0)).replace(".", ",")}%</p>
+              <p className={`mt-0.5 text-2xl font-bold tabular-nums ${split.partner < 0 ? "text-red-700" : ""}`}>{eur(split.partner)}</p>
+              <p className="text-xs text-muted">{total.boxes ? `${eur(Math.round(split.partner / total.boxes))} per box` : "·"} · pays the ads ({eur(total.ads)} in this period, already deducted)</p>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-3 rounded border border-dashed p-3 text-sm text-muted">Not agreed yet. Enter your share below when you decide; the split then appears here and as a column in the daily table.</p>
+        )}
+        <ActionForm action={profitSplitAction} className="mt-4 grid gap-2 text-sm sm:grid-cols-4">
+          <label>Your name<input name="my_name" defaultValue={ps.my_name} maxLength={40} className="mt-1 block w-full rounded border p-1.5" /></label>
+          <label>Partner name<input name="partner_name" defaultValue={ps.partner_name} maxLength={40} className="mt-1 block w-full rounded border p-1.5" /></label>
+          <label>Your share %<input name="my_percent" inputMode="decimal" defaultValue={ps.my_percent != null ? String(ps.my_percent).replace(".", ",") : ""} placeholder="open" className="mt-1 block w-full rounded border p-1.5" /></label>
+          <label>Minimum per box € (optional)<input name="min_per_box" inputMode="decimal" defaultValue={ps.min_per_box_cents != null ? toInput(ps.min_per_box_cents) : ""} placeholder="none" className="mt-1 block w-full rounded border p-1.5" /></label>
+          <p className="text-xs text-muted sm:col-span-3">The partner gets the rest. A loss is not shared: your part is then only the minimum per box, if set. Settle on the period total (e.g. the month), not day by day.</p>
+          <div className="sm:text-right"><Submit>Save split</Submit></div>
+        </ActionForm>
       </section>
 
       <section className="rounded-lg border border-amber-300 bg-white p-4">

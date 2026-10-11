@@ -181,3 +181,12 @@ test("printed card add-on: own VAT rate and cost", async () => {
   assert.equal(withCard.vat - base.vat, 73);
   assert.equal(withCard.profit - base.profit, 245);
 });
+
+test("profit split: share, minimum per box, losses not shared, open until agreed", async () => {
+  const { splitProfit } = await import("../src/lib/profit");
+  const base = { my_name: "D", partner_name: "P", min_per_box_cents: null };
+  assert.equal(splitProfit(10000, 4, { ...base, my_percent: null }), null);
+  assert.deepEqual(splitProfit(10000, 4, { ...base, my_percent: 50 }), { mine: 5000, partner: 5000, floorApplied: false });
+  assert.deepEqual(splitProfit(1000, 4, { ...base, my_percent: 40, min_per_box_cents: 200 }), { mine: 800, partner: 200, floorApplied: true });
+  assert.deepEqual(splitProfit(-3000, 2, { ...base, my_percent: 50 }), { mine: 0, partner: -3000, floorApplied: false });
+});

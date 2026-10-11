@@ -333,6 +333,20 @@ export async function costModelAction(_: FormState, fd: FormData): Promise<FormS
   return { ok: msg };
 }
 
+export async function profitSplitAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const name = (k: string, d: string) => String(fd.get(k) ?? "").trim().slice(0, 40) || d;
+  const rawPct = String(fd.get("my_percent") ?? "").trim();
+  const rawMin = String(fd.get("min_per_box") ?? "").trim();
+  const p = rawPct ? pct(fd, "my_percent") : null;
+  if (rawPct && (p == null || p > 100)) return { error: "Your share must be a percentage between 0 and 100 (or empty)." };
+  const min = rawMin ? parseEuroToCents(rawMin) : null;
+  if (rawMin && min == null) return { error: "Invalid minimum per box (use 2,00 or leave empty)." };
+  await setSetting("profit_split", { my_name: name("my_name", "David"), partner_name: name("partner_name", "Partner"), my_percent: p, min_per_box_cents: min });
+  revalidatePath("/admin/finance");
+  return { ok: p == null ? "Saved. The split stays open until you enter your share." : "Profit split saved." };
+}
+
 export async function expenseAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin({ role: "admin" });
   if (fd.get("action") === "delete") {
