@@ -5,6 +5,7 @@ export type Concept = {
   layout: "photo" | "cutout" | "card" | "trio" | "deadline";
   photo?: string;
   photoPos?: string;
+  logoRight?: boolean; // the photo shows the box logo on the left
   kicker: string;
   headline: string;
   sub: string;
@@ -82,6 +83,7 @@ export const CONCEPTS: Concept[] = [
     layout: "photo",
     photo: "giftbox.webp",
     photoPos: "center 30%",
+    logoRight: true,
     kicker: "-15% na compra de 3",
     headline: "Uma caixa que impressiona antes de abrir.",
     sub: "3 caixas: <s>137,70 €</s> <b>117,05 €</b>. Branco, tinto e rosé do Douro DOC.",

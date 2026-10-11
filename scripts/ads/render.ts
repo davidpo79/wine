@@ -58,6 +58,12 @@ body{width:var(--w);height:var(--h);overflow:hidden;font-family:Inter,sans-serif
 .strike:after{content:"";position:absolute;left:-4%;right:-4%;top:52%;height:4px;background:currentColor;transform:rotate(-8deg)}
 `;
 
+// Wine Portugal wordmark, redrawn from the gift box (bold WINE, spaced PORTUGAL of the same width). Replace with the
+// official logo file when available.
+const logo = (h: number, fill = "url(#lg)") =>
+  `<svg height="${h}" viewBox="0 0 300 118" style="display:block;overflow:visible" aria-label="Wine Portugal"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6e7bd"/><stop offset="1" stop-color="#c9a45c"/></linearGradient></defs>` +
+  `<text x="150" y="80" text-anchor="middle" textLength="300" lengthAdjust="spacingAndGlyphs" font-family="Inter" font-weight="900" font-size="98" fill="${fill}" letter-spacing="-2">WINE</text>` +
+  `<text x="150" y="114" text-anchor="middle" textLength="286" lengthAdjust="spacing" font-family="Inter" font-weight="600" font-size="27" fill="${fill}">PORTUGAL</text></svg>`;
 const ticks = (items: string[]) => `<ul class="ticks">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 // Trust (research: buying from a new shop seen on social media is the main barrier in Portugal).
 const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;font-size:30px;color:${color}">Pague com MB WAY, Multibanco ou cartão</div>`;
@@ -67,7 +73,9 @@ const sticker = (pos: string, top = "desde", price = "39<small>,02 €</small>",
 function layout(c: Concept, f: Format) {
   const story = f === "story";
   // Story: keep key content out of the top ~250px and the bottom ~400px (Instagram UI).
-  const top = story ? 250 : 64;
+  const top = story ? 360 : 130; // below the logo
+  const logoTop = story ? 250 : 36;
+  const centeredLogo = `<div style="position:absolute;left:0;right:0;top:${logoTop}px;display:flex;justify-content:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))">${logo(story ? 92 : 78)}</div>`;
   const stripH = story ? 0 : 92;
   const deadline = `<b>Encomendas até 30/11</b> · Entrega antes do Natal`;
   const stripHtml = story
@@ -80,7 +88,8 @@ function layout(c: Concept, f: Format) {
       const photoH = story ? 860 : 640;
       return `
       <div class="bgimg" style="height:${photoH}px;background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"}"></div>
-      <div class="shade" style="height:${photoH}px;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,0) 70%,rgba(251,247,238,1) 100%)"></div>
+      <div class="shade" style="height:${photoH}px;background:linear-gradient(180deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,0) 70%,rgba(251,247,238,1) 100%)"></div>
+      ${c.logoRight && story ? "" /* the box logo fills the narrow story photo; a second one would sit next to it */ : `<div style="position:absolute;${c.logoRight ? "right" : "left"}:56px;top:${logoTop}px;filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))">${logo(story ? 92 : 78)}</div>`}
       ${sticker(`right:50px;top:${photoH - 300}px`)}
       <div style="position:absolute;left:60px;right:60px;top:${photoH + (story ? 30 : 10)}px">
         <div class="kicker" style="color:var(--red)">${c.kicker}</div>
@@ -93,34 +102,34 @@ function layout(c: Concept, f: Format) {
     }
     case "cutout": {
       // The box on a red Christmas background.
-      const boxW = story ? 700 : 600;
-      const boxTop = story ? 640 : 300;
+      const boxW = story ? 680 : 560;
+      const boxTop = story ? 730 : 340;
       return `
-      <div class="shade redbg"></div><div class="sparkles"></div>
+      <div class="shade redbg"></div><div class="sparkles"></div>${centeredLogo}
       <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
         <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
         <div class="h1" style="font-size:${story ? 96 : 82}px;margin-top:12px">${c.headline}</div>
         ${story ? `<div class="sub" style="font-size:40px;margin-top:18px;color:#f6e9e9">${c.sub}</div>` : ""}
       </div>
       <img src="${img("box-cutout.webp")}" style="position:absolute;left:${story ? 70 : 40}px;top:${boxTop}px;width:${boxW}px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.45))">
-      ${sticker(story ? "right:50px;top:760px" : "right:46px;top:330px")}
-      <div style="position:absolute;right:60px;left:${story ? 600 : 610}px;top:${story ? 1110 : 690}px;color:#fff">${ticks(c.ticks).replace('class="ticks"', 'class="ticks" style="gap:18px"')}</div>
-      ${story ? `<div style="position:absolute;left:60px;right:60px;top:1440px;text-align:center">${trust("#f3dede")}</div>` : ""}
+      ${sticker(story ? "right:50px;top:840px" : "right:46px;top:370px")}
+      <div style="position:absolute;right:60px;left:${story ? 600 : 610}px;top:${story ? 1160 : 710}px;color:#fff">${ticks(c.ticks).replace('class="ticks"', 'class="ticks" style="gap:18px"')}</div>
+      ${story ? `<div style="position:absolute;left:60px;right:60px;top:1458px;text-align:center">${trust("#f3dede")}</div>` : ""}
       ${stripHtml}`;
     }
     case "card": {
       // A mock of the printed card with a handwritten message, on a warm photo.
       return `
-      <div class="bgimg" style="background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"};filter:blur(2px) brightness(.55)"></div>
+      <div class="bgimg" style="background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"};filter:blur(2px) brightness(.55)"></div>${centeredLogo}
       <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
         <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
         <div class="h1" style="font-size:${story ? 88 : 76}px;margin-top:12px">${c.headline}</div>
       </div>
-      <div class="card" style="left:${story ? 130 : 150}px;right:${story ? 130 : 150}px;top:${story ? 600 : 370}px;transform:rotate(-3deg)">
+      <div class="card" style="left:${story ? 130 : 150}px;right:${story ? 130 : 150}px;top:${story ? 690 : 410}px;transform:rotate(-3deg)">
         <div class="t">Feliz Natal</div><div class="t2">e um próspero Ano Novo</div>
         <div class="msg">${c.cardMessage}</div>
       </div>
-      <div style="position:absolute;left:60px;right:60px;top:${story ? 1180 : 980}px;text-align:center;color:#fff">
+      <div style="position:absolute;left:60px;right:60px;top:${story ? 1260 : 1010}px;text-align:center;color:#fff">
         <div class="sub" style="font-size:${story ? 40 : 36}px">${c.sub}</div>
         <div class="chip" style="margin-top:22px">${c.chip}</div>
       </div>
@@ -129,15 +138,15 @@ function layout(c: Concept, f: Format) {
     case "trio": {
       // Three boxes: three gifts in one order.
       const w = story ? 380 : 340;
-      const y = story ? 700 : 440;
+      const y = story ? 790 : 480;
       return `
-      <div class="shade redbg"></div><div class="sparkles"></div>
+      <div class="shade redbg"></div><div class="sparkles"></div>${centeredLogo}
       <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
         <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
         <div class="h1" style="font-size:${story ? 96 : 84}px;margin-top:12px">${c.headline}</div>
       </div>
       ${[0, 1, 2].map((i) => `<img src="${img("box-cutout.webp")}" style="position:absolute;top:${y + (i === 1 ? 0 : 50)}px;left:${(story ? 30 : 40) + i * (story ? 330 : 330)}px;width:${w}px;z-index:${i === 1 ? 2 : 1};filter:drop-shadow(0 24px 30px rgba(0,0,0,.45))">`).join("")}
-      <div style="position:absolute;left:60px;right:60px;top:${story ? 1150 : 830}px;text-align:center;color:#fff;z-index:3">
+      <div style="position:absolute;left:60px;right:60px;top:${story ? 1230 : 860}px;text-align:center;color:#fff;z-index:3">
         <div style="font-weight:900;font-size:${story ? 120 : 104}px;letter-spacing:-.03em;line-height:1">39,02 € <span style="font-size:.45em;font-weight:750">cada</span></div>
         <div class="sub" style="font-size:${story ? 40 : 36}px;margin-top:14px"><span class="strike">45,90 €</span> &nbsp;·&nbsp; ${c.sub}</div>
       </div>
@@ -145,17 +154,17 @@ function layout(c: Concept, f: Format) {
     }
     case "deadline": {
       return `
-      <div class="bgimg" style="background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"};filter:brightness(.5)"></div>
+      <div class="bgimg" style="background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"};filter:brightness(.5)"></div>${centeredLogo}
       <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
         <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
         <div class="h1" style="font-size:${story ? 100 : 90}px;margin-top:12px">${c.headline}</div>
       </div>
-      <div style="position:absolute;left:50%;top:${story ? 640 : 360}px;transform:translateX(-50%);width:${story ? 520 : 460}px;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5);text-align:center">
+      <div style="position:absolute;left:50%;top:${story ? 720 : 400}px;transform:translateX(-50%);width:${story ? 520 : 460}px;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5);text-align:center">
         <div style="background:var(--red);color:#fff;font-weight:850;font-size:40px;padding:18px 0;letter-spacing:.1em">NOVEMBRO</div>
         <div style="font-weight:900;font-size:${story ? 230 : 200}px;line-height:1.05;color:var(--deep);letter-spacing:-.04em">30</div>
         <div style="font-weight:700;font-size:32px;color:#555;padding-bottom:22px">último dia para encomendar</div>
       </div>
-      <div style="position:absolute;left:60px;right:60px;top:${story ? 1200 : 860}px;color:#fff;display:flex;justify-content:center">${ticks(c.ticks)}</div>
+      <div style="position:absolute;left:60px;right:60px;top:${story ? 1270 : 890}px;color:#fff;display:flex;justify-content:center">${ticks(c.ticks)}</div>
       ${story ? "" : `<div class="strip" style="bottom:0;height:${stripH}px"><b>Desde 39,02 € por caixa</b> · Portes grátis a partir de 2 caixas</div>`}
       ${story ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px"><b>Desde 39,02 € por caixa</b> · Portes grátis em 2+</div>` : ""}`;
     }
