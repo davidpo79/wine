@@ -7,7 +7,13 @@ export const metadata: Metadata = {
   title: "Trilogia 2160 · A prenda de Natal do Douro | Wine Portugal",
   description:
     "Rosé, Branco e Tinto Douro DOC em caixa de oferta, com livro de receitas oferecido. Encomende até 30/11 para entrega antes do Natal em Portugal Continental.",
-  icons: { icon: "/favicon.svg" },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   // Pre-launch: SITE_NOINDEX=1 keeps search engines out until Gate 1 is approved.
   robots: process.env.SITE_NOINDEX === "1" ? { index: false, follow: false } : { index: true, follow: true },
   openGraph: {

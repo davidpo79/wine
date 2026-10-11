@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright-core";
 import { CONCEPTS, type Concept } from "./concepts";
+import { LOGO_PATH, LOGO_VIEWBOX } from "../../src/lib/logo-path";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const out = resolve(process.argv[2] ?? "ads-out");
@@ -58,12 +59,9 @@ body{width:var(--w);height:var(--h);overflow:hidden;font-family:Inter,sans-serif
 .strike:after{content:"";position:absolute;left:-4%;right:-4%;top:52%;height:4px;background:currentColor;transform:rotate(-8deg)}
 `;
 
-// Wine Portugal wordmark, redrawn from the gift box (bold WINE, spaced PORTUGAL of the same width). Replace with the
-// official logo file when available.
-const logo = (h: number, fill = "url(#lg)") =>
-  `<svg height="${h}" viewBox="0 0 300 118" style="display:block;overflow:visible" aria-label="Wine Portugal"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6e7bd"/><stop offset="1" stop-color="#c9a45c"/></linearGradient></defs>` +
-  `<text x="150" y="80" text-anchor="middle" textLength="300" lengthAdjust="spacingAndGlyphs" font-family="Inter" font-weight="900" font-size="98" fill="${fill}" letter-spacing="-2">WINE</text>` +
-  `<text x="150" y="114" text-anchor="middle" textLength="286" lengthAdjust="spacing" font-family="Inter" font-weight="600" font-size="27" fill="${fill}">PORTUGAL</text></svg>`;
+// Official Wine Portugal logo (vector), in gold for dark and photo backgrounds.
+const logo = (h: number) =>
+  `<svg height="${h}" viewBox="${LOGO_VIEWBOX}" style="display:block" aria-label="Wine Portugal"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8ecc8"/><stop offset="1" stop-color="#d2ae66"/></linearGradient></defs><path fill="url(#lg)" fill-rule="evenodd" d="${LOGO_PATH}"/></svg>`;
 const ticks = (items: string[]) => `<ul class="ticks">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 // Trust (research: buying from a new shop seen on social media is the main barrier in Portugal).
 const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;font-size:30px;color:${color}">Pague com MB WAY, Multibanco ou cartão</div>`;

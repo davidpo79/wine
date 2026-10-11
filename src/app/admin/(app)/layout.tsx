@@ -61,7 +61,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-paper">
       <header className="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-3 bg-night px-3 text-paper">
         <Sidebar groups={admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV} footer={footer} />
-        <Link href={admin.role === "admin" ? "/admin" : "/admin/orders"} className="font-serif text-lg">Wine Portugal</Link>
+        <Link href={admin.role === "admin" ? "/admin" : "/admin/orders"} aria-label="Wine Portugal"><img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={390} className="h-7 w-auto" /></Link>
         <div className="ml-auto flex items-center gap-2 text-[11px]">
           <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>ifthenpay {mode === "live" ? "LIVE" : mode === "sandbox" ? "SANDBOX" : "off"}</span>
           <span className={`hidden rounded px-2 py-0.5 font-semibold sm:inline ${stripe === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>Stripe {stripe === "live" ? "LIVE" : stripe === "test" ? "TEST" : "off"}</span>

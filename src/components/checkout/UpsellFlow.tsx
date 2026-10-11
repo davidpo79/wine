@@ -155,8 +155,7 @@ export function UpsellFlow({ orderId, token, firstName, boxes, first, others, mo
       <header className="border-b border-paper-2 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <span className="leading-none text-azulejo">
-            <span className="block text-2xl font-black tracking-wide">WINE.</span>
-            <span className="block text-[8px] font-bold tracking-[0.4em]">PORTUGAL</span>
+            <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} className="h-9 w-auto" />
           </span>
           <span className="text-xs font-semibold text-azulejo">✓ Pagamento confirmado · {orderId}</span>
         </div>

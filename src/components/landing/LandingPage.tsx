@@ -191,8 +191,8 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
     <div className="lp">
       <div className="top">✦ OFERTA DE NATAL · ATÉ {maxDiscount}% DE DESCONTO + GUIA DE RECEITAS GRÁTIS ✦</div>
       <header className="wrap nav">
-        <a className="brand" href="#">
-          WINE.<small>PORTUGAL</small>
+        <a className="brand" href="#" aria-label="Wine Portugal">
+          <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} />
         </a>
         <nav className="navlinks">
           <a href="#vinhos">O que recebe</a>
@@ -783,7 +783,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
       <footer className="footer">
         <div className="wrap foot">
           <div className="brand">
-            WINE.<small>PORTUGAL</small>
+            <img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={390} />
           </div>
           <div>
             <a href="mailto:info@wine-portugal.com">info@wine-portugal.com</a>

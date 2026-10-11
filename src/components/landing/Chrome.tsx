@@ -37,11 +37,7 @@ export function Header() {
     <header className="border-b border-paper-2 bg-paper">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <a href="/" className="leading-none text-night" aria-label="Wine Portugal, início">
-          {/* [[TODO: substituir pelo logótipo oficial Wine Portugal (SVG)]] */}
-          <span className="block font-serif text-2xl font-semibold tracking-tight">
-            Wine<span className="text-xmas">·</span>Portugal
-          </span>
-          <span className="block text-[10px] uppercase tracking-[0.3em] text-muted">Prendas de Natal</span>
+          <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} className="h-9 w-auto" />
         </a>
         <a
           href={SITE.whatsappLink}
@@ -77,7 +73,7 @@ export function Footer() {
       <div className="azulejo-strip opacity-80" aria-hidden="true" />
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 text-sm md:grid-cols-3">
         <div>
-          <p className="font-serif text-2xl text-paper">Wine Portugal</p>
+          <img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={390} className="h-9 w-auto" />
           <p className="mt-2">{SITE.legalName}</p>
           <p>NIF {SITE.nif}</p>
           <p>{SITE.address}</p>
