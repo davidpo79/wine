@@ -59,6 +59,8 @@ body{width:var(--w);height:var(--h);overflow:hidden;font-family:Inter,sans-serif
 `;
 
 const ticks = (items: string[]) => `<ul class="ticks">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
+// Trust (research: buying from a new shop seen on social media is the main barrier in Portugal).
+const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;font-size:30px;color:${color}">Pague com MB WAY, Multibanco ou cartão</div>`;
 const sticker = (pos: string, top = "desde", price = "39<small>,02 €</small>", bottom = "por caixa") =>
   `<div class="sticker" style="${pos}"><div class="s1">${top}</div><div class="s2">${price}</div><div class="s3">${bottom}</div></div>`;
 
@@ -79,12 +81,13 @@ function layout(c: Concept, f: Format) {
       return `
       <div class="bgimg" style="height:${photoH}px;background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"}"></div>
       <div class="shade" style="height:${photoH}px;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,0) 70%,rgba(251,247,238,1) 100%)"></div>
-      ${sticker(`right:50px;top:${photoH - (story ? 230 : 210)}px`)}
+      ${sticker(`right:50px;top:${photoH - 300}px`)}
       <div style="position:absolute;left:60px;right:60px;top:${photoH + (story ? 30 : 10)}px">
         <div class="kicker" style="color:var(--red)">${c.kicker}</div>
         <div class="h1" style="font-size:${story ? 90 : 78}px;margin-top:12px;color:var(--deep)">${c.headline}</div>
         <div class="sub" style="font-size:${story ? 38 : 33}px;margin-top:14px;color:#3d463f">${c.sub}</div>
         <div style="margin-top:${story ? 30 : 22}px" class="${story ? "" : "small"}">${ticks(c.ticks)}</div>
+        ${story ? trust("#5f6a60") : ""}
       </div>
       ${stripHtml}`;
     }
@@ -102,6 +105,7 @@ function layout(c: Concept, f: Format) {
       <img src="${img("box-cutout.webp")}" style="position:absolute;left:${story ? 70 : 40}px;top:${boxTop}px;width:${boxW}px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.45))">
       ${sticker(story ? "right:50px;top:760px" : "right:46px;top:330px")}
       <div style="position:absolute;right:60px;left:${story ? 600 : 610}px;top:${story ? 1110 : 690}px;color:#fff">${ticks(c.ticks).replace('class="ticks"', 'class="ticks" style="gap:18px"')}</div>
+      ${story ? `<div style="position:absolute;left:60px;right:60px;top:1440px;text-align:center">${trust("#f3dede")}</div>` : ""}
       ${stripHtml}`;
     }
     case "card": {
