@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { ifthenpayMode } from "@/lib/ifthenpay";
-import { stripeConfigured } from "@/lib/stripe";
+import { stripeConfigured, stripeMode } from "@/lib/stripe";
 import { logoutAction } from "../actions";
 import { Icon, Sidebar, type NavGroup } from "./_nav/Sidebar";
 
@@ -46,7 +46,7 @@ const FULFILMENT_NAV: NavGroup[] = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
   const mode = ifthenpayMode();
-  const stripe = stripeConfigured() ? ((process.env.STRIPE_SECRET_KEY ?? "").startsWith("sk_live") ? "live" : "test") : null;
+  const stripe = stripeConfigured() ? (stripeMode() === "live" ? "live" : "test") : null;
   const footer = (
     <div className="space-y-2 px-2 text-sm">
       <p className="truncate text-xs text-muted" title={admin.email}>{admin.email}</p>
