@@ -3,7 +3,7 @@
 // fonts and logo as the static ads), then composed with ffmpeg.
 // Sound: an original music bed (scripts/ads/music.py), ducked under an optional pt-PT voice-over, with burned-in
 // subtitles (most people watch muted). The voice-over is one take of the VO lines below; it is split on its pauses and
-// each line is placed on its scene. Without --vo the subtitles use the planned timings (preview of the layout).
+// each line is placed on its scene (pauses under 0.7 s, like commas, stay inside a line). Without --vo the subtitles use the planned timings (preview of the layout).
 // Usage: tsx scripts/ads/edit.ts <outDir> <clip1.mp4> <clip2.mp4> <clip3.mp4> [--vo voice.mp3]
 //   (needs: pip install imageio-ffmpeg numpy)
 import { execFileSync, spawnSync } from "node:child_process";
@@ -117,7 +117,7 @@ mkdirSync(out, { recursive: true });
 
 // Speech segments of the voice-over take, from its pauses.
 function speechSegments(file: string): [number, number][] {
-  const log = spawnSync(ffmpeg, ["-hide_banner", "-i", file, "-af", "silencedetect=noise=-35dB:d=0.35", "-f", "null", "-"]).stderr.toString();
+  const log = spawnSync(ffmpeg, ["-hide_banner", "-i", file, "-af", "silencedetect=noise=-35dB:d=0.7", "-f", "null", "-"]).stderr.toString();
   const dur = Number(/Duration: (\d+):(\d+):([\d.]+)/.exec(log)!.slice(1).reduce((a, x) => a * 60 + Number(x), 0));
   const starts = [...log.matchAll(/silence_start: ([\d.]+)/g)].map((m) => Number(m[1]));
   const ends = [...log.matchAll(/silence_end: ([\d.]+)/g)].map((m) => Number(m[1]));
