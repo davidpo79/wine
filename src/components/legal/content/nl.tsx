@@ -76,12 +76,15 @@ export function Privacy() {
           <strong>Statistiek (Google Analytics 4):</strong> alleen met uw toestemming voor statistische cookies.
         </li>
         <li>
-          <strong>Geaggregeerde telling van bezoeken:</strong> wij registreren het aantal bezoeken en klikken in de stappen van het bestelproces, zonder identificatoren of cookies, om de werking van de winkel te meten. [[TODO: juridische controle]]
+          <strong>Anonieme meting van het verloop van het bezoek:</strong> wij registreren de stappen van elk bezoek (bekeken pagina’s, hoe ver u scrolde, aangeklikte knoppen, ingevulde velden of foutmeldingen bij het afrekenen, betaalfouten), gekoppeld aan een willekeurige identificator die alleen bestaat zolang het tabblad open is, om te begrijpen waar de aankoop misloopt en de winkel te verbeteren. Wat u in de velden typt, slaan wij nooit op, en ook het IP-adres niet; alleen het type apparaat, de browser en het land worden bewaard. Als u bestelt, wordt het verloop van dat bezoek aan de bestelling gekoppeld. Verwijderd na 90 dagen. [[TODO: juridische controle]]
+        </li>
+        <li>
+          <strong>Sessie-opnames en heatmaps (Microsoft Clarity):</strong> alleen met uw toestemming voor statistische cookies. Registreert hoe de pagina wordt gebruikt (bewegingen, klikken, scrollen); tekst die u in velden typt, wordt verborgen.
         </li>
       </ul>
       <h2>Verwerkers</h2>
       <p>
-        Stripe (betalingen), Railway (hosting), Resend of Telnyx (versturen van e-mails), [[TODO: magazijn en vervoerder in België]] (opslag en levering), Meta Platforms en Google (alleen met toestemming). [[TODO: lijst en internationale doorgiften bevestigen]]
+        Stripe (betalingen), Railway (hosting), Resend of Telnyx (versturen van e-mails), [[TODO: magazijn en vervoerder in België]] (opslag en levering), Meta Platforms, Google en Microsoft (alleen met toestemming). [[TODO: lijst en internationale doorgiften bevestigen]]
       </p>
       <h2>Bewaartermijn</h2>
       <p>Factuurgegevens: 10 jaar, op grond van fiscale verplichtingen. Overige bestelgegevens: [[TODO: termijn]]. Cookietoestemmingen: 6 maanden.</p>
@@ -102,6 +105,7 @@ export function Privacy() {
           <strong>wp_utm</strong> (30 dagen): herkomst van het bezoek (campagne), gekoppeld aan de bestelling. [[TODO: juridische controle, indelen als essentieel of statistisch]]
         </li>
         <li><strong>_ga, _ga_*</strong> (statistiek, tot 2 jaar): Google Analytics.</li>
+        <li><strong>_clck, _clsk</strong> (statistiek, tot 1 jaar): Microsoft Clarity.</li>
         <li><strong>_fbp, _fbc</strong> (marketing, tot 90 dagen): Meta Pixel.</li>
       </ul>
       <p>

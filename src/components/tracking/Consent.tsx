@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouteLocale } from "@/lib/i18n/route-locale";
 import { CONSENT_COPY, privacyHref } from "@/lib/i18n/consent";
-import { newEventId, pixelEvent, track } from "@/lib/track-client";
+import { newEventId, pixelEvent, track, visit } from "@/lib/track-client";
 
 const COOKIE = "wp_consent";
 const MAX_AGE = 60 * 60 * 24 * 180;
@@ -69,7 +69,26 @@ function loadPixel(pixelId: string) {
   window.fbq!("init", pixelId);
 }
 
-export function Consent({ pixelId }: { pixelId: string | null }) {
+/** Microsoft Clarity (session recordings and heatmaps), only with consent for statistics. Typed text is masked. */
+function loadClarity(projectId: string) {
+  if (!window.clarity) {
+    const q: unknown[] = [];
+    const c = ((...args: unknown[]) => void q.push(args)) as Window["clarity"] & { q?: unknown[] };
+    c!.q = q;
+    window.clarity = c;
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = `https://www.clarity.ms/tag/${encodeURIComponent(projectId)}`;
+    document.head.appendChild(s);
+  }
+  window.clarity!("consentv2", { ad_Storage: "denied", analytics_Storage: "granted" });
+  // Lets Admin → Funnel → a visit open the same visit's recording (filter by the wp_sid tag).
+  const { sid, src } = visit();
+  if (sid) window.clarity!("set", "wp_sid", sid);
+  if (src) window.clarity!("set", "source", src);
+}
+
+export function Consent({ pixelId, clarityId }: { pixelId: string | null; clarityId?: string | null }) {
   const locale = useRouteLocale();
   const [open, setOpen] = useState(false);
   const [prefs, setPrefs] = useState(false);
@@ -81,6 +100,11 @@ export function Consent({ pixelId }: { pixelId: string | null }) {
       window.__wpConsent = c;
       updateConsentMode(c);
       if (!c.m && window.fbq) window.fbq("consent", "revoke");
+      if (c.s && clarityId) loadClarity(clarityId);
+      else if (!c.s && window.clarity) {
+        window.clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "denied" });
+        window.clarity("consent", false);
+      }
       if (c.m && pixelId) {
         if (window.fbq) window.fbq("consent", "grant");
         setFbcFromClickId();
@@ -92,7 +116,7 @@ export function Consent({ pixelId }: { pixelId: string | null }) {
         if (!firstLoad) track("PageView", {}, id);
       }
     },
-    [pixelId],
+    [pixelId, clarityId],
   );
 
   useEffect(() => {

@@ -12,6 +12,7 @@ const ADMIN_NAV: NavGroup[] = [
   {
     items: [
       { href: "/admin", label: "Home", icon: "home" },
+      { href: "/admin/funnel", label: "Funnel & visits", icon: "funnel" },
       { href: "/admin/orders", label: "Orders", icon: "orders" },
       { href: "/admin/gift-cards", label: "Gift cards", icon: "card" },
       { href: "/admin/finance", label: "Finance", icon: "finance" },

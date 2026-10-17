@@ -49,10 +49,11 @@ export function Privacy() {
         <li><strong>Neuigkeiten per E-Mail:</strong> nur, wenn Sie dies bei der Zahlung angeben. Rechtsgrundlage: Einwilligung, die Sie jederzeit widerrufen können.</li>
         <li><strong>Anzeigenmessung (Meta Pixel und Conversions API):</strong> nur mit Ihrer Einwilligung in Marketing-Cookies. Wir übermitteln Meta Ereignisdaten und bei einem Kauf verschlüsselte Kontaktdaten (SHA-256-Hash), um die Wirksamkeit unserer Anzeigen zu messen.</li>
         <li><strong>Statistik (Google Analytics 4):</strong> nur mit Ihrer Einwilligung in Statistik-Cookies.</li>
-        <li><strong>Aggregierte Besuchszählung:</strong> Wir zählen die Anzahl der Besuche und der Klicks in den Bestellschritten, ohne Kennungen und ohne Cookies, um die Funktion des Shops zu messen. [[TODO: Rechtsprüfung]]</li>
+        <li><strong>Anonyme Messung des Besuchsverlaufs:</strong> Wir erfassen die Schritte jedes Besuchs (aufgerufene Seiten, wie weit Sie gescrollt haben, angeklickte Schaltflächen, ausgefüllte oder fehlerhafte Felder im Checkout, Zahlungsfehler) mit einer zufälligen Kennung, die nur besteht, solange der Tab geöffnet ist, um zu verstehen, wo der Kauf scheitert, und den Shop zu verbessern. Was Sie in die Felder eingeben, speichern wir nie, ebenso wenig die IP-Adresse; gespeichert werden nur Gerätetyp, Browser und Land. Wenn Sie bestellen, wird der Verlauf dieses Besuchs mit der Bestellung verknüpft. Löschung nach 90 Tagen. [[TODO: Rechtsprüfung]]</li>
+        <li><strong>Sitzungsaufzeichnungen und Heatmaps (Microsoft Clarity):</strong> nur mit Ihrer Einwilligung in Statistik-Cookies. Erfasst, wie die Seite genutzt wird (Bewegungen, Klicks, Scrollen); in Felder eingegebener Text wird ausgeblendet.</li>
       </ul>
       <h2>Auftragsverarbeiter und Empfänger</h2>
-      <p>Stripe (Zahlungen), Railway (Hosting), Resend oder Telnyx (Versand von E-Mails und Nachrichten), [[TODO: Lager und Versanddienstleister in Belgien]] (Lagerung und Zustellung), Meta Platforms und Google (nur mit Einwilligung). [[TODO: Liste bestätigen und Übermittlungen in Drittländer mit Garantien angeben]]</p>
+      <p>Stripe (Zahlungen), Railway (Hosting), Resend oder Telnyx (Versand von E-Mails und Nachrichten), [[TODO: Lager und Versanddienstleister in Belgien]] (Lagerung und Zustellung), Meta Platforms, Google und Microsoft (nur mit Einwilligung). [[TODO: Liste bestätigen und Übermittlungen in Drittländer mit Garantien angeben]]</p>
       <h2>Speicherdauer</h2>
       <p>Rechnungsdaten: 10 Jahre, aufgrund steuerlicher Aufbewahrungspflichten. Übrige Bestelldaten: [[TODO: Frist]]. Cookie-Einwilligungen: 6 Monate.</p>
       <h2>Ihre Rechte</h2>
@@ -64,6 +65,7 @@ export function Privacy() {
         <li><strong>wp_sid / wp_src</strong> (Sitzungsspeicher, wird beim Schließen des Tabs gelöscht): anonyme Kennung des Besuchs und seiner Herkunft, um Besuche und Bestellungen aggregiert zu zählen. [[TODO: Rechtsprüfung]]</li>
         <li><strong>wp_utm</strong> (30 Tage): Herkunft des Besuchs (Kampagne), der Bestellung zugeordnet. [[TODO: Rechtsprüfung, Einordnung als notwendig oder Statistik]]</li>
         <li><strong>_ga, _ga_*</strong> (Statistik, bis zu 2 Jahre): Google Analytics.</li>
+        <li><strong>_clck, _clsk</strong> (Statistik, bis zu 1 Jahr): Microsoft Clarity.</li>
         <li><strong>_fbp, _fbc</strong> (Marketing, bis zu 90 Tage): Meta Pixel.</li>
       </ul>
       <p>

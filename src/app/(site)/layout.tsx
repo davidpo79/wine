@@ -1,8 +1,10 @@
 import { Consent } from "@/components/tracking/Consent";
+import { Journey } from "@/components/tracking/Journey";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const ga4 = process.env.GA4_MEASUREMENT_ID || null;
   const pixel = process.env.META_PIXEL_ID || null;
+  const clarity = process.env.CLARITY_PROJECT_ID || null;
   // Google Consent Mode v2: everything denied until the visitor chooses. A stored choice is applied before GA loads.
   const consentDefaults = `
 window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}window.gtag=gtag;
@@ -14,7 +16,8 @@ ${ga4 ? `gtag('js',new Date());gtag('config',${JSON.stringify(ga4)});` : ""}`;
       <script dangerouslySetInnerHTML={{ __html: consentDefaults }} />
       {ga4 && <script async src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(ga4)}`} />}
       {children}
-      <Consent pixelId={pixel} />
+      <Journey />
+      <Consent pixelId={pixel} clarityId={clarity} />
     </>
   );
 }

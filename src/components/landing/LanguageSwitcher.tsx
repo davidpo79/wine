@@ -1,5 +1,6 @@
 "use client";
 
+import { jlog } from "@/lib/journey-client";
 import { useI18n } from "@/lib/i18n/client";
 import { LOCALE_INFO } from "@/lib/markets";
 import { homeHref, LOCALE_COOKIE } from "@/lib/i18n/paths";
@@ -15,7 +16,10 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
         l === locale ? (
           <b key={l}>{compact ? l.toUpperCase() : LOCALE_INFO[l].name}</b>
         ) : (
-          <a key={l} href={homeHref(l)} hrefLang={l} lang={l} onClick={() => (document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000; samesite=lax`)}>
+          <a key={l} href={homeHref(l)} hrefLang={l} lang={l} onClick={() => {
+            jlog("lang_switch", { to: l });
+            document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000; samesite=lax`;
+          }}>
             {compact ? l.toUpperCase() : LOCALE_INFO[l].name}
           </a>
         ),

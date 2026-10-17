@@ -160,6 +160,32 @@ export const trackingEvents = pgTable(
   (t) => [index("tracking_events_name_idx").on(t.eventName, t.createdAt), index("tracking_events_order_idx").on(t.orderId)],
 );
 
+/** Anonymous visit journey: every step, click, scroll milestone and form interaction of a browser tab (Admin → Funnel). */
+export const journeyEvents = pgTable(
+  "journey_events",
+  {
+    id: serial("id").primaryKey(),
+    sessionId: text("session_id").notNull(), // per-tab visit id (sessionStorage), same as tracking_events.session_id
+    pageId: text("page_id"), // one page load
+    name: text("name").notNull(), // page_view, page_leave, scroll, section, click, field_focus, field_done, field_error, pay_click...
+    path: text("path"),
+    props: jsonb("props").$type<Record<string, unknown>>(), // never personal data: field names, not values
+    ms: integer("ms"), // milliseconds since the page loaded
+    source: text("source"), // traffic source of the visit: Meta ads, Direct...
+    device: text("device"), // mobile | tablet | desktop
+    browser: text("browser"),
+    country: text("country"), // from the IP, the IP itself is not stored
+    locale: text("locale"),
+    orderId: text("order_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("journey_session_idx").on(t.sessionId, t.createdAt),
+    index("journey_name_idx").on(t.name, t.createdAt),
+    index("journey_created_idx").on(t.createdAt),
+  ],
+);
+
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: jsonb("value"),

@@ -1,5 +1,6 @@
 "use client";
 
+import { flushJourney, jlog } from "@/lib/journey-client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { newEventId, track } from "@/lib/track-client";
 import { promoDiscountCents, promoShippingCents, type PromoConfig } from "@/lib/promo";
@@ -94,6 +95,7 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
       setKey(k);
       const b = bundles.find((x) => x.key === k);
       if (b) track("SelectBundle", { bundle_key: b.key, value: totalOf(b) / 100, currency: "EUR" });
+      jlog("bundle_select", { bundle: k, where: "landing" });
     },
     [key, bundles],
   );
@@ -108,6 +110,8 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
       sessionStorage.setItem("wp_gift", JSON.stringify({ isGift, msg: isGift ? giftMessage : "" }));
     } catch {}
     track("AddToCart", { content_ids: ["trilogia-2160"], content_type: "product", value: total(selected) / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
+    jlog("click", { label: "checkout_cta", bundle: selected.key, gift: isGift });
+    flushJourney();
     location.assign(`/checkout?b=${encodeURIComponent(selected.key)}${locale === "pt" ? "" : `&l=${locale}&c=${country}`}`);
   }, [loading, selected, total, isGift, giftMessage, locale, country]);
 

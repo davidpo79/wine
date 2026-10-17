@@ -20,10 +20,11 @@ export default function Privacidade() {
         <li><strong>Medição de anúncios (Meta Pixel e Conversions API):</strong> só com consentimento para cookies de marketing. Enviamos à Meta dados de evento e, no caso de compra, dados de contacto cifrados (hash SHA-256) para medir a eficácia dos anúncios.</li>
         <li><strong>Estatística (Google Analytics 4):</strong> só com consentimento para cookies de estatística.</li>
         <li><strong>País da visita:</strong> o endereço IP é usado no momento, sem ser guardado, para mostrar a loja na língua e com as condições de entrega do seu país. Base de dados: <a href="https://db-ip.com" className="underline">IP Geolocation by DB-IP</a> (CC BY 4.0).</li>
-        <li><strong>Contagem agregada de visitas:</strong> registamos o número de visitas e de cliques nos passos de compra, sem identificadores nem cookies, para medir o funcionamento da loja. [[TODO: revisão jurídica]]</li>
+        <li><strong>Medição anónima do percurso no site:</strong> registamos os passos de cada visita (páginas vistas, até onde desceu na página, botões clicados, campos do checkout preenchidos ou com erro, erros de pagamento), associados a um identificador aleatório que só existe enquanto o separador está aberto, para perceber onde a compra falha e melhorar a loja. Nunca guardamos o que escreve nos campos, nem o endereço IP; guardamos apenas o tipo de dispositivo, o navegador e o país. Se fizer uma encomenda, o percurso dessa visita fica associado à encomenda. Apagado ao fim de 90 dias. [[TODO: revisão jurídica]]</li>
+        <li><strong>Gravações de sessão e mapas de calor (Microsoft Clarity):</strong> só com consentimento para cookies de estatística. Regista a forma como a página é usada (movimentos, cliques, scroll); o texto escrito nos campos é ocultado.</li>
       </ul>
       <h2>Subcontratantes</h2>
-      <p>ifthenpay (pagamentos), Telnyx ou Resend (envio de emails, SMS, WhatsApp e chamadas), Railway (alojamento), CTT (entregas), Meta Platforms e Google (apenas com consentimento). [[TODO: confirmar lista e transferências internacionais]]</p>
+      <p>ifthenpay (pagamentos), Telnyx ou Resend (envio de emails, SMS, WhatsApp e chamadas), Railway (alojamento), CTT (entregas), Meta Platforms, Google e Microsoft (apenas com consentimento). [[TODO: confirmar lista e transferências internacionais]]</p>
       <h2>Prazo de conservação</h2>
       <p>Dados de faturação: 10 anos, por obrigação fiscal. Restantes dados de encomenda: [[TODO: prazo]]. Consentimentos de cookies: 6 meses.</p>
       <h2>Os seus direitos</h2>
@@ -34,6 +35,7 @@ export default function Privacidade() {
         <li><strong>wp_sid / wp_src</strong> (armazenamento da sessão, apagado ao fechar o separador): identificador anónimo da visita e a sua origem, para contar visitas e conversões de forma agregada. [[TODO: revisão jurídica]]</li>
           <li><strong>wp_utm</strong> (30 dias): origem da visita (campanha), associada à encomenda. [[TODO: revisão jurídica, classificar como essencial ou estatística]]</li>
         <li><strong>_ga, _ga_*</strong> (estatística, até 2 anos): Google Analytics.</li>
+        <li><strong>_clck, _clsk</strong> (estatística, até 1 ano): Microsoft Clarity.</li>
         <li><strong>_fbp, _fbc</strong> (marketing, até 90 dias): Meta Pixel.</li>
       </ul>
       <p>

@@ -244,3 +244,20 @@ test("markets: phone, postal code, language and country detection", async () => 
   assert.equal(countryFor("fr", v("DE")), "BE");
   assert.equal(countryFor("de", v(null)), "DE");
 });
+
+test("journey: device, privacy filter, batch validation and step logic", async () => {
+  const { deviceOf, cleanProps, JourneyBatch } = await import("../src/lib/journey");
+  const { reached } = await import("../src/lib/journey-stats");
+  assert.deepEqual(deviceOf("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 [FBAN/FBIOS;FBAV/450.0]"), { device: "mobile", browser: "Facebook app" });
+  assert.deepEqual(deviceOf("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Safari/604.1"), { device: "tablet", browser: "Safari" });
+  assert.equal(deviceOf("Mozilla/5.0 (Windows NT 10.0) Chrome/130.0 Safari/537.36").device, "desktop");
+  // Labels that look like an email or phone number are dropped.
+  assert.deepEqual(cleanProps({ label: "ana@example.com", field: "email", n: 3 }), { field: "email", n: 3 });
+  assert.equal(cleanProps({ label: "912 345 678" }), null);
+  assert.equal(JourneyBatch.safeParse({ sid: "s_abcdef12", events: [{ n: "page_view" }] }).success, true);
+  assert.equal(JourneyBatch.safeParse({ sid: "s_abcdef12", events: [{ n: "made_up" }] }).success, false);
+  const base = { sawOffers: false, clickedBuy: false, checkout: false, started: false, contact: false, address: false, payClick: false, paymentStart: false, purchased: false };
+  const resumed = { ...base, checkout: true, payClick: true } as Parameters<typeof reached>[0];
+  assert.equal(reached(resumed, "sawOffers"), true); // a later step implies the earlier ones
+  assert.equal(reached(resumed, "paymentStart"), false);
+});

@@ -7,6 +7,7 @@ import {
   type StripeElements,
 } from "@stripe/stripe-js";
 import { pixelEvent, visit } from "@/lib/track-client";
+import { flushJourney, jlog } from "@/lib/journey-client";
 import type { Offer } from "@/lib/upsell";
 import { OfferDialog } from "./OfferDialog";
 import { GiftCard } from "@/components/GiftCard";
@@ -255,6 +256,7 @@ export function CheckoutPage({
           }
           if (!d.paid) {
             apply(d);
+            jlog("checkout_view", { bundle: String(d.bundle_key ?? ""), country: String(d.country ?? ""), resumed: true }, typeof d.order_id === "string" ? d.order_id : undefined);
             // New choice made on the landing page: apply it to the saved checkout.
             const patch: Record<string, unknown> = {};
             if (wantedBundle && wantedBundle !== d.bundle_key) {
@@ -299,9 +301,11 @@ export function CheckoutPage({
       const d = await r.json().catch(() => ({}));
       if (!r.ok) {
         setLoadError(d.error ?? t.loadFailed);
+        jlog("payment_error", { stage: "load", msg: String(d.error ?? "load_failed").slice(0, 100) });
         return;
       }
       apply(d);
+      jlog("checkout_view", { bundle: String(d.bundle_key ?? wantedBundle ?? ""), country: String(d.country ?? country) }, typeof d.order_id === "string" ? d.order_id : undefined);
     })();
   }, []);
 
@@ -472,6 +476,7 @@ export function CheckoutPage({
   // Another delivery country can change the Stripe methods (iDEAL, Bancontact): rebuild the payment form.
   const changeCountry = (c: Country) => {
     if (c === country) return;
+    jlog("country_change", { from: country, to: c });
     setCountry(c);
     setErrors((e) => ({ ...e, postalCode: undefined, phone: undefined }));
     elementsRef.current = null;
@@ -484,6 +489,7 @@ export function CheckoutPage({
   const selected = bundles.find((b) => b.key === bundleKey) ?? bundles[0];
   const changeBundle = (key: string) => {
     setBundleKey(key);
+    jlog("bundle_select", { bundle: key, where: "checkout" });
     queue({ bundleKey: key }, true);
   };
   const applyPromo = async () => {
@@ -491,6 +497,7 @@ export function CheckoutPage({
     if (!code) return;
     dirty.current = { ...dirty.current, promo: code };
     const data = await flush();
+    jlog("promo_apply", { ok: !!data?.promo_applied });
     if (data?.promo_applied) {
       setPromoMsg(null);
       try {
@@ -504,6 +511,7 @@ export function CheckoutPage({
     if (!draft || paying) return;
     setFormError(null);
     syncFromDom();
+    jlog("pay_click", { method, configured: methods.includes(method) }, draft.o);
     if (!methods.includes(method)) {
       // No payment method configured yet: still save, validate and record the checkout attempt.
       setPaying(true);
@@ -568,6 +576,7 @@ export function CheckoutPage({
       return;
     }
     if (!r.ok) {
+      jlog("payment_error", { stage: "prepare", status: r.status, msg: String(data.error ?? "").slice(0, 100) }, draft.o);
       setFormError(data.error ?? t.cannotContinue);
       setPaying(false);
       return;
@@ -589,6 +598,7 @@ export function CheckoutPage({
     });
     if (data.amounts) setAmounts(data.amounts);
     if (data.offer || data.products?.length) {
+      jlog("offer_shown", { boxes: !!data.offer, products: (data.products ?? []).length }, draft.o);
       setOffer({ main: data.offer, products: data.products ?? [] });
       return; // the dialog continues to startPayment()
     }
@@ -603,6 +613,7 @@ export function CheckoutPage({
       body: JSON.stringify({ ...draft, keys }),
     });
     const data = await r.json().catch(() => ({}));
+    jlog(keys.length ? "offer_accept" : "offer_decline", { keys, ok: r.ok }, draft.o);
     if (!r.ok) throw new Error(data.error ?? t.cannotAdd);
     setAmounts(data.amounts);
     if (keys.length)
@@ -633,11 +644,14 @@ export function CheckoutPage({
       return;
     }
     if (!r.ok) {
+      jlog("payment_error", { stage: "pay", method, status: r.status, msg: String(data.error ?? "").slice(0, 100) }, draft.o);
       setFormError(data.error ?? t.notStarted);
       setPaying(false);
       return;
     }
+    jlog("payment_start", { method, kind: String(data.kind ?? "") }, draft.o);
     if (data.kind === "redirect") {
+      flushJourney();
       location.assign(data.url);
       return;
     }
@@ -667,15 +681,19 @@ export function CheckoutPage({
         },
       });
       if (error) {
+        jlog("payment_error", { stage: "stripe", method, type: error.type ?? "", code: error.code ?? error.decline_code ?? "", msg: (error.message ?? "").slice(0, 100) }, draft.o);
         setFormError(error.message ?? t.notCompleted);
         setPaying(false);
         return;
       }
+      flushJourney();
       location.assign(doneUrl);
       return;
     }
-    if (data.kind === "mbway")
+    if (data.kind === "mbway") {
+      jlog("mbway_wait", {}, draft.o);
       setMbwayWait({ until: Date.parse(data.expiresAt), state: "pending" });
+    }
   }
 
   // MB WAY: poll until approved in the app (or expired / rejected).
@@ -691,6 +709,8 @@ export function CheckoutPage({
       const d = r?.ok ? await r.json().catch(() => ({})) : {};
       if (stop) return;
       if (d.state === "paid") {
+        jlog("mbway_result", { state: "paid" }, draft.o);
+        flushJourney();
         location.assign(
           d.next ??
             `/obrigado?o=${encodeURIComponent(draft.o)}&t=${encodeURIComponent(draft.t)}`,
@@ -701,10 +721,14 @@ export function CheckoutPage({
         d.state === "rejected" ||
         d.state === "declined" ||
         d.state === "failed"
-      )
+      ) {
+        jlog("mbway_result", { state: String(d.state) }, draft.o);
         return setMbwayWait((w) => w && { ...w, state: "failed" });
-      if (d.state === "expired" || Date.now() > mbwayWait.until + 90_000)
+      }
+      if (d.state === "expired" || Date.now() > mbwayWait.until + 90_000) {
+        jlog("mbway_result", { state: "expired" }, draft.o);
         return setMbwayWait((w) => w && { ...w, state: "expired" });
+      }
       setTimeout(tick, 4000);
     };
     const t0 = setTimeout(tick, 4000);
@@ -975,6 +999,7 @@ export function CheckoutPage({
       <div className="mx-auto grid max-w-6xl lg:grid-cols-[1fr_440px]">
         <form
           onSubmit={pay}
+          data-clarity-mask="true"
           noValidate
           autoComplete="on"
           className="space-y-8 px-4 pb-28 pt-8 lg:border-r lg:border-paper-2 lg:py-10 lg:pr-12"

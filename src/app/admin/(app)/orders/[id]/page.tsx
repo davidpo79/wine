@@ -1,3 +1,5 @@
+import { sessionsOfOrder } from "@/lib/journey-stats";
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
@@ -21,6 +23,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const paidPayment = payments.find((p) => p.status === "paid");
   const recovery = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.orderId, id)).orderBy(asc(schema.recoverySteps.scheduledAt));
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
+  const visits = isAdmin ? await sessionsOfOrder(id) : [];
   const a = o.shippingAddress;
   const paid = ["paid", "preparing", "shipped", "delivered"].includes(o.status);
 
@@ -206,7 +209,17 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
         </section>
       )}
       <section className="rounded-lg border bg-white p-4">
-        <h2 className="font-semibold">Timeline</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold">Timeline</h2>
+          {visits.length > 0 && (
+            <p className="text-sm">
+              Visit journey:{" "}
+              {visits.map((sid, i) => (
+                <Link key={sid} className="text-azulejo underline" href={`/admin/funnel/${encodeURIComponent(sid)}`}>{visits.length > 1 ? `visit ${i + 1}` : "open"}</Link>
+              )).reduce<React.ReactNode[]>((acc, el, i) => (i ? [...acc, " · ", el] : [el]), [])}
+            </p>
+          )}
+        </div>
         <ol className="mt-2 space-y-1 text-sm">
           {events.map((e) => (
             <li key={e.id} className="flex gap-3 border-t py-1">

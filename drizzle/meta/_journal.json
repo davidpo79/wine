@@ -85,6 +85,13 @@
       "when": 1792251691307,
       "tag": "0011_markets_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792264288203,
+      "tag": "0012_journey_events",
+      "breakpoints": true
     }
   ]
 }

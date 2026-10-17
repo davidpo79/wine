@@ -2,9 +2,11 @@
 
 import { useEffect } from "react";
 import { pixelEvent } from "@/lib/track-client";
+import { jlog } from "@/lib/journey-client";
 
 /** Browser Purchase, deduplicated with the server CAPI Purchase through the shared event id. Only rendered when paid. */
 export function PurchasePixel({ eventId, value, numItems, orderId }: { eventId: string; value: number; numItems: number; orderId: string }) {
+  useEffect(() => jlog("thankyou_view", { value }, orderId), [orderId, value]);
   useEffect(() => {
     const key = `wp_purchase_${orderId}`;
     if (sessionStorage.getItem(key)) return;

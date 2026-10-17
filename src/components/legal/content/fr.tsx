@@ -52,10 +52,11 @@ export function Privacy() {
         <li><strong>Rappels et offres par e-mail, SMS ou WhatsApp :</strong> uniquement si vous l’indiquez lors de la commande. Base juridique : consentement, que vous pouvez retirer à tout moment via le lien présent dans chaque message.</li>
         <li><strong>Mesure des publicités (Meta Pixel et Conversions API) :</strong> uniquement avec votre consentement aux cookies marketing. Nous transmettons à Meta des données d’événement et, en cas d’achat, des données de contact chiffrées (hachage SHA-256) pour mesurer l’efficacité des publicités.</li>
         <li><strong>Statistiques (Google Analytics 4) :</strong> uniquement avec votre consentement aux cookies statistiques.</li>
-        <li><strong>Comptage agrégé des visites :</strong> nous enregistrons le nombre de visites et de clics sur les étapes d’achat, sans identifiants ni cookies, pour mesurer le bon fonctionnement de la boutique. [[TODO: vérification juridique]]</li>
+        <li><strong>Mesure anonyme du parcours sur le site :</strong> nous enregistrons les étapes de chaque visite (pages vues, défilement, boutons cliqués, champs du paiement remplis ou en erreur, erreurs de paiement), associées à un identifiant aléatoire qui n’existe que tant que l’onglet est ouvert, pour comprendre où l’achat échoue et améliorer la boutique. Nous n’enregistrons jamais ce que vous tapez dans les champs, ni l’adresse IP ; seuls le type d’appareil, le navigateur et le pays sont conservés. Si vous commandez, le parcours de cette visite est rattaché à la commande. Supprimé après 90 jours. [[TODO: vérification juridique]]</li>
+        <li><strong>Enregistrements de session et cartes de chaleur (Microsoft Clarity) :</strong> uniquement avec votre consentement aux cookies statistiques. Enregistre la façon dont la page est utilisée (mouvements, clics, défilement) ; le texte saisi dans les champs est masqué.</li>
       </ul>
       <h2>Sous-traitants</h2>
-      <p>Stripe (paiements), Railway (hébergement), Resend ou Telnyx (envoi d’e-mails et de messages), [[TODO: entrepôt et transporteur en Belgique]] (préparation et livraison), Meta Platforms et Google (uniquement avec votre consentement). [[TODO: confirmer la liste et les transferts internationaux de données]]</p>
+      <p>Stripe (paiements), Railway (hébergement), Resend ou Telnyx (envoi d’e-mails et de messages), [[TODO: entrepôt et transporteur en Belgique]] (préparation et livraison), Meta Platforms, Google et Microsoft (uniquement avec votre consentement). [[TODO: confirmer la liste et les transferts internationaux de données]]</p>
       <h2>Durée de conservation</h2>
       <p>Données de facturation : 10 ans, en vertu des obligations fiscales. Autres données de commande : [[TODO: durée]]. Choix relatifs aux cookies : 6 mois.</p>
       <h2>Vos droits</h2>
@@ -69,6 +70,7 @@ export function Privacy() {
         <li><strong>wp_sid / wp_src</strong> (stockage de session, effacé à la fermeture de l’onglet) : identifiant anonyme de la visite et sa provenance, pour compter les visites et les conversions de façon agrégée. [[TODO: vérification juridique]]</li>
         <li><strong>wp_utm</strong> (30 jours) : provenance de la visite (campagne), associée à la commande. [[TODO: vérification juridique, classer comme essentiel ou statistique]]</li>
         <li><strong>_ga, _ga_*</strong> (statistiques, jusqu’à 2 ans) : Google Analytics.</li>
+        <li><strong>_clck, _clsk</strong> (statistiques, jusqu’à 1 an) : Microsoft Clarity.</li>
         <li><strong>_fbp, _fbc</strong> (marketing, jusqu’à 90 jours) : Meta Pixel.</li>
       </ul>
       <p>

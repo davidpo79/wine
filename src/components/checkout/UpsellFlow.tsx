@@ -1,5 +1,6 @@
 "use client";
 
+import { flushJourney, jlog } from "@/lib/journey-client";
 import { useEffect, useRef, useState } from "react";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import type { Offer } from "@/lib/upsell";
@@ -19,14 +20,19 @@ export function UpsellFlow({ orderId, token, firstName, boxes, first, others, mo
   const [waiting, setWaiting] = useState<{ offer: Offer; paymentId: number; until: number } | null>(null);
   const stripeRef = useRef<Stripe | null>(null);
   const q = `o=${encodeURIComponent(orderId)}&t=${encodeURIComponent(token)}`;
-  const finish = () => location.assign(`/obrigado?${q}`);
+  const finish = () => {
+    flushJourney();
+    location.assign(`/obrigado?${q}`);
+  };
 
   useEffect(() => {
+    if (first || others.length) jlog("upsell_view", { first: first?.key ?? null, others: others.length }, orderId);
     if (!first && others.length === 0) finish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function accept(offer: Offer) {
+    jlog("upsell_accept", { offer: offer.key }, orderId);
     setBusy(offer.key);
     setError(null);
     try {
@@ -191,11 +197,18 @@ export function UpsellFlow({ orderId, token, firstName, boxes, first, others, mo
 
         <div className="text-center">
           {stage === "first" ? (
-            <button type="button" disabled={!!waiting} onClick={() => (others.length ? setStage("others") : finish())} className="p-2 text-sm text-muted underline">
+            <button type="button" disabled={!!waiting} onClick={() => {
+              jlog("upsell_decline", { stage }, orderId);
+              if (others.length) setStage("others");
+              else finish();
+            }} className="p-2 text-sm text-muted underline">
               {t.noThanks}
             </button>
           ) : (
-            <button type="button" disabled={!!waiting} onClick={finish} className="rounded-md border border-ink/20 bg-white px-6 py-3 text-sm font-bold hover:bg-paper-2">
+            <button type="button" disabled={!!waiting} onClick={() => {
+              jlog("upsell_decline", { stage }, orderId);
+              finish();
+            }} className="rounded-md border border-ink/20 bg-white px-6 py-3 text-sm font-bold hover:bg-paper-2">
               {added.length ? t.finish : t.noThanksSee}
             </button>
           )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { jlog } from "@/lib/journey-client";
 import { useEffect, useRef, useState } from "react";
 import { newEventId } from "@/lib/track-client";
 import { CUSTOMER_KEY, useBuy } from "./BuyContext";
@@ -53,6 +54,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       if (document.querySelector("dialog[open]")) return;
       flag("local", SEEN, true);
       ref.current?.showModal();
+      jlog("exit_popup_shown", { trigger: matchMedia("(pointer: coarse)").matches ? "scroll_up" : "mouse_out" });
       cleanup();
     };
 
@@ -104,6 +106,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       setLead({ email: String(fd.get("email")).trim().toLowerCase(), token: data.token, plus: !!data.plus });
       remember({ name: String(fd.get("name")).trim(), email: String(fd.get("email")).trim() });
       setState("done");
+      jlog("exit_popup_submit", { step: "email" });
       flag("local", LEAD, true);
       buy.applyPromo(data.code);
       // Browser Lead, deduplicated with the server CAPI Lead (same event id). Only with Marketing consent.
@@ -133,6 +136,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       buy.applyPromo(data.code);
       remember({ phone: String(fd.get("phone")).trim() });
       setPhoneState("done");
+      jlog("exit_popup_submit", { step: "phone" });
       window.gtag?.("event", "generate_lead", { method: "exit_popup_phone" });
     } catch (err) {
       setPhoneError(err instanceof Error ? err.message : "Erro inesperado.");

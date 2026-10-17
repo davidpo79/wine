@@ -144,7 +144,7 @@ export function LandingPage({
 
   const orderButton = (short = false) =>
     canBuy ? (
-      <button type="button" className="cta order" onClick={buy.checkout} disabled={buy.loading}>
+      <button type="button" className="cta order" data-j={short ? "buy_button_short" : "buy_button"} onClick={buy.checkout} disabled={buy.loading}>
         {buy.loading ? t.opening : short ? fmt(t.orderShort, { total }) : orderLabel}
       </button>
     ) : (
@@ -159,7 +159,7 @@ export function LandingPage({
         {offers.map((o) => {
           const active = o.b.key === sel.b.key;
           return (
-            <button key={o.b.key} aria-pressed={active} className="bundle" data-qty={o.qty} type="button" onClick={() => selectQty(o.qty)}>
+            <button key={o.b.key} aria-pressed={active} className="bundle" data-qty={o.qty} data-j={`bundle_${o.qty}_boxes`} type="button" onClick={() => selectQty(o.qty)}>
               <span className="bundlebanner">
                 {o.qty === 1 && !guide ? d.deal.singleBannerNoGuide : o.text.banner}
                 <small>{o.qty === 1 ? (o.freeShipping ? d.common.deliveryIncluded : t.oneBoxToGive) : o.text.small}</small>
@@ -497,7 +497,7 @@ export function LandingPage({
           </div>
         </div>
 
-        <section className="section wrap reasons">
+        <section className="section wrap reasons" data-j-section="porque">
           <div className="reasoncopy">
             <div>
               <div className="eyebrow">{t.reasons.eyebrow}</div>
@@ -579,7 +579,7 @@ export function LandingPage({
           </section>
         )}
 
-        <section className="section wrap">
+        <section className="section wrap" data-j-section="comparar">
           <div className="sectionhead">
             <div className="eyebrow">{t.compare.eyebrow}</div>
             <h2>
@@ -615,7 +615,7 @@ export function LandingPage({
           </div>
         </section>
 
-        <section className="section ordersteps">
+        <section className="section ordersteps" data-j-section="como-encomendar">
           <div className="wrap">
             <div className="sectionhead">
               <div className="eyebrow">{t.steps.eyebrow}</div>
@@ -804,7 +804,7 @@ export function LandingPage({
           <div className="stickright">
             <strong>{total}</strong>
             {canBuy ? (
-              <button type="button" className="cta" onClick={buy.checkout} disabled={buy.loading}>
+              <button type="button" className="cta" data-j="buy_button_sticky" onClick={buy.checkout} disabled={buy.loading}>
                 {buy.loading ? t.sticky.opening : fmt(t.sticky.order, { total })}
               </button>
             ) : (
