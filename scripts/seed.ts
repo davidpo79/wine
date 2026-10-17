@@ -27,10 +27,11 @@ if (!productId) {
   console.log("product created");
 }
 
+// Buy-and-get offers with delivery included (pricing of 17/10/2026; also applied to existing DBs by drizzle/0010).
 const bundles = [
-  { key: "x1", label: "1 caixa · 3 garrafas", qty: 1, priceCents: 4590, compareAtCents: null, shippingCents: 490, badge: null, sort: 1 },
-  { key: "x2", label: "2 caixas · 6 garrafas · 1 para si, 1 para oferecer", qty: 2, priceCents: 8262, compareAtCents: 9180, shippingCents: 0, badge: "Mais escolhido", sort: 2 },
-  { key: "x3", label: "3 caixas · 9 garrafas · a melhor escolha", qty: 3, priceCents: 11705, compareAtCents: 13770, shippingCents: 0, badge: "Melhor valor", sort: 3 },
+  { key: "x1", label: "1 caixa · 3 garrafas", qty: 1, priceCents: 4990, compareAtCents: null, shippingCents: 0, badge: null, sort: 1 },
+  { key: "x2", label: "2 caixas · 6 garrafas · a 2.ª caixa por 40 €", qty: 2, priceCents: 8990, compareAtCents: 9980, shippingCents: 0, badge: "Mais escolhido", sort: 2 },
+  { key: "x4", label: "4 caixas · 12 garrafas · pague 3, leve 4", qty: 4, priceCents: 14970, compareAtCents: 19960, shippingCents: 0, badge: "Pague 3, leve 4", sort: 3 },
 ];
 await db
   .insert(schema.bundles)

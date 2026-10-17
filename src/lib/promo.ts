@@ -24,7 +24,7 @@ export function promoDiscountCents(bundle: { priceCents: number; qty: number }, 
   return Math.max(0, Math.min(raw, maxAllowed));
 }
 
-/** Shipping after promo: the plus code makes shipping free (bundles of 2-3 boxes already ship free). */
+/** Shipping after promo: the plus code makes shipping free (most bundles already include delivery). */
 export function promoShippingCents(bundle: { shippingCents: number }, cfg: PromoConfig | null, code: string | null | undefined): number {
   if (cfg?.plusCode && normalizeCode(code) === normalizeCode(cfg.plusCode)) return 0;
   return bundle.shippingCents;

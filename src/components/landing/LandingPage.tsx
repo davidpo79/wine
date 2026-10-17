@@ -10,6 +10,7 @@ import { ViewContentObserver } from "./Interactive";
 import { OpenConsentLink } from "@/components/tracking/Consent";
 import { DeadlineCountdown } from "./Countdown";
 import { ExitIntent } from "./ExitIntent";
+import { dealOf, dealText, type Deal } from "@/lib/offers";
 
 const money = (cents: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(cents / 100);
 const WA = "351910348577";
@@ -23,9 +24,12 @@ type Offer = {
   discount: number;
   shipping: number;
   freeShipping: boolean;
+  deal: Deal;
+  text: ReturnType<typeof dealText>;
 };
 
-function toOffer(b: PublicBundle): Offer {
+function toOffer(b: PublicBundle, singleCents: number): Offer {
+  const deal = dealOf(b, singleCents);
   const compare = b.compareAtCents && b.compareAtCents > b.priceCents ? b.compareAtCents : null;
   const saving = compare ? compare - b.priceCents : 0;
   return {
@@ -37,6 +41,8 @@ function toOffer(b: PublicBundle): Offer {
     discount: compare ? Math.round((saving / compare) * 100) : 0,
     shipping: b.shippingCents,
     freeShipping: b.shippingCents === 0,
+    deal,
+    text: dealText(deal),
   };
 }
 
@@ -57,14 +63,16 @@ const srcSet = (key: string) => `/lp/${key}-768.webp 768w, /lp/${key}.webp 1536w
 
 export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }: { deliveryText: string; cutoffLabel: string; cutoffIso: string; exitPopup: boolean }) {
   const buy = useBuy();
-  const offers = buy.bundles.map(toOffer).sort((a, b) => a.qty - b.qty);
+  const single = [...buy.bundles].sort((a, b) => a.qty - b.qty)[0];
+  const offers = buy.bundles.map((b) => toOffer(b, single.priceCents)).sort((a, b) => a.qty - b.qty);
   const sel = offers.find((o) => o.b.key === buy.selected.key) ?? offers[0];
   const q = sel.qty;
   const canBuy = buy.mode === "open" || buy.mode === "after_christmas";
-  const maxDiscount = Math.max(0, ...offers.map((o) => o.discount));
+  const best = offers[offers.length - 1];
   const multi = offers.filter((o) => o.qty >= 2);
-  const discountLine = multi.map((o) => `${boxes(o.qty)}: −${o.discount}%`).join(" · ") + (multi.every((o) => o.freeShipping) ? " · envio grátis em ambas" : "");
-  const next = offers.find((o) => o.qty === q + 1);
+  const allFree = offers.every((o) => o.freeShipping);
+  const discountLine = multi.map((o) => `${boxes(o.qty)}: ${o.text.short.toLowerCase()}`).join(" · ") + (allFree ? " · envio incluído" : multi.every((o) => o.freeShipping) ? " · envio grátis" : "");
+  const next = offers.find((o) => o.qty > q);
   const x1 = offers.find((o) => o.qty === 1);
 
   const promoOff = buy.discount(sel.b);
@@ -83,7 +91,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
     buy.promo && promoCfg
       ? promoOff > 0
         ? `Código ${buy.promo} aplicado: −${money(promoOff)}${promoFreeShip ? " + envio grátis" : ""}`
-        : `O código ${buy.promo} é válido em 1 ou ${promoCfg.maxQty} caixas. Esta opção já tem ${sel.discount}% de desconto.`
+        : `O código ${buy.promo} é válido em opções até ${boxes(promoCfg.maxQty)}. Esta opção já tem a sua oferta.`
       : null;
 
   const selectQty = (qty: number) => {
@@ -92,7 +100,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
   };
 
   const waMessage = `Olá! Quero encomendar ${boxes(q)} do Pack Trilogia 2160 com o guia digital Sabores de Portugal de oferta. Total: ${money(buy.total(sel.b))} (IVA incluído). ${
-    selShip === 0 ? `${sel.discount ? `${sel.discount}% de desconto e ` : ""}envio grátis.` : `Inclui portes de ${money(selShip)}.`
+    selShip === 0 ? `${sel.text.sentence ? `${sel.text.sentence}, ` : ""}envio incluído.` : `Inclui portes de ${money(selShip)}.`
   } Podem confirmar disponibilidade e entrega?`;
   const waHref = `https://wa.me/${WA}?text=${encodeURIComponent(waMessage)}`;
 
@@ -132,14 +140,14 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
 
   const bundlesEl = (id: string) => (
     <>
-      <div aria-label="Escolher uma, duas ou três caixas" className="bundles" role="group" id={id}>
+      <div aria-label="Escolher quantas caixas" className="bundles" role="group" id={id}>
         {offers.map((o) => {
           const active = o.b.key === sel.b.key;
           return (
             <button key={o.b.key} aria-pressed={active} className="bundle" data-qty={o.qty} type="button" onClick={() => selectQty(o.qty)}>
               <span className="bundlebanner">
-                {o.discount ? `${o.discount}% DE DESCONTO` : "GUIA DE OFERTA"}
-                <small>{o.discount ? (o.freeShipping ? "+ ENVIO GRÁTIS" : "") : "Uma caixa para oferecer"}</small>
+                {o.text.banner}
+                <small>{o.qty === 1 ? (o.freeShipping ? "Envio incluído" : "Uma caixa para oferecer") : o.text.small}</small>
               </span>
               <span className={`bundlevisual count${Math.min(o.qty, 3)}`}>
                 {Array.from({ length: Math.min(o.qty, 3) }).map((_, i) => (
@@ -149,12 +157,12 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               </span>
               <span className="bundleicons">✓ GUIA GRÁTIS</span>
               <span className="bundlename">{boxes(o.qty)}</span>
-              <span className="bundlecaption">{o.qty === 1 ? "Uma prenda especial" : o.qty === 2 ? "Duas prendas resolvidas" : "A maior poupança"}</span>
+              <span className="bundlecaption">{o.qty === 1 ? "Uma prenda especial" : o.qty === 2 ? "Duas prendas resolvidas" : o.deal.paid ? `${o.qty} prendas, paga ${o.deal.paid}` : "A maior poupança"}</span>
               <span className="price">{money(o.price)}</span>
               <span className="was">{o.compare ? money(o.compare) : "Preço por caixa"}</span>
               <span className="saving">{o.saving ? `Poupa ${money(o.saving)}` : "IVA incluído"}</span>
               <span className="perbox">
-                {o.qty === 1 ? (buy.shipping(o.b) === 0 ? "Envio grátis" : `+ ${money(o.shipping)} portes`) : `${money(Math.round(o.price / o.qty))} / caixa${o.price % o.qty ? "¹" : ""}`}
+                {o.qty === 1 ? (buy.shipping(o.b) === 0 ? "Envio incluído" : `+ ${money(o.shipping)} portes`) : `${money(Math.round(o.price / o.qty))} / caixa${o.price % o.qty ? "¹" : ""}`}
               </span>
               <span className="choose">
                 <span className="radio" />
@@ -189,7 +197,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
 
   return (
     <div className="lp">
-      <div className="top">✦ OFERTA DE NATAL · ATÉ {maxDiscount}% DE DESCONTO + GUIA DE RECEITAS GRÁTIS ✦</div>
+      <div className="top">✦ OFERTA DE NATAL · {best.text.short.toUpperCase()}{allFree ? " · ENVIO INCLUÍDO" : ""} + GUIA DE RECEITAS GRÁTIS ✦</div>
       <header className="wrap nav">
         <a className="brand" href="#" aria-label="Wine Portugal">
           <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} />
@@ -201,7 +209,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
         </nav>
       </header>
       <div className="benefitbar">
-        <span>✓ Envio grátis em 2 ou 3 caixas</span>
+        <span>{allFree ? "✓ Envio incluído em todas as opções" : "✓ Envio grátis a partir de 2 caixas"}</span>
         <span>✓ Caixa pronta a oferecer</span>
         <span>✓ Vinhos portugueses · Douro DOC</span>
       </div>
@@ -288,10 +296,8 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
                 <div className="upgradeline">
                   <b>
                     {next
-                      ? q === 1
-                        ? `Com 2 caixas, ganha ${next.discount}%${next.freeShipping ? " + envio grátis" : ""}.`
-                        : `Mais uma prenda? Desbloqueie ${next.discount}% de desconto.`
-                      : `${sel.discount}% de desconto${sel.freeShipping ? " + envio grátis" : ""} desbloqueados.`}
+                      ? `Com ${boxes(next.qty)}: ${next.text.sentence.charAt(0).toLowerCase()}${next.text.sentence.slice(1)}.`
+                      : `${sel.text.sentence || "Oferta"} desbloqueada.`}
                   </b>
                   <span>
                     {q} / {offers.length}
@@ -302,11 +308,11 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
                 </div>
                 <div className="milestones">
                   {offers.map((o) => (
-                    <span key={o.qty}>{o.discount ? `${o.discount}%${o.freeShipping ? " + envio grátis" : ""}` : boxes(o.qty)}</span>
+                    <span key={o.qty}>{o.text.short}</span>
                   ))}
                 </div>
                 <button id="upgradebutton" type="button" disabled={!next} onClick={() => next && selectQty(next.qty)}>
-                  {next ? `Quero ${next.qty} caixas e poupar ${next.discount}% →` : "✓ Escolheu a maior poupança"}
+                  {next ? `Quero ${next.qty} caixas · ${next.text.short.toLowerCase()} →` : "✓ Escolheu a maior poupança"}
                 </button>
               </div>
             )}
@@ -331,7 +337,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               </p>
             )}
             <p aria-live="polite" className="shipping">
-              {sel.saving ? `Poupa ${money(sel.saving)} (${sel.discount}%)${selShip === 0 ? " + envio grátis" : ""}` : selShip === 0 ? "IVA incluído · envio grátis" : `IVA incluído · portes ${money(selShip)}`}
+              {sel.saving ? `Poupa ${money(sel.saving)}${selShip === 0 ? " · envio incluído" : ""}` : selShip === 0 ? "IVA incluído · envio incluído" : `IVA incluído · portes ${money(selShip)}`}
             </p>
             <p className="fine">Pagamento seguro · {buy.mode === "after_christmas" ? "Entrega após o Natal · Portugal Continental" : deliveryText}</p>
             <div className="payrow">
@@ -610,7 +616,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
                 <tr>
                   <td>Oferecer a várias pessoas</td>
                   <td>Repetir a seleção</td>
-                  <td>✓ 2 ou 3 caixas com desconto</td>
+                  <td>✓ {multi.map((o) => o.text.short).join(" · ")}</td>
                 </tr>
               </tbody>
             </table>
@@ -694,7 +700,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
               </div>
               <div className="summaryrow">
                 <span>Envio CTT · Portugal Continental</span>
-                <strong>{selShip === 0 ? "GRÁTIS" : money(selShip)}</strong>
+                <strong>{selShip === 0 ? (allFree ? "INCLUÍDO" : "GRÁTIS") : money(selShip)}</strong>
               </div>
               <div className="summarytotal">
                 <span>Total</span>
@@ -726,29 +732,29 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
             <details>
               <summary>Quanto custa a entrega?</summary>
               <p>
-                Entregamos em Portugal Continental por CTT, em 2 a 4 dias úteis. As opções de duas e três caixas têm envio grátis.
-                {x1 ? ` Para uma caixa, os portes são ${money(x1.shipping)}.` : ""} De momento não entregamos na Madeira, nos Açores nem fora de Portugal.
+                Entregamos em Portugal Continental por CTT, em 2 a 4 dias úteis.
+                {allFree ? " O envio está incluído em todas as opções." : x1?.shipping ? ` Para uma caixa, os portes são ${money(x1.shipping)}; as outras opções têm envio grátis.` : ""} De momento não entregamos na Madeira, nos Açores nem fora de Portugal.
               </p>
             </details>
             <details>
               <summary>Como faço a encomenda e o pagamento?</summary>
               <p>
-                Escolha uma, duas ou três caixas e carregue no botão de encomenda. Paga numa página segura com MB WAY, Multibanco, cartão, Apple Pay ou Google Pay. No Multibanco, a encomenda fica
+                Escolha {offers.map((o) => o.qty).join(", ").replace(/, (\d+)$/, " ou $1")} caixas e carregue no botão de encomenda. Paga numa página segura com MB WAY, Multibanco, cartão, Apple Pay ou Google Pay. No Multibanco, a encomenda fica
                 confirmada quando o pagamento for recebido. Pode indicar NIF para a fatura e uma morada diferente para oferecer.
               </p>
             </details>
             <details>
-              <summary>Há desconto ao encomendar mais caixas?</summary>
+              <summary>Há vantagem ao encomendar mais caixas?</summary>
               <p>
                 Sim.{" "}
                 {offers
                   .map((o) =>
                     o.compare
-                      ? `${o.qty === 2 ? "Duas" : o.qty === 3 ? "Três" : o.qty} caixas têm ${o.discount}% de desconto: ${money(o.price)} em vez de ${money(o.compare)}.`
+                      ? `${boxes(o.qty)}: ${o.text.sentence.charAt(0).toLowerCase()}${o.text.sentence.slice(1)}, ${money(o.price)} em vez de ${money(o.compare)}.`
                       : `Uma caixa custa ${money(o.price)}.`,
                   )
                   .join(" ")}{" "}
-                As opções de duas e três caixas incluem envio grátis.
+                {allFree ? "O envio está incluído em todas as opções." : "As opções com mais de uma caixa incluem envio grátis."}
               </p>
             </details>
             <details>
@@ -814,7 +820,7 @@ export function LandingPage({ deliveryText, cutoffLabel, cutoffIso, exitPopup }:
             <b>Trilogia 2160 + guia de oferta</b>
             <small>
               {boxes(q)}
-              {sel.discount ? ` · −${sel.discount}%` : ""}
+              {sel.qty > 1 && sel.text.short ? ` · ${sel.text.short.toLowerCase()}` : ""}
               {promoOff ? ` · código ${buy.promo}` : ""}
             </small>
             {buy.mode === "open" && <DeadlineCountdown cutoffIso={cutoffIso} className="stickycount" short />}

@@ -43,18 +43,18 @@ const callback = (q: Record<string, string>) => fetch(`${base}/api/ifthenpay/cal
   const d = await draft("x1");
   check(["mbway", "card", "multibanco"].every((m) => d.methods.includes(m)), "configured methods offered (mbway, card, multibanco)");
   const prep = await j(await post("/api/checkout/prepare", d));
-  check(prep.offer?.priceCents === 3672, "x1: one-time offer is +1 box for 36,72 € (2-box price)");
+  check(prep.offer?.priceCents === 4000, "x1: one-time offer is the 2nd box for 40 € (2-box price)");
   check(prep.products?.some((p: { priceCents: number }) => p.priceCents === 1490), "extra products offered (Espumante 14,90 €)");
   const again = await j(await post("/api/checkout/prepare", d));
   check(!again.offer, "offer is shown only once per order");
   const add = await j(await post("/api/checkout/addons", { ...d, keys: ["boxes", "espumante-dgraca-bruto"] }));
-  check(add.amounts?.total === 5080 + 3672 + 1490, `cart total with offer = 102,42 € (got ${add.amounts?.total})`);
+  check(add.amounts?.total === 4990 + 4000 + 1490, `cart total with offer = 104,80 € (got ${add.amounts?.total})`);
   const bad = await j(await post("/api/pay", { ...d, method: "mbway", phone: "912000000" }));
   check(!!bad.error, "declined MB WAY request returns an error");
   const r = await j(await post("/api/pay", { ...d, method: "mbway", phone: "+351 912 345 678" }));
   check(r.kind === "mbway", "MB WAY request sent");
   const [p] = (await pays(d.o)).filter((x) => x.method === "mbway" && x.status === "pending");
-  check(p?.amountCents === 10242 && p.ref.length <= 15, `payment row: amount 102,42 €, ref ${p?.ref} <= 15 chars`);
+  check(p?.amountCents === 10480 && p.ref.length <= 15, `payment row: amount 104,80 €, ref ${p?.ref} <= 15 chars`);
   const st1 = await j(await fetch(`${base}/api/pay/status?o=${d.o}&t=${encodeURIComponent(d.t)}`));
   check(st1.state === "pending", "status pending while not approved");
   await fetch(`${mock}/__mbway`, { method: "POST", body: JSON.stringify({ requestId: p.requestId, status: "000" }) });
@@ -83,8 +83,8 @@ const callback = (q: Record<string, string>) => fetch(`${base}/api/ifthenpay/cal
   check(!!p?.entity && !!p.reference && !!p.expiresAt, "reference stored with entity and expiry");
   check((await events(d.o, "mb_reference_issued")).length === 1, "mb_reference_issued logged (stops cart recovery)");
   const page = await (await fetch(`${base}/obrigado?o=${d.o}&t=${encodeURIComponent(d.t)}`)).text();
-  check(page.includes("11990") && page.includes("82,62"), "thank-you page shows entity and amount");
-  const q = { m: "mb", orderId: p.ref, amount: "82.62", requestId: p.requestId!, entity: p.entity!, reference: p.reference!, payment_datetime: "10-10-2026 11:00:00" };
+  check(page.includes("11990") && page.includes("89,90"), "thank-you page shows entity and amount");
+  const q = { m: "mb", orderId: p.ref, amount: "89.90", requestId: p.requestId!, entity: p.entity!, reference: p.reference!, payment_datetime: "10-10-2026 11:00:00" };
   check((await callback({ ...q, key: "wrong" })).status === 403, "wrong anti-phishing key rejected");
   await callback({ ...q, key: apk, amount: "1.00" });
   check((await order(d.o)).status === "pending_payment", "amount mismatch does not confirm");
@@ -99,16 +99,16 @@ const callback = (q: Record<string, string>) => fetch(`${base}/api/ifthenpay/cal
 
 // ---- Card on ifthenpay's hosted page (only when Stripe is not configured) -----------------------------------
 if (!process.env.STRIPE_API_BASE) {
-  const d = await draft("x3");
+  const d = await draft("x4");
   await post("/api/checkout/prepare", d);
   await post("/api/checkout/addons", { ...d, keys: [] });
   const r = await j(await post("/api/pay", { ...d, method: "card" }));
   check(r.kind === "redirect" && String(r.url).includes("cardpage"), "card -> ifthenpay hosted page");
   const [p] = await pays(d.o);
-  const ret = (sk: string, amount = "117.05") => fetch(`${base}/pagamento/retorno?o=${d.o}&t=${encodeURIComponent(d.t)}&r=ok&id=${p.ref}&amount=${amount}&requestId=${p.requestId}&sk=${sk}`, { redirect: "manual" });
+  const ret = (sk: string, amount = "149.70") => fetch(`${base}/pagamento/retorno?o=${d.o}&t=${encodeURIComponent(d.t)}&r=ok&id=${p.ref}&amount=${amount}&requestId=${p.requestId}&sk=${sk}`, { redirect: "manual" });
   await ret("0".repeat(64));
   check((await order(d.o)).status === "pending_payment", "forged signature does not confirm");
-  const res = await ret(cardSignature(p.ref, "117.05", p.requestId!, process.env.IFTHENPAY_CCARD_KEY));
+  const res = await ret(cardSignature(p.ref, "149.70", p.requestId!, process.env.IFTHENPAY_CCARD_KEY));
   check(res.status === 303 && (res.headers.get("location") ?? "").includes("/obrigado"), "signed return redirects to thank-you");
   check((await order(d.o)).status === "paid", "valid card signature confirms");
   const err = await fetch(`${base}/pagamento/retorno?o=${d.o}&t=${encodeURIComponent(d.t)}&r=cancelado`, { redirect: "manual" });
@@ -122,7 +122,7 @@ if (!process.env.STRIPE_API_BASE) {
   await post("/api/checkout/addons", { ...d, keys: [] });
   await post("/api/pay", { ...d, method: "multibanco" });
   const [p] = await pays(d.o);
-  await fetch(`${mock}/__paid`, { method: "POST", body: JSON.stringify({ orderId: p.ref, amount: "82.62" }) });
+  await fetch(`${mock}/__paid`, { method: "POST", body: JSON.stringify({ orderId: p.ref, amount: "89.90" }) });
   const { paymentHousekeeping } = await import("../src/lib/payments");
   await paymentHousekeeping();
   check((await order(d.o)).status === "paid", "reconciliation confirms a payment whose callback never arrived");
@@ -140,27 +140,27 @@ if (process.env.STRIPE_API_BASE) {
   const r = await j(await post("/api/pay", { ...d, method: "card" }));
   check(r.kind === "stripe" && !!r.clientSecret, "Stripe PaymentIntent created");
   const [p] = await pays(d.o);
-  check(p?.provider === "stripe" && p.amountCents === 8262, "payment row (stripe, 82,62 €)");
+  check(p?.provider === "stripe" && p.amountCents === 8990, "payment row (stripe, 89,90 €)");
   await fetch(`${mock}/__pi`, { method: "POST", body: JSON.stringify({ id: p.requestId, status: "succeeded", payment_method: "pm_card_visa" }) });
   const back = await fetch(`${base}/checkout/concluido?o=${d.o}&t=${encodeURIComponent(d.t)}`, { redirect: "manual" });
   check((back.headers.get("location") ?? "").includes("/oferta"), "after card payment -> one-time offer page");
   let o = await order(d.o);
   check(o.status === "paid" && o.stripePaymentMethodId === "pm_card_visa", "order paid, card saved for one click");
-  check(o.costs?.profit === 4070, `profit snapshot 40,70 € for 2 boxes (got ${o.costs?.profit})`);
+  check(o.costs?.profit === 4692, `profit snapshot 46,92 € for 2 boxes (got ${o.costs?.profit})`);
   const page = await (await fetch(`${base}/oferta?o=${d.o}&t=${encodeURIComponent(d.t)}`)).text();
   check(page.includes("Oferta única") && page.includes("1 clique"), "offer page shows 'Oferta única' + one-click button");
   const up = await j(await post("/api/upsell", { ...d, offer: "boxes" }));
   check(up.status === "succeeded", "one click: +1 box charged on the saved card");
   const addons = await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, d.o));
-  check(addons.length === 1 && addons[0].status === "paid" && addons[0].amountCents === 3443, "add-on 34,43 € paid");
+  check(addons.length === 1 && addons[0].status === "paid" && addons[0].amountCents === 5980 && addons[0].boxes === 2, "add-on: 2 more boxes for 59,80 € paid (pague 3, leve 4)");
   o = await order(d.o);
-  check(o.costs?.paid === 11705 && o.costs?.delivery === 1100 && o.costs?.profit === 5437, `snapshot updated: 117,05 € paid, 3 boxes in one parcel, profit 54,37 € (got ${o.costs?.profit})`);
+  check(o.costs?.paid === 14970 && o.costs?.delivery === 1704 && o.costs?.profit === 6315, `snapshot updated: 149,70 € paid, 4 boxes in two parcels, profit 63,15 € (got ${o.costs?.profit})`);
   check((await db.select().from(schema.trackingEvents).where(and(eq(schema.trackingEvents.eventId, `purchase_addon_${addons[0].id}`), eq(schema.trackingEvents.sentTo, "internal")))).length === 1, "add-on Purchase with its own event id");
   const again = await j(await post("/api/upsell", { ...d, offer: "boxes" }));
   check(again.already === true, "same offer cannot be charged twice");
   if (process.env.STRIPE_WEBHOOK_SECRET) {
     const stripe = new Stripe("sk_test_dummy");
-    const payload = JSON.stringify({ id: `evt_${Date.now()}`, object: "event", type: "payment_intent.succeeded", api_version: "2026-09-30", created: 1, data: { object: { id: p.requestId, object: "payment_intent", status: "succeeded", amount: 8262, amount_received: 8262 } } });
+    const payload = JSON.stringify({ id: `evt_${Date.now()}`, object: "event", type: "payment_intent.succeeded", api_version: "2026-09-30", created: 1, data: { object: { id: p.requestId, object: "payment_intent", status: "succeeded", amount: 8990, amount_received: 8990 } } });
     const wh = await fetch(`${base}/api/webhooks/stripe`, { method: "POST", headers: { "stripe-signature": stripe.webhooks.generateTestHeaderString({ payload, secret: process.env.STRIPE_WEBHOOK_SECRET }), "content-type": "application/json" }, body: payload });
     check(wh.status === 200 && (await purchases(d.o)).length === 2, "late Stripe webhook is a no-op (order + add-on Purchase only)");
     const bad = await fetch(`${base}/api/webhooks/stripe`, { method: "POST", headers: { "stripe-signature": "t=1,v1=bad" }, body: payload });
@@ -183,17 +183,17 @@ if (process.env.STRIPE_API_BASE) {
   const st = await j(await fetch(`${base}/api/pay/status?o=${d.o}&t=${encodeURIComponent(d.t)}`));
   check(st.state === "paid" && String(st.next).includes("/oferta"), "MB WAY paid -> one-time offer page");
   const page = await (await fetch(`${base}/oferta?o=${d.o}&t=${encodeURIComponent(d.t)}`)).text();
-  check(page.includes("MB WAY") && page.includes("36,72"), "offer page: +1 box 36,72 € by MB WAY");
+  check(page.includes("MB WAY") && page.includes("40,00"), "offer page: 2nd box 40,00 € by MB WAY");
   const up = await j(await post("/api/upsell", { ...d, offer: "boxes" }));
   check(up.kind === "mbway" && up.paymentId, "accepting sends a new MB WAY request to the same phone");
   const [ap] = (await pays(d.o)).filter((x) => x.addonId);
-  check(ap?.phone === "+351912345678" && ap.amountCents === 3672, "add-on MB WAY request: same phone, 36,72 €");
+  check(ap?.phone === "+351912345678" && ap.amountCents === 4000, "add-on MB WAY request: same phone, 40,00 €");
   await fetch(`${mock}/__mbway`, { method: "POST", body: JSON.stringify({ requestId: ap.requestId, status: "000" }) });
   await new Promise((res) => setTimeout(res, 3200));
   const s2 = await j(await fetch(`${base}/api/upsell/status?o=${d.o}&t=${encodeURIComponent(d.t)}&p=${up.paymentId}`));
   check(s2.state === "paid", "approved in the app -> add-on paid");
   const o = await order(d.o);
-  check(o.costs?.paid === 8752 && o.costs?.boxes === 2, `snapshot: 87,52 € paid, 2 boxes (got ${o.costs?.paid})`);
+  check(o.costs?.paid === 8990 && o.costs?.boxes === 2, `snapshot: 89,90 € paid, 2 boxes (got ${o.costs?.paid})`);
 }
 
 // ---- Order bump: printed card with the message -------------------------------------------------------
@@ -201,24 +201,24 @@ if (process.env.STRIPE_API_BASE) {
   const d = await draft("x2");
   const patch = (p: Record<string, unknown>) => fetch(`${base}/api/checkout`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...d, patch: p }) }).then(j);
   const on = await patch({ giftCard: true });
-  check(on.amounts?.total === 8262 + 390 && on.amounts.addons?.some((a: { key: string }) => a.key === "gift-card"), `card ticked: total 86,52 € (got ${on.amounts?.total})`);
+  check(on.amounts?.total === 8990 + 390 && on.amounts.addons?.some((a: { key: string }) => a.key === "gift-card"), `card ticked: total 93,80 € (got ${on.amounts?.total})`);
   const noMsg = await post("/api/checkout/prepare", { ...d, method: "mbway" });
   check(noMsg.status === 422 && !!(await j(noMsg)).errors?.giftMessage, "card without a message is refused");
   await patch({ giftMessage: "Feliz Natal, mãe! Beijinhos, Ana" });
   await post("/api/checkout/prepare", { ...d, method: "multibanco" });
   const kept = await j(await post("/api/checkout/addons", { ...d, keys: [] }));
-  check(kept.amounts?.total === 8652, "declining the one-time offer keeps the card");
+  check(kept.amounts?.total === 9380, "declining the one-time offer keeps the card");
   const off = await patch({ giftCard: false });
-  check(off.amounts?.total === 8262, "unticking removes the card");
+  check(off.amounts?.total === 8990, "unticking removes the card");
   await patch({ giftCard: true });
   await post("/api/pay", { ...d, method: "multibanco" });
   const [p] = await pays(d.o);
-  check(p.amountCents === 8652, "payment includes the card (86,52 €)");
-  await callback({ m: "mb", key: apk, orderId: p.ref, amount: "86.52", requestId: p.requestId!, entity: p.entity!, reference: p.reference!, payment_datetime: "12-10-2026 10:00:00" });
+  check(p.amountCents === 9380, "payment includes the card (93,80 €)");
+  await callback({ m: "mb", key: apk, orderId: p.ref, amount: "93.80", requestId: p.requestId!, entity: p.entity!, reference: p.reference!, payment_datetime: "12-10-2026 10:00:00" });
   const o = await order(d.o);
   const card = (await db.select().from(schema.orderAddons).where(eq(schema.orderAddons.orderId, d.o))).find((a) => a.sku === "gift-card");
   check(o.status === "paid" && card?.status === "paid" && o.isGift && o.giftMessage === "Feliz Natal, mãe! Beijinhos, Ana", "paid: card add-on paid, message stored");
-  check(o.costs?.paid === 8652, "profit snapshot includes the card");
+  check(o.costs?.paid === 9380, "profit snapshot includes the card");
   const { giftCardOrders } = await import("../src/lib/gift-cards");
   check((await giftCardOrders([d.o])).length === 1, "order listed in Admin → Gift cards");
 }
@@ -227,7 +227,7 @@ if (process.env.STRIPE_API_BASE) {
 {
   const d = await draft("x1");
   const prep = await j(await post("/api/checkout/prepare", { ...d, method: "multibanco" }));
-  check(prep.offer?.priceCents === 3672, "Multibanco: one-time offer shown before payment");
+  check(prep.offer?.priceCents === 4000, "Multibanco: one-time offer shown before payment");
 }
 
 {

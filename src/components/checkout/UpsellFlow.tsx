@@ -169,7 +169,7 @@ export function UpsellFlow({ orderId, token, firstName, boxes, first, others, mo
         {stage === "first" && first && main(first)}
         {stage === "others" && (
           <>
-            {added.includes("boxes") && <p className="text-center text-sm font-semibold text-azulejo">✓ Caixa adicionada. Mais alguma coisa para a mesa de Natal?</p>}
+            {added.includes("boxes") && <p className="text-center text-sm font-semibold text-azulejo">✓ {first && first.boxes > 1 ? "Caixas adicionadas" : "Caixa adicionada"}. Mais alguma coisa para a mesa de Natal?</p>}
             {others.length > 0 && (
               <div className="text-center">
                 <p className="text-sm font-bold uppercase tracking-[0.18em] text-xmas">Oferta única</p>

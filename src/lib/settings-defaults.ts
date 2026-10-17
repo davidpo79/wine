@@ -50,7 +50,8 @@ export const DEFAULT_SETTINGS: Settings = {
   announcement: [
     "Entrega antes do Natal",
     "Encomendas até 30/11",
-    "Portes grátis a partir de 2 caixas",
+    "Envio incluído em todas as opções",
+    "Pague 3, leve 4",
     "Livro de receitas oferecido",
   ],
   stock_cap_boxes: null,
@@ -104,4 +105,5 @@ export const DEFAULT_SETTINGS: Settings = {
   },
 };
 
-export const PER_BOX_FLOOR_CENTS = 3900;
+// Lowest average price per box (protects the B2B channel). 4 boxes for 149,70 € = 37,43 €/box (pricing of 17/10/2026).
+export const PER_BOX_FLOOR_CENTS = 3700;

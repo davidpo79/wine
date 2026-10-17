@@ -25,7 +25,7 @@ if (json) {
   console.log(JSON.stringify(report, null, 2));
 } else {
   const line = (label: string, s: typeof today) =>
-    `${label.padEnd(10)} ${String(s.orders).padStart(4)} enc. · ${eur(s.revenueCents).padStart(12)} · ticket ${eur(s.aovCents).padStart(10)} · ${["x1", "x2", "x3"].map((k) => `${k}:${s.byBundle[k]?.orders ?? 0}`).join(" ")}`;
+    `${label.padEnd(10)} ${String(s.orders).padStart(4)} enc. · ${eur(s.revenueCents).padStart(12)} · ticket ${eur(s.aovCents).padStart(10)} · ${["x1", "x2", "x3", "x4"].map((k) => `${k}:${s.byBundle[k]?.orders ?? 0}`).join(" ")}`;
   console.log(`\nRELATÓRIO DIÁRIO · ${report.date} (Europe/Lisbon)\n`);
   console.log(line("Hoje", today));
   console.log(line("7 dias", week));

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { newEventId } from "@/lib/track-client";
 import { CUSTOMER_KEY, useBuy } from "./BuyContext";
+import { dealOf, dealText } from "@/lib/offers";
 
 const SEEN = "wp_exit_seen";
 const LEAD = "wp_lead";
@@ -145,6 +146,11 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
     document.querySelector("#escolher")?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   };
   const scope = maxQty === 1 ? "em 1 caixa" : `em 1 ou ${maxQty} caixas`;
+  // When every option already includes delivery, step 2 cannot promise free shipping: it offers help instead.
+  const shippingIncluded = buy.bundles.every((b) => b.shippingCents === 0);
+  const byQty = [...buy.bundles].sort((a, b) => a.qty - b.qty);
+  const top = byQty[byQty.length - 1];
+  const topText = top && byQty[0] ? dealText(dealOf(top, byQty[0].priceCents)) : null;
 
   return (
     <dialog
@@ -198,7 +204,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
                 </button>
               </form>
               <p className="exitfine">
-                Válido {scope}. A opção de 3 caixas já tem 15% de desconto. <a href="/privacidade">Privacidade</a>
+                Válido {scope}.{top && top.qty > maxQty && topText?.sentence ? ` Com ${top.qty} caixas: ${topText.sentence.charAt(0).toLowerCase()}${topText.sentence.slice(1)}.` : ""} <a href="/privacidade">Privacidade</a>
               </p>
               <button type="button" className="exitno" onClick={close}>
                 Não, obrigado
@@ -215,12 +221,12 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
               <p className="exitcode">{code}</p>
               <p className="exitlead">
                 {phoneState === "done"
-                  ? `Código atualizado: ${percent}% de desconto ${scope} + envio grátis. Uma consultora pode contactá-lo/a para ajudar a escolher.`
+                  ? `Código atualizado: ${percent}% de desconto ${scope}${shippingIncluded ? ", com envio incluído" : " + envio grátis"}. Uma consultora pode contactá-lo/a para ajudar a escolher.`
                   : `Também o enviámos para o seu email. O desconto aparece no total ao escolher ${scope}.`}
               </p>
               {lead?.plus && phoneState !== "done" && (
                 <form onSubmit={submitPhone} className="exitform exitstep2">
-                  <b className="exitstep2title">Quer também envio grátis?</b>
+                  <b className="exitstep2title">{shippingIncluded ? "Quer ajuda a escolher?" : "Quer também envio grátis?"}</b>
                   <small>Deixe o seu telemóvel. Uma consultora pode ajudar a escolher e lembrar o prazo de Natal.</small>
                   <label className="sronly" htmlFor="exit-phone">
                     Telemóvel
@@ -236,7 +242,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
                     </p>
                   )}
                   <button type="submit" className="exitsecondary" disabled={phoneState === "sending"}>
-                    {phoneState === "sending" ? "A guardar…" : "Quero envio grátis"}
+                    {phoneState === "sending" ? "A guardar…" : shippingIncluded ? "Quero ser contactado/a" : "Quero envio grátis"}
                   </button>
                 </form>
               )}

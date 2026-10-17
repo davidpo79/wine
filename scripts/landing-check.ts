@@ -16,14 +16,14 @@ for (const w of [390, 320, 1280]) {
   const ov = await p.evaluate(() => ({ cw: document.documentElement.clientWidth, sw: document.documentElement.scrollWidth }));
   ok(ov.sw <= ov.cw, `${w}px no horizontal overflow (client ${ov.cw}, scroll ${ov.sw})`);
   if (w === 390) {
-    await p.click('#bundles-top [data-qty="3"]');
-    const pressed = await p.$$eval('[data-qty="3"]', (els) => els.map((e) => e.getAttribute("aria-pressed")));
-    ok(pressed.every((x) => x === "true") && pressed.length === 2, "qty 3 synced in both groups");
-    ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("117,05") ?? false, "summary total 117,05 €");
-    ok((await p.textContent(".sticky small"))?.includes("3 caixas") ?? false, "sticky bar shows 3 caixas");
-    ok(await p.$eval("#upgradebutton", (e) => (e as HTMLButtonElement).disabled), "upgrade disabled at 3");
+    await p.click('#bundles-top [data-qty="4"]');
+    const pressed = await p.$$eval('[data-qty="4"]', (els) => els.map((e) => e.getAttribute("aria-pressed")));
+    ok(pressed.every((x) => x === "true") && pressed.length === 2, "qty 4 synced in both groups");
+    ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("149,70") ?? false, "summary total 149,70 €");
+    ok((await p.textContent(".sticky small"))?.includes("4 caixas") ?? false, "sticky bar shows 4 caixas");
+    ok(await p.$eval("#upgradebutton", (e) => (e as HTMLButtonElement).disabled), "upgrade disabled at 4");
     await p.click('#bundles-final [data-qty="1"]');
-    ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("50,80") ?? false, "1 box total incl. shipping 50,80 €");
+    ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("49,90") ?? false, "1 box total, delivery included: 49,90 €");
     const wa = await p.getAttribute(".supportline a", "href");
     ok(!!wa && wa.startsWith("https://wa.me/351910348577?text=") && decodeURIComponent(wa).includes("1 caixa"), "WhatsApp link prefilled");
     await p.click('button[aria-label="Fotografia anterior"]');
@@ -67,7 +67,7 @@ for (const w of [390, 320, 1280]) {
     const t = new URL(p.url()).searchParams.get("t")!;
     await Promise.all([p.waitForURL(/\/obrigado/, { timeout: 15000 }), p.click("dialog[open] >> text=Sim, juntar à encomenda")]);
     const ty = (await p.textContent("main")) ?? "";
-    ok(ty.includes("Entidade") && ty.includes("117,05"), "accepting adds the box and shows the Multibanco reference for 117,05 €");
+    ok(ty.includes("Entidade") && ty.includes("149,70"), "accepting adds 2 boxes (pague 3, leve 4) and shows the Multibanco reference for 149,70 €");
     await p.goto(`${url.replace(/\/$/, "")}/checkout?o=${encodeURIComponent(o)}&t=${encodeURIComponent(t)}`, { waitUntil: "networkidle" });
     await p.reload({ waitUntil: "networkidle" });
     ok((await p.inputValue("#f-city")) === "Lisboa", "reload resumes the same checkout with saved data");
@@ -100,11 +100,11 @@ for (const w of [390, 320, 1280]) {
   ok((await p.textContent(".exitcode"))?.trim() === "NATALMAIS", "step 2 (mobile) upgrades code to NATALMAIS");
   await p.click(".exitdialog .cta");
   await p.click('#bundles-final [data-qty="1"]');
-  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("43,60") ?? false, "1 box with NATALMAIS: 43,60 € incl. free shipping");
+  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("47,40") ?? false, "1 box with NATALMAIS: 47,40 €, delivery included");
   await p.click('#bundles-final [data-qty="2"]');
-  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("78,49") ?? false, "2 boxes with code: total 78,49 €");
-  await p.click('#bundles-final [data-qty="3"]');
-  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("117,05") ?? false, "3 boxes: code not applied (117,05 €)");
+  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("85,40") ?? false, "2 boxes with code: total 85,40 €");
+  await p.click('#bundles-final [data-qty="4"]');
+  ok((await p.textContent("#oferta-final .summarytotal strong"))?.includes("149,70") ?? false, "4 boxes: code not applied (149,70 €)");
   await p.reload({ waitUntil: "networkidle" });
   await p.waitForTimeout(16000);
   await p.evaluate(() => document.dispatchEvent(new MouseEvent("mouseout", { clientY: 0, bubbles: true })));

@@ -18,7 +18,13 @@ export default async function Envios() {
         <li>Zona de entrega: Portugal Continental. De momento não enviamos para a Madeira, os Açores ou o estrangeiro.</li>
         <li>Transportadora: CTT, com código de seguimento enviado por email.</li>
         <li>Prazo: preparamos a encomenda em até 48 horas e a entrega demora 2 a 4 dias úteis.</li>
-        <li>Portes: {x1 ? `${eur(x1.shippingCents)} para 1 caixa` : "indicados no pagamento"}{free ? `, grátis a partir de ${free.qty} caixas` : ""}.</li>
+        <li>
+          Portes:{" "}
+          {catalog?.bundles.every((b) => b.shippingCents === 0)
+            ? "incluídos no preço de todas as opções"
+            : `${x1 ? `${eur(x1.shippingCents)} para 1 caixa` : "indicados no pagamento"}${free ? `, grátis a partir de ${free.qty} caixas` : ""}`}
+          .
+        </li>
         <li>Natal: encomendas pagas até 30/11/2026 são entregues antes do Natal.</li>
       </ul>
       <h2>Encomenda danificada ou errada</h2>

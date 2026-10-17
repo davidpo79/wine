@@ -73,10 +73,10 @@ test("csv escaping", () => {
 test("promo discount respects max qty and per-box floor", async () => {
   const { promoDiscountCents } = await import("../src/lib/promo");
   const cfg = { code: "NATAL5", percent: 5, maxQty: 2 };
-  assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, cfg, " natal5 "), 230);
-  assert.equal(promoDiscountCents({ priceCents: 8262, qty: 2 }, cfg, "NATAL5"), 413);
-  assert.equal(promoDiscountCents({ priceCents: 11705, qty: 3 }, cfg, "NATAL5"), 0);
-  assert.equal(promoDiscountCents({ priceCents: 8000, qty: 2 }, cfg, "NATAL5"), 200); // clamped to 2 x 39,00
+  assert.equal(promoDiscountCents({ priceCents: 4990, qty: 1 }, cfg, " natal5 "), 250);
+  assert.equal(promoDiscountCents({ priceCents: 8990, qty: 2 }, cfg, "NATAL5"), 450);
+  assert.equal(promoDiscountCents({ priceCents: 14970, qty: 4 }, cfg, "NATAL5"), 0);
+  assert.equal(promoDiscountCents({ priceCents: 7600, qty: 2 }, cfg, "NATAL5"), 200); // clamped to 2 x 37,00
   assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, cfg, "WRONG"), 0);
   assert.equal(promoDiscountCents({ priceCents: 4590, qty: 1 }, null, "NATAL5"), 0);
 });
@@ -189,4 +189,28 @@ test("profit split: share, minimum per box, losses not shared, open until agreed
   assert.deepEqual(splitProfit(10000, 4, { ...base, my_percent: 50 }), { mine: 5000, partner: 5000, floorApplied: false });
   assert.deepEqual(splitProfit(1000, 4, { ...base, my_percent: 40, min_per_box_cents: 200 }), { mine: 800, partner: 200, floorApplied: true });
   assert.deepEqual(splitProfit(-3000, 2, { ...base, my_percent: 50 }), { mine: 0, partner: -3000, floorApplied: false });
+});
+
+test("buy-and-get offers: 2nd box at 40 €, pay 3 get 4", async () => {
+  const { dealOf, dealText, eurShort } = await import("../src/lib/offers");
+  const x2 = dealOf({ qty: 2, priceCents: 8990 }, 4990);
+  assert.equal(x2.nextBoxCents, 4000);
+  assert.equal(dealText(x2).banner, "2.ª CAIXA POR 40 €");
+  const x4 = dealOf({ qty: 4, priceCents: 14970 }, 4990);
+  assert.deepEqual([x4.paid, x4.free, x4.saving], [3, 1, 4990]);
+  assert.equal(dealText(x4).short, "Pague 3, leve 4");
+  assert.equal(eurShort(3990), "39,90 €");
+});
+
+test("post-purchase boxes upsell climbs to the next bundle", async () => {
+  const { boxesOffer } = await import("../src/lib/upsell");
+  const b = (key: string, qty: number, priceCents: number) => ({ id: qty, productId: 1, key, label: key, qty, priceCents, compareAtCents: null, shippingCents: 0, badge: null, sort: qty, active: true });
+  const bundles = [b("x1", 1, 4990), b("x2", 2, 8990), b("x4", 4, 14970)];
+  const order = (qty: number, key: string) => ({ qtyBoxes: qty, bundleKey: key }) as Parameters<typeof boxesOffer>[0];
+  const from1 = boxesOffer(order(1, "x1"), bundles)!;
+  assert.deepEqual([from1.boxes, from1.priceCents], [1, 4000]);
+  const from2 = boxesOffer(order(2, "x2"), bundles)!;
+  assert.deepEqual([from2.boxes, from2.priceCents, from2.compareCents, from2.title], [2, 5980, 9980, "Pague 3, leve 4"]);
+  const from4 = boxesOffer(order(4, "x4"), bundles)!;
+  assert.deepEqual([from4.boxes, from4.priceCents], [1, 3743]);
 });

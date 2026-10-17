@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Trilogia 2160 | Acerte na prenda de Natal",
-  description: "Três vinhos do Douro, caixa de Natal e guia digital de oferta. Poupe 10% em 2 caixas ou 15% em 3, com envio grátis.",
+  description: "Três vinhos do Douro, caixa de Natal e guia digital de oferta. A 2.ª caixa por 40 € ou pague 3 e leve 4, com envio incluído.",
 };
 
 export default async function Home() {

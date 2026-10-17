@@ -6,6 +6,7 @@ import { pixelEvent, visit } from "@/lib/track-client";
 import type { Offer } from "@/lib/upsell";
 import { OfferDialog } from "./OfferDialog";
 import { GiftCard } from "@/components/GiftCard";
+import { dealOf, dealText } from "@/lib/offers";
 
 const money = (c: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(c / 100);
 
@@ -67,6 +68,7 @@ export function CheckoutPage({
 }) {
   const [draft, setDraft] = useState<{ o: string; t: string } | null>(null);
   const [bundleKey, setBundleKey] = useState<string>("x2");
+  const singleCents = bundles.find((b) => b.qty === 1)?.priceCents ?? 0;
   const [amounts, setAmounts] = useState<Amounts | null>(null);
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof Fields, string>>>({});
@@ -506,7 +508,11 @@ export function CheckoutPage({
               {b.qty} {b.qty === 1 ? "caixa" : "caixas"}
             </span>
             <span className="block">{money(b.priceCents)}</span>
-            {b.compareAtCents ? <span className="block font-semibold text-xmas">−{Math.round(((b.compareAtCents - b.priceCents) / b.compareAtCents) * 100)}%</span> : <span className="block text-muted">+ portes</span>}
+            {b.qty > 1 && singleCents ? (
+              <span className="block font-semibold text-xmas">{dealText(dealOf(b, singleCents)).short}</span>
+            ) : (
+              <span className="block text-muted">{b.shippingCents ? "+ portes" : "envio incluído"}</span>
+            )}
           </button>
         ))}
       </div>

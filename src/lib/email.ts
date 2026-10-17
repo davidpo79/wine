@@ -35,7 +35,7 @@ function orderSummary(o: Order, addons: Pick<OrderAddon, "label" | "amountCents"
     `<strong>Encomenda ${esc(o.id)}</strong>`,
     `Trilogia 2160 · ${o.qtyBoxes} ${o.qtyBoxes === 1 ? "caixa" : "caixas"} (${o.qtyBoxes * 3} garrafas)`,
     ...addons.map((a) => `+ ${esc(a.label)}: ${eur(a.amountCents)}`),
-    `Subtotal: ${eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0))} · Portes: ${o.shippingCents ? eur(o.shippingCents) : "grátis"}`,
+    `Subtotal: ${eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0))} · Portes: ${o.shippingCents ? eur(o.shippingCents) : "incluídos"}`,
     `<strong>Total: ${eur(total)}</strong> (IVA incluído)`,
   ];
   if (addr) {

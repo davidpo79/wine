@@ -1,5 +1,6 @@
 import type { Bundle, Order } from "@/db/schema";
 import type { Settings } from "./settings-defaults";
+import { dealOf, eurShort } from "./offers";
 
 export type Offer = {
   key: string; // "boxes" or an upsell product key
@@ -16,35 +17,38 @@ export type Offer = {
 };
 
 /**
- * Offer 1: one more Trilogia box, priced so the order reaches the next tier's price
- * (1 -> 2 boxes: x2 - x1; 2 -> 3: x3 - x2; at 3: the 3-box per-box price). Never below the per-box floor on average.
+ * Offer 1: more Trilogia boxes, priced so the order reaches the next bundle's price
+ * (1 -> 2 boxes: the 2nd box at x2 - x1; 2 -> 4: two more boxes at x4 - x2, "pague 3, leve 4").
+ * At the top bundle: one more box at its per-box price.
  */
 export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
   const byQty = [...bundles].sort((a, b) => a.qty - b.qty);
   const current = byQty.find((b) => b.qty === order.qtyBoxes) ?? byQty.find((b) => b.key === order.bundleKey);
   if (!current) return null;
-  const next = byQty.find((b) => b.qty === current.qty + 1);
+  const next = byQty.find((b) => b.qty > current.qty);
   const single = byQty.find((b) => b.qty === 1);
   const top = byQty[byQty.length - 1];
+  const boxes = next ? next.qty - current.qty : 1;
   const price = next ? next.priceCents - current.priceCents : Math.round(top.priceCents / top.qty);
-  const compare = single?.priceCents ?? price;
+  const compare = (single?.priceCents ?? price) * boxes;
   if (price <= 0) return null;
   const pct = Math.round(((compare - price) / compare) * 100);
+  const deal = next && single ? dealOf(next, single.priceCents) : null;
+  const what = boxes === 1 ? "mais 1 caixa" : `mais ${boxes} caixas`;
   return {
     key: "boxes",
     kind: "boxes",
     sku: "trilogia-2160",
-    title: current.qty === 1 ? "Mais uma caixa Trilogia 2160" : current.qty === 2 ? "Complete as 3 caixas" : "Mais uma caixa Trilogia 2160",
-    label: "Trilogia 2160 · mais 1 caixa (3 garrafas)",
-    description:
-      current.qty === 1
-        ? "Mais uma prenda resolvida: a segunda caixa fica ao preço da opção de 2 caixas. Segue na mesma entrega."
-        : current.qty === 2
-          ? "Passe para 3 caixas: a terceira fica ao preço da opção de 3 caixas. Segue na mesma entrega, sem portes."
-          : "Mais uma caixa ao preço por caixa da opção de 3. Segue na mesma entrega, sem portes.",
+    title: deal?.paid ? `Pague ${deal.paid}, leve ${deal.qty}` : boxes === 1 ? `Mais uma caixa por ${eurShort(price)}` : `Mais ${boxes} caixas Trilogia 2160`,
+    label: `Trilogia 2160 · ${what} (${boxes * 3} garrafas)`,
+    description: deal?.paid
+      ? `Junte ${what} por ${eurShort(price)} e fique com ${deal.qty} caixas ao preço de ${deal.paid}. Seguem na mesma entrega, sem custos de envio.`
+      : next
+        ? `Mais uma prenda resolvida: a ${next.qty}.ª caixa fica por ${eurShort(price)}. Segue na mesma entrega, sem custos de envio.`
+        : `Mais uma caixa ao preço por caixa da opção de ${top.qty}. Segue na mesma entrega, sem custos de envio.`,
     priceCents: price,
     compareCents: compare,
-    boxes: 1,
+    boxes,
     image: "/lp/box-cutout.webp",
     percentOff: pct,
   };
