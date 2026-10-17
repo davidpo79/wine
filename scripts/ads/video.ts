@@ -63,16 +63,16 @@ const endCard = (from: number, tall: boolean) =>
     html: `<div class="spark"></div>
       <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:${tall ? 40 : 28}px">
         <div style="${anim("pop", 0.6, from + 0.1)}">${logo(tall ? 150 : 120)}</div>
-        <div class="h" style="font-size:${tall ? 84 : 72}px;${anim("up", 0.6, from + 0.4)}">Desde 39,02 €<br>por caixa</div>
-        <div class="s" style="${anim("up", 0.6, from + 0.7)}">Portes grátis a partir de 2 caixas</div>
+        <div class="h" style="font-size:${tall ? 84 : 72}px;${anim("up", 0.6, from + 0.4)}">Pague 3,<br>leve 4</div>
+        <div class="s" style="${anim("up", 0.6, from + 0.7)}">Envio incluído · desde 49,90 €</div>
         <div class="chip" style="${anim("pop", 0.6, from + 1.0)}">Encomende até 30/11</div>
         <div class="s" style="font-size:34px;opacity:.85;${anim("up", 0.6, from + 1.3)}">Entrega antes do Natal · Portugal Continental</div>
       </div>`,
   });
 
 const VIDEOS: Record<string, (tall: boolean) => string> = {
-  // Three gifts in one order, price per gift, printed card, deadline.
-  tres_prendas_video: (tall) =>
+  // Four gifts in one order for the price of three, printed card, deadline.
+  quatro_prendas_video: (tall) =>
     [
       scene({
         from: 0,
@@ -88,11 +88,12 @@ const VIDEOS: Record<string, (tall: boolean) => string> = {
         to: 6.6,
         cls: "red",
         html: `<div class="spark"></div><div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:40px">
-          <div class="h" style="font-size:${tall ? 100 : 86}px;${anim("up", 0.6, 3.3)}">3 prendas.<br>1 encomenda.</div>
+          <div class="h" style="font-size:${tall ? 100 : 86}px;${anim("up", 0.6, 3.3)}">4 prendas.<br>Paga 3.</div>
           <div style="display:flex;align-items:flex-end">
-            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 360 : 300}px;margin-right:-60px;${anim("slideL", 0.7, 3.6)}">
-            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 400 : 330}px;position:relative;z-index:2;${anim("pop", 0.7, 3.9)}">
-            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 360 : 300}px;margin-left:-60px;${anim("slideR", 0.7, 4.2)}">
+            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 300 : 250}px;margin-right:-50px;${anim("slideL", 0.7, 3.6)}">
+            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 330 : 275}px;position:relative;z-index:2;${anim("pop", 0.7, 3.8)}">
+            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 330 : 275}px;margin-left:-50px;position:relative;z-index:2;${anim("pop", 0.7, 4.0)}">
+            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 300 : 250}px;margin-left:-50px;${anim("slideR", 0.7, 4.2)}">
           </div></div>`,
       }),
       scene({
@@ -100,10 +101,10 @@ const VIDEOS: Record<string, (tall: boolean) => string> = {
         to: 9.6,
         cls: "red",
         html: `<div class="spark"></div><div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:26px">
-          <div class="k" style="${anim("up", 0.5, 6.7)}">Na compra de 3 caixas</div>
-          <div class="h" style="font-size:${tall ? 170 : 150}px;${anim("pop", 0.7, 6.9)}">39,02 €</div>
-          <div class="s" style="font-size:52px;${anim("up", 0.5, 7.4)}">por caixa · <span class="strike">45,90 €</span></div>
-          <div class="chip" style="${anim("pop", 0.6, 7.9)}">Portes grátis</div></div>`,
+          <div class="k" style="${anim("up", 0.5, 6.7)}">4 caixas, paga 3</div>
+          <div class="h" style="font-size:${tall ? 170 : 150}px;${anim("pop", 0.7, 6.9)}">149,70 €</div>
+          <div class="s" style="font-size:52px;${anim("up", 0.5, 7.4)}">as 4 · <span class="strike">199,60 €</span></div>
+          <div class="chip" style="${anim("pop", 0.6, 7.9)}">Envio incluído</div></div>`,
       }),
       scene({
         from: 9.6,

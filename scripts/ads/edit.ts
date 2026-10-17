@@ -30,7 +30,7 @@ const VO = [
   { at: 0.4, say: "A prenda de Natal está escolhida.", sub: "A prenda de Natal está escolhida." },
   { at: 4.9, say: "Três vinhos do Douro, numa caixa pronta a oferecer.", sub: "Três vinhos do Douro, numa caixa pronta a oferecer." },
   { at: 9.4, say: "Com o seu cartão de Natal, entregue à porta.", sub: "Com o seu cartão de Natal, entregue à porta." },
-  { at: 13.9, say: "Desde trinta e nove euros e dois cêntimos por caixa.", sub: "Desde 39,02 € por caixa." },
+  { at: 13.9, say: "Pague três caixas e leve quatro, com envio incluído.", sub: "Pague 3, leve 4, com envio incluído." },
   { at: 16.6, say: "Encomende até trinta de novembro.", sub: "Encomende até 30 de novembro." },
 ];
 const PLANNED_LEN = [2.4, 3.4, 3.0, 2.5, 1.9];
@@ -80,8 +80,8 @@ function overlay(i: number, fmt: keyof typeof FORMATS) {
     <div class="t" style="font-size:${tall ? 84 : 62}px">${s.title}</div>
   </div>
   <div style="position:absolute;left:0;right:0;top:${below + (tall ? 230 : 128)}px;display:flex;flex-direction:column;align-items:center;gap:${tall ? 22 : 12}px;padding:0 60px">
-    <div class="offer" style="font-size:${tall ? 58 : 44}px;margin-top:${tall ? 10 : 0}px">Desde 39,02 € por caixa</div>
-    <div style="font-size:${tall ? 32 : 26}px;font-weight:600;opacity:.92">Portes grátis a partir de 2 caixas · Encomende até 30/11</div>
+    <div class="offer" style="font-size:${tall ? 58 : 44}px;margin-top:${tall ? 10 : 0}px">Pague 3, leve 4</div>
+    <div style="font-size:${tall ? 32 : 26}px;font-weight:600;opacity:.92">Envio incluído · Encomende até 30/11</div>
   </div></body></html>`;
 }
 
@@ -105,8 +105,8 @@ function endCard(fmt: keyof typeof FORMATS) {
     ${logo(tall ? 140 : 110)}
     <div class="t" style="font-size:${tall ? 92 : 74}px">Trilogia 2160</div>
     <div style="font-size:${tall ? 38 : 32}px;font-weight:600;text-align:center">Branco, tinto e rosé do Douro<br>numa caixa de Natal</div>
-    <div class="offer" style="font-size:${tall ? 84 : 68}px;line-height:1">Desde 39,02 €<br><span style="font-size:.55em">por caixa</span></div>
-    <div style="font-size:${tall ? 32 : 28}px;font-weight:600">Portes grátis a partir de 2 caixas</div>
+    <div class="offer" style="font-size:${tall ? 84 : 68}px;line-height:1">Pague 3,<br>leve 4</div>
+    <div style="font-size:${tall ? 32 : 28}px;font-weight:600">Envio incluído · desde 49,90 €</div>
     <div class="chip" style="font-size:${tall ? 40 : 34}px">Encomende até 30/11</div>
     <div style="font-size:${tall ? 26 : 22}px;opacity:.8">Entrega antes do Natal · Portugal Continental</div>
   </div></body></html>`;

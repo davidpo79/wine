@@ -65,7 +65,7 @@ const logo = (h: number) =>
 const ticks = (items: string[]) => `<ul class="ticks">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 // Trust (research: buying from a new shop seen on social media is the main barrier in Portugal).
 const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;font-size:30px;color:${color}">Pague com MB WAY, Multibanco ou cartão</div>`;
-const sticker = (pos: string, top = "desde", price = "39<small>,02 €</small>", bottom = "por caixa") =>
+const sticker = (pos: string, top = "pague 3", price = "<small>leve</small> 4", bottom = "envio incluído") =>
   `<div class="sticker" style="${pos}"><div class="s1">${top}</div><div class="s2">${price}</div><div class="s3">${bottom}</div></div>`;
 
 function layout(c: Concept, f: Format) {
@@ -134,19 +134,20 @@ function layout(c: Concept, f: Format) {
       ${stripHtml}`;
     }
     case "trio": {
-      // Three boxes: three gifts in one order.
-      const w = story ? 380 : 340;
-      const y = story ? 790 : 480;
+      // Four boxes: four gifts in one order, one of them offered.
+      const w = story ? 330 : 300;
+      const y = story ? 800 : 490;
+      const step = (1040 - w) / 3;
       return `
       <div class="shade redbg"></div><div class="sparkles"></div>${centeredLogo}
       <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
         <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
         <div class="h1" style="font-size:${story ? 96 : 84}px;margin-top:12px">${c.headline}</div>
       </div>
-      ${[0, 1, 2].map((i) => `<img src="${img("box-cutout.webp")}" style="position:absolute;top:${y + (i === 1 ? 0 : 50)}px;left:${(story ? 30 : 40) + i * (story ? 330 : 330)}px;width:${w}px;z-index:${i === 1 ? 2 : 1};filter:drop-shadow(0 24px 30px rgba(0,0,0,.45))">`).join("")}
+      ${[0, 1, 2, 3].map((i) => `<img src="${img("box-cutout.webp")}" style="position:absolute;top:${y + (i === 1 || i === 2 ? 0 : 50)}px;left:${20 + i * step}px;width:${w}px;z-index:${i === 1 || i === 2 ? 2 : 1};filter:drop-shadow(0 24px 30px rgba(0,0,0,.45))">`).join("")}
       <div style="position:absolute;left:60px;right:60px;top:${story ? 1230 : 860}px;text-align:center;color:#fff;z-index:3">
-        <div style="font-weight:900;font-size:${story ? 120 : 104}px;letter-spacing:-.03em;line-height:1">39,02 € <span style="font-size:.45em;font-weight:750">cada</span></div>
-        <div class="sub" style="font-size:${story ? 40 : 36}px;margin-top:14px"><span class="strike">45,90 €</span> &nbsp;·&nbsp; ${c.sub}</div>
+        <div style="font-weight:900;font-size:${story ? 120 : 104}px;letter-spacing:-.03em;line-height:1">149,70 € <span style="font-size:.45em;font-weight:750">as 4</span></div>
+        <div class="sub" style="font-size:${story ? 40 : 36}px;margin-top:14px"><span class="strike">199,60 €</span> &nbsp;·&nbsp; ${c.sub}</div>
       </div>
       ${stripHtml}`;
     }
@@ -163,8 +164,8 @@ function layout(c: Concept, f: Format) {
         <div style="font-weight:700;font-size:32px;color:#555;padding-bottom:22px">último dia para encomendar</div>
       </div>
       <div style="position:absolute;left:60px;right:60px;top:${story ? 1270 : 890}px;color:#fff;display:flex;justify-content:center">${ticks(c.ticks)}</div>
-      ${story ? "" : `<div class="strip" style="bottom:0;height:${stripH}px"><b>Desde 39,02 € por caixa</b> · Portes grátis a partir de 2 caixas</div>`}
-      ${story ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px"><b>Desde 39,02 € por caixa</b> · Portes grátis em 2+</div>` : ""}`;
+      ${story ? "" : `<div class="strip" style="bottom:0;height:${stripH}px"><b>Pague 3, leve 4</b> · Envio incluído · Desde 49,90 €</div>`}
+      ${story ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px"><b>Pague 3, leve 4</b> · Envio incluído</div>` : ""}`;
     }
   }
 }
