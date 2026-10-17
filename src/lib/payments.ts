@@ -13,11 +13,20 @@ import { snapshotCosts } from "./profit";
 import * as ifp from "./ifthenpay";
 import { normalizePtMobile } from "./leads";
 import { SITE } from "./site";
+import { getDict } from "./i18n";
+import { isCountry, isLocale, MARKETS, type Country } from "./markets";
+
+const countryOf = (o: Pick<Order, "country">): Country => (isCountry(o.country) ? o.country : "PT");
+const errorsOf = (o: Pick<Order, "locale">) => getDict(isLocale(o.locale) ? o.locale : "pt").checkout.errors;
 
 export const PAID = ["paid", "preparing", "shipped", "delivered"];
 
-/** Methods shown at checkout. Cards (+ Apple/Google Pay) via Stripe when configured, otherwise ifthenpay's card page. */
-export function checkoutMethods(): ifp.PayMethod[] {
+/**
+ * Methods shown at checkout for a delivery country. Portugal: MB WAY and Multibanco (ifthenpay) + cards.
+ * Elsewhere: Stripe only (card, Apple/Google Pay, plus iDEAL or Bancontact where the market has it).
+ */
+export function checkoutMethods(country: Country = "PT"): ifp.PayMethod[] {
+  if (country !== "PT") return stripeConfigured() ? ["card"] : [];
   const ifm = ifp.availableMethods();
   const out: ifp.PayMethod[] = [];
   if (ifm.includes("mbway")) out.push("mbway");
@@ -25,6 +34,14 @@ export function checkoutMethods(): ifp.PayMethod[] {
   if (!stripeConfigured() && ifm.includes("wallet")) out.push("wallet");
   if (ifm.includes("multibanco")) out.push("multibanco");
   return out;
+}
+
+/** Stripe method types for a market. Redirect methods (iDEAL, Bancontact) cannot save a card for the one-click offer. */
+export function stripeTypes(country: Country): string[] {
+  return ["card", ...MARKETS[country].stripeRedirectMethods];
+}
+export function stripeSavesCard(country: Country): boolean {
+  return MARKETS[country].stripeRedirectMethods.length === 0;
 }
 
 /** Post-purchase one-click offer is possible for card buyers (saved card at Stripe) and MB WAY buyers (new push). */
@@ -74,7 +91,9 @@ export type StartResult =
 
 /** Starts a payment attempt for the full amount due. One pending attempt per order at a time. */
 export async function startPayment(order: Order, method: ifp.PayMethod, opts: { phone?: string; token: string }): Promise<StartResult> {
-  if (!checkoutMethods().includes(method)) return { ok: false, status: 400, error: "Método de pagamento indisponível." };
+  const t = errorsOf(order);
+  const country = countryOf(order);
+  if (!checkoutMethods(country).includes(method)) return { ok: false, status: 400, error: t.methodUnavailable };
   const amount = await dueCents(order);
   // Close older pending attempts (a Multibanco reference stays payable: it is only superseded in our records).
   await db.update(schema.payments).set({ status: "superseded" }).where(and(eq(schema.payments.orderId, order.id), eq(schema.payments.status, "pending"), isNull(schema.payments.addonId), inArray(schema.payments.method, ["mbway", "card", "wallet"])));
@@ -98,11 +117,11 @@ export async function startPayment(order: Order, method: ifp.PayMethod, opts: { 
           amount,
           currency: "eur",
           customer,
-          allowed_payment_method_types: ["card"],
-          setup_future_usage: "on_session",
+          allowed_payment_method_types: stripeTypes(country),
+          ...(stripeSavesCard(country) ? { setup_future_usage: "on_session" as const } : {}),
           receipt_email: order.email ?? undefined,
           description,
-          shipping: order.customerName && a.line1 ? { name: order.customerName, phone: order.phone ?? undefined, address: { line1: a.line1, line2: a.line2 ?? undefined, postal_code: a.postal_code ?? undefined, city: a.city ?? undefined, country: "PT" } } : undefined,
+          shipping: order.customerName && a.line1 ? { name: order.customerName, phone: order.phone ?? undefined, address: { line1: a.line1, line2: a.line2 ?? undefined, postal_code: a.postal_code ?? undefined, city: a.city ?? undefined, country } } : undefined,
           metadata: { kind: "order", order_id: order.id, ref },
         },
         { idempotencyKey: `pi_${ref}` },
@@ -113,11 +132,11 @@ export async function startPayment(order: Order, method: ifp.PayMethod, opts: { 
     }
     if (method === "mbway") {
       const phone = normalizePtMobile(opts.phone ?? order.phone ?? "");
-      if (!phone) return { ok: false, status: 422, error: "Indique o número de telemóvel associado ao MB WAY." };
+      if (!phone) return { ok: false, status: 422, error: t.mbwayPhone };
       const r = await ifp.mbwayCreate({ ref, amountCents: amount, phone, email: order.email, description });
       if (!r.ok || !r.requestId) {
         await logOrderEvent(order.id, "payment_error", { method, status: r.status, message: r.message });
-        return { ok: false, status: 402, error: r.status === "122" ? "O pagamento MB WAY foi recusado. Confirme o número ou escolha outro método." : "Não foi possível enviar o pedido MB WAY. Tente novamente." };
+        return { ok: false, status: 402, error: r.status === "122" ? t.mbwayDeclined : t.mbwaySendFailed };
       }
       const expiresAt = new Date(Date.now() + 4 * 60_000);
       const [p] = await db.insert(schema.payments).values({ orderId: order.id, method, ref, requestId: r.requestId, amountCents: amount, phone, expiresAt }).returning();
@@ -139,21 +158,21 @@ export async function startPayment(order: Order, method: ifp.PayMethod, opts: { 
       const r = await ifp.cardInit({ ref, amountCents: amount, successUrl: `${back}&r=ok`, errorUrl: `${back}&r=erro`, cancelUrl: `${back}&r=cancelado` });
       if (!r.ok || !r.paymentUrl) {
         await logOrderEvent(order.id, "payment_error", { method, message: r.message });
-        return { ok: false, status: 502, error: "O pagamento com cartão está indisponível de momento. Escolha outro método." };
+        return { ok: false, status: 502, error: t.cardUnavailable };
       }
       await db.insert(schema.payments).values({ orderId: order.id, method, ref, requestId: r.requestId, amountCents: amount, redirectUrl: r.paymentUrl });
       await logOrderEvent(order.id, "payment_started", { method, ref, amount_cents: amount });
       return { ok: true, kind: "redirect", url: r.paymentUrl };
     }
     const r = await ifp.walletLink({ ref, amountCents: amount, description, successUrl: `${back}&r=ok`, errorUrl: `${back}&r=erro`, cancelUrl: `${back}&r=cancelado` });
-    if (!r.ok || !r.redirectUrl) return { ok: false, status: 502, error: "Apple Pay / Google Pay indisponível de momento. Escolha outro método." };
+    if (!r.ok || !r.redirectUrl) return { ok: false, status: 502, error: t.walletUnavailable };
     await db.insert(schema.payments).values({ orderId: order.id, method, ref, amountCents: amount, redirectUrl: r.redirectUrl });
     await logOrderEvent(order.id, "payment_started", { method, ref, amount_cents: amount });
     return { ok: true, kind: "redirect", url: r.redirectUrl };
   } catch (e) {
     console.error("[pay] start", method, e instanceof Error ? e.message : e);
     await logOrderEvent(order.id, "payment_error", { method, message: (e instanceof Error ? e.message : String(e)).slice(0, 300) });
-    return { ok: false, status: 502, error: "O pagamento está temporariamente indisponível. Os seus dados ficam guardados; tente novamente dentro de momentos." };
+    return { ok: false, status: 502, error: t.tempUnavailable };
   }
 }
 
@@ -237,7 +256,7 @@ export async function markAddonPaid(addonId: number, p: Payment) {
       eventId,
       sourceUrl: `${SITE.url}/oferta`,
       orderId: order.id,
-      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: order.shippingAddress?.city, zip: order.shippingAddress?.postal_code, country: "PT", ip: order.clientIp, userAgent: order.userAgent, fbp: order.fbp, fbc: order.fbc },
+      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: order.shippingAddress?.city, zip: order.shippingAddress?.postal_code, country: countryOf(order), ip: order.clientIp, userAgent: order.userAgent, fbp: order.fbp, fbc: order.fbc },
       customData: { value: addon.amountCents / 100, currency: "EUR", content_ids: [addon.sku], content_type: "product", num_items: addon.qty, order_id: `${order.id}-A${addon.id}` },
     }).catch(() => {});
   }
@@ -256,7 +275,9 @@ export async function applyStripePi(pi: Stripe.PaymentIntent, source: string) {
       wallet = w === "apple_pay" ? "APPLE" : w === "google_pay" ? "GOOGLE" : w === "link" ? "LINK" : null;
       const pm = typeof full.payment_method === "string" ? full.payment_method : full.payment_method?.id;
       const customer = typeof full.customer === "string" ? full.customer : full.customer?.id;
-      if (!p.addonId && pm && customer) await db.update(schema.orders).set({ stripePaymentMethodId: pm, stripeCustomerId: customer, stripePaymentIntentId: pi.id }).where(eq(schema.orders.id, p.orderId));
+      // Only a card (incl. Apple/Google Pay) can be charged again in one click; iDEAL/Bancontact cannot.
+      const isCard = ch?.payment_method_details?.type === "card";
+      if (!p.addonId && customer) await db.update(schema.orders).set({ stripePaymentMethodId: isCard && pm ? pm : null, stripeCustomerId: customer, stripePaymentIntentId: pi.id }).where(eq(schema.orders.id, p.orderId));
     } catch (e) {
       console.error("[stripe] retrieve", e instanceof Error ? e.message : e);
     }

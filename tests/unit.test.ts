@@ -214,3 +214,33 @@ test("post-purchase boxes upsell climbs to the next bundle", async () => {
   const from4 = boxesOffer(order(4, "x4"), bundles)!;
   assert.deepEqual([from4.boxes, from4.priceCents], [1, 3743]);
 });
+
+test("markets: phone, postal code, language and country detection", async () => {
+  const { normalizePhoneFor, postalValid, localeFromAcceptLanguage } = await import("../src/lib/markets");
+  const { homeLocaleFor, countryFor } = await import("../src/lib/visitor");
+  assert.equal(normalizePhoneFor("0151 2345 6789", "DE"), "+4915123456789");
+  assert.equal(normalizePhoneFor("06 12345678", "NL"), "+31612345678");
+  assert.equal(normalizePhoneFor("+32 470 12 34 56", "BE"), "+32470123456");
+  assert.equal(normalizePhoneFor("621 123 456", "LU"), "+352621123456");
+  assert.equal(postalValid("1000-001", "PT"), "ok");
+  assert.equal(postalValid("9000-001", "PT"), "excluded");
+  assert.equal(postalValid("10115", "DE"), "ok");
+  assert.equal(postalValid("1012 AB", "NL"), "ok");
+  assert.equal(postalValid("1012AB", "NL"), "ok");
+  assert.equal(postalValid("1000", "BE"), "ok");
+  assert.equal(postalValid("L-1009", "LU"), "ok");
+  assert.equal(postalValid("1234-567", "DE"), "format");
+  assert.equal(localeFromAcceptLanguage("fr-BE,fr;q=0.9,en;q=0.8"), "fr");
+  assert.equal(localeFromAcceptLanguage("en-US,en"), null);
+  const v = (ipCountry: string | null, savedLocale: "pt" | "de" | "nl" | "fr" | null = null, browserLocale: "pt" | "de" | "nl" | "fr" | null = null) => ({ ipCountry, savedLocale, browserLocale });
+  // Only open markets redirect; Portugal and unknown countries stay on "/"
+  assert.equal(homeLocaleFor(v("DE"), ["PT"]), "pt");
+  assert.equal(homeLocaleFor(v("DE"), ["PT", "DE"]), "de");
+  assert.equal(homeLocaleFor(v("BE", null, "fr"), ["PT", "BE"]), "fr");
+  assert.equal(homeLocaleFor(v("BE"), ["PT", "BE"]), "nl");
+  assert.equal(homeLocaleFor(v("US"), ["PT", "DE"]), "pt");
+  assert.equal(homeLocaleFor(v("PT", "de"), ["PT"]), "de");
+  assert.equal(countryFor("fr", v("LU")), "LU");
+  assert.equal(countryFor("fr", v("DE")), "BE");
+  assert.equal(countryFor("de", v(null)), "DE");
+});

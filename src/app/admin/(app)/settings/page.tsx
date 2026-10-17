@@ -3,6 +3,8 @@ import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
 import { settingsAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
+import { COUNTRIES, MARKETS } from "@/lib/markets";
+import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
 
 export default async function SettingsPage() {
   await requireAdmin({ role: "admin" });
@@ -34,6 +36,45 @@ export default async function SettingsPage() {
         <label className="block font-semibold">Delivery text (pt-PT)
           <input name="delivery_text" defaultValue={s.delivery_text} className="mt-1 w-full rounded border p-2 font-normal" />
         </label>
+        <fieldset className="rounded border p-3">
+          <legend className="px-1 font-semibold">Countries (markets)</legend>
+          <p className="text-xs text-muted">
+            Portugal ships from the Douro (CTT, MB WAY, Multibanco). Germany, the Netherlands, Belgium and Luxembourg ship from the Belgian warehouse and pay with Stripe (iDEAL and Bancontact must be enabled in the
+            Stripe dashboard). Open a country only once excise duty and VAT for it are sorted. Logged-in admins always see every country open, to test.
+          </p>
+          <table className="mt-2 w-full text-left text-xs">
+            <thead>
+              <tr className="text-muted">
+                <th className="py-1">Country</th>
+                <th>Open</th>
+                <th>Delivery days (shown)</th>
+                <th>Own cutoff (optional)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {COUNTRIES.map((c) => {
+                const m = s.markets?.[c] ?? { enabled: false, delivery_days: "", cutoff_at: null };
+                return (
+                  <tr key={c} className="border-t">
+                    <td className="py-1.5 font-semibold">
+                      {c} · {MARKETS[c].locales.join("/")}
+                    </td>
+                    <td>
+                      <input type="checkbox" name={`mk_${c}_enabled`} defaultChecked={m.enabled} className="h-4 w-4" />
+                    </td>
+                    <td>
+                      <input name={`mk_${c}_days`} defaultValue={m.delivery_days} placeholder={c === "PT" ? "2 a 4" : "e.g. 2-4"} className="w-24 rounded border p-1.5" />
+                    </td>
+                    <td>
+                      <input type="date" name={`mk_${c}_cutoff`} defaultValue={m.cutoff_at ? lisbonDate(new Date(m.cutoff_at)) : ""} className="rounded border p-1.5" />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-1 text-xs text-muted">Delivery days are inserted in the copy of that country&apos;s language (&quot;Delivery in 2-4 working days&quot;). Empty: no delivery time is shown. Own cutoff: 23:59 Lisbon time that day; empty = the cutoff above.</p>
+        </fieldset>
         <label className="block font-semibold">Stock cap in boxes (optional)
           <input name="stock_cap" type="number" min={0} defaultValue={s.stock_cap_boxes ?? ""} placeholder="no limit" className="mt-1 w-40 rounded border p-2 font-normal" />
           <span className="block text-xs font-normal text-muted">When paid boxes reach this number, the site shows &quot;Esgotado&quot; (sold out).</span>
@@ -54,7 +95,7 @@ export default async function SettingsPage() {
             <label>Valid up to (boxes)<input name="lead_code_max_qty" type="number" min={1} max={10} defaultValue={s.lead_code_max_qty} className="mt-1 block w-24 rounded border p-2" /></label>
             <label>Step-2 code (mobile number: + free shipping)<input name="lead_plus_code" defaultValue={s.lead_plus_code} placeholder="empty = no step 2" className="mt-1 block w-40 rounded border p-2 font-mono uppercase" /></label>
           </div>
-          <p className="mt-1 text-xs text-muted">The discount never takes a bundle below the €39.00 per-box floor. The code keeps working even if the popup is off.</p>
+          <p className="mt-1 text-xs text-muted">The discount never takes a bundle below the €{(PER_BOX_FLOOR_CENTS / 100).toFixed(2)} per-box floor. Portuguese page only. The code keeps working even if the popup is off.</p>
         </fieldset>
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">One-time offer (before payment)</legend>

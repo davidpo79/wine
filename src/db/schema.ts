@@ -84,6 +84,8 @@ export const orders = pgTable(
     shippingCents: integer("shipping_cents").notNull(),
     totalCents: integer("total_cents").notNull(),
     currency: text("currency").notNull().default("eur"),
+    country: text("country").notNull().default("PT"), // delivery country (lib/markets.ts)
+    locale: text("locale").notNull().default("pt"), // language the customer bought in (emails, pages)
     stripeSessionId: text("stripe_session_id").unique(),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
     stripeCustomerId: text("stripe_customer_id"),
@@ -189,6 +191,7 @@ export const leads = pgTable(
     consentMarketing: boolean("consent_marketing").notNull(),
     consentText: text("consent_text").notNull(),
     source: text("source").notNull().default("exit_popup"),
+    locale: text("locale").notNull().default("pt"),
     promoCode: text("promo_code"),
     utm: jsonb("utm").$type<Utm>(),
     ipHash: text("ip_hash"),

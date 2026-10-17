@@ -1,5 +1,9 @@
 import { SITE } from "@/lib/site";
 import { OpenConsentLink } from "@/components/tracking/Consent";
+import { getDict } from "@/lib/i18n";
+import { fmt } from "@/lib/i18n/rich";
+import { homeHref, legalHref } from "@/lib/i18n/paths";
+import type { Locale } from "@/lib/markets";
 
 export function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -32,11 +36,12 @@ export function Marquee({ items }: { items: string[] }) {
   );
 }
 
-export function Header() {
+export function Header({ locale = "pt" }: { locale?: Locale }) {
+  const t = getDict(locale).chrome;
   return (
     <header className="border-b border-paper-2 bg-paper">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <a href="/" className="leading-none text-night" aria-label="Wine Portugal, início">
+        <a href={homeHref(locale)} className="leading-none text-night" aria-label={t.homeLabel}>
           <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} className="h-9 w-auto" />
         </a>
         <a
@@ -46,7 +51,7 @@ export function Header() {
           className="inline-flex min-h-11 items-center gap-2 rounded-full border border-night/15 px-3 text-sm font-medium text-night hover:bg-white"
         >
           <WhatsAppIcon className="h-5 w-5 text-[#1f8f4e]" />
-          <span>Dúvidas?</span>
+          <span>{t.questions}</span>
         </a>
       </div>
     </header>
@@ -67,7 +72,9 @@ export function PaymentBadges() {
   );
 }
 
-export function Footer() {
+export function Footer({ locale = "pt" }: { locale?: Locale }) {
+  const d = getDict(locale);
+  const t = d.chrome;
   return (
     <footer className="bg-night pb-24 text-paper/80 lg:pb-0">
       <div className="azulejo-strip opacity-80" aria-hidden="true" />
@@ -79,7 +86,7 @@ export function Footer() {
           <p>{SITE.address}</p>
         </div>
         <div>
-          <p className="font-semibold text-paper">Contactos</p>
+          <p className="font-semibold text-paper">{t.contacts}</p>
           <p className="mt-2">
             <a href={`mailto:${SITE.email}`} className="inline-block py-1.5 hover:text-gold">{SITE.email}</a>
           </p>
@@ -91,27 +98,29 @@ export function Footer() {
           </p>
         </div>
         <div>
-          <p className="font-semibold text-paper">Informação legal</p>
+          <p className="font-semibold text-paper">{t.legalInfo}</p>
           <ul className="mt-1">
-            <li><a href="/termos" className="inline-block py-1.5 hover:text-gold">Termos e Condições</a></li>
-            <li><a href="/privacidade" className="inline-block py-1.5 hover:text-gold">Privacidade e Cookies</a></li>
-            <li><a href="/envios-devolucoes" className="inline-block py-1.5 hover:text-gold">Envios e Devoluções</a></li>
-            <li>
-              <a href="https://www.livroreclamacoes.pt" target="_blank" rel="noopener" className="inline-block py-1.5 hover:text-gold">Livro de Reclamações Eletrónico</a>
-            </li>
+            <li><a href={legalHref("terms", locale)} className="inline-block py-1.5 hover:text-gold">{d.common.legal.terms}</a></li>
+            <li><a href={legalHref("privacy", locale)} className="inline-block py-1.5 hover:text-gold">{d.common.legal.privacy}</a></li>
+            <li><a href={legalHref("shipping", locale)} className="inline-block py-1.5 hover:text-gold">{d.common.legal.shipping}</a></li>
+            {locale === "pt" && (
+              <li>
+                <a href="https://www.livroreclamacoes.pt" target="_blank" rel="noopener" className="inline-block py-1.5 hover:text-gold">{t.complaintsOnline}</a>
+              </li>
+            )}
             <li><OpenConsentLink className="inline-block py-1.5 hover:text-gold" /></li>
           </ul>
           <p className="mt-3 text-xs">
-            Resolução alternativa de litígios: {SITE.ralEntity}. Mais informação em{" "}
+            {fmt(t.ral, { entity: SITE.ralEntity })}{" "}
             <a href="https://www.consumidor.gov.pt" target="_blank" rel="noopener" className="underline">consumidor.gov.pt</a>.
           </p>
         </div>
       </div>
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-4 py-5 text-center text-xs">
-          <p className="font-semibold text-gold">Seja responsável. Beba com moderação.</p>
-          <p className="mt-1">Venda proibida a menores de 18 anos.</p>
-          <p className="mt-2 text-paper/70">© 2026 Wine Portugal · Preços com IVA incluído</p>
+          <p className="font-semibold text-gold">{t.responsible}</p>
+          <p className="mt-1">{t.minors}</p>
+          <p className="mt-2 text-paper/70">{t.copyright}</p>
         </div>
       </div>
     </footer>

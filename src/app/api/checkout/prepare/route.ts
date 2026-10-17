@@ -6,7 +6,10 @@ import { GIFT_CARD_SKU, loadDraft, publicAmounts, validateForPayment } from "@/l
 import { getCatalog } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
-import { orderAddons } from "@/lib/payments";
+import { orderAddons, stripeSavesCard } from "@/lib/payments";
+import { isCountry, isLocale } from "@/lib/markets";
+import { enabledCountries } from "@/lib/visitor";
+import { getDict } from "@/lib/i18n";
 import { boxesOffer, productOffers } from "@/lib/upsell";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
@@ -21,9 +24,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || order.status !== "pending_payment") return Response.json({ error: "Esta encomenda já não está disponível." }, { status: 409 });
-  const errors = validateForPayment(order);
+  const errors = validateForPayment(order, await enabledCountries(await getSettings()));
   const pendingAddons = await orderAddons(order.id, ["pending"]);
-  if (pendingAddons.some((x) => x.sku === GIFT_CARD_SKU) && !(order.giftMessage ?? "").trim()) errors.giftMessage = "Escreva a mensagem para o cartão.";
+  if (pendingAddons.some((x) => x.sku === GIFT_CARD_SKU) && !(order.giftMessage ?? "").trim()) errors.giftMessage = getDict(isLocale(order.locale) ? order.locale : "pt").checkout.errors.giftMessage;
   if (Object.keys(errors).length) return Response.json({ errors }, { status: 422 });
 
   const a = order.shippingAddress ?? {};
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
       eventId,
       sourceUrl: `${SITE.url}/checkout`,
       orderId: order.id,
-      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: a.city, zip: a.postal_code, country: "PT", ip: clientIp(h), userAgent: h.get("user-agent"), fbp: order.fbp, fbc: order.fbc },
+      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: a.city, zip: a.postal_code, country: order.country, ip: clientIp(h), userAgent: h.get("user-agent"), fbp: order.fbp, fbc: order.fbc },
       customData: { value: order.totalCents / 100, currency: "EUR", num_items: order.qtyBoxes, content_ids: ["trilogia-2160"], content_type: "product" },
     });
   }
@@ -51,7 +54,7 @@ export async function POST(req: Request) {
   let products: ReturnType<typeof productOffers> = [];
   const [settings, catalog] = await Promise.all([getSettings(), getCatalog()]);
   const m = parsed.data.method;
-  const afterPayment = m === "mbway" || (m === "card" && stripeConfigured());
+  const afterPayment = m === "mbway" || (m === "card" && stripeConfigured() && stripeSavesCard(isCountry(order.country) ? order.country : "PT"));
   if (settings.upsell_enabled && catalog && !afterPayment && !parsed.data.check_only) {
     const shown = await db
       .select({ id: schema.orderEvents.id })
@@ -60,7 +63,7 @@ export async function POST(req: Request) {
       .limit(1);
     if (!shown.length) {
       offer = boxesOffer(order, catalog.bundles);
-      products = productOffers(settings);
+      products = productOffers(settings, order);
       if (offer || products.length) await logOrderEvent(order.id, "upsell_shown", { offer: offer?.priceCents ?? null, products: products.map((p) => p.key) });
     }
   }

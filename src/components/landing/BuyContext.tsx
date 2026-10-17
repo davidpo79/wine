@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { newEventId, track } from "@/lib/track-client";
 import { promoDiscountCents, promoShippingCents, type PromoConfig } from "@/lib/promo";
+import { useI18n } from "@/lib/i18n/client";
 
 const PROMO_KEY = "wp_promo";
 export const CUSTOMER_KEY = "wp_customer";
@@ -17,7 +18,7 @@ export type PublicBundle = {
   badge: string | null;
 };
 
-export type SalesMode = "open" | "after_christmas" | "closed" | "sold_out";
+export type SalesMode = "open" | "after_christmas" | "closed" | "sold_out" | "coming_soon";
 
 type Ctx = {
   bundles: PublicBundle[];
@@ -54,6 +55,7 @@ export function useBuy() {
 export const totalOf = (b: PublicBundle) => b.priceCents + b.shippingCents;
 
 export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, children }: { bundles: PublicBundle[]; defaultKey: string; mode: SalesMode; promoConfig?: PromoConfig | null; children: React.ReactNode }) {
+  const { locale, country } = useI18n();
   const [key, setKey] = useState(bundles.find((b) => b.key === defaultKey)?.key ?? bundles[0]?.key);
   const [isGift, setIsGift] = useState(false);
   const [giftMessage, setGiftMessage] = useState("");
@@ -106,8 +108,8 @@ export function BuyProvider({ bundles, defaultKey, mode, promoConfig = null, chi
       sessionStorage.setItem("wp_gift", JSON.stringify({ isGift, msg: isGift ? giftMessage : "" }));
     } catch {}
     track("AddToCart", { content_ids: ["trilogia-2160"], content_type: "product", value: total(selected) / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
-    location.assign(`/checkout?b=${encodeURIComponent(selected.key)}`);
-  }, [loading, selected, total, isGift, giftMessage]);
+    location.assign(`/checkout?b=${encodeURIComponent(selected.key)}${locale === "pt" ? "" : `&l=${locale}&c=${country}`}`);
+  }, [loading, selected, total, isGift, giftMessage, locale, country]);
 
   const value = useMemo(
     () => ({ bundles, selected, select, isGift, setIsGift, giftMessage, setGiftMessage, checkout, loading, error, mode, promo, promoConfig, applyPromo, discount, shipping, total }),

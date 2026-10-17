@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouteLocale } from "@/lib/i18n/route-locale";
+import { CONSENT_COPY, privacyHref } from "@/lib/i18n/consent";
 import { newEventId, pixelEvent, track } from "@/lib/track-client";
 
 const COOKIE = "wp_consent";
@@ -68,6 +70,7 @@ function loadPixel(pixelId: string) {
 }
 
 export function Consent({ pixelId }: { pixelId: string | null }) {
+  const locale = useRouteLocale();
   const [open, setOpen] = useState(false);
   const [prefs, setPrefs] = useState(false);
   const [s, setS] = useState(false);
@@ -126,30 +129,31 @@ export function Consent({ pixelId }: { pixelId: string | null }) {
   }
 
   if (!open) return null;
+  const c = CONSENT_COPY[locale];
   // Slim bottom bar. "Rejeitar" is as easy as "Aceitar" (GDPR); "Opções" expands the per-category choice.
   const btn = "min-h-9 rounded px-3 text-xs font-semibold whitespace-nowrap";
   return (
     <div role="dialog" aria-modal="false" aria-label="Cookies" className="fixed inset-x-0 bottom-0 z-[60] border-t border-gold/40 bg-night text-paper shadow-[0_-4px_20px_rgba(0,0,0,0.25)]">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4">
         <p className="min-w-0 flex-1 basis-64 text-xs leading-snug text-paper/85">
-          Usamos cookies para medir os nossos anúncios e melhorar o site.{" "}
-          <a href="/privacidade" className="underline underline-offset-2">Saber mais</a>
+          {c.text}{" "}
+          <a href={privacyHref(locale)} className="underline underline-offset-2">{c.more}</a>
         </p>
         {prefs && (
           <div className="flex w-full flex-wrap gap-x-4 gap-y-1 text-xs sm:order-last">
-            <label className="flex items-center gap-1.5 opacity-70"><input type="checkbox" checked disabled className="accent-gold" /> Essenciais</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={s} onChange={(e) => setS(e.target.checked)} className="accent-gold" /> Estatística (Google Analytics)</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="accent-gold" /> Marketing (Meta)</label>
+            <label className="flex items-center gap-1.5 opacity-70"><input type="checkbox" checked disabled className="accent-gold" /> {c.essential}</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={s} onChange={(e) => setS(e.target.checked)} className="accent-gold" /> {c.stats}</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="accent-gold" /> {c.marketing}</label>
           </div>
         )}
         <div className="flex shrink-0 gap-2">
           {prefs ? (
-            <button onClick={() => decide({ s, m })} className={`${btn} border border-paper/40 hover:bg-white/10`}>Guardar</button>
+            <button onClick={() => decide({ s, m })} className={`${btn} border border-paper/40 hover:bg-white/10`}>{c.save}</button>
           ) : (
-            <button onClick={() => setPrefs(true)} className={`${btn} underline underline-offset-2 hover:bg-white/10`}>Opções</button>
+            <button onClick={() => setPrefs(true)} className={`${btn} underline underline-offset-2 hover:bg-white/10`}>{c.options}</button>
           )}
-          <button onClick={() => decide({ s: false, m: false })} className={`${btn} border border-paper/40 hover:bg-white/10`}>Rejeitar</button>
-          <button onClick={() => decide({ s: true, m: true })} className={`${btn} bg-gold text-night hover:bg-gold-soft`}>Aceitar</button>
+          <button onClick={() => decide({ s: false, m: false })} className={`${btn} border border-paper/40 hover:bg-white/10`}>{c.reject}</button>
+          <button onClick={() => decide({ s: true, m: true })} className={`${btn} bg-gold text-night hover:bg-gold-soft`}>{c.accept}</button>
         </div>
       </div>
     </div>
@@ -157,9 +161,10 @@ export function Consent({ pixelId }: { pixelId: string | null }) {
 }
 
 export function OpenConsentLink({ className }: { className?: string }) {
+  const locale = useRouteLocale();
   return (
     <button type="button" className={className} onClick={() => window.dispatchEvent(new Event("wp:open-consent"))}>
-      Preferências de cookies
+      {CONSENT_COPY[locale].prefs}
     </button>
   );
 }

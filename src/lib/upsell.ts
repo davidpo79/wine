@@ -1,6 +1,9 @@
 import type { Bundle, Order } from "@/db/schema";
 import type { Settings } from "./settings-defaults";
-import { dealOf, eurShort } from "./offers";
+import { dealOf } from "./offers";
+import { getDict, moneyShortFor } from "./i18n";
+import { fmt } from "./i18n/rich";
+import { isCountry, isLocale, MARKETS } from "./markets";
 
 export type Offer = {
   key: string; // "boxes" or an upsell product key
@@ -34,18 +37,22 @@ export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
   if (price <= 0) return null;
   const pct = Math.round(((compare - price) / compare) * 100);
   const deal = next && single ? dealOf(next, single.priceCents) : null;
-  const what = boxes === 1 ? "mais 1 caixa" : `mais ${boxes} caixas`;
+  const locale = isLocale(order.locale) ? order.locale : "pt";
+  const t = getDict(locale).upsell;
+  const p = moneyShortFor(locale)(price);
+  const what = boxes === 1 ? t.whatOne : fmt(t.whatMany, { n: boxes });
   return {
     key: "boxes",
     kind: "boxes",
     sku: "trilogia-2160",
-    title: deal?.paid ? `Pague ${deal.paid}, leve ${deal.qty}` : boxes === 1 ? `Mais uma caixa por ${eurShort(price)}` : `Mais ${boxes} caixas Trilogia 2160`,
-    label: `Trilogia 2160 · ${what} (${boxes * 3} garrafas)`,
+    title: deal?.paid ? fmt(t.boxesPayGetTitle, { paid: deal.paid, qty: deal.qty }) : boxes === 1 ? fmt(t.boxesOneTitle, { price: p }) : fmt(t.boxesManyTitle, { n: boxes }),
+    // The label is stored on the add-on row and read by the team (admin, shipping list): always Portuguese.
+    label: fmt(getDict("pt").upsell.boxesLabel, { what: boxes === 1 ? getDict("pt").upsell.whatOne : fmt(getDict("pt").upsell.whatMany, { n: boxes }), bottles: boxes * 3 }),
     description: deal?.paid
-      ? `Junte ${what} por ${eurShort(price)} e fique com ${deal.qty} caixas ao preço de ${deal.paid}. Seguem na mesma entrega, sem custos de envio.`
+      ? fmt(t.boxesPayGetText, { what, price: p, qty: deal.qty, paid: deal.paid })
       : next
-        ? `Mais uma prenda resolvida: a ${next.qty}.ª caixa fica por ${eurShort(price)}. Segue na mesma entrega, sem custos de envio.`
-        : `Mais uma caixa ao preço por caixa da opção de ${top.qty}. Segue na mesma entrega, sem custos de envio.`,
+        ? fmt(t.boxesNextText, { n: next.qty, price: p })
+        : fmt(t.boxesTopText, { n: top.qty }),
     priceCents: price,
     compareCents: compare,
     boxes,
@@ -54,7 +61,9 @@ export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
   };
 }
 
-export function productOffers(settings: Settings): Offer[] {
+/** Extra wines from the Portuguese stock: offered for orders shipped from the Douro only. */
+export function productOffers(settings: Settings, order?: Pick<Order, "country">): Offer[] {
+  if (order && isCountry(order.country) && MARKETS[order.country].warehouse !== "douro") return [];
   return settings.upsell_products
     .filter((p) => p.active && p.price_cents > 0)
     .map((p) => ({
@@ -74,5 +83,5 @@ export function productOffers(settings: Settings): Offer[] {
 
 export function findOffer(key: string, order: Order, bundles: Bundle[], settings: Settings): Offer | null {
   if (key === "boxes") return boxesOffer(order, bundles);
-  return productOffers(settings).find((o) => o.key === key) ?? null;
+  return productOffers(settings, order).find((o) => o.key === key) ?? null;
 }

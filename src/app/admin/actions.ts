@@ -18,6 +18,7 @@ import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
+import { COUNTRIES } from "@/lib/markets";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -253,6 +254,17 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
     .map(([name, city, text, source]) => ({ name, city: city || undefined, text, source: source || undefined }));
   await setSetting("reviews", reviews);
   await setSetting("delivery_text", String(fd.get("delivery_text") ?? "").trim().slice(0, 120));
+  if (fd.get("mk_PT_days") !== null) {
+    const markets = Object.fromEntries(
+      COUNTRIES.map((c) => {
+        const day = String(fd.get(`mk_${c}_cutoff`) ?? "").trim();
+        const cutoff = /^\d{4}-\d{2}-\d{2}$/.test(day) ? lisbonToUtc(day, "23:59") : null;
+        return [c, { enabled: fd.get(`mk_${c}_enabled`) === "on", delivery_days: String(fd.get(`mk_${c}_days`) ?? "").trim().slice(0, 20), cutoff_at: cutoff && !Number.isNaN(cutoff.getTime()) ? cutoff.toISOString() : null }];
+      }),
+    ) as Settings["markets"];
+    if (!Object.values(markets).some((m) => m.enabled)) return { error: "At least one country must stay open." };
+    await setSetting("markets", markets);
+  }
   revalidatePath("/admin/settings");
   return { ok: "Settings saved." };
 }

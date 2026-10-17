@@ -1,3 +1,6 @@
+import { fmt } from "./i18n/rich";
+import { pt, type Dict } from "./i18n/pt";
+
 // Buy-and-get reading of the bundles: "pague 3, leve 4" when the price is a whole number of single boxes,
 // "a 2.ª caixa por 40 €" for two boxes, a percentage otherwise. Shared by the landing page, checkout and upsell.
 
@@ -27,20 +30,23 @@ export function eurShort(cents: number): string {
   return `${s} €`;
 }
 
-/** Labels in pt-PT: banner (card header), short (progress milestones), sentence. */
-export function dealText(d: Deal) {
+type DealCopy = Dict["deal"];
+
+/** Labels: banner (card header), small (under it), short (milestones, chips), sentence. */
+export function dealText(d: Deal, t: DealCopy = pt.deal, moneyShort: (c: number) => string = eurShort) {
   if (d.paid) {
+    const v = { paid: d.paid, qty: d.qty, n: d.free };
     return {
-      banner: `PAGUE ${d.paid}, LEVE ${d.qty}`,
-      small: d.free === 1 ? "1 CAIXA OFERECIDA" : `${d.free} CAIXAS OFERECIDAS`,
-      short: `Pague ${d.paid}, leve ${d.qty}`,
-      sentence: `Pague ${d.paid} caixas e leve ${d.qty}: ${d.free === 1 ? "uma é oferecida" : `${d.free} são oferecidas`}`,
+      banner: fmt(t.payGetBanner, v),
+      small: d.free === 1 ? t.payGetSmallOne : fmt(t.payGetSmallMany, v),
+      short: fmt(t.payGetShort, v),
+      sentence: fmt(d.free === 1 ? t.payGetSentenceOne : t.payGetSentenceMany, v),
     };
   }
   if (d.nextBoxCents != null) {
-    const p = eurShort(d.nextBoxCents);
-    return { banner: `2.ª CAIXA POR ${p.toUpperCase()}`, small: "ENVIO INCLUÍDO", short: `2.ª a ${p}`, sentence: `A 2.ª caixa fica por ${p}` };
+    const price = moneyShort(d.nextBoxCents);
+    return { banner: fmt(t.nthBanner, { price: price.toUpperCase() }), small: t.deliverySmall, short: fmt(t.nthShort, { price }), sentence: fmt(t.nthSentence, { price }) };
   }
-  if (d.percent > 0) return { banner: `${d.percent}% DE DESCONTO`, small: "ENVIO INCLUÍDO", short: `−${d.percent}%`, sentence: `${d.percent}% de desconto` };
-  return { banner: "GUIA DE OFERTA", small: "Envio incluído", short: d.qty === 1 ? "1 caixa" : `${d.qty} caixas`, sentence: "" };
+  if (d.percent > 0) return { banner: fmt(t.pctBanner, { pct: d.percent }), small: t.deliverySmall, short: fmt(t.pctShort, { pct: d.percent }), sentence: fmt(t.pctSentence, { pct: d.percent }) };
+  return { banner: t.singleBanner, small: t.deliverySmall, short: d.qty === 1 ? "1" : String(d.qty), sentence: "" };
 }

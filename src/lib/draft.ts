@@ -11,6 +11,12 @@ import { logOrderEvent, nextOrderId } from "./orders";
 import { normalizeCode, promoDiscountCents, promoShippingCents } from "./promo";
 import { resumeToken, scheduleRecovery, verifyResumeToken } from "./recovery";
 import { normalizePhone } from "./leads";
+import { getDict } from "./i18n";
+import { isCountry, isLocale, MARKETS, normalizePhoneFor, postalValid, type Country, type Locale } from "./markets";
+import { fmt } from "./i18n/rich";
+
+const orderCountry = (o: Pick<Order, "country">): Country => (isCountry(o.country) ? o.country : "PT");
+const orderLocale = (o: Pick<Order, "locale">): Locale => (isLocale(o.locale) ? o.locale : "pt");
 
 export const draftToken = resumeToken;
 
@@ -27,9 +33,12 @@ export function computeAmounts(bundle: Bundle, settings: Settings, promo: string
 
 export type DraftCtx = { utm: Utm | null; fbp: string | null; fbc: string | null; gaClientId: string | null; ip: string | null; ua: string | null; consentTracking: boolean };
 
-export async function createDraft(input: { bundleKey: string; promo?: string; isGift?: boolean; giftMessage?: string; eventId?: string }, ctx: DraftCtx) {
+export async function createDraft(input: { bundleKey: string; promo?: string; isGift?: boolean; giftMessage?: string; eventId?: string; locale?: Locale; country?: Country }, ctx: DraftCtx) {
   const [catalog, settings, sold] = await Promise.all([getCatalog(), getSettings(), paidBoxes()]);
-  if (!catalog || !canBuy(salesState(settings, sold))) return { ok: false as const, status: 409, error: "As encomendas estão fechadas de momento." };
+  const locale = input.locale ?? "pt";
+  const country = input.country ?? "PT";
+  const cutoff = settings.markets?.[country]?.cutoff_at ?? settings.cutoff_at;
+  if (!catalog || !canBuy(salesState({ ...settings, cutoff_at: cutoff }, sold))) return { ok: false as const, status: 409, error: getDict(locale).checkout.errors.salesClosed };
   const bundle = catalog.bundles.find((b) => b.key === input.bundleKey && b.active) ?? catalog.bundles.find((b) => b.qty === 2) ?? catalog.bundles[0];
   const a = computeAmounts(bundle, settings, input.promo);
   const id = await nextOrderId();
@@ -56,7 +65,9 @@ export async function createDraft(input: { bundleKey: string; promo?: string; is
       clientIp: ctx.consentTracking ? ctx.ip : null,
       userAgent: ctx.consentTracking ? ctx.ua : null,
       gaClientId: ctx.gaClientId,
-      shippingAddress: { country: "PT" },
+      shippingAddress: { country },
+      country,
+      locale,
     })
     .returning();
   await logOrderEvent(id, "checkout_opened", { bundle_key: bundle.key, total_cents: a.total });
@@ -80,6 +91,7 @@ export type DraftPatch = Partial<{
   bundleKey: string;
   promo: string;
   giftCard: boolean; // order bump: printed Christmas card with the message
+  country: Country; // delivery country (only open markets are accepted at payment)
 }>;
 
 export const GIFT_CARD_SKU = "gift-card";
@@ -89,8 +101,10 @@ const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0
 /** Autosave: stores whatever was typed (lightly cleaned). Final validation happens in validateForPayment. */
 export async function updateDraft(order: Order, patch: DraftPatch) {
   const set: Partial<typeof schema.orders.$inferInsert> = { lastSavedAt: new Date() };
+  if (patch.country !== undefined && isCountry(patch.country)) set.country = patch.country;
+  const country = (set.country as Country | undefined) ?? orderCountry(order);
   if (patch.email !== undefined) set.email = clip(patch.email, 160)?.trim().toLowerCase() || null;
-  if (patch.phone !== undefined) set.phone = normalizePhone(patch.phone) ?? (clip(patch.phone, 30)?.trim() || null);
+  if (patch.phone !== undefined) set.phone = (country === "PT" ? normalizePhone(patch.phone) : normalizePhoneFor(patch.phone, country)) ?? (clip(patch.phone, 30)?.trim() || null);
   if (patch.firstName !== undefined || patch.lastName !== undefined) {
     const [f0, ...l0] = (order.customerName ?? "").split(" ");
     const first = patch.firstName !== undefined ? clip(patch.firstName, 60)!.trim() : f0;
@@ -106,11 +120,11 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
       addrChanged = true;
     }
   }
-  if (addrChanged || patch.firstName !== undefined || patch.lastName !== undefined) {
-    addr.country = "PT";
+  if (addrChanged || set.country || patch.firstName !== undefined || patch.lastName !== undefined) {
+    addr.country = country;
     (addr as Record<string, unknown>).name = set.customerName ?? order.customerName;
     set.shippingAddress = addr;
-    set.billingAddress = { line1: addr.line1, line2: addr.line2, postal_code: addr.postal_code, city: addr.city, country: "PT" };
+    set.billingAddress = { line1: addr.line1, line2: addr.line2, postal_code: addr.postal_code, city: addr.city, country };
   }
   if (patch.nif !== undefined) set.nif = (patch.nif ?? "").replace(/\D/g, "").slice(0, 9) || null;
   if (patch.isGift !== undefined) set.isGift = patch.isGift;
@@ -144,7 +158,8 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
   if (patch.giftCard !== undefined) {
     await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), eq(schema.orderAddons.sku, GIFT_CARD_SKU)));
     const settings = await getSettings();
-    if (patch.giftCard && settings.gift_card.enabled) {
+    // Printed in Portugal: not offered for parcels from the Belgian warehouse.
+    if (patch.giftCard && settings.gift_card.enabled && MARKETS[country].warehouse === "douro") {
       await db.insert(schema.orderAddons).values({ orderId: order.id, kind: "card", sku: GIFT_CARD_SKU, label: "Cartão de Natal impresso com mensagem", qty: 1, boxes: 0, amountCents: settings.gift_card.price_cents });
       set.isGift = true;
     }
@@ -154,7 +169,8 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
 
   // Abandoned-checkout follow-up starts once we can reach the person (email + phone).
   const settings = await getSettings();
-  if (settings.recovery_enabled && !updated.recoveryScheduledAt && updated.email && updated.phone && /@/.test(updated.email)) {
+  // Follow-ups (messages, calls, email) exist in Portuguese only.
+  if (settings.recovery_enabled && updated.locale === "pt" && !updated.recoveryScheduledAt && updated.email && updated.phone && /@/.test(updated.email)) {
     await db.update(schema.orders).set({ recoveryScheduledAt: new Date() }).where(eq(schema.orders.id, order.id));
     await scheduleRecovery(order.id, updated.email).catch((e) => console.error("[recovery] schedule", e));
   }
@@ -163,23 +179,33 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
 
 export type FieldErrors = Partial<Record<keyof DraftPatch, string>>;
 
-export function validateForPayment(o: Order): FieldErrors {
+/** Final check before payment, in the customer's language. `open`: countries taking orders (default: Portugal). */
+export function validateForPayment(o: Order, open: Country[] = ["PT"]): FieldErrors {
   const e: FieldErrors = {};
+  const t = getDict(orderLocale(o)).checkout.errors;
+  const country = orderCountry(o);
   const a = o.shippingAddress ?? {};
   const [first, ...rest] = (o.customerName ?? "").split(" ");
-  if (!o.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) e.email = "Indique um email válido.";
-  if (!o.phone || !normalizePhone(o.phone)) e.phone = "Indique um telemóvel válido (ex.: 912 345 678 ou +44 7700 900123).";
-  if (!first) e.firstName = "Indique o nome.";
-  if (!rest.join(" ")) e.lastName = "Indique o apelido.";
-  if (!a.line1 || a.line1.length < 4) e.address1 = "Indique a morada.";
-  if (!a.postal_code || !/^\d{4}-?\d{3}$/.test(a.postal_code)) e.postalCode = "Código postal no formato 1234-567.";
-  else if (/^9/.test(a.postal_code)) e.postalCode = "Entregamos apenas em Portugal Continental.";
-  if (!a.city) e.city = "Indique a localidade.";
-  if (o.nif && !/^\d{9}$/.test(o.nif)) e.nif = "O NIF tem 9 dígitos.";
+  if (!open.includes(country)) e.country = t.country;
+  if (!o.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) e.email = t.email;
+  if (!o.phone || !(country === "PT" ? normalizePhone(o.phone) : normalizePhoneFor(o.phone, country))) e.phone = t.phone;
+  if (!first) e.firstName = t.firstName;
+  if (!rest.join(" ")) e.lastName = t.lastName;
+  if (!a.line1 || a.line1.length < 4) e.address1 = t.address1;
+  const pv = postalValid(a.postal_code ?? "", country);
+  if (pv === "format") e.postalCode = fmt(t.postalFormat, { example: MARKETS[country].postalExample });
+  else if (pv === "excluded") e.postalCode = t.postalExcluded;
+  if (!a.city) e.city = t.city;
+  if (country === "PT" && o.nif && !/^\d{9}$/.test(o.nif)) e.nif = t.nif;
   return e;
 }
 
 export const PAID_STATUSES = ["paid", "preparing", "shipped", "delivered", "refunded"];
+
+function boxesLabel(o: Order, n: number) {
+  const t = getDict(orderLocale(o)).upsell;
+  return fmt(t.boxesLabel, { what: n === 1 ? t.whatOne : fmt(t.whatMany, { n }), bottles: n * 3 });
+}
 
 export function publicAmounts(o: Order, addons: OrderAddon[]) {
   const extras = addons.reduce((n, a) => n + a.amountCents, 0);
@@ -189,7 +215,8 @@ export function publicAmounts(o: Order, addons: OrderAddon[]) {
     shipping: o.shippingCents,
     total: o.totalCents + extras,
     promo: o.promoCode,
-    addons: addons.map((a) => ({ key: a.kind === "boxes" ? "boxes" : a.sku, label: a.label, amount: a.amountCents })),
+    // Box add-ons are labelled in the customer's language (the stored label is Portuguese, for the team).
+    addons: addons.map((a) => ({ key: a.kind === "boxes" ? "boxes" : a.sku, label: a.kind === "boxes" ? boxesLabel(o, a.boxes) : a.label, amount: a.amountCents })),
   };
 }
 
@@ -199,7 +226,9 @@ export function publicDraft(o: Order, addons: OrderAddon[]) {
   return {
     order_id: o.id,
     token: draftToken(o.id),
-    methods: checkoutMethods(),
+    methods: checkoutMethods(orderCountry(o)),
+    country: orderCountry(o),
+    locale: orderLocale(o),
     bundle_key: o.bundleKey,
     amounts: publicAmounts(o, addons),
     fields: {
@@ -217,6 +246,7 @@ export function publicDraft(o: Order, addons: OrderAddon[]) {
       consentMessages: o.consentMessages,
       consentCalls: o.consentCalls,
       giftCard: addons.some((x) => x.sku === GIFT_CARD_SKU),
+      country: orderCountry(o),
     },
   };
 }

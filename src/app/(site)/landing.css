@@ -81,3 +81,5 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .exitsecondary{border:2px solid var(--green);background:#fff;color:var(--green);border-radius:5px;padding:12px;font-weight:800;font-size:14px}
 .exitsecondary:hover{background:#edf5e9}
 .exitsecondary[disabled]{opacity:.6}
+
+.langswitch{display:flex;justify-content:center;gap:12px;margin-top:12px;font-size:11px;color:var(--muted)}.langswitch a{text-decoration:underline;text-underline-offset:2px}.langswitch b{color:var(--ink)}

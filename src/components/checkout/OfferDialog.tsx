@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Offer } from "@/lib/upsell";
-
-const money = (c: number) => new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(c / 100);
+import { useI18n } from "@/lib/i18n/client";
+import { fmt } from "@/lib/i18n/rich";
 
 type Props = {
   main: Offer | null;
@@ -20,6 +20,8 @@ type Props = {
  * paid together (ifthenpay has no stored cards, so a post-payment one-click charge is not possible).
  */
 export function OfferDialog({ main, products, baseTotal, payLabel, onChoose, onContinue, onClose }: Props) {
+  const { d, money } = useI18n();
+  const t = d.upsell;
   const ref = useRef<HTMLDialogElement>(null);
   const [extras, setExtras] = useState<string[]>([]);
   const [busy, setBusy] = useState<"yes" | "no" | null>(null);
@@ -42,7 +44,7 @@ export function OfferDialog({ main, products, baseTotal, payLabel, onChoose, onC
       await onChoose([...(acceptMain && main ? [main.key] : []), ...extras]);
       onContinue();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível juntar à encomenda.");
+      setError(e instanceof Error ? e.message : d.checkout.cannotAdd);
       setBusy(null);
     }
   }
@@ -60,44 +62,44 @@ export function OfferDialog({ main, products, baseTotal, payLabel, onChoose, onC
       }}
       className="m-auto max-h-[100dvh] w-full max-w-lg overflow-y-auto rounded-none bg-white p-0 text-ink backdrop:bg-ink/70 sm:max-h-[94vh] sm:rounded-2xl"
     >
-      <div className="bg-xmas px-5 py-2.5 text-center text-xs font-bold uppercase tracking-[0.2em] text-white">Só nesta encomenda · antes de pagar</div>
-      <button type="button" onClick={onClose} disabled={!!busy} aria-label="Fechar" className="absolute right-3 top-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-2xl leading-none text-ink shadow">
+      <div className="bg-xmas px-5 py-2.5 text-center text-xs font-bold uppercase tracking-[0.2em] text-white">{t.beforePayBanner}</div>
+      <button type="button" onClick={onClose} disabled={!!busy} aria-label={d.common.close} className="absolute right-3 top-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-2xl leading-none text-ink shadow">
         ×
       </button>
 
       <div className="px-5 pb-6 pt-5 sm:px-7">
-        <p className="text-center text-sm font-bold uppercase tracking-[0.18em] text-xmas">Oferta única</p>
+        <p className="text-center text-sm font-bold uppercase tracking-[0.18em] text-xmas">{t.oneTime}</p>
         {main ? (
           <>
             <h2 id="offer-title" className="mt-1 text-center font-black leading-none">
               {main.percentOff > 0 && <span className="block text-6xl text-xmas sm:text-7xl">−{main.percentOff}%</span>}
               <span className="mt-2 block text-2xl">{main.title}</span>
             </h2>
-            <p className="mt-2 text-center text-[15px] font-semibold text-azulejo">Ainda pode juntar à sua encomenda: segue na mesma entrega e paga tudo de uma vez.</p>
+            <p className="mt-2 text-center text-[15px] font-semibold text-azulejo">{t.addBeforePay}</p>
 
             <div className="mt-4 flex items-center justify-center rounded-xl bg-paper p-3">
               {/* Full product visible: the three bottles in the gift box. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={main.image ?? "/lp/box-cutout.webp"} alt="Caixa Trilogia 2160 com as três garrafas: rosé, tinto e branco" className="h-56 w-auto max-w-full object-contain sm:h-64" />
+              <img src={main.image ?? "/lp/box-cutout.webp"} alt={t.boxAlt} className="h-56 w-auto max-w-full object-contain sm:h-64" />
             </div>
 
             <p className="mt-4 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1">
               <span className="text-4xl font-black text-xmas">{money(main.priceCents)}</span>
               {save > 0 && <s className="text-lg text-muted">{money(main.compareCents)}</s>}
-              {save > 0 && <span className="rounded bg-xmas/10 px-2 py-1 text-sm font-bold text-xmas">Poupa {money(save)}</span>}
+              {save > 0 && <span className="rounded bg-xmas/10 px-2 py-1 text-sm font-bold text-xmas">{fmt(t.save, { amount: money(save) })}</span>}
             </p>
             <p className="mt-2 text-center text-sm text-muted">{main.description}</p>
           </>
         ) : (
           <h2 id="offer-title" className="mt-1 text-center text-2xl font-black">
-            Para a mesa de Natal
-            <span className="mt-1 block text-[15px] font-semibold text-azulejo">Ainda pode juntar à sua encomenda: segue na mesma entrega.</span>
+            {t.forTheTable}
+            <span className="mt-1 block text-[15px] font-semibold text-azulejo">{t.addSameDelivery}</span>
           </h2>
         )}
 
         {products.length > 0 && (
           <fieldset className="mt-5">
-            <legend className="mb-2 text-sm font-bold">{main ? "Junte também, se quiser:" : "Escolha o que quer juntar:"}</legend>
+            <legend className="mb-2 text-sm font-bold">{main ? t.alsoAdd : t.chooseAdd}</legend>
             <div className="space-y-2">
               {products.map((p) => {
                 const on = extras.includes(p.key);
@@ -141,11 +143,11 @@ export function OfferDialog({ main, products, baseTotal, payLabel, onChoose, onC
               onClick={() => go(true)}
               className="mt-5 flex min-h-14 w-full flex-col items-center justify-center rounded-md bg-xmas px-4 py-2 font-bold text-white shadow-[0_3px_0_#71202b] hover:bg-xmas-dark disabled:opacity-60"
             >
-              <span className="text-lg">{busy === "yes" ? "A juntar…" : "Sim, juntar à encomenda"}</span>
-              <span className="text-xs font-semibold text-white/85">Novo total: {money(withMain)}</span>
+              <span className="text-lg">{busy === "yes" ? t.adding : t.yesAdd}</span>
+              <span className="text-xs font-semibold text-white/85">{fmt(t.newTotal, { total: money(withMain) })}</span>
             </button>
             <button type="button" disabled={!!busy} onClick={() => go(false)} className="mt-3 w-full p-2 text-sm text-muted underline disabled:opacity-60">
-              {busy === "no" ? "A continuar…" : `Não, obrigado. ${payLabel} (${money(without)})`}
+              {busy === "no" ? t.continuing : fmt(t.noThanksPay, { label: payLabel, total: money(without) })}
             </button>
           </>
         ) : (
@@ -155,10 +157,10 @@ export function OfferDialog({ main, products, baseTotal, payLabel, onChoose, onC
             onClick={() => go(false)}
             className="mt-5 flex min-h-14 w-full items-center justify-center rounded-md bg-xmas px-4 text-lg font-bold text-white shadow-[0_3px_0_#71202b] hover:bg-xmas-dark disabled:opacity-60"
           >
-            {busy ? "A continuar…" : `${extras.length ? "Juntar e continuar" : payLabel} · ${money(without)}`}
+            {busy ? t.continuing : `${extras.length ? t.addAndContinue : payLabel} · ${money(without)}`}
           </button>
         )}
-        <p className="mt-2 text-center text-xs text-muted">IVA incluído. Esta oferta só aparece agora.</p>
+        <p className="mt-2 text-center text-xs text-muted">{t.vatOnlyNow}</p>
       </div>
     </dialog>
   );

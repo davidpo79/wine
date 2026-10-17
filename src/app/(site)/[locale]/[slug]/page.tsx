@@ -1,0 +1,32 @@
+import { notFound } from "next/navigation";
+import { LegalPage } from "@/components/legal/LegalPage";
+import { getDict } from "@/lib/i18n";
+import { legalKindFromSlug } from "@/lib/i18n/paths";
+import { isLocale } from "@/lib/markets";
+import { LEGAL_CONTENT } from "@/components/legal/content";
+
+export const dynamic = "force-dynamic";
+
+type Params = Promise<{ locale: string; slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }) {
+  const { locale, slug } = await params;
+  if (!isLocale(locale) || locale === "pt") return {};
+  const kind = legalKindFromSlug(locale, slug);
+  return kind ? { title: `${getDict(locale).legalPage.titles[kind]} | Wine Portugal` } : {};
+}
+
+/** Legal pages in German, Dutch and French (Portuguese keeps /termos, /privacidade, /envios-devolucoes). */
+export default async function LocalizedLegal({ params }: { params: Params }) {
+  const { locale, slug } = await params;
+  if (!isLocale(locale) || locale === "pt") notFound();
+  const kind = legalKindFromSlug(locale, slug);
+  const content = kind ? LEGAL_CONTENT[locale]?.[kind] : null;
+  if (!kind || !content) notFound();
+  const Body = content;
+  return (
+    <LegalPage title={getDict(locale).legalPage.titles[kind]} updated="[[TODO]]" locale={locale}>
+      <Body />
+    </LegalPage>
+  );
+}

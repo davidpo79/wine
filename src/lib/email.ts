@@ -5,6 +5,13 @@ import { eur } from "./money";
 import { SITE } from "./site";
 import { bucketConfigured, presignedGet } from "./bucket";
 import { ctTrackingUrl, logOrderEvent } from "./orders";
+import { getDict, moneyFor } from "./i18n";
+import { fmt } from "./i18n/rich";
+import { isLocale, type Locale } from "./markets";
+
+const localeOf = (o: Pick<Order, "locale"> | null): Locale => (o && isLocale(o.locale) ? o.locale : "pt");
+/** Dictionary strings use <b>/<em>; email HTML keeps them as they are. */
+const html_ = (s: string) => s.replace(/<b>/g, "<strong>").replace(/<\/b>/g, "</strong>");
 
 const EBOOK_LINK_SECONDS = 7 * 24 * 3600;
 
@@ -12,15 +19,16 @@ function esc(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-function layout(title: string, body: string) {
-  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title></head>
+function layout(title: string, body: string, locale: Locale = "pt") {
+  const t = getDict(locale).email;
+  return `<!doctype html><html lang="${t.htmlLang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(title)}</title></head>
 <body style="margin:0;background:#F6EFE2;font-family:Georgia,'Times New Roman',serif;color:#0F2340">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6EFE2"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e6dcc7">
 <tr><td style="background:#0F2340;color:#F6EFE2;padding:20px 24px;font-size:20px;letter-spacing:.5px">Wine Portugal <span style="color:#C8A253">·</span> Trilogia 2160</td></tr>
 <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#1d2a3a">${body}</td></tr>
 <tr><td style="padding:16px 24px;background:#F6EFE2;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#55606e">
-Dúvidas? ${esc(SITE.email)} · WhatsApp ${esc(SITE.whatsapp)}<br>Seja responsável. Beba com moderação. Venda proibida a menores de 18 anos.</td></tr>
+${fmt(t.footer, { email: esc(SITE.email), whatsapp: esc(SITE.whatsapp) })}</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
@@ -28,22 +36,29 @@ function button(href: string, label: string) {
   return `<p style="margin:20px 0"><a href="${esc(href)}" style="background:#9E1B22;color:#fff;text-decoration:none;padding:12px 20px;display:inline-block;border-radius:4px;font-weight:bold">${esc(label)}</a></p>`;
 }
 
-function orderSummary(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
+function addonLabel(o: Order, a: Pick<OrderAddon, "label"> & Partial<Pick<OrderAddon, "kind" | "boxes">>, locale: Locale = localeOf(o)) {
+  if (a.kind !== "boxes" || !a.boxes) return a.label;
+  const u = getDict(locale).upsell;
+  return fmt(u.boxesLabel, { what: a.boxes === 1 ? u.whatOne : fmt(u.whatMany, { n: a.boxes }), bottles: a.boxes * 3 });
+}
+
+function orderSummary(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents"> & Partial<Pick<OrderAddon, "kind" | "boxes">>)[] = [], locale: Locale = localeOf(o)) {
+  const d = getDict(locale);
+  const t = d.email;
+  const eur = moneyFor(locale);
   const addr = o.shippingAddress;
   const total = o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   const lines = [
-    `<strong>Encomenda ${esc(o.id)}</strong>`,
-    `Trilogia 2160 · ${o.qtyBoxes} ${o.qtyBoxes === 1 ? "caixa" : "caixas"} (${o.qtyBoxes * 3} garrafas)`,
-    ...addons.map((a) => `+ ${esc(a.label)}: ${eur(a.amountCents)}`),
-    `Subtotal: ${eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0))} · Portes: ${o.shippingCents ? eur(o.shippingCents) : "incluídos"}`,
-    `<strong>Total: ${eur(total)}</strong> (IVA incluído)`,
+    `<strong>${fmt(t.order, { id: esc(o.id) })}</strong>`,
+    fmt(t.product, { boxes: o.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: o.qtyBoxes }), bottles: o.qtyBoxes * 3 }),
+    ...addons.map((a) => `+ ${esc(addonLabel(o, a, locale))}: ${eur(a.amountCents)}`),
+    fmt(t.subtotalLine, { subtotal: eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0)), shipping: o.shippingCents ? eur(o.shippingCents) : t.shippingIncluded }),
+    html_(fmt(t.totalLine, { total: eur(total) })),
   ];
   if (addr) {
-    lines.push(
-      `<br>Entrega: ${esc([addr.name, addr.line1, addr.line2, `${addr.postal_code ?? ""} ${addr.city ?? ""}`].filter(Boolean).join(", "))}`,
-    );
+    lines.push(`<br>${fmt(t.deliveryTo, { address: esc([addr.name, addr.line1, addr.line2, `${addr.postal_code ?? ""} ${addr.city ?? ""}`].filter(Boolean).join(", ")) })}`);
   }
-  if (o.isGift && o.giftMessage) lines.push(`Mensagem de oferta: <em>${esc(o.giftMessage)}</em>`);
+  if (o.isGift && o.giftMessage) lines.push(fmt(t.giftMessage, { message: esc(o.giftMessage) }));
   return `<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253">${lines.join("<br>")}</p>`;
 }
 
@@ -87,20 +102,29 @@ export async function ebookLink(): Promise<string | null> {
   return presignedGet(SITE.ebookKey, EBOOK_LINK_SECONDS, "Sabores-de-Portugal-Receitas.pdf");
 }
 
-export async function sendConfirmation(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
+export async function sendConfirmation(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents"> & Partial<Pick<OrderAddon, "kind" | "boxes">>)[] = []) {
   if (!o.email) return;
-  const link = await ebookLink();
+  const locale = localeOf(o);
+  const t = getDict(locale).email;
+  // The recipe guide is in Portuguese: only Portuguese customers get it.
+  const guide = locale === "pt";
+  const link = guide ? await ebookLink() : null;
   const first = (o.customerName ?? "").split(" ")[0];
   const html = layout(
-    "Encomenda confirmada",
-    `<p>Olá ${esc(first)},</p>
-<p>Obrigado! O pagamento foi confirmado e a sua encomenda está a ser preparada. Enviamos em até 48 horas úteis por CTT e receberá um email com o código de seguimento.</p>
+    t.confirmedTitle,
+    `<p>${fmt(t.hello, { name: esc(first) })}</p>
+<p>${o.country === "PT" ? t.confirmedText : t.confirmedTextIntl}</p>
 ${orderSummary(o, addons)}
-<p><strong>A sua oferta:</strong> o livro de receitas <em>${esc(SITE.ebookTitle)}</em>, com sugestões para cada um dos três vinhos.</p>
-${link ? button(link, "Descarregar o livro de receitas (PDF)") + `<p style="font-size:12px;color:#55606e">O link é válido durante 7 dias. Se expirar, responda a este email e enviamos um novo.</p>` : `<p>[[TODO: e-book ainda não carregado no bucket]] Enviaremos o link do livro em breve.</p>`}
-<p>A fatura será enviada para este email${o.nif ? ` com o NIF ${esc(o.nif)}` : ""}.</p>`,
+${
+  guide
+    ? `<p>${html_(fmt(t.guideOffer, { title: esc(SITE.ebookTitle) }))}</p>
+${link ? button(link, t.guideButton) + `<p style="font-size:12px;color:#55606e">${t.guideValidity}</p>` : `<p>[[TODO: e-book ainda não carregado no bucket]] ${t.guideLater}</p>`}`
+    : ""
+}
+<p>${fmt(t.invoice, { nif: o.nif ? fmt(t.invoiceNif, { nif: esc(o.nif) }) : "" })}</p>`,
+    locale,
   );
-  return send(o, o.email, `Encomenda ${o.id} confirmada · Trilogia 2160`, html, "confirmation");
+  return send(o, o.email, fmt(t.confirmedSubject, { id: o.id }), html, "confirmation");
 }
 
 export type MultibancoDetails = { entity: string | null; reference: string | null; amountCents: number; expiresAt: Date | null };
@@ -122,15 +146,19 @@ ${orderSummary(o)}
 
 export async function sendShipped(o: Order) {
   if (!o.email || !o.trackingNumber) return;
+  const locale = localeOf(o);
+  const t = getDict(locale).email;
+  const ctt = o.country === "PT";
   const html = layout(
-    "Encomenda enviada",
-    `<p>Boas notícias: a sua Trilogia 2160 já seguiu por CTT.</p>
-<p>Código de seguimento: <strong>${esc(o.trackingNumber)}</strong></p>
-${button(ctTrackingUrl(o.trackingNumber), "Seguir encomenda nos CTT")}
+    t.shippedTitle,
+    `<p>${ctt ? t.shippedText : t.shippedTextIntl}</p>
+<p>${html_(fmt(t.tracking, { code: esc(o.trackingNumber) }))}</p>
+${ctt ? button(ctTrackingUrl(o.trackingNumber), t.trackButton) : ""}
 ${orderSummary(o)}
-<p>Se não estiver ninguém em casa, siga as indicações dos CTT no link acima.</p>`,
+${ctt ? `<p>${t.notHome}</p>` : ""}`,
+    locale,
   );
-  return send(o, o.email, `Encomenda ${o.id} enviada · CTT ${o.trackingNumber}`, html, "shipped");
+  return send(o, o.email, fmt(ctt ? t.shippedSubject : t.shippedSubjectIntl, { id: o.id, code: o.trackingNumber }), html, "shipped");
 }
 
 export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
@@ -138,7 +166,7 @@ export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" 
   if (!to) return;
   const html = layout(
     "Nova encomenda",
-    `<p>Nova encomenda paga.</p>${orderSummary(o, addons)}
+    `<p>Nova encomenda paga${o.country !== "PT" ? ` · ${esc(o.country)} (${esc(o.locale)})` : ""}.</p>${orderSummary(o, addons, "pt")}
 <p>Cliente: ${esc(o.customerName ?? "")} · ${esc(o.email ?? "")} · ${esc(o.phone ?? "")}<br>Pagamento: ${esc(o.paymentMethodType ?? "")}${o.nif ? `<br>NIF: ${esc(o.nif)}` : ""}</p>
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
@@ -203,12 +231,15 @@ export async function sendPaymentIssueAlert(orderId: string, message: string) {
 
 export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
   if (!o.email) return;
+  const locale = localeOf(o);
+  const t = getDict(locale).email;
   const html = layout(
-    "Oferta adicionada",
-    `<p>Olá ${esc((o.customerName ?? "").split(" ")[0])},</p>
-<p>Obrigado! Juntámos à sua encomenda <strong>${esc(o.id)}</strong>:</p>
-<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253"><strong>${esc(a.label)}</strong><br>${eur(a.amountCents)} (IVA incluído)</p>
-<p>Segue tudo na mesma entrega, sem portes adicionais.</p>`,
+    t.addonTitle,
+    `<p>${fmt(t.hello, { name: esc((o.customerName ?? "").split(" ")[0]) })}</p>
+<p>${html_(fmt(t.addonText, { id: esc(o.id) }))}</p>
+<p style="background:#F6EFE2;padding:12px 14px;border-left:3px solid #C8A253"><strong>${esc(addonLabel(o, a))}</strong><br>${moneyFor(locale)(a.amountCents)} ${t.addonVat}</p>
+<p>${t.addonSame}</p>`,
+    locale,
   );
-  return send(o, o.email, `Encomenda ${o.id}: oferta adicionada`, html, "addon_confirmation");
+  return send(o, o.email, fmt(t.addonSubject, { id: o.id }), html, "addon_confirmation");
 }

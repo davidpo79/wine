@@ -3,10 +3,11 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { createDraft, draftToken, loadDraft, PAID_STATUSES as PAID, publicAmounts, publicDraft, updateDraft } from "@/lib/draft";
-import { orderAddons } from "@/lib/payments";
+import { checkoutMethods, orderAddons } from "@/lib/payments";
 import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { UTM_COOKIE, parseUtmCookie, sourceFromUtm } from "@/lib/utm";
+import { COUNTRIES, isCountry, LOCALES } from "@/lib/markets";
 
 // Create a new draft when /checkout opens.
 const Create = z.object({
@@ -17,6 +18,8 @@ const Create = z.object({
   event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
   sid: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
   src: z.string().max(60).optional(),
+  locale: z.enum(LOCALES).optional(),
+  country: z.enum(COUNTRIES).optional(),
 });
 
 export async function POST(req: Request) {
@@ -26,7 +29,7 @@ export async function POST(req: Request) {
   const h = await headers();
   const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value);
   const r = await createDraft(
-    { bundleKey: parsed.data.bundle_key, promo: parsed.data.promo, isGift: parsed.data.is_gift, giftMessage: parsed.data.gift_message, eventId: parsed.data.event_id },
+    { bundleKey: parsed.data.bundle_key, promo: parsed.data.promo, isGift: parsed.data.is_gift, giftMessage: parsed.data.gift_message, eventId: parsed.data.event_id, locale: parsed.data.locale, country: parsed.data.country },
     {
       utm: parseUtmCookie(jar.get(UTM_COOKIE)?.value),
       fbp: consent.marketing ? jar.get("_fbp")?.value ?? null : null,
@@ -78,6 +81,7 @@ const Patch = z.object({
       bundleKey: z.string().regex(/^[a-z0-9_]{1,20}$/),
       promo: z.string().max(40),
       giftCard: z.boolean(),
+      country: z.enum(COUNTRIES),
     })
     .partial(),
 });
@@ -89,5 +93,5 @@ export async function PATCH(req: Request) {
   if (!order || PAID.includes(order.status)) return Response.json({ error: "not_found" }, { status: 404 });
   const updated = await updateDraft(order, parsed.data.patch);
   const amounts = publicAmounts(updated, await orderAddons(order.id, ["pending"]));
-  return Response.json({ amounts, bundle_key: updated.bundleKey, promo_applied: !!updated.promoCode, saved_at: Date.now() });
+  return Response.json({ amounts, bundle_key: updated.bundleKey, promo_applied: !!updated.promoCode, saved_at: Date.now(), methods: checkoutMethods(isCountry(updated.country) ? updated.country : "PT") });
 }

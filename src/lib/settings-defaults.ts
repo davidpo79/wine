@@ -1,4 +1,9 @@
+import type { Country } from "./markets";
+
 export type PostCutoffMode = "closed" | "after_christmas";
+
+/** Per country: whether it takes orders, delivery time shown to customers ("2 a 4"; empty = not shown) and order cutoff. */
+export type MarketSettings = { enabled: boolean; delivery_days: string; cutoff_at: string | null };
 
 export type Settings = {
   cutoff_at: string; // ISO timestamp, interpreted as an instant
@@ -20,6 +25,7 @@ export type Settings = {
   cost_model: CostModel; // per-order costs for the profit screen (Admin → Finance)
   gift_card: GiftCardSettings; // order bump in the checkout: printed Christmas card with the customer's message
   profit_split: ProfitSplit; // partnership split of the net profit (Admin → Finance); empty until agreed
+  markets: Record<Country, MarketSettings>; // Portugal + Belgian-warehouse countries; cutoff_at null = the global cutoff
 };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
@@ -86,6 +92,14 @@ export const DEFAULT_SETTINGS: Settings = {
   gift_card: { enabled: true, price_cents: 390, cost_cents: 0, vat_percent: 23 },
   // From David's profit calculation (10/10/2026). Payment fee: 3% of what the customer pays, for every method.
   profit_split: { my_name: "David", partner_name: "Partner", my_percent: null, min_per_box_cents: null },
+  // Only Portugal sells until excise duties and VAT for the other countries are confirmed (17/10/2026).
+  markets: {
+    PT: { enabled: true, delivery_days: "2 a 4", cutoff_at: null },
+    DE: { enabled: false, delivery_days: "", cutoff_at: null },
+    NL: { enabled: false, delivery_days: "", cutoff_at: null },
+    BE: { enabled: false, delivery_days: "", cutoff_at: null },
+    LU: { enabled: false, delivery_days: "", cutoff_at: null },
+  },
   cost_model: {
     vat_percent: 13,
     wine_per_box_cents: 1000,

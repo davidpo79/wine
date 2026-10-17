@@ -28,6 +28,7 @@
     "@stripe/stripe-js": "^10.0.0",
     "drizzle-orm": "^0.45.4",
     "fflate": "^0.8.3",
+    "mmdb-lib": "^2.2.1",
     "next": "^15.5.27",
     "postgres": "^3.4.9",
     "react": "^19.3.0",
