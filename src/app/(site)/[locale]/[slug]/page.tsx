@@ -27,6 +27,12 @@ export default async function LocalizedLegal({ params }: { params: Params }) {
   return (
     <LegalPage title={getDict(locale).legalPage.titles[kind]} updated="[[TODO]]" locale={locale}>
       <Body />
+      {/* Licence credit for the IP-to-country database that picks the shop language (CC BY 4.0). */}
+      {kind === "privacy" && (
+        <p className="text-xs text-muted">
+          <a href="https://db-ip.com" className="underline">IP Geolocation by DB-IP</a> (CC BY 4.0)
+        </p>
+      )}
     </LegalPage>
   );
 }

@@ -19,6 +19,7 @@ export default function Privacidade() {
         <li><strong>Novidades por email:</strong> só se o indicar no pagamento. Fundamento: consentimento, que pode retirar a qualquer momento.</li>
         <li><strong>Medição de anúncios (Meta Pixel e Conversions API):</strong> só com consentimento para cookies de marketing. Enviamos à Meta dados de evento e, no caso de compra, dados de contacto cifrados (hash SHA-256) para medir a eficácia dos anúncios.</li>
         <li><strong>Estatística (Google Analytics 4):</strong> só com consentimento para cookies de estatística.</li>
+        <li><strong>País da visita:</strong> o endereço IP é usado no momento, sem ser guardado, para mostrar a loja na língua e com as condições de entrega do seu país. Base de dados: <a href="https://db-ip.com" className="underline">IP Geolocation by DB-IP</a> (CC BY 4.0).</li>
         <li><strong>Contagem agregada de visitas:</strong> registamos o número de visitas e de cliques nos passos de compra, sem identificadores nem cookies, para medir o funcionamento da loja. [[TODO: revisão jurídica]]</li>
       </ul>
       <h2>Subcontratantes</h2>
