@@ -73,6 +73,7 @@ export const nl: Dict = {
     imageBadgeTitle: "HET JUISTE CADEAU",
     imageBadgeSub: "3 WIJNEN + GRATIS GIDS",
     imageBadgeSubNoGuide: "3 WIJNEN UIT DE DOURO",
+    giftWord: "GRATIS",
     facts: ["DOURO DOC-WIJNEN", "MARTIN BOUTIQUE WINES", "KERST 2026"],
     eyebrow: "TRILOGIA 2160 · KERSTEDITIE",
     h1: "Met een goede wijn<br><em>zit u met uw cadeau altijd goed.</em>",

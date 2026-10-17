@@ -164,11 +164,22 @@ export function LandingPage({
                 {o.qty === 1 && !guide ? d.deal.singleBannerNoGuide : o.text.banner}
                 <small>{o.qty === 1 ? (o.freeShipping ? d.common.deliveryIncluded : t.oneBoxToGive) : o.text.small}</small>
               </span>
-              <span className={`bundlevisual count${Math.min(o.qty, 3)}`}>
-                {Array.from({ length: Math.min(o.qty, 3) }).map((_, i) => (
+              <span className={`bundlevisual count${Math.min(o.deal.paid ?? o.qty, 3)}${o.deal.free ? " withgift" : ""}`}>
+                {Array.from({ length: Math.min(o.deal.paid ?? o.qty, 3) }).map((_, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img key={i} alt="" loading="lazy" src={img("box-cutout")} width={600} height={600} />
                 ))}
+                {/* Pay 3, get 4: the offered box, marked with a gift badge. */}
+                {o.deal.free > 0 && (
+                  <span className="giftbox">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img alt="" loading="lazy" src={img("box-cutout")} width={600} height={600} />
+                    <span className="giftcircle">
+                      +{o.deal.free}
+                      <small>{t.giftWord}</small>
+                    </span>
+                  </span>
+                )}
               </span>
               <span className="bundleicons">{guide ? t.guideFree : t.readyToGive}</span>
               <span className="bundlename">{boxes(o.qty)}</span>
@@ -226,6 +237,7 @@ export function LandingPage({
           <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} />
         </a>
         <nav className="navlinks">
+          <LanguageSwitcher compact />
           <a href="#vinhos">{t.nav.what}</a>
           <a href="#duvidas">{t.nav.faq}</a>
           <a href="#escolher">{t.nav.choose}</a>

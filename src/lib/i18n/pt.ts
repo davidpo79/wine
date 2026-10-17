@@ -73,6 +73,7 @@ export const pt = {
     imageBadgeTitle: "A PRENDA CERTA",
     imageBadgeSub: "3 VINHOS + GUIA DE OFERTA",
     imageBadgeSubNoGuide: "3 VINHOS DO DOURO",
+    giftWord: "OFERTA",
     facts: ["VINHOS DOURO DOC", "MARTIN BOUTIQUE WINES", "NATAL 2026"],
     eyebrow: "TRILOGIA 2160 · EDIÇÃO DE NATAL",
     h1: "Com um bom vinho,<br><em>é difícil errar na prenda.</em>",

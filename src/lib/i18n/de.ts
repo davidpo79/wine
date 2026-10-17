@@ -73,6 +73,7 @@ export const de: Dict = {
     imageBadgeTitle: "DAS RICHTIGE GESCHENK",
     imageBadgeSub: "3 WEINE + GESCHENK-GUIDE",
     imageBadgeSubNoGuide: "3 WEINE AUS DEM DOURO",
+    giftWord: "GRATIS",
     facts: ["DOURO-DOC-WEINE", "MARTIN BOUTIQUE WINES", "WEIHNACHTEN 2026"],
     eyebrow: "TRILOGIA 2160 · WEIHNACHTSEDITION",
     h1: "Mit einem guten Wein<br><em>liegen Sie beim Schenken richtig.</em>",
