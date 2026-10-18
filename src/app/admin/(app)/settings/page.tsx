@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
 import { settingsAction, ga4TestAction, cttTestAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
+import { CttTest } from "./ctt-test";
 import { COUNTRIES, MARKETS } from "@/lib/markets";
 import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
 
@@ -151,6 +152,8 @@ export default async function SettingsPage() {
         </p>
         <Submit>Send test event</Submit>
       </ActionForm>
+
+      <CttTest />
     </div>
   );
 }

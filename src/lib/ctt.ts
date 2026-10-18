@@ -95,15 +95,22 @@ async function raw(method: string, path: string, username: string, body?: unknow
     body: text || undefined,
     signal: AbortSignal.timeout(20_000),
   });
-  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  return { status: res.status, json };
+  const reply = await res.text().catch(() => "");
+  let json: Record<string, unknown> = {};
+  try {
+    json = JSON.parse(reply) ?? {};
+  } catch {}
+  return { status: res.status, json, text: reply };
 }
+
+const keysBody = () => ({ PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: cttConfig().shopUrl });
+const keyOf = (j: Record<string, unknown>) => (j.Key ?? j.Token ?? j.key) as string | undefined;
 
 /** Requests a token with the public key (also registers our callback URL as ShopUrl). */
 export async function newToken() {
   const c = cttConfig();
-  const r = await raw("POST", "/keys/", c.publicKey, { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl });
-  const key = (r.json.Key ?? r.json.Token ?? r.json.key) as string | undefined;
+  const r = await raw("POST", "/keys/", c.publicKey, keysBody());
+  const key = keyOf(r.json);
   if (r.status !== 200 || !key) throw new Error(`CTT token: HTTP ${r.status} ${errText(r.json.Error as CttError) || errText(r.json.ErrorList as CttError[])}`.trim());
   const t = { key, expire: String(r.json.Expire ?? r.json.expire ?? "") };
   await saveToken(t);
@@ -114,6 +121,44 @@ async function token() {
   const t = await storedToken();
   if (t && (!t.expire || Date.parse(t.expire) > Date.now() + 60_000)) return t.key;
   return (await newToken()).key;
+}
+
+export type CttRawReply = { method: string; path: string; status: number; body: string };
+export type CttConnectionCheck =
+  | { state: "not_configured"; missing: string[]; message: string }
+  | { state: "ok" | "error"; base: string; simulate: boolean; replies: CttRawReply[]; error?: string };
+
+/**
+ * Admin connection test: a fresh token (POST /keys/) and one read-only call with it (POST /tracking/ with an empty
+ * list; the client has no account-settings call). Creates no shipment or label, and the token is not stored, so
+ * nothing is written to the DB. CTT's replies come back as received (status + raw body).
+ */
+export async function cttConnectionCheck(): Promise<CttConnectionCheck> {
+  const c = cttConfig();
+  const missing = (
+    [
+      ["CTT_APP_ID", c.appId],
+      ["CTT_PUBLIC_KEY", c.publicKey],
+      ["CTT_SECRET_KEY", c.secret],
+    ] as const
+  )
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+  if (missing.length) return { state: "not_configured", missing, message: `${missing.join(", ")} not configured` };
+  const replies: CttRawReply[] = [];
+  const done = (state: "ok" | "error", error?: string) => ({ state, base: c.base, simulate: c.simulate, replies, error });
+  try {
+    const k = await raw("POST", "/keys/", c.publicKey, keysBody());
+    replies.push({ method: "POST", path: "/keys/", status: k.status, body: k.text });
+    const key = keyOf(k.json);
+    if (k.status !== 200 || !key) return done("error", "CTT did not return a token.");
+    const t = await raw("POST", "/tracking/", key, { ClientReferenceCodeList: [] });
+    replies.push({ method: "POST", path: "/tracking/", status: t.status, body: t.text });
+    const err = errText(t.json.Error as CttError);
+    return t.status === 200 && !err ? done("ok") : done("error", err || `HTTP ${t.status} on /tracking/`);
+  } catch (e) {
+    return done("error", `Could not reach CTT: ${e instanceof Error ? `${e.message}${e.cause ? ` (${String((e.cause as Error).message ?? e.cause)})` : ""}` : String(e)}`);
+  }
 }
 
 /** Authenticated call: on 401 the token is renewed once (a second 401 means a key or account problem). */
