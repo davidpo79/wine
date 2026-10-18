@@ -28,7 +28,7 @@ export function cttConfig() {
     optionIds: (process.env.CTT_OPTION_IDS ?? "").split(",").map((s) => Number(s.trim())).filter((n) => n > 0),
     labelType: Number(process.env.CTT_LABEL_TYPE ?? 0), // 0 = PDF, 1 = ZPL
     labelStart: Number(process.env.CTT_LABEL_START ?? 1),
-    boxWeightG: Number(process.env.CTT_BOX_WEIGHT_G ?? 4800), // one Trilogia box: 3 bottles + gift box + carton
+    boxWeightG: Number(process.env.CTT_BOX_WEIGHT_G ?? 4000), // one Trilogia box: 6 bottles weigh 8 kg packed (CTT)
     shopUrl: `${(process.env.SITE_URL ?? "").replace(/\/$/, "")}/api/webhooks/ctt`,
   };
 }
