@@ -277,3 +277,19 @@ test("reviews: signed link and display name", async () => {
   assert.equal(defaultDisplayName("Ana"), "Ana");
   assert.equal(defaultDisplayName(null), "");
 });
+
+test("ctt: request signature, item id and push hash", async () => {
+  const { createHmac } = await import("node:crypto");
+  const { cttSign, shopItemId, orderIdFromShopItem, validShopUpdateHash } = await import("../src/lib/ctt");
+  const want = createHmac("sha256", "sec").update('tok{"a":1}').digest("base64").replace(/=+$/, "");
+  assert.equal(cttSign("tok", '{"a":1}', "sec"), want);
+  assert.ok(!cttSign("tok", "", "sec").endsWith("="));
+  assert.equal(orderIdFromShopItem(shopItemId("WP-2026-0001")), "WP-2026-0001");
+  assert.match(shopItemId("WP-2026-0001"), /^[0-9a-f]+$/);
+  assert.equal(orderIdFromShopItem("zz"), null);
+  const url = "https://x.test/api/webhooks/ctt";
+  const h = createHmac("sha256", "sec").update(`3EA1PT${url}`).digest("base64").replace(/=+$/, "");
+  assert.equal(validShopUpdateHash({ Status: 3, TrackingId: "EA1PT", Hash: h }, "sec", url), true);
+  assert.equal(validShopUpdateHash({ Status: 2, TrackingId: "EA1PT", Hash: h }, "sec", url), false);
+  assert.equal(validShopUpdateHash({ Status: 3, TrackingId: "EA1PT", Hash: h }, "", url), false);
+});

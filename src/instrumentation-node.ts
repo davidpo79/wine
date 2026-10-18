@@ -18,4 +18,8 @@ if (process.env.RECOVERY_WORKER !== "0" && process.env.DATABASE_URL) {
   const rev = () => reviews().catch((e) => console.error("[reviews] worker", e));
   setTimeout(rev, 60_000);
   setInterval(rev, 15 * 60_000);
+  // CTT tracking safety net (pushes are the main path): shipped / delivered for open shipments.
+  const ctt = () => import("./lib/shipping").then((m) => m.syncCttTracking()).catch((e) => console.error("[ctt] tracking", e));
+  setTimeout(ctt, 90_000);
+  setInterval(ctt, 2 * 3600_000);
 }

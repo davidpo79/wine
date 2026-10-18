@@ -1,4 +1,6 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
+import { shipmentOf } from "@/lib/shipping";
+import { cttConfigured } from "@/lib/ctt";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -24,6 +26,8 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const recovery = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.orderId, id)).orderBy(asc(schema.recoverySteps.scheduledAt));
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
   const visits = isAdmin ? await sessionsOfOrder(id) : [];
+  const shipment = await shipmentOf(id);
+  const cttReady = cttConfigured();
   const a = o.shippingAddress;
   const paid = ["paid", "preparing", "shipped", "delivered"].includes(o.status);
 
@@ -99,6 +103,37 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             {paid && <Submit name="action" value="resend_confirmation" className="!bg-white !text-night border">Resend confirmation</Submit>}
             {paid && <Submit name="action" value="regenerate_ebook" className="!bg-white !text-night border">New e-book link</Submit>}
           </ActionForm>
+          <div className="rounded border p-3 text-sm">
+            <p className="font-medium">CTT shipping</p>
+            {shipment ? (
+              <div className="mt-1 space-y-1 text-xs">
+                <p>
+                  {shipment.carrierName ?? "CTT"}
+                  {shipment.trackingId && <> · tracking <strong>{shipment.trackingId}</strong></>}
+                  {shipment.trackingUrl && <> · <a className="underline" href={shipment.trackingUrl} target="_blank" rel="noreferrer">follow</a></>}
+                  {shipment.simulated && <span className="ml-1 rounded bg-gold/30 px-1">simulated</span>}
+                </p>
+                {shipment.labelPdf && <p><a className="font-semibold text-azulejo underline" href={`/admin/ctt-label?o=${encodeURIComponent(o.id)}`} target="_blank" rel="noreferrer">Print label (PDF)</a></p>}
+                {shipment.lastText && <p>Last status: {shipment.lastCode} · {shipment.lastText}</p>}
+                {shipment.error && <p className="text-xmas">{shipment.error}</p>}
+                {shipment.events.length > 0 && (
+                  <details><summary className="cursor-pointer text-muted">History ({shipment.events.length})</summary>
+                    <ul className="mt-1 space-y-0.5">{shipment.events.map((e, i) => <li key={i}>{e.at.slice(0, 16).replace("T", " ")} · {e.code} · {e.text}</li>)}</ul>
+                  </details>
+                )}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-muted">{cttReady ? "No CTT shipment yet." : "CTT API not connected yet (waiting for the API key from CTT). Ship from the CTT portal and enter the tracking below."}</p>
+            )}
+            {cttReady && (o.status === "paid" || o.status === "preparing") && (
+              <ActionForm action={orderAction} className="mt-2">
+                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="action" value="ctt_label" />
+                <Submit>{shipment?.labelPdf ? "Create the label again" : "Create CTT shipment and label"}</Submit>
+              </ActionForm>
+            )}
+            {cttReady && <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email) when CTT picks the parcel up, and “delivered” on delivery: automatic.</p>}
+          </div>
           {(o.status === "paid" || o.status === "preparing") && (
             <ActionForm action={orderAction} className="rounded border p-3" confirm="Send the shipping email to the customer?">
               <input type="hidden" name="id" value={o.id} />

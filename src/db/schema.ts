@@ -241,6 +241,31 @@ export const reviews = pgTable(
   (t) => [index("reviews_status_idx").on(t.status, t.createdAt)],
 );
 
+/** Carrier shipment of an order (CTT e-commerce API): tracking, label and the carrier's status history. */
+export const shipments = pgTable(
+  "shipments",
+  {
+    id: serial("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .unique()
+      .references(() => orders.id),
+    provider: text("provider").notNull().default("ctt"),
+    carrierName: text("carrier_name"),
+    trackingId: text("tracking_id"),
+    trackingUrl: text("tracking_url"),
+    labelPdf: text("label_pdf"), // base64 PDF from the carrier
+    lastCode: integer("last_code"), // universal status code (99 / 94 = delivered)
+    lastText: text("last_text"),
+    events: jsonb("events").$type<{ code: number; at: string; text: string }[]>().notNull().default([]),
+    simulated: boolean("simulated").notNull().default(false), // created with X_SIMULATE (nothing stored at CTT)
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("shipments_tracking_idx").on(t.trackingId)],
+);
+
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: jsonb("value"),
@@ -418,3 +443,4 @@ export type Payment = typeof payments.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type ReviewRow = typeof reviews.$inferSelect;
+export type Shipment = typeof shipments.$inferSelect;

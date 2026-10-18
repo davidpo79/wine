@@ -64,6 +64,13 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await sendShipped(r);
         break;
       }
+      case "ctt_label": {
+        const { createCttLabel } = await import("@/lib/shipping");
+        const r = await createCttLabel(o, admin.email);
+        if ("error" in r) return { error: r.error };
+        revalidatePath(`/admin/orders/${id}`);
+        return { ok: r.trackingId ? `Label ready · tracking ${r.trackingId}` : "Label ready." };
+      }
       case "note": {
         const note = String(fd.get("note") ?? "").trim().slice(0, 2000);
         if (!note) return { error: "Note is empty." };
