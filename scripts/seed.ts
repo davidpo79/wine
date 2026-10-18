@@ -4,6 +4,8 @@ import "./load-env";
 import { sql as pg, db, schema } from "../src/db";
 import { DEFAULT_SETTINGS } from "../src/lib/settings-defaults";
 import { hash } from "@node-rs/argon2";
+import { createHash } from "node:crypto";
+import { eq, sql } from "drizzle-orm";
 
 const [existing] = await db.select().from(schema.products).limit(1);
 let productId = existing?.id;
@@ -54,6 +56,29 @@ if (!anyAdmin && bootEmail && bootPw) {
   } else {
     await db.insert(schema.adminUsers).values({ email: bootEmail, passwordHash: await hash(bootPw, { memoryCost: 19456, timeCost: 2, parallelism: 1 }) });
     console.log(`admin created: ${bootEmail}`);
+  }
+}
+
+// One-time password reset for an existing admin: set ADMIN_RESET_EMAIL and ADMIN_RESET_PASSWORD in Railway, let it
+// deploy, log in (the admin asks for a new password at once), then delete both variables. The same pair is applied
+// only once (a fingerprint is kept in settings), so a password changed afterwards is not reset again by later deploys.
+const resetEmail = process.env.ADMIN_RESET_EMAIL?.trim().toLowerCase();
+const resetPw = process.env.ADMIN_RESET_PASSWORD;
+if (resetEmail && resetPw) {
+  const fingerprint = createHash("sha256").update(`${resetEmail}\n${resetPw}`).digest("hex");
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, "admin_reset_applied"));
+  const [user] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.email, resetEmail));
+  if (resetPw.length < 12) console.warn("ADMIN_RESET_PASSWORD must have at least 12 characters; password not reset");
+  else if (!user) console.warn(`ADMIN_RESET_EMAIL ${resetEmail} is not an admin; password not reset`);
+  else if (done?.value === fingerprint) console.log("admin password reset already applied; delete ADMIN_RESET_EMAIL and ADMIN_RESET_PASSWORD in Railway");
+  else {
+    await db
+      .update(schema.adminUsers)
+      .set({ passwordHash: await hash(resetPw, { memoryCost: 19456, timeCost: 2, parallelism: 1 }), mustChangePassword: true, disabledAt: null, sessionVersion: sql`${schema.adminUsers.sessionVersion} + 1` })
+      .where(eq(schema.adminUsers.id, user.id));
+    await db.delete(schema.loginAttempts).where(eq(schema.loginAttempts.key, resetEmail));
+    await db.insert(schema.settings).values({ key: "admin_reset_applied", value: fingerprint }).onConflictDoUpdate({ target: schema.settings.key, set: { value: fingerprint } });
+    console.log(`admin password reset: ${resetEmail} (must change it at first login)`);
   }
 }
 
