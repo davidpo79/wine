@@ -40,9 +40,14 @@ export const cttConfigured = () => {
 
 const b64nopad = (buf: Buffer) => buf.toString("base64").replace(/=+$/, "");
 
-/** Password for Basic auth: HMAC-SHA256 of (username + body) with the secret key, base64 without padding. */
-export function cttSign(username: string, body: string, secret = cttConfig().secret) {
-  return b64nopad(createHmac("sha256", secret).update(username + body).digest());
+/**
+ * Password for Basic auth: HMAC-SHA256 of (username + body) with the secret key, base64. The docs say "padding
+ * removed", but CTT's own WooCommerce plugin (Shiptimize API v3 client) sends it with the "=" padding, so that is
+ * the default; CTT_SIG_PADDING=0 switches to the documented form.
+ */
+export function cttSign(username: string, body: string, secret = cttConfig().secret, padded = process.env.CTT_SIG_PADDING !== "0") {
+  const sig = createHmac("sha256", secret).update(username + body).digest().toString("base64");
+  return padded ? sig : sig.replace(/=+$/, "");
 }
 
 /** ShopItemId must be a hex string (max 60): the order id, hex encoded. */
@@ -79,14 +84,14 @@ async function saveToken(t: { key: string; expire: string } | null) {
   await db.insert(schema.settings).values({ key: TOKEN_KEY, value: t }).onConflictDoUpdate({ target: schema.settings.key, set: { value: t } });
 }
 
-async function raw(method: string, path: string, username: string, body?: unknown, appId?: string) {
+async function raw(method: string, path: string, username: string, body?: unknown, appId?: string, padded?: boolean) {
   const c = cttConfig();
   const text = body === undefined ? "" : JSON.stringify(body);
   const url = path.startsWith("http") ? path : `${c.base}${path}`;
   const res = await fetch(url, {
     method,
     headers: {
-      Authorization: `Basic ${Buffer.from(`${username}:${cttSign(username, text, c.secret)}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${username}:${cttSign(username, text, c.secret, padded)}`).toString("base64")}`,
       "X-APPID": appId ?? c.appId,
       ...(c.simulate ? { X_SIMULATE: "1" } : {}),
       ...(text ? { "Content-Type": "application/json" } : {}),
@@ -217,13 +222,27 @@ export async function cttTestConnection(appIdOverride?: string) {
   const short = (j: unknown) => JSON.stringify(j).replace(/"(Key|Token)":"[^"]+"/g, '"$1":"…"').slice(0, 400);
   const steps: string[] = [];
   try {
-    const k = await raw("POST", "/keys/", c.publicKey, { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl }, appId);
+    const keyBody = { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl };
+    // Both signature forms (with "=" padding like CTT's plugin, and without as in the docs).
+    let k = await raw("POST", "/keys/", c.publicKey, keyBody, appId, true);
+    steps.push(`POST /keys/ (signature with padding) → HTTP ${k.status} · ${short(k.json)}`);
+    let padded = true;
+    if (k.status === 401) {
+      k = await raw("POST", "/keys/", c.publicKey, keyBody, appId, false);
+      padded = false;
+      steps.push(`POST /keys/ (signature without padding) → HTTP ${k.status} · ${short(k.json)}`);
+    }
     const key = (k.json.Key ?? k.json.Token ?? k.json.key) as string | undefined;
-    steps.push(`POST /keys/ → HTTP ${k.status}${key ? " · token received" : ""} · ${short(k.json)}`);
-    if (k.status !== 200 || !key) return { ok: false, steps };
-    const st = await raw("GET", "/settings/", key, undefined, appId);
+    if (k.status !== 200 || !key) {
+      steps.push(
+        "401 = CTT refused the application id or the key pair. The application id (X-APPID) is not shown in the portal: CTT's plugins carry their own, and a custom shop needs one issued by the CTT salesperson. Also check that CTT_PUBLIC_KEY / CTT_SECRET_KEY have no spaces.",
+      );
+      return { ok: false, steps };
+    }
+    steps.push(`Token received (${padded ? "with" : "without"} padding${padded ? "" : ": set CTT_SIG_PADDING=0 in Railway"}).`);
+    const st = await raw("GET", "/settings/", key, undefined, appId, padded);
     steps.push(`GET /settings/ → HTTP ${st.status} · ${short(st.json)}`);
-    const cr = await raw("GET", "/carriers/", key, undefined, appId);
+    const cr = await raw("GET", "/carriers/", key, undefined, appId, padded);
     const carriers = ((cr.json.Carrier as { Id?: number; Name?: string }[] | undefined) ?? []).map((x) => `${x.Id} ${x.Name}`);
     steps.push(`GET /carriers/ → HTTP ${cr.status}${carriers.length ? ` · ${carriers.join(", ")}` : ` · ${short(cr.json)}`}`);
     if (!appIdOverride || appIdOverride.trim() === c.appId) await saveToken({ key, expire: String(k.json.Expire ?? "") });

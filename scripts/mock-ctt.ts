@@ -13,6 +13,7 @@ let tokens = 1;
 const shipments = new Map<string, { tracking: string; statuses: { Code: number; DateTime: string; Text: string }[] }>();
 const runs = new Map<string, { ref: string; polls: number }>();
 const sign = (u: string, body: string) => createHmac("sha256", SECRET).update(u + body).digest("base64").replace(/=+$/, "");
+const same = (pass: string | undefined, u: string, body: string) => (pass ?? "").replace(/=+$/, "") === sign(u, body); // CTT accepts it with or without padding
 // One page, enough to be a valid PDF.
 const PDF = Buffer.from("%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 288 432]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF").toString("base64");
 
@@ -37,10 +38,10 @@ createServer(async (req, res) => {
   const [user, pass] = Buffer.from(String(req.headers.authorization ?? "").replace(/^Basic /, ""), "base64").toString().split(":");
   const path = url.replace(/^\/v3/, "");
   if (path === "/keys/" && req.method === "POST") {
-    if (user !== PUBLIC || pass !== sign(user, body)) return send(401, { Error: { Id: 401, Tekst: "bad public key signature" } });
+    if (user !== PUBLIC || !same(pass, user, body)) return send(401, { Error: { Id: 401, Tekst: "bad public key signature" } });
     return send(200, { Error: { Id: 0 }, Key: token, Expire: new Date(Date.now() + 3600_000).toISOString() });
   }
-  if (user !== token || pass !== sign(user, body)) return send(401, { Error: { Id: 401, Tekst: "token invalid" } });
+  if (user !== token || !same(pass, user, body)) return send(401, { Error: { Id: 401, Tekst: "token invalid" } });
   const j = body ? JSON.parse(body) : {};
   const simulate = req.headers["x_simulate"] === "1";
   if (path === "/shipments/" && req.method === "POST") {

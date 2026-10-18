@@ -282,8 +282,10 @@ test("ctt: request signature, item id and push hash", async () => {
   const { createHmac } = await import("node:crypto");
   const { cttSign, shopItemId, orderIdFromShopItem, validShopUpdateHash } = await import("../src/lib/ctt");
   const want = createHmac("sha256", "sec").update('tok{"a":1}').digest("base64").replace(/=+$/, "");
-  assert.equal(cttSign("tok", '{"a":1}', "sec"), want);
-  assert.ok(!cttSign("tok", "", "sec").endsWith("="));
+  assert.equal(cttSign("tok", '{"a":1}', "sec", false), want);
+  assert.equal(cttSign("tok", '{"a":1}', "sec", true).replace(/=+$/, ""), want); // padded like CTT's plugin
+  assert.ok(cttSign("tok", "", "sec", true).endsWith("="));
+  assert.ok(!cttSign("tok", "", "sec", false).endsWith("="));
   assert.equal(orderIdFromShopItem(shopItemId("WP-2026-0001")), "WP-2026-0001");
   assert.match(shopItemId("WP-2026-0001"), /^[0-9a-f]+$/);
   assert.equal(orderIdFromShopItem("zz"), null);
