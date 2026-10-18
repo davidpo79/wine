@@ -88,7 +88,19 @@ function loadClarity(projectId: string) {
   if (src) window.clarity!("set", "source", src);
 }
 
-export function Consent({ pixelId, clarityId }: { pixelId: string | null; clarityId?: string | null }) {
+/** Google Analytics 4, only after consent for statistics (the gtag stub and consent defaults are inline in the layout). */
+function loadGa4(measurementId: string) {
+  if (document.getElementById("wp-gtag")) return;
+  window.gtag?.("js", new Date());
+  window.gtag?.("config", measurementId);
+  const s = document.createElement("script");
+  s.id = "wp-gtag";
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+  document.head.appendChild(s);
+}
+
+export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null; clarityId?: string | null; ga4Id?: string | null }) {
   const locale = useRouteLocale();
   const [open, setOpen] = useState(false);
   const [prefs, setPrefs] = useState(false);
@@ -100,6 +112,7 @@ export function Consent({ pixelId, clarityId }: { pixelId: string | null; clarit
       window.__wpConsent = c;
       updateConsentMode(c);
       if (!c.m && window.fbq) window.fbq("consent", "revoke");
+      if (c.s && ga4Id) loadGa4(ga4Id);
       if (c.s && clarityId) loadClarity(clarityId);
       else if (!c.s && window.clarity) {
         window.clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "denied" });
@@ -116,7 +129,7 @@ export function Consent({ pixelId, clarityId }: { pixelId: string | null; clarit
         if (!firstLoad) track("PageView", {}, id);
       }
     },
-    [pixelId, clarityId],
+    [pixelId, clarityId, ga4Id],
   );
 
   useEffect(() => {
