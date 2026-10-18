@@ -7,7 +7,7 @@ export function Terms() {
     <>
       <h2>1. Wer wir sind</h2>
       <p>
-        Dieser Online-Shop wird betrieben von {SITE.legalName}, Steuernummer (NIF) {SITE.nif}, mit Sitz in {SITE.address}, Portugal (&quot;Wine Portugal&quot;). Kontakt: {SITE.email}, WhatsApp {SITE.whatsapp}.
+        Dieser Online-Shop wird betrieben von {SITE.legalName}, Steuernummer (NIF) {SITE.nif}, mit Sitz in {SITE.address} (&quot;Wine Portugal&quot;). Kontakt: {SITE.email}, WhatsApp {SITE.whatsapp}.
       </p>
       <p>Diese Allgemeinen Geschäftsbedingungen gelten für Bestellungen von Verbraucherinnen und Verbrauchern mit Lieferung nach Deutschland und Luxemburg. [[TODO: Rechtsprüfung]]</p>
       <h2>2. Mindestalter</h2>
@@ -40,7 +40,7 @@ export function Privacy() {
   return (
     <>
       <h2>Verantwortlicher</h2>
-      <p>{SITE.legalName}, Steuernummer (NIF) {SITE.nif}, {SITE.address}, Portugal. Kontakt für Datenschutzfragen: {SITE.email}.</p>
+      <p>{SITE.legalName}, Steuernummer (NIF) {SITE.nif}, {SITE.address}. Kontakt für Datenschutzfragen: {SITE.email}.</p>
       <h2>Welche Daten wir verarbeiten und warum</h2>
       <ul>
         <li><strong>Bestellung:</strong> Name, E-Mail-Adresse, Telefonnummer, Liefer- und Rechnungsadresse, Geschenknachricht. Zweck: Vertragserfüllung und steuerliche Pflichten. Rechtsgrundlage: Vertrag und rechtliche Verpflichtung (Art. 6 Abs. 1 lit. b und c DSGVO).</li>

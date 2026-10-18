@@ -7,7 +7,7 @@ export function Terms() {
     <>
       <h2>1. Wie zijn wij</h2>
       <p>
-        Deze webwinkel wordt geëxploiteerd door {SITE.legalName}, fiscaal nummer (NIF) {SITE.nif}, gevestigd te {SITE.address}, Portugal (&quot;Wine Portugal&quot;). Contact: {SITE.email}, WhatsApp {SITE.whatsapp}.
+        Deze webwinkel wordt geëxploiteerd door {SITE.legalName}, fiscaal nummer (NIF) {SITE.nif}, gevestigd te {SITE.address} (&quot;Wine Portugal&quot;). Contact: {SITE.email}, WhatsApp {SITE.whatsapp}.
       </p>
       <h2>2. Minimumleeftijd</h2>
       <p>
@@ -56,7 +56,7 @@ export function Privacy() {
     <>
       <h2>Verwerkingsverantwoordelijke</h2>
       <p>
-        {SITE.legalName}, NIF {SITE.nif}, {SITE.address}, Portugal. Contact voor privacyvragen: {SITE.email}.
+        {SITE.legalName}, NIF {SITE.nif}, {SITE.address}. Contact voor privacyvragen: {SITE.email}.
       </p>
       <h2>Welke gegevens wij verwerken en waarom</h2>
       <ul>

@@ -8,7 +8,7 @@ export function Terms() {
     <>
       <h2>1. Qui sommes-nous</h2>
       <p>
-        Le site vinho.prendadenatal.com est exploité par {SITE.legalName}, société de droit portugais, NIF {SITE.nif}, dont le siège est situé {SITE.address} (« Wine Portugal »). Contact : {SITE.email}, WhatsApp {SITE.whatsapp}.
+        Le site vinho.prendadenatal.com est exploité par {SITE.legalName}, société de droit portugais, NIF {SITE.nif}, dont le siège social est sis {SITE.address} (« Wine Portugal »). Contact : {SITE.email}, WhatsApp {SITE.whatsapp}.
       </p>
       <p>Les présentes conditions générales de vente s’appliquent aux commandes passées en français pour une livraison en Belgique ou au Luxembourg.</p>
       <h2>2. Âge minimum</h2>
