@@ -112,10 +112,11 @@ export const DEFAULT_SETTINGS: Settings = {
       { max_boxes: 2, cents: 604 },
       { max_boxes: 3, cents: 1100 },
     ],
+    // Price lists (18/10/2026), without recoverable VAT: Stripe EEA cards, ifthenpay MB WAY / Multibanco.
     payment_fees: {
-      card: { percent: 3, fixed_cents: 0 },
-      mb_way: { percent: 3, fixed_cents: 0 },
-      multibanco: { percent: 3, fixed_cents: 0 },
+      card: { percent: 1.5, fixed_cents: 25 },
+      mb_way: { percent: 0.7, fixed_cents: 7 },
+      multibanco: { percent: 1.5, fixed_cents: 20 },
       other: { percent: 3, fixed_cents: 0 },
     },
     other_per_order_cents: 0,

@@ -157,7 +157,10 @@ test("profit model reproduces David's numbers", async () => {
   const { computeOrderCosts, deliveryCost, expensesByDay } = await import("../src/lib/profit");
   // The spreadsheet's delivery tiers: up to 2 boxes 6,04 €, 3 boxes 11,00 €.
   const oldTiers = [{ max_boxes: 2, cents: 604 }, { max_boxes: 3, cents: 1100 }];
-  const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, delivery_tiers: oldTiers }, upsell_products: DEFAULT_SETTINGS.upsell_products };
+  // and its payment fee: 3% of what the customer pays, for every method.
+  const fee3 = { percent: 3, fixed_cents: 0 };
+  const oldFees = { card: fee3, mb_way: fee3, multibanco: fee3, other: fee3 };
+  const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, delivery_tiers: oldTiers, payment_fees: oldFees }, upsell_products: DEFAULT_SETTINGS.upsell_products };
   const o = (total: number, qty: number) => ({ totalCents: total, qtyBoxes: qty, paymentMethodType: "card" });
   assert.equal(computeOrderCosts(o(5080, 1), [], s).profit, 2429);
   assert.equal(computeOrderCosts(o(8262, 2), [], s).profit, 4070);
@@ -173,13 +176,19 @@ test("profit model reproduces David's numbers", async () => {
   const up = computeOrderCosts(o(8262, 2), [{ amountCents: 3443, boxes: 1, kind: "boxes", sku: "trilogia-2160" }], s, 2);
   assert.equal(up.paid, 11705);
   assert.equal(up.delivery, 1100);
+  // Price-list fees: card 1,5 % + 0,25 € on 89,90 € = 1,60 €; MB WAY 0,7 % + 0,07 € = 0,70 €.
+  const now = { cost_model: DEFAULT_SETTINGS.cost_model, upsell_products: DEFAULT_SETTINGS.upsell_products };
+  assert.equal(computeOrderCosts({ totalCents: 8990, qtyBoxes: 2, paymentMethodType: "card" }, [], now).payment_fees, 160);
+  assert.equal(computeOrderCosts({ totalCents: 8990, qtyBoxes: 2, paymentMethodType: "mb_way" }, [], now).payment_fees, 70);
   const m = expensesByDay([{ date: "2026-11-01", endDate: "2026-11-10", amountCents: 1000 }], "2026-11-05", "2026-11-06");
   assert.equal(m.get("2026-11-05"), 100);
 });
 
 test("printed card add-on: own VAT rate and cost", async () => {
   const { computeOrderCosts } = await import("../src/lib/profit");
-  const s = { cost_model: DEFAULT_SETTINGS.cost_model, upsell_products: DEFAULT_SETTINGS.upsell_products, gift_card: { enabled: true, price_cents: 390, cost_cents: 60, vat_percent: 23 } };
+  const fee3 = { percent: 3, fixed_cents: 0 };
+  const cost_model = { ...DEFAULT_SETTINGS.cost_model, payment_fees: { card: fee3, mb_way: fee3, multibanco: fee3, other: fee3 } };
+  const s = { cost_model, upsell_products: DEFAULT_SETTINGS.upsell_products, gift_card: { enabled: true, price_cents: 390, cost_cents: 60, vat_percent: 23 } };
   const base = computeOrderCosts({ totalCents: 8262, qtyBoxes: 2, paymentMethodType: "card" }, [], s);
   const withCard = computeOrderCosts({ totalCents: 8262, qtyBoxes: 2, paymentMethodType: "card" }, [{ amountCents: 390, boxes: 0, kind: "card", sku: "gift-card" }], s);
   assert.equal(withCard.paid, 8652);
