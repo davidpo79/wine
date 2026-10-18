@@ -463,3 +463,27 @@ export async function passwordAction(_: FormState, fd: FormData): Promise<FormSt
   await setSessionCookie(u.id, u.sessionVersion); // other devices are logged out, this one stays in
   redirect(u.role === "admin" ? "/admin" : "/admin/orders");
 }
+
+/** Sends one test event to GA4 through the Measurement Protocol (the same path as the server-side purchase). */
+export async function ga4TestAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const mid = process.env.GA4_MEASUREMENT_ID;
+  const secret = process.env.GA4_API_SECRET;
+  if (!mid) return { error: "GA4_MEASUREMENT_ID is not set in Railway." };
+  if (!secret) return { error: "GA4_API_SECRET is not set in Railway (or the service has not redeployed since)." };
+  const body = JSON.stringify({
+    client_id: `${Math.floor(Math.random() * 1e9)}.${Math.floor(Date.now() / 1000)}`,
+    events: [{ name: "server_check", params: { debug_mode: 1, engagement_time_msec: 1, source: "admin_settings" } }],
+  });
+  const q = `measurement_id=${encodeURIComponent(mid)}&api_secret=${encodeURIComponent(secret)}`;
+  try {
+    const check = await fetch(`https://www.google-analytics.com/debug/mp/collect?${q}`, { method: "POST", body, signal: AbortSignal.timeout(8000) });
+    const v = (await check.json().catch(() => ({}))) as { validationMessages?: { description?: string }[] };
+    if (v.validationMessages?.length) return { error: `GA4 rejected the event: ${v.validationMessages.map((m) => m.description).join("; ")}` };
+    const r = await fetch(`https://www.google-analytics.com/mp/collect?${q}`, { method: "POST", body, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { error: `GA4 answered ${r.status}.` };
+  } catch (e) {
+    return { error: `Could not reach GA4: ${String(e)}` };
+  }
+  return { ok: `Sent "server_check" to ${mid}. It should appear within a minute in GA4 → Admin → DebugView (and Reports → Realtime). If it does not, the API secret does not belong to this data stream.` };
+}

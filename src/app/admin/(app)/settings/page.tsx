@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
-import { settingsAction } from "../../actions";
+import { settingsAction, ga4TestAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 import { COUNTRIES, MARKETS } from "@/lib/markets";
 import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
@@ -128,6 +128,15 @@ export default async function SettingsPage() {
           <span className="block text-xs font-normal text-muted">Only real reviews (EU law). Shown on the checkout page; empty = hidden.</span>
         </label>
         <Submit>Save settings</Submit>
+      </ActionForm>
+
+      <ActionForm action={ga4TestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <h2 className="font-semibold">Google Analytics: server connection</h2>
+        <p className="text-muted">
+          Purchases reach GA4 from the server (Measurement Protocol). This sends one test event, <code>server_check</code>, the same way.
+          GA4 accepts any secret silently, so the check is seeing it in GA4 → Admin → DebugView.
+        </p>
+        <Submit>Send test event</Submit>
       </ActionForm>
     </div>
   );
