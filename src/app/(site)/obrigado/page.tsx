@@ -6,6 +6,7 @@ import { latestPayment, refreshMbway } from "@/lib/payments";
 import { formatMbReference } from "@/lib/ifthenpay";
 import { AutoRefresh } from "@/components/checkout/AutoRefresh";
 import { ebookLink } from "@/lib/email";
+import { ebookTitle, guideFor } from "@/lib/ebook";
 import { SITE } from "@/lib/site";
 import { purchaseEventId } from "@/lib/tracking";
 import { Footer, Header, WhatsAppIcon } from "@/components/landing/Chrome";
@@ -54,8 +55,8 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
   const addons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, paid ? "paid" : "pending")));
   const addonsTotal = addons.reduce((n, a) => n + a.amountCents, 0);
   const due = mb ? mb.amountCents : order.totalCents + addonsTotal;
-  const guide = locale === "pt";
-  const link = paid && guide ? await ebookLink().catch(() => null) : null;
+  const guide = guideFor(settings, locale);
+  const link = paid && guide ? await ebookLink(locale).catch(() => null) : null;
   const exp = mb?.expiresAt ? mb.expiresAt.toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" }) : null;
   const boxes = order.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: order.qtyBoxes });
 
@@ -125,7 +126,7 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
       {paid && guide && (
         <div className="mt-10 rounded-xl bg-night p-6 text-paper">
           <p className="text-xs uppercase tracking-[0.25em] text-gold">{tx.yourGift}</p>
-          <h2 className="mt-1 text-3xl font-bold">{SITE.ebookTitle}</h2>
+          <h2 className="mt-1 text-3xl font-bold">{ebookTitle(locale)}</h2>
           {link ? (
             <a href={link} className="mt-4 inline-flex min-h-12 items-center rounded bg-gold px-5 font-semibold text-night hover:bg-gold-soft">{tx.downloadGuide}</a>
           ) : (

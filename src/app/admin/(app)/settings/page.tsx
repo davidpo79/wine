@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
-import { settingsAction, ga4TestAction, cttTestAction } from "../../actions";
+import { settingsAction, ga4TestAction, cttTestAction, ebookAction } from "../../actions";
+import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
 import { COUNTRIES, MARKETS } from "@/lib/markets";
 import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
@@ -130,6 +131,37 @@ export default async function SettingsPage() {
         <Submit>Save settings</Submit>
       </ActionForm>
 
+      <section className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <h2 className="font-semibold">Gift e-book (Sabores de Portugal)</h2>
+        <p className="text-xs text-muted">One PDF per language. Customers get the edition in their language (confirmation email and thank-you page), and the landing page shows the guide in that language. Portuguese is always offered.</p>
+        <ActionForm action={ebookAction} className="space-y-2">
+          <table className="w-full text-left">
+            <thead className="text-xs text-muted"><tr><th className="py-1">Language</th><th>PDF</th><th>Offer to customers</th></tr></thead>
+            <tbody>
+              {EBOOK_LOCALES.map((l) => {
+                const f = s.ebook_files?.[l];
+                return (
+                  <tr key={l} className="border-t">
+                    <td className="py-2 font-semibold">{l.toUpperCase()}</td>
+                    <td className="text-xs">{f ? `${(f.bytes / 1048576).toFixed(1)} MB · ${new Date(f.uploaded_at).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon" })} · ${f.by}` : l === "pt" ? "original edition" : "not uploaded"}</td>
+                    <td>{l === "pt" ? <span className="text-xs text-muted">always</span> : <input type="checkbox" name={`offer_${l}`} defaultChecked={(s.ebook_locales ?? []).includes(l)} className="h-4 w-4" />}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <Submit name="action" value="save">Save</Submit>
+        </ActionForm>
+        <ActionForm action={ebookAction} className="flex flex-wrap items-end gap-2 border-t pt-3">
+          <label>Language
+            <select name="locale" className="mt-1 block rounded border p-2">
+              {EBOOK_LOCALES.map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+            </select>
+          </label>
+          <label>PDF<input type="file" name="file" accept="application/pdf" className="mt-1 block text-xs" /></label>
+          <Submit name="action" value="upload">Upload</Submit>
+        </ActionForm>
+      </section>
       <ActionForm action={cttTestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">CTT: test the API connection</h2>
         <p className="text-muted">

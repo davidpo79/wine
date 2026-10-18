@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Admin → Settings uploads the e-book PDFs (several MB) through a server action.
+  experimental: { serverActions: { bodySizeLimit: "25mb" } },
   serverExternalPackages: ["@node-rs/argon2", "postgres"],
   images: {
     formats: ["image/avif", "image/webp"],

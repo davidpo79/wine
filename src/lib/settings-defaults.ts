@@ -13,6 +13,8 @@ export type Settings = {
   stock_cap_boxes: number | null;
   delivery_text: string;
   ebook_previews: string[]; // bucket keys of rasterized e-book pages
+  ebook_locales: string[]; // translated editions offered to customers (Portuguese is always offered)
+  ebook_files: Record<string, { uploaded_at: string; bytes: number; by: string }>; // last PDF upload per language
   exit_popup_enabled: boolean;
   lead_code: string; // discount code given in the exit popup
   lead_discount_percent: number;
@@ -64,6 +66,8 @@ export const DEFAULT_SETTINGS: Settings = {
   stock_cap_boxes: null,
   delivery_text: "Entrega em 2 a 4 dias úteis · Portugal Continental",
   ebook_previews: [],
+  ebook_locales: [],
+  ebook_files: {},
   exit_popup_enabled: true,
   lead_code: "NATAL5",
   lead_discount_percent: 5,

@@ -10,6 +10,8 @@ import { fmt } from "./i18n/rich";
 import { isLocale, type Locale } from "./markets";
 import { logOutbound, shopAddress } from "./inbox";
 import { reviewUrl } from "./reviews";
+import { ebookFileName, ebookKey, ebookTitle, guideFor } from "./ebook";
+import { getSettings } from "./settings";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 
@@ -104,18 +106,18 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
   return r;
 }
 
-export async function ebookLink(): Promise<string | null> {
+export async function ebookLink(locale: Locale = "pt"): Promise<string | null> {
   if (!bucketConfigured()) return null;
-  return presignedGet(SITE.ebookKey, EBOOK_LINK_SECONDS, "Sabores-de-Portugal-Receitas.pdf");
+  return presignedGet(ebookKey(locale), EBOOK_LINK_SECONDS, ebookFileName(locale));
 }
 
 export async function sendConfirmation(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents"> & Partial<Pick<OrderAddon, "kind" | "boxes">>)[] = []) {
   if (!o.email) return;
   const locale = localeOf(o);
   const t = getDict(locale).email;
-  // The recipe guide is in Portuguese: only Portuguese customers get it.
-  const guide = locale === "pt";
-  const link = guide ? await ebookLink() : null;
+  // The recipe guide goes out in the customer's language once that edition is uploaded (Admin → Settings).
+  const guide = guideFor(await getSettings(), locale);
+  const link = guide ? await ebookLink(locale) : null;
   const first = (o.customerName ?? "").split(" ")[0];
   const html = layout(
     t.confirmedTitle,
@@ -124,7 +126,7 @@ export async function sendConfirmation(o: Order, addons: (Pick<OrderAddon, "labe
 ${orderSummary(o, addons)}
 ${
   guide
-    ? `<p>${html_(fmt(t.guideOffer, { title: esc(SITE.ebookTitle) }))}</p>
+    ? `<p>${html_(fmt(t.guideOffer, { title: esc(ebookTitle(locale)) }))}</p>
 ${link ? button(link, t.guideButton) + `<p style="font-size:12px;color:#55606e">${t.guideValidity}</p>` : `<p>[[TODO: e-book ainda não carregado no bucket]] ${t.guideLater}</p>`}`
     : ""
 }

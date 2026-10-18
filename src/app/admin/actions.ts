@@ -18,7 +18,8 @@ import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
-import { COUNTRIES } from "@/lib/markets";
+import { COUNTRIES, isLocale } from "@/lib/markets";
+import { EBOOK_LOCALES, ebookKey } from "@/lib/ebook";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -94,7 +95,7 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await db.update(schema.orders).set({ ebookKeyIssuedAt: new Date() }).where(eq(schema.orders.id, id));
         await logOrderEvent(id, action, by);
         if (action === "regenerate_ebook") {
-          const link = await ebookLink();
+          const link = await ebookLink(isLocale(o.locale) ? o.locale : "pt");
           revalidatePath(`/admin/orders/${id}`);
           return { ok: link ? `Email resent. New link (valid 7 days): ${link}` : "Email resent (no e-book in the bucket yet)." };
         }
@@ -570,4 +571,31 @@ export async function testEmailAction(_: FormState, fd: FormData): Promise<FormS
   const err = r?.error ? (typeof r.error === "string" ? r.error : `${r.error.name ?? ""} ${r.error.message ?? ""}`.trim()) : null;
   if (err) return { error: `Not sent. The provider answered: ${err}` };
   return { ok: `Sent to ${to} (id ${r?.data?.id ?? r?.id ?? "?"}). Check the inbox and the spam folder.` };
+}
+
+/** Admin → Settings → Gift e-book: upload a language edition (PDF) to the private bucket, or switch editions on and off. */
+export async function ebookAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ role: "admin" });
+  const settings = await getSettings();
+  if (fd.get("action") === "upload") {
+    const locale = String(fd.get("locale") ?? "");
+    if (!isLocale(locale)) return { error: "Choose a language." };
+    const file = fd.get("file");
+    if (!(file instanceof File) || !file.size) return { error: "Choose the PDF file." };
+    if (file.size > 24 * 1024 * 1024) return { error: "The PDF is larger than 24 MB." };
+    const buf = Buffer.from(await file.arrayBuffer());
+    if (buf.subarray(0, 5).toString("latin1") !== "%PDF-") return { error: "That file is not a PDF." };
+    if (!bucketConfigured()) return { error: "The storage bucket is not configured." };
+    await putObject(ebookKey(locale), buf, "application/pdf");
+    await setSetting("ebook_files", { ...(settings.ebook_files ?? {}), [locale]: { uploaded_at: new Date().toISOString(), bytes: buf.length, by: me.email } });
+    if (locale !== "pt" && !(settings.ebook_locales ?? []).includes(locale)) await setSetting("ebook_locales", [...(settings.ebook_locales ?? []), locale]);
+    revalidatePath("/admin/settings");
+    return { ok: `Uploaded the ${locale.toUpperCase()} edition (${(buf.length / 1048576).toFixed(1)} MB). ${locale === "pt" ? "" : "Customers in this language now get it."}` };
+  }
+  const on = EBOOK_LOCALES.filter((l) => l !== "pt" && fd.get(`offer_${l}`) === "on");
+  const missing = on.filter((l) => !settings.ebook_files?.[l]);
+  if (missing.length) return { error: `Upload the PDF first: ${missing.map((l) => l.toUpperCase()).join(", ")}.` };
+  await setSetting("ebook_locales", on);
+  revalidatePath("/admin/settings");
+  return { ok: "Saved." };
 }
