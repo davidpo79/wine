@@ -543,3 +543,13 @@ export async function reviewsSettingsAction(_: FormState, fd: FormData): Promise
   revalidatePath("/admin/reviews");
   return { ok: "Saved." };
 }
+
+/** Admin → Settings: checks the CTT API keys without creating anything. */
+export async function cttTestAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const { cttTestConnection } = await import("@/lib/ctt");
+  const appId = String(fd.get("app_id") ?? "").trim().slice(0, 100) || undefined;
+  const r = await cttTestConnection(appId);
+  const text = `${r.ok ? "Connected." : "Not connected."}\n${r.steps.join("\n")}`;
+  return r.ok ? { ok: text } : { error: text };
+}

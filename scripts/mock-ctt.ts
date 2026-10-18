@@ -70,6 +70,8 @@ createServer(async (req, res) => {
     }
     return send(200, { Finished: 100, LabelPDF: PDF, ClientReferenceCodeList: [{ ReferenceCode: r.ref, TrackingId: tracking, TrackingUrl: `https://www.ctt.pt/feapl_2/app/open/objectSearch/objectSearch.jspx?objects=${tracking}` }] });
   }
+  if (path === "/settings/" && req.method === "GET") return send(200, { Error: { Id: 0 }, EnableTrackingEmail: 0, LabelFormat: 0 });
+  if (path === "/carriers/" && req.method === "GET") return send(200, { Error: { Id: 0 }, Carrier: [{ Id: 1, Name: "CTT Expresso", HasPickup: 1 }] });
   if (path === "/tracking/" && req.method === "POST") {
     const list = (j.ClientReferenceCodeList ?? []).filter((r: string) => shipments.has(r)).map((r: string) => ({ ClientReferenceCode: r, TrackingId: shipments.get(r)!.tracking, Statuslist: shipments.get(r)!.statuses }));
     return send(200, { Error: { Id: 0 }, Shipments: list });

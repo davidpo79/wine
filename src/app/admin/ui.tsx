@@ -38,8 +38,8 @@ export function ActionForm({
       }}
     >
       {children}
-      {state?.error && <p className="mt-2 text-sm font-medium text-red-700">{state.error}</p>}
-      {state?.ok && <p className="mt-2 break-all text-sm font-medium text-green-700">{state.ok}</p>}
+      {state?.error && <p className="mt-2 whitespace-pre-line break-words text-sm font-medium text-red-700">{state.error}</p>}
+      {state?.ok && <p className="mt-2 whitespace-pre-line break-all text-sm font-medium text-green-700">{state.ok}</p>}
     </form>
   );
 }

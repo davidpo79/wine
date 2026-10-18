@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
-import { settingsAction, ga4TestAction } from "../../actions";
+import { settingsAction, ga4TestAction, cttTestAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 import { COUNTRIES, MARKETS } from "@/lib/markets";
 import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
@@ -128,6 +128,19 @@ export default async function SettingsPage() {
           <span className="block text-xs font-normal text-muted">Only real reviews (EU law). Shown on the checkout page; empty = hidden.</span>
         </label>
         <Submit>Save settings</Submit>
+      </ActionForm>
+
+      <ActionForm action={cttTestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <h2 className="font-semibold">CTT: test the API connection</h2>
+        <p className="text-muted">
+          Asks CTT for a token and reads the account settings and carriers. Nothing is created at CTT.
+          Uses CTT_APP_ID, CTT_PUBLIC_KEY and CTT_SECRET_KEY from Railway; to try another application id without changing Railway, type it below.
+        </p>
+        <label className="block">
+          <span className="text-xs font-semibold">Application id to test (optional)</span>
+          <input name="app_id" placeholder="empty = CTT_APP_ID" className="mt-1 w-full max-w-xs rounded border p-2" />
+        </label>
+        <Submit>Test CTT connection</Submit>
       </ActionForm>
 
       <ActionForm action={ga4TestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">

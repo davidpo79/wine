@@ -79,7 +79,7 @@ async function saveToken(t: { key: string; expire: string } | null) {
   await db.insert(schema.settings).values({ key: TOKEN_KEY, value: t }).onConflictDoUpdate({ target: schema.settings.key, set: { value: t } });
 }
 
-async function raw(method: string, path: string, username: string, body?: unknown) {
+async function raw(method: string, path: string, username: string, body?: unknown, appId?: string) {
   const c = cttConfig();
   const text = body === undefined ? "" : JSON.stringify(body);
   const url = path.startsWith("http") ? path : `${c.base}${path}`;
@@ -87,7 +87,7 @@ async function raw(method: string, path: string, username: string, body?: unknow
     method,
     headers: {
       Authorization: `Basic ${Buffer.from(`${username}:${cttSign(username, text, c.secret)}`).toString("base64")}`,
-      "X-APPID": c.appId,
+      "X-APPID": appId ?? c.appId,
       ...(c.simulate ? { X_SIMULATE: "1" } : {}),
       ...(text ? { "Content-Type": "application/json" } : {}),
       Accept: "application/json",
@@ -203,4 +203,35 @@ export async function cttTrack(orderIds: string[]) {
     }
   }
   return out;
+}
+
+/**
+ * Admin "Test CTT connection": asks for a token (POST /keys/) and reads the account settings (GET /settings/),
+ * nothing is created. appId overrides CTT_APP_ID for this test only. Never returns the token or keys.
+ */
+export async function cttTestConnection(appIdOverride?: string) {
+  const c = cttConfig();
+  const appId = appIdOverride?.trim() || c.appId;
+  const missing = [!appId && "CTT_APP_ID", !c.publicKey && "CTT_PUBLIC_KEY", !c.secret && "CTT_SECRET_KEY"].filter(Boolean) as string[];
+  if (missing.length) return { ok: false, steps: [`Missing in Railway: ${missing.join(", ")}`] };
+  const short = (j: unknown) => JSON.stringify(j).replace(/"(Key|Token)":"[^"]+"/g, '"$1":"…"').slice(0, 400);
+  const steps: string[] = [];
+  try {
+    const k = await raw("POST", "/keys/", c.publicKey, { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl }, appId);
+    const key = (k.json.Key ?? k.json.Token ?? k.json.key) as string | undefined;
+    steps.push(`POST /keys/ → HTTP ${k.status}${key ? " · token received" : ""} · ${short(k.json)}`);
+    if (k.status !== 200 || !key) return { ok: false, steps };
+    const st = await raw("GET", "/settings/", key, undefined, appId);
+    steps.push(`GET /settings/ → HTTP ${st.status} · ${short(st.json)}`);
+    const cr = await raw("GET", "/carriers/", key, undefined, appId);
+    const carriers = ((cr.json.Carrier as { Id?: number; Name?: string }[] | undefined) ?? []).map((x) => `${x.Id} ${x.Name}`);
+    steps.push(`GET /carriers/ → HTTP ${cr.status}${carriers.length ? ` · ${carriers.join(", ")}` : ` · ${short(cr.json)}`}`);
+    if (!appIdOverride || appIdOverride.trim() === c.appId) await saveToken({ key, expire: String(k.json.Expire ?? "") });
+    if ([st.status, cr.status].includes(405)) steps.push("405 = that endpoint is not enabled for this application key: ask CTT to enable keys, shipments, labels, tracking, carriers, settings.");
+    // A token means the application id and the key pair are accepted.
+    return { ok: true, steps };
+  } catch (e) {
+    steps.push(`Network error: ${e instanceof Error ? e.message : String(e)}`);
+    return { ok: false, steps };
+  }
 }
