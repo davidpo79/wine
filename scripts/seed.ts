@@ -76,7 +76,8 @@ if (resetEmail && resetPw) {
       .update(schema.adminUsers)
       .set({ passwordHash: await hash(resetPw, { memoryCost: 19456, timeCost: 2, parallelism: 1 }), mustChangePassword: true, disabledAt: null, sessionVersion: sql`${schema.adminUsers.sessionVersion} + 1` })
       .where(eq(schema.adminUsers.id, user.id));
-    await db.delete(schema.loginAttempts).where(eq(schema.loginAttempts.key, resetEmail));
+    // Clears the 15-minute lockout (failed attempts are keyed by email and by IP).
+    await db.delete(schema.loginAttempts).where(eq(schema.loginAttempts.success, false));
     await db.insert(schema.settings).values({ key: "admin_reset_applied", value: fingerprint }).onConflictDoUpdate({ target: schema.settings.key, set: { value: fingerprint } });
     console.log(`admin password reset: ${resetEmail} (must change it at first login)`);
   }
