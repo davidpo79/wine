@@ -92,6 +92,13 @@
       "when": 1792264288203,
       "tag": "0012_journey_events",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792313772344,
+      "tag": "0013_inbox",
+      "breakpoints": true
     }
   ]
 }

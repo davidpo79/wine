@@ -186,6 +186,34 @@ export const journeyEvents = pgTable(
   ],
 );
 
+/** Admin → Inbox: emails received on the shop address (Resend Receiving) and emails sent from the shop, by customer. */
+export const inboxMessages = pgTable(
+  "inbox_messages",
+  {
+    id: serial("id").primaryKey(),
+    direction: text("direction").notNull(), // in | out
+    kind: text("kind").notNull().default("manual"), // in: received · out: manual (written in the admin) or the automatic email kind (confirmation, shipped...)
+    resendId: text("resend_id").unique(),
+    messageId: text("message_id"), // RFC 5322 Message-ID, for replies in the same thread
+    inReplyTo: text("in_reply_to"),
+    contact: text("contact").notNull(), // the customer's address (lowercase): the conversation key
+    fromAddr: text("from_addr").notNull(),
+    toAddrs: jsonb("to_addrs").$type<string[]>().notNull(),
+    cc: jsonb("cc").$type<string[]>(),
+    subject: text("subject").notNull().default(""),
+    text: text("text"),
+    html: text("html"),
+    attachments: jsonb("attachments").$type<{ id: string; filename: string | null; size: number; contentType: string }[]>(),
+    orderId: text("order_id"),
+    sentBy: text("sent_by"), // admin email for manual messages
+    status: text("status").notNull().default("ok"), // ok | error
+    error: text("error"),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inbox_contact_idx").on(t.contact, t.createdAt), index("inbox_created_idx").on(t.createdAt)],
+);
+
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: jsonb("value"),

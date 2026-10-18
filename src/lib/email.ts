@@ -8,6 +8,9 @@ import { ctTrackingUrl, logOrderEvent } from "./orders";
 import { getDict, moneyFor } from "./i18n";
 import { fmt } from "./i18n/rich";
 import { isLocale, type Locale } from "./markets";
+import { logOutbound, shopAddress } from "./inbox";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/db";
 
 const localeOf = (o: Pick<Order, "locale"> | null): Locale => (o && isLocale(o.locale) ? o.locale : "pt");
 /** Dictionary strings use <b>/<em>; email HTML keeps them as they are. */
@@ -79,7 +82,7 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
       const r = await fetch("https://api.telnyx.com/v2/email_messages", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ from, to: [to], reply_to: SITE.email, subject, html_body: html, tags: [kind] }),
+        body: JSON.stringify({ from, to: [to], reply_to: shopAddress().replyTo ?? SITE.email, subject, html_body: html, tags: [kind] }),
         signal: AbortSignal.timeout(15000),
       });
       const j = await r.json().catch(() => ({}));
@@ -89,11 +92,14 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
       error = e instanceof Error ? e.message : String(e);
     }
     if (o) await logOrderEvent(o.id, error ? "email_error" : "email_sent", { kind, id, error, provider: "telnyx" });
+    if (kind !== "admin_alert" && kind !== "payment_issue") await logOutbound({ kind, to, subject, html, resendId: null, orderId: o?.id, error });
     return { id, error };
   }
   const resend = new Resend(key);
-  const r = await resend.emails.send({ from, to, subject, html, replyTo: SITE.email });
+  // Replies come back to the shop address, into Admin → Inbox (EMAIL_REPLY_TO overrides it).
+  const r = await resend.emails.send({ from, to, subject, html, replyTo: shopAddress().replyTo ?? SITE.email });
   if (o) await logOrderEvent(o.id, r.error ? "email_error" : "email_sent", { kind, id: r.data?.id, error: r.error?.message });
+  if (kind !== "admin_alert" && kind !== "payment_issue") await logOutbound({ kind, to, subject, html, resendId: r.data?.id, orderId: o?.id, error: r.error?.message });
   return r;
 }
 
@@ -171,6 +177,22 @@ export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" 
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
   return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
+}
+
+/** "New message in the inbox" to ADMIN_ALERT_EMAIL (never when that is the shop address itself: it would loop). */
+export async function sendInboxAlert(resendId: string) {
+  const to = process.env.ADMIN_ALERT_EMAIL;
+  if (!to || to.toLowerCase().includes(shopAddress().address)) return;
+  const [m] = await db.select().from(schema.inboxMessages).where(eq(schema.inboxMessages.resendId, resendId));
+  if (!m) return;
+  const preview = (m.text ?? "").trim().slice(0, 400);
+  const html = layout(
+    "Nova mensagem",
+    `<p>Nova mensagem de <strong>${esc(m.fromAddr)}</strong>${m.orderId ? ` (encomenda ${esc(m.orderId)})` : ""}.</p>
+<p><strong>${esc(m.subject)}</strong></p><p style="white-space:pre-wrap">${esc(preview)}${(m.text ?? "").length > 400 ? "…" : ""}</p>
+${button(`${SITE.url}/admin/inbox/${encodeURIComponent(m.contact)}`, "Responder no admin")}`,
+  );
+  return send(null, to, `[Mensagem] ${m.subject || m.fromAddr}`, html, "admin_alert");
 }
 
 export async function sendLeadCode(lead: Lead, code: string, percent: number, maxQty: number) {

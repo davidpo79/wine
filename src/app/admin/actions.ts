@@ -487,3 +487,25 @@ export async function ga4TestAction(_: FormState, _fd: FormData): Promise<FormSt
   }
   return { ok: `Sent "server_check" to ${mid}. It should appear within a minute in GA4 → Admin → DebugView (and Reports → Realtime). If it does not, the API secret does not belong to this data stream.` };
 }
+
+const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+
+/** Admin → Inbox: answer a conversation (threaded under the customer's last message) or write a new email. */
+export async function inboxSendAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin();
+  const { sendManual } = await import("@/lib/inbox");
+  const to = String(fd.get("to") ?? "").trim().toLowerCase();
+  const subject = String(fd.get("subject") ?? "").trim();
+  const text = String(fd.get("text") ?? "").trim();
+  const replyMessageId = String(fd.get("reply_message_id") ?? "").trim() || null;
+  if (!EMAIL_RE.test(to)) return { error: "Invalid recipient email." };
+  if (!subject) return { error: "Subject is required." };
+  if (!text) return { error: "Write a message first." };
+  if (text.length > 20000) return { error: "Message too long." };
+  const r = await sendManual({ to, subject, text, sentBy: me.email, replyTo: replyMessageId ? { messageId: replyMessageId, subject } : null });
+  if ("error" in r && r.error) return { error: `Not sent: ${r.error}` };
+  revalidatePath("/admin/inbox");
+  revalidatePath(`/admin/inbox/${encodeURIComponent(to)}`);
+  if (fd.get("new") === "1") redirect(`/admin/inbox/${encodeURIComponent(to)}`);
+  return { ok: "Sent." };
+}

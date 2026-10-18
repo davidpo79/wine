@@ -261,3 +261,9 @@ test("journey: device, privacy filter, batch validation and step logic", async (
   assert.equal(reached(resumed, "sawOffers"), true); // a later step implies the earlier ones
   assert.equal(reached(resumed, "paymentStart"), false);
 });
+
+test("inbox: address parsing", async () => {
+  const { addrOf } = await import("../src/lib/inbox");
+  assert.equal(addrOf("Maria Teste <Maria.Teste@Example.pt>"), "maria.teste@example.pt");
+  assert.equal(addrOf(" ana@example.pt "), "ana@example.pt");
+});

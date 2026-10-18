@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { ifthenpayMode } from "@/lib/ifthenpay";
 import { stripeConfigured, stripeMode } from "@/lib/stripe";
 import { logoutAction } from "../actions";
+import { unreadCount } from "@/lib/inbox";
 import { Icon, Sidebar, type NavGroup } from "./_nav/Sidebar";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ const ADMIN_NAV: NavGroup[] = [
   {
     items: [
       { href: "/admin", label: "Home", icon: "home" },
+      { href: "/admin/inbox", label: "Inbox", icon: "mail" },
       { href: "/admin/funnel", label: "Funnel & visits", icon: "funnel" },
       { href: "/admin/orders", label: "Orders", icon: "orders" },
       { href: "/admin/gift-cards", label: "Gift cards", icon: "card" },
@@ -39,13 +41,21 @@ const FULFILMENT_NAV: NavGroup[] = [
   {
     items: [
       { href: "/admin/orders", label: "Orders", icon: "orders" },
+      { href: "/admin/inbox", label: "Inbox", icon: "mail" },
       { href: "/admin/gift-cards", label: "Gift cards", icon: "card" },
     ],
   },
 ];
 
+/** Shows the number of unread customer emails next to "Inbox". */
+function withUnread(groups: NavGroup[], unread: number): NavGroup[] {
+  if (!unread) return groups;
+  return groups.map((g) => ({ ...g, items: g.items.map((i) => (i.href === "/admin/inbox" ? { ...i, label: `Inbox (${unread})` } : i)) }));
+}
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
+  const nav = withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, await unreadCount().catch(() => 0));
   const mode = ifthenpayMode();
   const stripe = stripeConfigured() ? (stripeMode() === "live" ? "live" : "test") : null;
   const footer = (
@@ -61,7 +71,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-paper">
       <header className="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-3 bg-night px-3 text-paper">
-        <Sidebar groups={admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV} footer={footer} />
+        <Sidebar groups={nav} footer={footer} />
         <Link href={admin.role === "admin" ? "/admin" : "/admin/orders"} aria-label="Wine Portugal"><img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={390} className="h-7 w-auto" /></Link>
         <div className="ml-auto flex items-center gap-2 text-[11px]">
           <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>ifthenpay {mode === "live" ? "LIVE" : mode === "sandbox" ? "SANDBOX" : "off"}</span>

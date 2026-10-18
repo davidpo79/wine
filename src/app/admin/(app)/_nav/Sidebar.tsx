@@ -13,6 +13,7 @@ const ICONS = {
   orders: "M6 2h9l5 5v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM14 2v6h6M8 13h8M8 17h6",
   card: "M3 5h18v14H3zM3 9h18M7 15h4",
   funnel: "M3 4h18l-7 8.5V19l-4 2v-8.5z",
+  mail: "M3 5h18v14H3zM3 6l9 7 9-7",
   finance: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   product: "M21 8 12 3 3 8l9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8",
   leads: "M16 11a4 4 0 1 0-8 0M12 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM4 21a8 8 0 0 1 16 0",

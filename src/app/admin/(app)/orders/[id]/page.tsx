@@ -64,6 +64,13 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             <Item k="Calls consent (incl. AI)" v={o.consentCalls ? "Yes" : "No"} />
             <Item k="Source" v={o.source} />
           </dl>
+          {o.email && (
+            <p className="mt-2 text-sm">
+              <Link className="text-azulejo underline" href={`/admin/inbox/${encodeURIComponent(o.email.toLowerCase())}`}>Emails with this customer</Link>
+              {" · "}
+              <Link className="text-azulejo underline" href={`/admin/inbox/new?to=${encodeURIComponent(o.email)}&subject=${encodeURIComponent(`Encomenda ${o.id}`)}`}>Write an email</Link>
+            </p>
+          )}
           <h2 className="mt-5 font-semibold">Shipping address</h2>
           <p className="text-sm">{a ? [a.name, a.line1, a.line2, `${a.postal_code ?? ""} ${a.city ?? ""}`, a.country].filter(Boolean).join(", ") : "·"}</p>
           {addons.some((x) => x.sku === "gift-card" && x.status === "paid") && (
