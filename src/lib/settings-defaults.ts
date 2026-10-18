@@ -107,8 +107,11 @@ export const DEFAULT_SETTINGS: Settings = {
     wine_per_box_cents: 1000,
     gift_box_cents: 80,
     shipping_box_cents: 230,
-    // CTT Portugal (contract 10/2026): one parcel of up to 6 bottles / 8 kg costs 6,00 €; more boxes go in more parcels.
-    delivery_tiers: [{ max_boxes: 2, cents: 600 }],
+    // CTT Portugal, 2-day service: up to 8 kg (2 boxes, 6 bottles) 6,04 € (next day: 6,16 €). The cheapest split is used.
+    delivery_tiers: [
+      { max_boxes: 2, cents: 604 },
+      { max_boxes: 3, cents: 1100 },
+    ],
     payment_fees: {
       card: { percent: 3, fixed_cents: 0 },
       mb_way: { percent: 3, fixed_cents: 0 },

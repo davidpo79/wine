@@ -23,23 +23,35 @@ export type OrderCosts = {
   parcels: number;
 };
 
-/** Parcels needed for n Trilogia boxes: the largest tier fills a parcel, the rest goes in one more. */
-export function parcelsFor(boxes: number, tiers: CostModel["delivery_tiers"]) {
+/**
+ * Cheapest way to pack n Trilogia boxes into parcels with the CTT price rows (e.g. 4 boxes = 2 + 2, not 3 + 1).
+ * Each row is "up to max_boxes per parcel costs cents"; a parcel of p boxes costs the first row that fits it.
+ */
+function cheapestSplit(boxes: number, tiers: CostModel["delivery_tiers"]) {
   const sorted = [...tiers].sort((a, b) => a.max_boxes - b.max_boxes);
   const max = sorted.at(-1)?.max_boxes ?? 3;
-  const parcels: number[] = [];
-  let left = Math.max(1, boxes);
-  while (left > max) {
-    parcels.push(max);
-    left -= max;
+  const parcelCost = (p: number) => sorted.find((t) => p <= t.max_boxes)?.cents ?? sorted.at(-1)?.cents ?? 0;
+  const n = Math.max(1, boxes);
+  const best: { cost: number; parcels: number[] }[] = [{ cost: 0, parcels: [] }];
+  for (let i = 1; i <= n; i++) {
+    let pick = { cost: Infinity, parcels: [] as number[] };
+    for (let p = 1; p <= Math.min(max, i); p++) {
+      const c = best[i - p].cost + parcelCost(p);
+      // Same price: fewer parcels (fewer shipping cartons).
+      if (c < pick.cost || (c === pick.cost && best[i - p].parcels.length + 1 < pick.parcels.length)) pick = { cost: c, parcels: [...best[i - p].parcels, p] };
+    }
+    best[i] = pick;
   }
-  parcels.push(left);
-  return parcels;
+  return best[n];
+}
+
+/** Parcels needed for n Trilogia boxes, split the cheapest way. */
+export function parcelsFor(boxes: number, tiers: CostModel["delivery_tiers"]) {
+  return cheapestSplit(boxes, tiers).parcels.sort((a, b) => b - a);
 }
 
 export function deliveryCost(boxes: number, tiers: CostModel["delivery_tiers"]) {
-  const sorted = [...tiers].sort((a, b) => a.max_boxes - b.max_boxes);
-  return parcelsFor(boxes, sorted).reduce((n, p) => n + (sorted.find((t) => p <= t.max_boxes)?.cents ?? sorted.at(-1)?.cents ?? 0), 0);
+  return cheapestSplit(boxes, tiers).cost;
 }
 
 export function feeKey(paymentMethodType: string | null | undefined): PaymentFeeKey {

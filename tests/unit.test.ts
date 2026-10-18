@@ -155,7 +155,7 @@ test("ifthenpay helpers", async () => {
 
 test("profit model reproduces David's numbers", async () => {
   const { computeOrderCosts, deliveryCost, expensesByDay } = await import("../src/lib/profit");
-  // The spreadsheet's delivery tiers (before the CTT contract): up to 2 boxes 6,04 €, 3 boxes 11,00 €.
+  // The spreadsheet's delivery tiers: up to 2 boxes 6,04 €, 3 boxes 11,00 €.
   const oldTiers = [{ max_boxes: 2, cents: 604 }, { max_boxes: 3, cents: 1100 }];
   const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, delivery_tiers: oldTiers }, upsell_products: DEFAULT_SETTINGS.upsell_products };
   const o = (total: number, qty: number) => ({ totalCents: total, qtyBoxes: qty, paymentMethodType: "card" });
@@ -163,12 +163,12 @@ test("profit model reproduces David's numbers", async () => {
   assert.equal(computeOrderCosts(o(8262, 2), [], s).profit, 4070);
   const c3 = computeOrderCosts(o(11705, 3), [], s);
   assert.deepEqual([c3.vat, c3.wine, c3.gift_boxes, c3.shipping_boxes, c3.delivery, c3.payment_fees, c3.profit], [1347, 3000, 240, 230, 1100, 351, 5437]);
-  // 4 boxes: one full parcel of 3 + one of 1
-  assert.equal(deliveryCost(4, oldTiers), 1100 + 604);
-  // CTT contract: a parcel of up to 6 bottles (2 boxes, 8 kg) costs 6,00 €.
-  assert.equal(deliveryCost(1, DEFAULT_SETTINGS.cost_model.delivery_tiers), 600);
-  assert.equal(deliveryCost(2, DEFAULT_SETTINGS.cost_model.delivery_tiers), 600);
-  assert.equal(deliveryCost(4, DEFAULT_SETTINGS.cost_model.delivery_tiers), 1200);
+  // 4 boxes: the cheapest split is 2 + 2 (12,08 €), not 3 + 1 (17,04 €)
+  assert.equal(deliveryCost(4, oldTiers), 604 + 604);
+  // CTT 2-day: up to 8 kg (2 boxes) 6,04 €.
+  assert.equal(deliveryCost(1, DEFAULT_SETTINGS.cost_model.delivery_tiers), 604);
+  assert.equal(deliveryCost(3, DEFAULT_SETTINGS.cost_model.delivery_tiers), 1100);
+  assert.equal(deliveryCost(5, DEFAULT_SETTINGS.cost_model.delivery_tiers), 1100 + 604);
   // add-on box after a 2-box order: 3 boxes in one parcel
   const up = computeOrderCosts(o(8262, 2), [{ amountCents: 3443, boxes: 1, kind: "boxes", sku: "trilogia-2160" }], s, 2);
   assert.equal(up.paid, 11705);
