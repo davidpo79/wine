@@ -4,6 +4,8 @@ import { ifthenpayMode } from "@/lib/ifthenpay";
 import { stripeConfigured, stripeMode } from "@/lib/stripe";
 import { logoutAction } from "../actions";
 import { unreadCount } from "@/lib/inbox";
+import { eq, sql } from "drizzle-orm";
+import { db, schema } from "@/db";
 import { Icon, Sidebar, type NavGroup } from "./_nav/Sidebar";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,7 @@ const ADMIN_NAV: NavGroup[] = [
     title: "Store",
     items: [
       { href: "/admin/products", label: "Products & pricing", icon: "product" },
+      { href: "/admin/reviews", label: "Reviews", icon: "star" },
       { href: "/admin/leads", label: "Leads", icon: "leads" },
       { href: "/admin/creatives", label: "Ads", icon: "ads" },
     ],
@@ -47,15 +50,19 @@ const FULFILMENT_NAV: NavGroup[] = [
   },
 ];
 
-/** Shows the number of unread customer emails next to "Inbox". */
-function withUnread(groups: NavGroup[], unread: number): NavGroup[] {
-  if (!unread) return groups;
-  return groups.map((g) => ({ ...g, items: g.items.map((i) => (i.href === "/admin/inbox" ? { ...i, label: `Inbox (${unread})` } : i)) }));
+/** Shows the number of unread customer emails next to "Inbox" and of reviews waiting next to "Reviews". */
+function withUnread(groups: NavGroup[], counts: Record<string, number>): NavGroup[] {
+  return groups.map((g) => ({ ...g, items: g.items.map((i) => (counts[i.href] ? { ...i, label: `${i.label} (${counts[i.href]})` } : i)) }));
+}
+
+async function pendingReviews() {
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.reviews).where(eq(schema.reviews.status, "pending"));
+  return r?.n ?? 0;
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdmin();
-  const nav = withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, await unreadCount().catch(() => 0));
+  const nav = withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, { "/admin/inbox": await unreadCount().catch(() => 0), "/admin/reviews": await pendingReviews().catch(() => 0) });
   const mode = ifthenpayMode();
   const stripe = stripeConfigured() ? (stripeMode() === "live" ? "live" : "test") : null;
   const footer = (

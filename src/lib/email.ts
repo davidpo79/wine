@@ -9,6 +9,7 @@ import { getDict, moneyFor } from "./i18n";
 import { fmt } from "./i18n/rich";
 import { isLocale, type Locale } from "./markets";
 import { logOutbound, shopAddress } from "./inbox";
+import { reviewUrl } from "./reviews";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 
@@ -177,6 +178,32 @@ export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" 
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
   return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
+}
+
+/** Review invitation, a few days after delivery: five star links straight into the form. */
+export async function sendReviewRequest(o: Order) {
+  if (!o.email) return;
+  const locale = localeOf(o);
+  const t = getDict(locale).review;
+  const name = (o.customerName ?? "").trim().split(/\s+/)[0];
+  const e = getDict(locale).email;
+  const stars = [1, 2, 3, 4, 5]
+    .map(
+      (n) =>
+        `<a href="${esc(reviewUrl(o, n))}" title="${esc(t.stars[n - 1])}" style="text-decoration:none;font-size:34px;line-height:1;color:#C8A253;padding:0 3px">&#9733;</a>`,
+    )
+    .join("");
+  const html = layout(
+    t.emailTitle,
+    `<p>${esc(name ? fmt(e.hello, { name }) : e.helloPlain)}</p>
+<p>${esc(fmt(t.emailText, { id: o.id }))}</p>
+<p style="margin:18px 0;text-align:center;white-space:nowrap">${stars}</p>
+${o.isGift ? `<p>${esc(t.emailGift)}</p>` : ""}
+${button(reviewUrl(o), t.emailButton)}
+<p style="font-size:13px;color:#55606e">${esc(t.emailOnce)}</p>`,
+    locale,
+  );
+  return send(o, o.email, t.subject, html, "review_request");
 }
 
 /** "New message in the inbox" to ADMIN_ALERT_EMAIL (never when that is the shop address itself: it would loop). */

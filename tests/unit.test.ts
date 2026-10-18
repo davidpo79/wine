@@ -267,3 +267,13 @@ test("inbox: address parsing", async () => {
   assert.equal(addrOf("Maria Teste <Maria.Teste@Example.pt>"), "maria.teste@example.pt");
   assert.equal(addrOf(" ana@example.pt "), "ana@example.pt");
 });
+
+test("reviews: signed link and display name", async () => {
+  const { reviewToken, validReviewToken, defaultDisplayName } = await import("../src/lib/reviews");
+  assert.equal(validReviewToken("WP-2026-0001", reviewToken("WP-2026-0001")), true);
+  assert.equal(validReviewToken("WP-2026-0002", reviewToken("WP-2026-0001")), false);
+  assert.equal(validReviewToken("WP-2026-0001", "short"), false);
+  assert.equal(defaultDisplayName("maria da silva santos"), "maria S.");
+  assert.equal(defaultDisplayName("Ana"), "Ana");
+  assert.equal(defaultDisplayName(null), "");
+});

@@ -1,3 +1,4 @@
+import { publicReviews } from "@/lib/reviews";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getCatalog } from "@/lib/catalog";
@@ -29,11 +30,17 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
   const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, label: b.label, qty: b.qty, priceCents: b.priceCents, compareAtCents: b.compareAtCents, shippingCents: b.shippingCents }));
   const cutoffIso = settings.markets?.[wanted]?.cutoff_at ?? settings.cutoff_at;
   const cutoffLabel = dateFor(locale, cutoffIso).slice(0, 5);
+  // Verified reviews with text (Admin → Reviews) first; the manual list in Settings only while there are none.
+  const rv = await publicReviews(locale, 12).catch(() => ({ list: [] as Awaited<ReturnType<typeof publicReviews>>["list"] }));
+  const verified = rv.list
+    .filter((r) => r.text) // newest with text, good or bad: no cherry-picking
+    .slice(0, 3)
+    .map((r) => ({ name: r.name, text: r.text!, city: undefined, source: `${"★".repeat(r.rating)} · ${getDict(locale).review.verified}` }));
   return (
     <I18nProvider locale={locale} country={wanted} dict={getDict(locale)}>
       <CheckoutPage
         bundles={bundles}
-        reviews={locale === "pt" ? settings.reviews ?? [] : []}
+        reviews={verified.length ? verified : locale === "pt" ? settings.reviews ?? [] : []}
         cutoffLabel={cutoffLabel}
         deliveryDays={settings.markets?.[wanted]?.delivery_days ?? ""}
         countries={countries}

@@ -125,6 +125,7 @@ export const orders = pgTable(
     paidAt: timestamp("paid_at", { withTimezone: true }),
     shippedAt: timestamp("shipped_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    reviewRequestedAt: timestamp("review_requested_at", { withTimezone: true }), // review invitation email sent (once)
   },
   (t) => [index("orders_status_idx").on(t.status), index("orders_created_idx").on(t.createdAt)],
 );
@@ -212,6 +213,32 @@ export const inboxMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("inbox_contact_idx").on(t.contact, t.createdAt), index("inbox_created_idx").on(t.createdAt)],
+);
+
+/** Verified reviews: only customers of a delivered order can write one (invitation email with a signed link). */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: serial("id").primaryKey(),
+    orderId: text("order_id")
+      .notNull()
+      .unique()
+      .references(() => orders.id),
+    rating: integer("rating").notNull(), // 1-5
+    title: text("title"),
+    text: text("text"),
+    displayName: text("display_name").notNull(), // first name + initial, chosen by the customer
+    country: text("country").notNull(),
+    locale: text("locale").notNull(),
+    consentPublish: boolean("consent_publish").notNull().default(false),
+    status: text("status").notNull().default("pending"), // pending | approved | rejected
+    reply: text("reply"), // public answer from the shop
+    moderatedBy: text("moderated_by"),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("reviews_status_idx").on(t.status, t.createdAt)],
 );
 
 export const settings = pgTable("settings", {
@@ -390,3 +417,4 @@ export type OrderAddon = typeof orderAddons.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Expense = typeof expenses.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
+export type ReviewRow = typeof reviews.$inferSelect;

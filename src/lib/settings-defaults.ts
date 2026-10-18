@@ -22,6 +22,7 @@ export type Settings = {
   upsell_enabled: boolean;
   upsell_products: UpsellProduct[]; // shown with the one-time offer, before payment
   reviews: Review[]; // only real customer reviews; empty = section hidden
+  reviews_enabled: boolean; // invitation email after delivery (verified reviews, Admin → Reviews)
   cost_model: CostModel; // per-order costs for the profit screen (Admin → Finance)
   gift_card: GiftCardSettings; // order bump in the checkout: printed Christmas card with the customer's message
   profit_split: ProfitSplit; // partnership split of the net profit (Admin → Finance); empty until agreed
@@ -89,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
     },
   ],
   reviews: [],
+  reviews_enabled: true,
   gift_card: { enabled: true, price_cents: 390, cost_cents: 0, vat_percent: 23 },
   // From David's profit calculation (10/10/2026). Payment fee: 3% of what the customer pays, for every method.
   profit_split: { my_name: "David", partner_name: "Partner", my_percent: null, min_per_box_cents: null },

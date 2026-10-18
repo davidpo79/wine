@@ -1,3 +1,4 @@
+import { publicReviews } from "@/lib/reviews";
 import type { Metadata } from "next";
 import { getCatalog, paidBoxes, salesState } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
@@ -45,6 +46,9 @@ export async function LandingRoute({ locale }: { locale: Locale }) {
   const defaultKey = bundles.find((b) => b.qty === 2)?.key ?? bundles[0].key;
   const url = `${SITE.url}${homeHref(locale) === "/" ? "" : homeHref(locale)}`;
 
+  const rv = await publicReviews(locale, 24).catch(() => ({ count: 0, average: 0, list: [] }));
+  const reviewsData = { count: rv.count, average: rv.average, list: rv.list.map((r) => ({ ...r, date: r.date.toISOString() })) };
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -61,6 +65,8 @@ export async function LandingRoute({ locale }: { locale: Locale }) {
       availability: mode === "open" || mode === "after_christmas" ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       url,
     })),
+    // Only real, verified reviews (Admin → Reviews); absent until the first one is published.
+    ...(rv.count ? { aggregateRating: { "@type": "AggregateRating", ratingValue: rv.average.toFixed(1), reviewCount: rv.count, bestRating: 5, worstRating: 1 } } : {}),
   };
 
   return (
@@ -74,6 +80,7 @@ export async function LandingRoute({ locale }: { locale: Locale }) {
             cutoffLabel={dateFor(locale, cutoffIso)}
             cutoffIso={cutoffIso}
             exitPopup={locale === "pt" && settings.exit_popup_enabled}
+            reviews={reviewsData}
           />
         </div>
       </BuyProvider>

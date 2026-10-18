@@ -6,6 +6,7 @@
 // All copy comes from the dictionary of the page's language (lib/i18n); the digital recipe
 // guide is Portuguese only, so other languages leave it out.
 
+import { Reviews, type ReviewsData } from "./Reviews";
 import { useEffect, useRef, useState } from "react";
 import { useBuy, type PublicBundle } from "./BuyContext";
 import { ViewContentObserver } from "./Interactive";
@@ -45,12 +46,14 @@ export function LandingPage({
   cutoffLabel,
   cutoffIso,
   exitPopup,
+  reviews,
 }: {
   deliveryDays: string;
   deliveryTextOverride?: string; // Portugal: the text edited in Admin → Settings
   cutoffLabel: string;
   cutoffIso: string;
   exitPopup: boolean;
+  reviews?: ReviewsData;
 }) {
   const buy = useBuy();
   const { d, locale, country, money, moneyShort, guide } = useI18n();
@@ -690,6 +693,8 @@ export function LandingPage({
             </p>
           </div>
         </section>
+
+        {reviews && <Reviews data={reviews} />}
 
         <section className="section wrap" id="duvidas">
           <div className="faq">

@@ -14,6 +14,7 @@ const KIND_LABEL: Record<string, string> = {
   lead_reminder: "Code reminder",
   recovery_first: "Abandoned checkout",
   recovery_final: "Abandoned checkout",
+  review_request: "Review invitation",
 };
 
 export default async function InboxPage({ searchParams }: { searchParams: Promise<{ v?: string }> }) {

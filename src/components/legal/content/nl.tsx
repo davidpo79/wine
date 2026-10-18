@@ -79,6 +79,9 @@ export function Privacy() {
           <strong>Anonieme meting van het verloop van het bezoek:</strong> wij registreren de stappen van elk bezoek (bekeken pagina’s, hoe ver u scrolde, aangeklikte knoppen, ingevulde velden of foutmeldingen bij het afrekenen, betaalfouten), gekoppeld aan een willekeurige identificator die alleen bestaat zolang het tabblad open is, om te begrijpen waar de aankoop misloopt en de winkel te verbeteren. Wat u in de velden typt, slaan wij nooit op, en ook het IP-adres niet; alleen het type apparaat, de browser en het land worden bewaard. Als u bestelt, wordt het verloop van dat bezoek aan de bestelling gekoppeld. Verwijderd na 90 dagen. [[TODO: juridische controle]]
         </li>
         <li>
+          <strong>Beoordelingen:</strong> enkele dagen na de levering sturen we één e-mail met de vraag om uw bestelling te beoordelen. Als u beoordeelt, publiceren we de sterren, de tekst, de naam die u kiest, het land en de datum, alleen met uw toestemming. U kunt op elk moment vragen om verwijdering.
+        </li>
+        <li>
           <strong>Sessie-opnames en heatmaps (Microsoft Clarity):</strong> alleen met uw toestemming voor statistische cookies. Registreert hoe de pagina wordt gebruikt (bewegingen, klikken, scrollen); tekst die u in velden typt, wordt verborgen.
         </li>
       </ul>

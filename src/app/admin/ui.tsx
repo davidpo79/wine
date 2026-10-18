@@ -21,7 +21,20 @@ export function ActionForm({
       action={formAction}
       className={className}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
+        if (confirm && !window.confirm(confirm)) return e.preventDefault();
+        // Several buttons in one form (name="action" value="..."): the clicked button's value did not reach the
+        // server action, so copy it into a hidden field before the form data is read.
+        const sub = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+        const form = e.currentTarget;
+        form.querySelector("input[data-submitter]")?.remove();
+        if (sub?.name) {
+          const h = document.createElement("input");
+          h.type = "hidden";
+          h.name = sub.name;
+          h.value = sub.value;
+          h.dataset.submitter = "1";
+          form.appendChild(h);
+        }
       }}
     >
       {children}

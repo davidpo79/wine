@@ -509,3 +509,30 @@ export async function inboxSendAction(_: FormState, fd: FormData): Promise<FormS
   if (fd.get("new") === "1") redirect(`/admin/inbox/${encodeURIComponent(to)}`);
   return { ok: "Sent." };
 }
+
+/** Admin → Reviews: approve, reject (abusive content or personal data only), reply publicly, delete. */
+export async function reviewAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ role: "admin" });
+  const id = Number(fd.get("id"));
+  const op = String(fd.get("op") ?? "");
+  if (!Number.isInteger(id)) return { error: "Unknown review." };
+  if (op === "delete") {
+    await db.delete(schema.reviews).where(eq(schema.reviews.id, id));
+  } else if (op === "approve" || op === "reject" || op === "pending") {
+    const status = op === "approve" ? "approved" : op === "reject" ? "rejected" : "pending";
+    await db.update(schema.reviews).set({ status, moderatedBy: me.email, moderatedAt: new Date() }).where(eq(schema.reviews.id, id));
+  } else if (op === "reply") {
+    const reply = String(fd.get("reply") ?? "").trim().slice(0, 2000) || null;
+    await db.update(schema.reviews).set({ reply }).where(eq(schema.reviews.id, id));
+  } else return { error: "Unknown action." };
+  revalidatePath("/admin/reviews");
+  revalidatePath("/");
+  return { ok: "Saved." };
+}
+
+export async function reviewsSettingsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  await setSetting("reviews_enabled", fd.get("reviews_enabled") === "on");
+  revalidatePath("/admin/reviews");
+  return { ok: "Saved." };
+}
