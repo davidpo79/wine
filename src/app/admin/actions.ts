@@ -10,7 +10,7 @@ import type { OrderStatus } from "@/db/schema";
 import { hashPassword, login, logout, requireAdmin, setSessionCookie } from "@/lib/auth";
 import { clientIp } from "@/lib/request";
 import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
-import { ebookLink, sendConfirmation, sendShipped } from "@/lib/email";
+import { ebookLink, sendConfirmation, sendShipped, sendTeamInvite, sendTestEmail } from "@/lib/email";
 import { orderAddons, refundOrder } from "@/lib/payments";
 import { parseEuroToCents } from "@/lib/money";
 import { PER_BOX_FLOOR_CENTS, type PostCutoffMode, type Settings } from "@/lib/settings-defaults";
@@ -417,7 +417,13 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
     const pw = tempPassword();
     await db.insert(schema.adminUsers).values({ email, role, passwordHash: await hashPassword(pw), mustChangePassword: true, createdBy: me.email });
     revalidatePath("/admin/team");
-    return { ok: `Account created for ${email} (${role}). Temporary password: ${pw} (shown once; they choose their own at first login).` };
+    let mailed = "";
+    if (fd.get("send_email") === "on") {
+      const r = (await sendTeamInvite(email, role, pw, me.email)) as { skipped?: boolean; error?: { message?: string } | string | null } | undefined;
+      const err = r && "error" in r && r.error ? (typeof r.error === "string" ? r.error : r.error.message) : null;
+      mailed = r?.skipped ? " Email NOT sent: email is not configured (RESEND_API_KEY / EMAIL_FROM)." : err ? ` Email NOT sent: ${err}.` : " Login details emailed.";
+    }
+    return { ok: `Account created for ${email} (${role}). Temporary password: ${pw} (shown once; they choose their own at first login).${mailed}` };
   }
   const id = Number(fd.get("id"));
   const [u] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, id)).limit(1);
@@ -552,4 +558,16 @@ export async function cttTestAction(_: FormState, fd: FormData): Promise<FormSta
   const r = await cttTestConnection(appId);
   const text = `${r.ok ? "Connected." : "Not connected."}\n${r.steps.join("\n")}`;
   return r.ok ? { ok: text } : { error: text };
+}
+
+/** Admin → Email & messages: sends a test email and reports the provider's answer. */
+export async function testEmailAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ role: "admin" });
+  const to = String(fd.get("to") ?? "").trim() || me.email;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { error: "Enter a valid email." };
+  const r = (await sendTestEmail(to)) as { skipped?: boolean; data?: { id?: string } | null; error?: { message?: string; name?: string } | string | null; id?: string } | undefined;
+  if (r?.skipped) return { error: "Not sent: email is not configured. Set RESEND_API_KEY and EMAIL_FROM in Railway." };
+  const err = r?.error ? (typeof r.error === "string" ? r.error : `${r.error.name ?? ""} ${r.error.message ?? ""}`.trim()) : null;
+  if (err) return { error: `Not sent. The provider answered: ${err}` };
+  return { ok: `Sent to ${to} (id ${r?.data?.id ?? r?.id ?? "?"}). Check the inbox and the spam folder.` };
 }

@@ -93,14 +93,14 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
       error = e instanceof Error ? e.message : String(e);
     }
     if (o) await logOrderEvent(o.id, error ? "email_error" : "email_sent", { kind, id, error, provider: "telnyx" });
-    if (kind !== "admin_alert" && kind !== "payment_issue") await logOutbound({ kind, to, subject, html, resendId: null, orderId: o?.id, error });
+    if (!["admin_alert", "payment_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: null, orderId: o?.id, error });
     return { id, error };
   }
   const resend = new Resend(key);
   // Replies come back to the shop address, into Admin → Inbox (EMAIL_REPLY_TO overrides it).
   const r = await resend.emails.send({ from, to, subject, html, replyTo: shopAddress().replyTo ?? SITE.email });
   if (o) await logOrderEvent(o.id, r.error ? "email_error" : "email_sent", { kind, id: r.data?.id, error: r.error?.message });
-  if (kind !== "admin_alert" && kind !== "payment_issue") await logOutbound({ kind, to, subject, html, resendId: r.data?.id, orderId: o?.id, error: r.error?.message });
+  if (!["admin_alert", "payment_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: r.data?.id, orderId: o?.id, error: r.error?.message });
   return r;
 }
 
@@ -178,6 +178,26 @@ export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" 
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
   return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
+}
+
+/** Login details for a new team member (temporary password, changed at first login). Admin UI is in English. */
+export async function sendTeamInvite(to: string, role: string, tempPassword: string, invitedBy: string) {
+  const html = layout(
+    "Wine Portugal admin access",
+    `<p>Hello,</p>
+<p>${esc(invitedBy)} gave you access to the Wine Portugal shop admin (role: <strong>${esc(role)}</strong>).</p>
+<p>Email: <strong>${esc(to)}</strong><br>Temporary password: <strong style="font-family:monospace">${esc(tempPassword)}</strong></p>
+${button(`${SITE.url}/admin`, "Open the admin")}
+<p style="font-size:13px;color:#55606e">You will choose your own password at the first login. If you did not expect this email, ignore it.</p>`,
+    "pt",
+  );
+  return send(null, to, "Your access to the Wine Portugal admin", html, "team_invite");
+}
+
+/** Admin → Email & messages: a test through the same path as every shop email. */
+export async function sendTestEmail(to: string) {
+  const html = layout("Test", `<p>Test email from the shop (${esc(SITE.url)}), sent ${esc(new Date().toISOString())}.</p><p>If you can read this, email sending works.</p>`, "pt");
+  return send(null, to, "Wine Portugal · test email", html, "test");
 }
 
 /** Review invitation, a few days after delivery: five star links straight into the form. */

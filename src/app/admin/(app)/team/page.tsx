@@ -34,6 +34,9 @@ export default async function Team() {
             </select>
           </label>
           <Submit>Create account</Submit>
+          <label className="flex items-center gap-2 sm:col-span-3">
+            <input type="checkbox" name="send_email" defaultChecked /> Email the login details (temporary password) to the new member
+          </label>
         </ActionForm>
         <dl className="mt-4 grid gap-2 text-xs text-muted sm:grid-cols-2">
           <div><dt className="font-semibold text-ink">Admin</dt><dd>{ROLE_INFO.admin}</dd></div>

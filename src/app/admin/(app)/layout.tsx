@@ -35,6 +35,7 @@ const ADMIN_NAV: NavGroup[] = [
     title: "Admin",
     items: [
       { href: "/admin/settings", label: "Settings", icon: "settings" },
+      { href: "/admin/messages", label: "Email & messages", icon: "mail" },
       { href: "/admin/team", label: "Team", icon: "team" },
     ],
   },
