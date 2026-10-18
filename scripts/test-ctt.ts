@@ -6,7 +6,7 @@ import { createHmac } from "node:crypto";
 import { desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema, sql as pg } from "../src/db";
 import { cttConfig, shopItemId, SHOP_STATUS } from "../src/lib/ctt";
-import { createCttLabel, syncCttTracking } from "../src/lib/shipping";
+import { createCttLabel, syncCttTracking } from "../src/lib/fulfilment";
 
 const base = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
 const mock = cttConfig().base.replace(/\/v3$/, "");

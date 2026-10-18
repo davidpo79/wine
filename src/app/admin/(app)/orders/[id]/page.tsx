@@ -1,5 +1,5 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
-import { shipmentOf } from "@/lib/shipping";
+import { shipmentOf } from "@/lib/fulfilment";
 import { cttConfigured } from "@/lib/ctt";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";

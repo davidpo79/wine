@@ -65,7 +65,7 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         break;
       }
       case "ctt_label": {
-        const { createCttLabel } = await import("@/lib/shipping");
+        const { createCttLabel } = await import("@/lib/fulfilment");
         const r = await createCttLabel(o, admin.email);
         if ("error" in r) return { error: r.error };
         revalidatePath(`/admin/orders/${id}`);

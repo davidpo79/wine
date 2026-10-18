@@ -1,4 +1,4 @@
-// Order shipping with CTT: create the shipment and label from the admin, then follow it automatically.
+// Order fulfilment with CTT: create the shipment and label from the admin, then follow it automatically.
 // Picked up (CTT push "shipped" or status 25) → order "shipped" + email; delivered (push or 99/94/32) → "delivered",
 // which also schedules the review invitation.
 import { and, eq, inArray } from "drizzle-orm";

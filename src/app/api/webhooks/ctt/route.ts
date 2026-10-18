@@ -1,5 +1,5 @@
 import { orderIdFromShopItem, validShopUpdateHash } from "@/lib/ctt";
-import { handleShopUpdate } from "@/lib/shipping";
+import { handleShopUpdate } from "@/lib/fulfilment";
 
 // CTT shop update push (registered as ShopUrl when the token is requested): {ShopItemId, Status, TrackingId,
 // TrackingUrl, Hash}. Status uses our ids (1 imported, 2 shipped, 3 delivered, 4 problem). Background-process

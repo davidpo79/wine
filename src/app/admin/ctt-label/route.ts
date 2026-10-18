@@ -1,5 +1,5 @@
 import { getAdmin } from "@/lib/auth";
-import { shipmentOf } from "@/lib/shipping";
+import { shipmentOf } from "@/lib/fulfilment";
 
 // Label PDF of an order's CTT shipment, for logged-in admins and fulfilment users.
 export async function GET(req: Request) {
