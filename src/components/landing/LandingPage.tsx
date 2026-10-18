@@ -7,6 +7,7 @@
 // guide is Portuguese only, so other languages leave it out.
 
 import { Reviews, type ReviewsData } from "./Reviews";
+import { SITE } from "@/lib/site";
 import { useEffect, useRef, useState } from "react";
 import { useBuy, type PublicBundle } from "./BuyContext";
 import { ViewContentObserver } from "./Interactive";
@@ -792,6 +793,9 @@ export function LandingPage({
             </a>
           )}
           <OpenConsentLink />
+        </div>
+        <div className="wrap footentity">
+          {SITE.legalName} · NIF {SITE.nif} · {SITE.address}
         </div>
       </footer>
 
