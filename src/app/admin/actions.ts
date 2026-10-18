@@ -19,7 +19,7 @@ import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
 import { COUNTRIES, isLocale } from "@/lib/markets";
-import { EBOOK_LOCALES, ebookKey } from "@/lib/ebook";
+import { ebookKey } from "@/lib/ebook";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -592,10 +592,13 @@ export async function ebookAction(_: FormState, fd: FormData): Promise<FormState
     revalidatePath("/admin/settings");
     return { ok: `Uploaded the ${locale.toUpperCase()} edition (${(buf.length / 1048576).toFixed(1)} MB). ${locale === "pt" ? "" : "Customers in this language now get it."}` };
   }
-  const on = EBOOK_LOCALES.filter((l) => l !== "pt" && fd.get(`offer_${l}`) === "on");
-  const missing = on.filter((l) => !settings.ebook_files?.[l]);
-  if (missing.length) return { error: `Upload the PDF first: ${missing.map((l) => l.toUpperCase()).join(", ")}.` };
-  await setSetting("ebook_locales", on);
+  const locale = String(fd.get("locale") ?? "");
+  const action = fd.get("action");
+  if (!isLocale(locale) || (action !== "on" && action !== "off")) return { error: "Choose a language." };
+  if (locale === "pt") return { error: "Portuguese is always offered." };
+  if (action === "on" && !settings.ebook_files?.[locale]) return { error: `Upload the ${locale.toUpperCase()} PDF first.` };
+  const rest = (settings.ebook_locales ?? []).filter((l) => l !== locale);
+  await setSetting("ebook_locales", action === "on" ? [...rest, locale] : rest);
   revalidatePath("/admin/settings");
-  return { ok: "Saved." };
+  return { ok: `${locale.toUpperCase()}: ${action === "on" ? "customers in this language get the e-book." : "turned off."}` };
 }
