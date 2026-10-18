@@ -19,9 +19,9 @@ const ISO3: Record<string, string> = { PT: "PRT", ES: "ESP", DE: "DEU", NL: "NLD
 
 export function cttConfig() {
   return {
-    appId: process.env.CTT_APP_ID ?? "",
-    publicKey: process.env.CTT_PUBLIC_KEY ?? "",
-    secret: process.env.CTT_SECRET_KEY ?? "",
+    appId: (process.env.CTT_APP_ID ?? "").trim(),
+    publicKey: (process.env.CTT_PUBLIC_KEY ?? "").trim(),
+    secret: (process.env.CTT_SECRET_KEY ?? "").trim(),
     base: (process.env.CTT_API_BASE ?? "https://enviosecommerceapi.ctt.pt/v3").replace(/\/$/, ""),
     simulate: process.env.CTT_SIMULATE === "1",
     carrierId: process.env.CTT_CARRIER_ID ? Number(process.env.CTT_CARRIER_ID) : null, // empty: the rulebook in the CTT app decides
@@ -219,8 +219,11 @@ export async function cttTestConnection(appIdOverride?: string) {
   const appId = appIdOverride?.trim() || c.appId;
   const missing = [!appId && "CTT_APP_ID", !c.publicKey && "CTT_PUBLIC_KEY", !c.secret && "CTT_SECRET_KEY"].filter(Boolean) as string[];
   if (missing.length) return { ok: false, steps: [`Missing in Railway: ${missing.join(", ")}`] };
+  // Shape of the values only (never the values): a key pair is long random text, not a short portal number.
+  const shape = (v: string) => `${v.length} chars${/^\d+$/.test(v) ? ", digits only" : ""}${/^\s|\s$/.test(v) ? ", has spaces at the ends" : ""}`;
+  const keysLine = `Values used: application id ${shape(appIdOverride ?? process.env.CTT_APP_ID ?? "")} · CTT_PUBLIC_KEY ${shape(process.env.CTT_PUBLIC_KEY ?? "")} · CTT_SECRET_KEY ${shape(process.env.CTT_SECRET_KEY ?? "")}`;
   const short = (j: unknown) => JSON.stringify(j).replace(/"(Key|Token)":"[^"]+"/g, '"$1":"…"').slice(0, 400);
-  const steps: string[] = [];
+  const steps: string[] = [keysLine];
   try {
     const keyBody = { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl };
     // Both signature forms (with "=" padding like CTT's plugin, and without as in the docs).
