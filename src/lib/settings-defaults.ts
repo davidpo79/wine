@@ -79,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
       price_cents: 1490,
       compare_cents: 1690,
       active: true,
+      cost_cents: 700,
     },
     {
       key: "porto-vintage-2016-agua-alta",
@@ -87,11 +88,12 @@ export const DEFAULT_SETTINGS: Settings = {
       price_cents: 1590,
       compare_cents: 1790,
       active: true,
+      cost_cents: 900,
     },
   ],
   reviews: [],
   reviews_enabled: true,
-  gift_card: { enabled: true, price_cents: 390, cost_cents: 0, vat_percent: 23 },
+  gift_card: { enabled: true, price_cents: 390, cost_cents: 50, vat_percent: 23 },
   // From David's profit calculation (10/10/2026). Payment fee: 3% of what the customer pays, for every method.
   profit_split: { my_name: "David", partner_name: "Partner", my_percent: null, min_per_box_cents: null },
   // Only Portugal sells until excise duties and VAT for the other countries are confirmed (17/10/2026).

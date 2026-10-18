@@ -120,6 +120,13 @@
       "when": 1792326222127,
       "tag": "0016_payment_fees",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792326892704,
+      "tag": "0017_upsell_costs",
+      "breakpoints": true
     }
   ]
 }
