@@ -19,6 +19,7 @@ import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
 import { COUNTRIES } from "@/lib/markets";
+import { cttConnectionCheck, type CttConnectionCheck } from "@/lib/ctt";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -493,6 +494,12 @@ export async function ga4TestAction(_: FormState, _fd: FormData): Promise<FormSt
     return { error: `Could not reach GA4: ${String(e)}` };
   }
   return { ok: `Sent "server_check" to ${mid}. It should appear within a minute in GA4 → Admin → DebugView (and Reports → Realtime). If it does not, the API secret does not belong to this data stream.` };
+}
+
+/** Admin → Settings: CTT token + one read-only call, raw replies shown as received. Creates and stores nothing. */
+export async function cttTestAction(_: CttConnectionCheck | undefined, _fd: FormData): Promise<CttConnectionCheck> {
+  await requireAdmin({ role: "admin" });
+  return cttConnectionCheck();
 }
 
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
