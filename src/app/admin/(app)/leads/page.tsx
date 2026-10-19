@@ -5,12 +5,15 @@ import { db, schema } from "@/db";
 import { lisbonDateTime } from "@/lib/time";
 import { leadAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
+import { CallButton } from "../../calls/CallUI";
+import { humanCallMissing } from "@/lib/telnyx-call-control";
 
 const STATUS: Record<string, string> = { new: "New", contacted: "Contacted", no_answer: "No answer", not_interested: "Not interested", converted: "Converted" };
 
 export default async function Leads({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   await requireAdmin({ role: "admin" });
   const { view } = await searchParams;
+  const callingReady = humanCallMissing().length === 0;
   const all = await db.select().from(schema.leads).orderBy(desc(schema.leads.createdAt)).limit(2000);
   const buyers = await db
     .select({ email: sql<string>`lower(${schema.orders.email})` })
@@ -54,6 +57,11 @@ export default async function Leads({ searchParams }: { searchParams: Promise<{ 
                       <>
                         <a href={`tel:${l.phone}`} className="text-azulejo underline">{l.phone}</a>
                         {wa && <a href={wa} target="_blank" className="ml-2 text-green-700 underline">WhatsApp</a>}
+                        {callingReady && l.consentPhone && !l.unsubscribedAt && (
+                          <span className="ml-2">
+                            <CallButton target={{ leadId: l.id, name: l.name }} />
+                          </span>
+                        )}
                         <span className="block text-muted">{l.consentPhone ? "call/WA consent ✓" : "no consent"}</span>
                       </>
                     ) : ""}

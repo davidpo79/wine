@@ -11,6 +11,7 @@ import {
   pgEnum,
   pgSequence,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export type WineItem = { name: string; vintage: string; type: "rose" | "branco" | "tinto"; producer: string };
 export type Address = {
@@ -433,6 +434,67 @@ export const webhookLog = pgTable("webhook_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Admin → customer phone call through Telnyx (same design as astro-dynamic-server's human calls): the server dials
+ * the admin's browser (WebRTC, leg A), and when it is answered dials the customer (leg B) bridged on answer.
+ */
+export const humanCalls = pgTable(
+  "human_calls",
+  {
+    id: text("id").primaryKey(), // hc_ + 16 hex
+    orderId: text("order_id").references(() => orders.id),
+    leadId: integer("lead_id").references(() => leads.id),
+    toNumber: text("to_number").notNull(),
+    fromNumber: text("from_number"),
+    initiatedBy: integer("initiated_by")
+      .notNull()
+      .references(() => adminUsers.id),
+    initiatedByEmail: text("initiated_by_email"),
+    callControlId: text("call_control_id").unique(), // customer leg (B)
+    repCallControlId: text("rep_call_control_id").unique(), // admin's browser leg (A)
+    repSipUsername: text("rep_sip_username"),
+    callSessionId: text("call_session_id"),
+    // dialing | rep_ringing | rep_answered | customer_dialing | bridged | completed | rep_no_answer | no_answer | busy | failed | canceled
+    status: text("status").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    repAnsweredAt: timestamp("rep_answered_at", { withTimezone: true }),
+    bridgedAt: timestamp("bridged_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    durationMs: integer("duration_ms"),
+    hangupCause: text("hangup_cause"),
+    answeredBy: text("answered_by"), // human | machine (answering-machine detection, informative only)
+    amdResult: text("amd_result"),
+    humanAnswerAt: timestamp("human_answer_at", { withTimezone: true }),
+    recordingStatus: text("recording_status"), // requested | stored | failed
+    recordingKey: text("recording_key"), // private/ bucket key
+    recordingDurationMs: integer("recording_duration_ms"),
+    error: text("error"), // diagnostic, never sent to the browser
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // One live call per admin: a second start while one is live is refused (409).
+    uniqueIndex("human_calls_one_active_per_admin")
+      .on(t.initiatedBy)
+      .where(sql`status not in ('completed','rep_no_answer','no_answer','busy','failed','canceled')`),
+    index("human_calls_order_idx").on(t.orderId),
+    index("human_calls_lead_idx").on(t.leadId),
+  ],
+);
+
+/** The admin's Telnyx telephony credential (on the WebRTC credential connection). The SIP password is never stored. */
+export const humanCallRepEndpoints = pgTable("human_call_rep_endpoints", {
+  adminId: integer("admin_id")
+    .primaryKey()
+    .references(() => adminUsers.id),
+  sipUsername: text("sip_username").notNull().unique(),
+  credentialId: text("credential_id").notNull().unique(),
+  connectionId: text("connection_id").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Product = typeof products.$inferSelect;
 export type Bundle = typeof bundles.$inferSelect;
 export type Order = typeof orders.$inferSelect;
@@ -444,3 +506,4 @@ export type Expense = typeof expenses.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type ReviewRow = typeof reviews.$inferSelect;
 export type Shipment = typeof shipments.$inferSelect;
+export type HumanCall = typeof humanCalls.$inferSelect;

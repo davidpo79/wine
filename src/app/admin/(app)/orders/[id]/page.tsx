@@ -13,6 +13,8 @@ import { orderAction } from "../../../actions";
 import { ActionForm, Submit } from "../../../ui";
 import { StatusPill } from "../../../status-pill";
 import { GiftCard } from "@/components/GiftCard";
+import { CallButton } from "../../../calls/CallUI";
+import { humanCallMissing } from "@/lib/telnyx-call-control";
 
 export default async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,6 +26,8 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const payments = await db.select().from(schema.payments).where(eq(schema.payments.orderId, id)).orderBy(asc(schema.payments.createdAt));
   const paidPayment = payments.find((p) => p.status === "paid");
   const recovery = await db.select().from(schema.recoverySteps).where(eq(schema.recoverySteps.orderId, id)).orderBy(asc(schema.recoverySteps.scheduledAt));
+  const calls = isAdmin ? await db.select().from(schema.humanCalls).where(eq(schema.humanCalls.orderId, id)).orderBy(asc(schema.humanCalls.startedAt)) : [];
+  const callingMissing = humanCallMissing();
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
   const visits = isAdmin ? await sessionsOfOrder(id) : [];
   const shipment = await shipmentOf(id);
@@ -60,7 +64,23 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
             <Item k="Name" v={o.customerName ?? "·"} />
             <Item k="Email" v={o.email ?? "·"} />
-            <Item k="Phone" v={o.phone ?? "·"} />
+            <Item
+              k="Phone"
+              v={
+                <>
+                  {o.phone ?? "·"}
+                  {isAdmin && o.phone && (
+                    <span className="ml-2">
+                      <CallButton
+                        target={{ orderId: o.id, name: o.customerName ?? o.id }}
+                        disabled={!o.consentCalls || callingMissing.length > 0}
+                        title={!o.consentCalls ? "No calls consent" : callingMissing.length ? `Not configured: ${callingMissing.join(", ")}` : undefined}
+                      />
+                    </span>
+                  )}
+                </>
+              }
+            />
             <Item k="NIF" v={o.nif ?? "·"} />
             <Item k="Newsletter" v={o.consentMarketing ? "Yes" : "No"} />
             <Item k="Tracking consent" v={o.consentTracking ? "Yes" : "No"} />
@@ -229,6 +249,26 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               </li>
             ))}
           </ul>
+        </section>
+      )}
+      {calls.length > 0 && (
+        <section className="rounded-lg border bg-white p-4">
+          <h2 className="font-semibold">Phone calls</h2>
+          <table className="mt-2 w-full text-sm">
+            <thead className="text-left text-xs uppercase text-muted"><tr><th className="py-1">Started</th><th>By</th><th>Status</th><th>Duration</th><th>Answered by</th><th>Recording</th></tr></thead>
+            <tbody>
+              {calls.map((c) => (
+                <tr key={c.id} className="border-t align-top">
+                  <td className="py-1">{lisbonDateTime(c.startedAt)}</td>
+                  <td className="text-xs">{c.initiatedByEmail}</td>
+                  <td>{c.status}</td>
+                  <td>{c.durationMs != null ? `${Math.round(c.durationMs / 1000)} s` : ""}</td>
+                  <td>{c.answeredBy ?? ""}</td>
+                  <td>{c.recordingKey ? <audio controls preload="none" src={`/admin/calls/recording?id=${c.id}`} className="h-8" /> : (c.recordingStatus ?? "")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
       )}
       {recovery.length > 0 && (
