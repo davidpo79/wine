@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { DIALABLE, REP_OUTCOMES, type LeadStatus } from "@/lib/pt-callers/flags";
+import { DIALABLE, REP_OUTCOMES, type LeadStatus } from "@/lib/pt-callers/statuses";
 import { PT } from "@/lib/pt-callers/strings-pt";
 import type { RepLead } from "@/lib/pt-callers/service";
 import { CallButton } from "../../calls/CallUI";

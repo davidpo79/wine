@@ -6,6 +6,7 @@ import { ptFlags, creditCaps, dailyCallCap, pilotNumbers, resultMode } from "@/l
 import { creditSummary, listForRep, sweepTimeouts } from "@/lib/pt-callers/service";
 import { logAccess } from "@/lib/pt-callers/rules";
 import { humanCallMissing } from "@/lib/telnyx-call-control";
+import { loadOutboundSettings, outboundEnv } from "@/lib/outbound-settings";
 import { RepPanel } from "./RepPanel";
 import { AdminPanel } from "./AdminPanel";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 // Portugal HR callers. One page, two halves: the sales rep's (pt-PT, assigned leads only) and the admin's (English).
 export default async function PtCallers() {
   const me = await requireAdmin({ allowPtCaller: true });
+  await loadOutboundSettings();
   const flags = ptFlags();
   if (me.role === "pt_caller") {
     const leads = await listForRep(me);
@@ -34,11 +36,11 @@ export default async function PtCallers() {
       flags={flags}
       config={{
         apolloKey: !!process.env.APOLLO_API_KEY,
-        webhookBase: process.env.APOLLO_WEBHOOK_BASE_URL ?? null,
+        webhookBase: outboundEnv().APOLLO_WEBHOOK_BASE_URL ?? null,
         resultMode: resultMode(),
         caps: creditCaps(),
         callCap: dailyCallCap(),
-        callHours: process.env.PT_CALLERS_CALL_HOURS ?? null,
+        callHours: outboundEnv().PT_CALLERS_CALL_HOURS ?? null,
         pilot: pilotNumbers(),
         telnyxMissing: humanCallMissing(),
         dnc: "No do-not-call source is wired: every dial is refused until one is.",

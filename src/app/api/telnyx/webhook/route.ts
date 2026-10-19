@@ -4,9 +4,11 @@ import { decodeState, hangup, sendSms, startAssistant, telnyxConfigured, verifyT
 import { callScript, resumeUrl, stopRecovery } from "@/lib/recovery";
 import { logOrderEvent } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
+import { loadOutboundSettings } from "@/lib/outbound-settings";
 
 // Telnyx Call Control webhooks for the abandoned-checkout AI call.
 export async function POST(req: Request) {
+  await loadOutboundSettings();
   const raw = await req.text();
   if (!verifyTelnyxWebhook(raw, req.headers.get("telnyx-signature-ed25519"), req.headers.get("telnyx-timestamp"))) {
     return new Response("invalid signature", { status: 401 });

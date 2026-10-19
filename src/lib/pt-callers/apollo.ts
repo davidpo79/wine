@@ -9,6 +9,7 @@
 //   Apollo documents no webhook signature: the webhook URL carries an unguessable secret instead.
 // The key goes only in the x-api-key header, never in a URL, a log or the browser.
 import { ptFlags } from "./flags";
+import { outboundEnv } from "../outbound-settings";
 import { normalizePtPhone } from "./phone";
 
 export const BASE = "https://api.apollo.io";
@@ -125,6 +126,8 @@ export interface Apollo {
   kind: "apollo" | "mock";
   search(page: number): Promise<{ people: SearchPerson[]; totalEntries: number | null }>;
   enrich(personIds: string[], o: { webhookUrl?: string; pollOnly?: boolean }): Promise<{ requestId: string | null; creditsConsumed: string | null }>;
+  /** Key check: the 0-credit search with one result per page. Returns Apollo's HTTP status and the match count only. */
+  ping?(): Promise<{ status: number; totalEntries: number | null }>;
   /** status "pending" = not ready yet; "gone" = Apollo answered 404/410/400 (terminal). */
   poll(requestId: string): Promise<{ status: "ready" | "pending" | "gone"; body?: unknown }>;
 }
@@ -160,6 +163,15 @@ export function createApolloClient(o: { apiKey: string; fetch?: FetchLike; timeo
       if (r.status !== 200) throw new ApolloHttpError(r.status, `Apollo search answered ${r.status}`);
       const j = JSON.parse(r.raw) as { people?: SearchPerson[]; total_entries?: number; pagination?: { total_entries?: number } };
       return { people: (j.people ?? []).filter((p) => typeof p?.id === "string"), totalEntries: j.total_entries ?? j.pagination?.total_entries ?? null };
+    },
+    async ping() {
+      const r = await call("POST", SEARCH_PATH, { ...searchBody(1), per_page: 1 });
+      let total: number | null = null;
+      try {
+        const j = JSON.parse(r.raw) as { total_entries?: number; pagination?: { total_entries?: number } };
+        total = j.total_entries ?? j.pagination?.total_entries ?? null;
+      } catch {}
+      return { status: r.status, totalEntries: total };
     },
     async enrich(ids, mode) {
       const r = await call("POST", ENRICH_PATH, enrichBody(ids, mode));
@@ -205,7 +217,7 @@ export function createMockApollo(): Apollo {
 }
 
 /** Real Apollo only when both flags are on AND a key is set; otherwise the mock (demo data). */
-export function apolloFor(env: Record<string, string | undefined> = process.env): Apollo {
+export function apolloFor(env: Record<string, string | undefined> = outboundEnv()): Apollo {
   if (ptFlags(env).live && env.APOLLO_API_KEY) return createApolloClient({ apiKey: env.APOLLO_API_KEY });
   return createMockApollo();
 }

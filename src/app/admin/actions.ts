@@ -605,3 +605,33 @@ export async function ebookAction(_: FormState, fd: FormData): Promise<FormState
   revalidatePath("/admin/settings");
   return { ok: `${locale.toUpperCase()}: ${action === "on" ? "customers in this language get the e-book." : "turned off."}` };
 }
+
+/** Admin → Settings → Outbound calls: non-secret call settings (override Railway; empty = Railway's value). */
+export async function outboundCallsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const { OUTBOUND_FIELDS, validateOutbound, saveOutbound } = await import("@/lib/outbound-settings");
+  const input: Record<string, string> = {};
+  for (const f of OUTBOUND_FIELDS) input[f.key] = String(fd.get(f.key) ?? "");
+  const { values, error } = validateOutbound(input);
+  if (error) return { error };
+  await saveOutbound(values);
+  revalidatePath("/admin/settings");
+  return { ok: "Saved. The new values apply to the next call." };
+}
+
+/** Admin → Settings → Outbound calls: checks APOLLO_API_KEY with Apollo's 0-credit search (1 result, nothing stored). */
+export async function apolloKeyTestAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const key = process.env.APOLLO_API_KEY;
+  if (!key) return { error: "APOLLO_API_KEY is not set in Railway (or the service has not redeployed since)." };
+  const { createApolloClient, ApolloTimeout } = await import("@/lib/pt-callers/apollo");
+  try {
+    const r = await createApolloClient({ apiKey: key, timeoutMs: 15_000 }).ping!();
+    if (r.status === 200) return { ok: `Apollo accepted the key (HTTP 200, 0 credits). ${r.totalEntries ?? "?"} people match the Portugal HR filter.` };
+    if (r.status === 401 || r.status === 403) return { error: `Apollo refused the key (HTTP ${r.status}). Check the key and its permissions (People API Search).` };
+    if (r.status === 429) return { error: "Apollo answered 429 (rate limit). Try again in a minute." };
+    return { error: `Apollo answered HTTP ${r.status}.` };
+  } catch (e) {
+    return { error: e instanceof ApolloTimeout ? "Apollo did not answer within 15 seconds." : `Could not reach Apollo: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
