@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/auth";
-import { ptFlags, creditCaps, dailyCallCap, dncRequired, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
+import { ptFlags, creditCaps, dailyCallCap, dncRequired, legalBasisRequired, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
 import { creditSummary, listForRep, sweepTimeouts } from "@/lib/pt-callers/service";
 import { logAccess } from "@/lib/pt-callers/rules";
 import { humanCallMissing } from "@/lib/telnyx-call-control";
@@ -44,6 +44,7 @@ export default async function PtCallers() {
         pilot: pilotNumbers(),
         telnyxMissing: humanCallMissing(),
         dncRequired: dncRequired(),
+        legalBasisRequired: legalBasisRequired(),
       }}
       credits={credits}
       reps={reps}

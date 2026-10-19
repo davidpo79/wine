@@ -66,6 +66,9 @@ export const resultMode = (env: Env = outboundEnv()): "webhook" | "poll" => (env
 /** National do-not-call check required before a dial: on unless explicitly "false". */
 export const dncRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_DNC_REQUIRED !== "false";
 
+/** A recorded legal basis per lead before a dial: on unless explicitly "false". */
+export const legalBasisRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_LEGAL_BASIS_REQUIRED !== "false";
+
 export const LOCK_MINUTES = 15;
 export const RETENTION_DAYS = 90;
 export const ENRICH_TIMEOUT_MINUTES = 30;

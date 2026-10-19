@@ -93,7 +93,7 @@ function Tile({ label, value, sub }: { label: string; value: string | number; su
 
 export function AdminPanel(p: {
   flags: { enabled: boolean; legalApproved: boolean; live: boolean };
-  config: { apolloKey: boolean; webhookBase: string | null; resultMode: string; caps: { daily: number | null; monthly: number | null }; callCap: number; callHours: string | null; pilot: string[] | null; telnyxMissing: string[]; dncRequired: boolean };
+  config: { apolloKey: boolean; webhookBase: string | null; resultMode: string; caps: { daily: number | null; monthly: number | null }; callCap: number; callHours: string | null; pilot: string[] | null; telnyxMissing: string[]; dncRequired: boolean; legalBasisRequired: boolean };
   credits: { real: Bucket; demo: Bucket };
   reps: { id: number; email: string }[];
   leads: Lead[];
@@ -198,7 +198,7 @@ export function AdminPanel(p: {
               ["Import", "Pull 25 HR managers per click. Free."],
               ["Approve", "Tick the people worth contacting."],
               ["Get phones", "Up to 10 at a time. 1 credit, +8 if a mobile is found."],
-              ["Prepare", "Mark the number as a business line and note the legal basis."],
+              ["Prepare", p.config.legalBasisRequired ? "Mark the number as a business line and note the legal basis." : "Mark the number as a business line."],
               ["Assign", "Give leads to a sales rep, who calls them."],
             ].map(([t, d], i) => (
               <li key={t} className="rounded-lg bg-paper p-3">
@@ -302,7 +302,7 @@ export function AdminPanel(p: {
                         {l.attempts > 0 && <span className="mt-1 block text-[11px] text-muted">{l.attempts} call{l.attempts === 1 ? "" : "s"}</span>}
                       </td>
                       <td className="py-3 text-xs">{p.reps.find((r) => r.id === l.assignedTo)?.email ?? <span className="text-muted">—</span>}</td>
-                      <td className="py-3"><Classify lead={l} onDone={(ok, m) => { setMsg({ ok, text: m }); router.refresh(); }} /></td>
+                      <td className="py-3"><Classify lead={l} needBasis={p.config.legalBasisRequired} onDone={(ok, m) => { setMsg({ ok, text: m }); router.refresh(); }} /></td>
                       <td className="py-3 pr-3 text-right">
                         <button
                           type="button"
@@ -398,17 +398,17 @@ export function AdminPanel(p: {
   );
 }
 
-function Classify({ lead, onDone }: { lead: Lead; onDone: (ok: boolean, m: string) => void }) {
+function Classify({ lead, needBasis, onDone }: { lead: Lead; needBasis: boolean; onDone: (ok: boolean, m: string) => void }) {
   const [open, setOpen] = useState(false);
   const [numberClass, setNumberClass] = useState(lead.numberClass);
   const [legalBasis, setLegalBasis] = useState(lead.legalBasis ?? "");
   const blocked = lead.status === "opt_out" || lead.status === "blocked";
   if (!lead.phone || blocked) return <span className="text-xs text-muted">{blocked ? "—" : "needs a phone first"}</span>;
-  const done = lead.numberClass === "business" && !!lead.legalBasis;
+  const done = lead.numberClass === "business" && (!needBasis || !!lead.legalBasis);
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)} className={`rounded-lg px-2 py-1 text-xs font-semibold ${done ? "text-green-700" : "border border-amber-400 text-amber-800 hover:bg-amber-50"}`}>
-        {done ? "✓ Business line · basis noted" : "Prepare for calling"}
+        {done ? (needBasis ? "✓ Business line · basis noted" : "✓ Business line") : "Prepare for calling"}
       </button>
     );
   return (
@@ -421,17 +421,19 @@ function Classify({ lead, onDone }: { lead: Lead; onDone: (ok: boolean, m: strin
           <option value="personal">personal (do not call)</option>
         </select>
       </label>
-      <label className="block">
-        <span className="font-semibold">Legal basis</span>
-        <input value={legalBasis} onChange={(e) => setLegalBasis(e.target.value)} placeholder="As advised by your lawyer" className="mt-0.5 w-full rounded border p-1" />
-      </label>
+      {needBasis && (
+        <label className="block">
+          <span className="font-semibold">Legal basis</span>
+          <input value={legalBasis} onChange={(e) => setLegalBasis(e.target.value)} placeholder="As advised by your lawyer" className="mt-0.5 w-full rounded border p-1" />
+        </label>
+      )}
       <div className="flex gap-2">
         <button
           type="button"
           onClick={async () => {
             const r = await post("classify", { id: lead.id, numberClass, legalBasis });
             setOpen(false);
-            onDone(!!r.ok, r.ok ? (numberClass === "business" && legalBasis.trim() ? `${lead.name} is ready to call.` : "Saved.") : String(r.reason));
+            onDone(!!r.ok, r.ok ? (numberClass === "business" && (!needBasis || legalBasis.trim()) ? `${lead.name} is ready to call.` : "Saved.") : String(r.reason));
           }}
           className="rounded bg-[#0F2340] px-2 py-1 font-semibold text-white"
         >
