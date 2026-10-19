@@ -13,6 +13,8 @@ export type Settings = {
   stock_cap_boxes: number | null;
   delivery_text: string;
   ebook_previews: string[]; // bucket keys of rasterized e-book pages
+  ebook_locales: string[]; // translated editions offered to customers (Portuguese is always offered)
+  ebook_files: Record<string, { uploaded_at: string; bytes: number; by: string }>; // last PDF upload per language
   exit_popup_enabled: boolean;
   lead_code: string; // discount code given in the exit popup
   lead_discount_percent: number;
@@ -64,6 +66,8 @@ export const DEFAULT_SETTINGS: Settings = {
   stock_cap_boxes: null,
   delivery_text: "Entrega em 2 a 4 dias úteis · Portugal Continental",
   ebook_previews: [],
+  ebook_locales: [],
+  ebook_files: {},
   exit_popup_enabled: true,
   lead_code: "NATAL5",
   lead_discount_percent: 5,
@@ -79,6 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
       price_cents: 1490,
       compare_cents: 1690,
       active: true,
+      cost_cents: 700,
     },
     {
       key: "porto-vintage-2016-agua-alta",
@@ -87,11 +92,12 @@ export const DEFAULT_SETTINGS: Settings = {
       price_cents: 1590,
       compare_cents: 1790,
       active: true,
+      cost_cents: 900,
     },
   ],
   reviews: [],
   reviews_enabled: true,
-  gift_card: { enabled: true, price_cents: 390, cost_cents: 0, vat_percent: 23 },
+  gift_card: { enabled: true, price_cents: 390, cost_cents: 50, vat_percent: 23 },
   // From David's profit calculation (10/10/2026). Payment fee: 3% of what the customer pays, for every method.
   profit_split: { my_name: "David", partner_name: "Partner", my_percent: null, min_per_box_cents: null },
   // Only Portugal sells until excise duties and VAT for the other countries are confirmed (17/10/2026).
@@ -107,14 +113,16 @@ export const DEFAULT_SETTINGS: Settings = {
     wine_per_box_cents: 1000,
     gift_box_cents: 80,
     shipping_box_cents: 230,
+    // CTT Portugal, 2-day service: up to 8 kg (2 boxes, 6 bottles) 6,04 € (next day: 6,16 €). The cheapest split is used.
     delivery_tiers: [
       { max_boxes: 2, cents: 604 },
       { max_boxes: 3, cents: 1100 },
     ],
+    // Price lists (18/10/2026), without recoverable VAT: Stripe EEA cards, ifthenpay MB WAY / Multibanco.
     payment_fees: {
-      card: { percent: 3, fixed_cents: 0 },
-      mb_way: { percent: 3, fixed_cents: 0 },
-      multibanco: { percent: 3, fixed_cents: 0 },
+      card: { percent: 1.5, fixed_cents: 25 },
+      mb_way: { percent: 0.7, fixed_cents: 7 },
+      multibanco: { percent: 1.5, fixed_cents: 20 },
       other: { percent: 3, fixed_cents: 0 },
     },
     other_per_order_cents: 0,

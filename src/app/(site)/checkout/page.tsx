@@ -1,5 +1,6 @@
 import { publicReviews } from "@/lib/reviews";
 import type { Metadata } from "next";
+import { guideFor } from "@/lib/ebook";
 import { cookies } from "next/headers";
 import { getCatalog } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
@@ -37,7 +38,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
     .slice(0, 3)
     .map((r) => ({ name: r.name, text: r.text!, city: undefined, source: `${"★".repeat(r.rating)} · ${getDict(locale).review.verified}` }));
   return (
-    <I18nProvider locale={locale} country={wanted} dict={getDict(locale)}>
+    <I18nProvider locale={locale} country={wanted} dict={getDict(locale)} guide={guideFor(settings, locale)}>
       <CheckoutPage
         bundles={bundles}
         reviews={verified.length ? verified : locale === "pt" ? settings.reviews ?? [] : []}

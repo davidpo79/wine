@@ -10,7 +10,7 @@ import type { OrderStatus } from "@/db/schema";
 import { hashPassword, login, logout, requireAdmin, setSessionCookie } from "@/lib/auth";
 import { clientIp } from "@/lib/request";
 import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
-import { ebookLink, sendConfirmation, sendShipped } from "@/lib/email";
+import { ebookLink, sendConfirmation, sendShipped, sendTeamInvite, sendTestEmail } from "@/lib/email";
 import { orderAddons, refundOrder } from "@/lib/payments";
 import { parseEuroToCents } from "@/lib/money";
 import { PER_BOX_FLOOR_CENTS, type PostCutoffMode, type Settings } from "@/lib/settings-defaults";
@@ -18,7 +18,8 @@ import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
-import { COUNTRIES } from "@/lib/markets";
+import { COUNTRIES, isLocale } from "@/lib/markets";
+import { ebookKey } from "@/lib/ebook";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -94,7 +95,7 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await db.update(schema.orders).set({ ebookKeyIssuedAt: new Date() }).where(eq(schema.orders.id, id));
         await logOrderEvent(id, action, by);
         if (action === "regenerate_ebook") {
-          const link = await ebookLink();
+          const link = await ebookLink(isLocale(o.locale) ? o.locale : "pt");
           revalidatePath(`/admin/orders/${id}`);
           return { ok: link ? `Email resent. New link (valid 7 days): ${link}` : "Email resent (no e-book in the bucket yet)." };
         }
@@ -417,7 +418,13 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
     const pw = tempPassword();
     await db.insert(schema.adminUsers).values({ email, role, passwordHash: await hashPassword(pw), mustChangePassword: true, createdBy: me.email });
     revalidatePath("/admin/team");
-    return { ok: `Account created for ${email} (${role}). Temporary password: ${pw} (shown once; they choose their own at first login).` };
+    let mailed = "";
+    if (fd.get("send_email") === "on") {
+      const r = (await sendTeamInvite(email, role, pw, me.email)) as { skipped?: boolean; error?: { message?: string } | string | null } | undefined;
+      const err = r && "error" in r && r.error ? (typeof r.error === "string" ? r.error : r.error.message) : null;
+      mailed = r?.skipped ? " Email NOT sent: email is not configured (RESEND_API_KEY / EMAIL_FROM)." : err ? ` Email NOT sent: ${err}.` : " Login details emailed.";
+    }
+    return { ok: `Account created for ${email} (${role}). Temporary password: ${pw} (shown once; they choose their own at first login).${mailed}` };
   }
   const id = Number(fd.get("id"));
   const [u] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, id)).limit(1);
@@ -542,4 +549,56 @@ export async function reviewsSettingsAction(_: FormState, fd: FormData): Promise
   await setSetting("reviews_enabled", fd.get("reviews_enabled") === "on");
   revalidatePath("/admin/reviews");
   return { ok: "Saved." };
+}
+
+/** Admin → Settings: checks the CTT API keys without creating anything. */
+export async function cttTestAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const { cttTestConnection } = await import("@/lib/ctt");
+  const appId = String(fd.get("app_id") ?? "").trim().slice(0, 100) || undefined;
+  const r = await cttTestConnection(appId);
+  const text = `${r.ok ? "Connected." : "Not connected."}\n${r.steps.join("\n")}`;
+  return r.ok ? { ok: text } : { error: text };
+}
+
+/** Admin → Email & messages: sends a test email and reports the provider's answer. */
+export async function testEmailAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ role: "admin" });
+  const to = String(fd.get("to") ?? "").trim() || me.email;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { error: "Enter a valid email." };
+  const r = (await sendTestEmail(to)) as { skipped?: boolean; data?: { id?: string } | null; error?: { message?: string; name?: string } | string | null; id?: string } | undefined;
+  if (r?.skipped) return { error: "Not sent: email is not configured. Set RESEND_API_KEY and EMAIL_FROM in Railway." };
+  const err = r?.error ? (typeof r.error === "string" ? r.error : `${r.error.name ?? ""} ${r.error.message ?? ""}`.trim()) : null;
+  if (err) return { error: `Not sent. The provider answered: ${err}` };
+  return { ok: `Sent to ${to} (id ${r?.data?.id ?? r?.id ?? "?"}). Check the inbox and the spam folder.` };
+}
+
+/** Admin → Settings → Gift e-book: upload a language edition (PDF) to the private bucket, or switch editions on and off. */
+export async function ebookAction(_: FormState, fd: FormData): Promise<FormState> {
+  const me = await requireAdmin({ role: "admin" });
+  const settings = await getSettings();
+  if (fd.get("action") === "upload") {
+    const locale = String(fd.get("locale") ?? "");
+    if (!isLocale(locale)) return { error: "Choose a language." };
+    const file = fd.get("file");
+    if (!(file instanceof File) || !file.size) return { error: "Choose the PDF file." };
+    if (file.size > 24 * 1024 * 1024) return { error: "The PDF is larger than 24 MB." };
+    const buf = Buffer.from(await file.arrayBuffer());
+    if (buf.subarray(0, 5).toString("latin1") !== "%PDF-") return { error: "That file is not a PDF." };
+    if (!bucketConfigured()) return { error: "The storage bucket is not configured." };
+    await putObject(ebookKey(locale), buf, "application/pdf");
+    await setSetting("ebook_files", { ...(settings.ebook_files ?? {}), [locale]: { uploaded_at: new Date().toISOString(), bytes: buf.length, by: me.email } });
+    if (locale !== "pt" && !(settings.ebook_locales ?? []).includes(locale)) await setSetting("ebook_locales", [...(settings.ebook_locales ?? []), locale]);
+    revalidatePath("/admin/settings");
+    return { ok: `Uploaded the ${locale.toUpperCase()} edition (${(buf.length / 1048576).toFixed(1)} MB). ${locale === "pt" ? "" : "Customers in this language now get it."}` };
+  }
+  const locale = String(fd.get("locale") ?? "");
+  const action = fd.get("action");
+  if (!isLocale(locale) || (action !== "on" && action !== "off")) return { error: "Choose a language." };
+  if (locale === "pt") return { error: "Portuguese is always offered." };
+  if (action === "on" && !settings.ebook_files?.[locale]) return { error: `Upload the ${locale.toUpperCase()} PDF first.` };
+  const rest = (settings.ebook_locales ?? []).filter((l) => l !== locale);
+  await setSetting("ebook_locales", action === "on" ? [...rest, locale] : rest);
+  revalidatePath("/admin/settings");
+  return { ok: `${locale.toUpperCase()}: ${action === "on" ? "customers in this language get the e-book." : "turned off."}` };
 }

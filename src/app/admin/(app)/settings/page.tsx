@@ -1,7 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate } from "@/lib/time";
-import { settingsAction, ga4TestAction } from "../../actions";
+import { settingsAction, ga4TestAction, cttTestAction, ebookAction } from "../../actions";
+import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
 import { COUNTRIES, MARKETS } from "@/lib/markets";
 import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
@@ -128,6 +129,39 @@ export default async function SettingsPage() {
           <span className="block text-xs font-normal text-muted">Only real reviews (EU law). Shown on the checkout page; empty = hidden.</span>
         </label>
         <Submit>Save settings</Submit>
+      </ActionForm>
+
+      <section className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <h2 className="font-semibold">Gift e-book (Sabores de Portugal)</h2>
+        <p className="text-xs text-muted">One PDF per language. Customers get the edition in their language (confirmation email and thank-you page), and the landing page shows the guide in that language. Portuguese is always offered.</p>
+        <ActionForm action={ebookAction} className="flex flex-wrap items-end gap-2">
+          <label>Language
+            <select name="locale" className="mt-1 block rounded border p-2">
+              {EBOOK_LOCALES.map((l) => {
+                const f = s.ebook_files?.[l];
+                const on = l === "pt" || (s.ebook_locales ?? []).includes(l);
+                const file = f ? `${(f.bytes / 1048576).toFixed(1)} MB, ${new Date(f.uploaded_at).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" })}` : l === "pt" ? "original" : "no PDF";
+                return <option key={l} value={l}>{`${l.toUpperCase()} · ${file} · ${on ? "offered" : "off"}`}</option>;
+              })}
+            </select>
+          </label>
+          <label>PDF (for upload)<input type="file" name="file" accept="application/pdf" className="mt-1 block text-xs" /></label>
+          <Submit name="action" value="upload">Upload</Submit>
+          <Submit name="action" value="on" className="!bg-white !text-night border">Offer</Submit>
+          <Submit name="action" value="off" className="!bg-white !text-night border">Turn off</Submit>
+        </ActionForm>
+      </section>
+      <ActionForm action={cttTestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <h2 className="font-semibold">CTT: test the API connection</h2>
+        <p className="text-muted">
+          Asks CTT for a token and reads the account settings and carriers. Nothing is created at CTT.
+          Uses CTT_APP_ID, CTT_PUBLIC_KEY and CTT_SECRET_KEY from Railway; to try another application id without changing Railway, type it below.
+        </p>
+        <label className="block">
+          <span className="text-xs font-semibold">Application id to test (optional)</span>
+          <input name="app_id" placeholder="empty = CTT_APP_ID" className="mt-1 w-full max-w-xs rounded border p-2" />
+        </label>
+        <Submit>Test CTT connection</Submit>
       </ActionForm>
 
       <ActionForm action={ga4TestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">

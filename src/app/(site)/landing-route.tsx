@@ -1,5 +1,6 @@
 import { publicReviews } from "@/lib/reviews";
 import type { Metadata } from "next";
+import { guideFor } from "@/lib/ebook";
 import { getCatalog, paidBoxes, salesState } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { SITE } from "@/lib/site";
@@ -70,7 +71,7 @@ export async function LandingRoute({ locale }: { locale: Locale }) {
   };
 
   return (
-    <I18nProvider locale={locale} country={country} languages={languagesOf(open)} dict={d}>
+    <I18nProvider locale={locale} country={country} languages={languagesOf(open)} dict={d} guide={guideFor(settings, locale)}>
       <BuyProvider bundles={bundles} defaultKey={defaultKey} mode={mode} promoConfig={locale === "pt" && settings.lead_code && settings.lead_discount_percent > 0 ? { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty, plusCode: settings.lead_plus_code } : null}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
         <div lang={LOCALE_INFO[locale].htmlLang}>

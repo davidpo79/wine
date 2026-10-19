@@ -7,6 +7,8 @@
 // guide is Portuguese only, so other languages leave it out.
 
 import { Reviews, type ReviewsData } from "./Reviews";
+import { guideImage } from "@/lib/ebook";
+import { SITE } from "@/lib/site";
 import { useEffect, useRef, useState } from "react";
 import { useBuy, type PublicBundle } from "./BuyContext";
 import { ViewContentObserver } from "./Interactive";
@@ -35,8 +37,10 @@ type Offer = {
 
 const GALLERY_KEYS = ["giftbox", "arrival", "unboxing", "pouring", "christmas-couple", "table", "guide"] as const;
 
-const img = (key: string) => `/lp/${key}.webp`;
-const srcSet = (key: string) => `/lp/${key}-768.webp 768w, /lp/${key}.webp 1536w`;
+// The guide cover has one image set per language edition (guide.de.webp ...).
+const ed = (key: string, locale: string) => (key === "guide" && locale !== "pt" ? `.${locale}` : "");
+const img = (key: string, locale = "pt") => `/lp/${key}${ed(key, locale)}.webp`;
+const srcSet = (key: string, locale = "pt") => `/lp/${key}-768${ed(key, locale)}.webp 768w, /lp/${key}${ed(key, locale)}.webp 1536w`;
 // German capitalises nouns: lower-casing mid-sentence is only safe in the other languages.
 const lowerFirst = (s: string, locale: string) => (locale === "de" ? s : s.charAt(0).toLowerCase() + s.slice(1));
 
@@ -269,8 +273,8 @@ export function LandingPage({
                 alt={g.alt}
                 fetchPriority={gi === 0 ? "high" : "auto"}
                 id="galleryimage"
-                src={img(gKey)}
-                srcSet={srcSet(gKey)}
+                src={img(gKey, locale)}
+                srcSet={srcSet(gKey, locale)}
                 sizes="(max-width: 760px) 100vw, 620px"
                 style={{ objectFit: gKey === "guide" ? "contain" : "cover" }}
               />
@@ -297,7 +301,7 @@ export function LandingPage({
               {gallery.map((k, i) => (
                 <button key={k} aria-label={fmt(t.viewPhoto, { label: t.gallery[k].label })} aria-pressed={i === gi} className={`thumb${k === "guide" ? " guide" : ""}`} type="button" onClick={() => show(i)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt={t.gallery[k].thumbAlt} loading="lazy" src={`/lp/${k}-thumb.webp`} width={90} height={90} />
+                  <img alt={t.gallery[k].thumbAlt} loading="lazy" src={`/lp/${k}-thumb${ed(k, locale)}.webp`} width={90} height={90} />
                   <span>{t.gallery[k].label}</span>
                 </button>
               ))}
@@ -348,7 +352,7 @@ export function LandingPage({
             {guide && (
               <div className="bonusline">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt={t.bonusAlt} src="/lp/guide-thumb.webp" width={90} height={127} />
+                <img alt={t.bonusAlt} src={guideImage("guide-thumb", locale)} width={90} height={127} />
                 <div>
                   <b>{t.bonusTitle}</b>
                   <small>{t.bonusSub}</small>
@@ -550,7 +554,7 @@ export function LandingPage({
             <div className="wrap split">
               <div className="bookscene">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt={t.guide.imageAlt} loading="lazy" src="/lp/guide-768.webp" />
+                <img alt={t.guide.imageAlt} loading="lazy" src={guideImage("guide-768", locale)} />
                 <span className="giftbadge">
                   {t.guide.badgeTitle}
                   <small>{t.guide.badgeSub}</small>
@@ -652,7 +656,7 @@ export function LandingPage({
               {guide && (
                 <div className="bonusline">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img alt={t.final.bonusAlt} src="/lp/guide-thumb.webp" width={90} height={127} loading="lazy" />
+                  <img alt={t.final.bonusAlt} src={guideImage("guide-thumb", locale)} width={90} height={127} loading="lazy" />
                   <div>
                     <b>{t.final.bonusTitle}</b>
                     <small>{t.final.bonusSub}</small>
@@ -792,6 +796,9 @@ export function LandingPage({
             </a>
           )}
           <OpenConsentLink />
+        </div>
+        <div className="wrap footentity">
+          {SITE.legalName} · NIF {SITE.nif} · {SITE.address}
         </div>
       </footer>
 

@@ -117,8 +117,22 @@
     {
       "idx": 16,
       "version": "7",
-      "when": 1792416298002,
-      "tag": "0016_human_calls",
+      "when": 1792326222127,
+      "tag": "0016_payment_fees",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792326892704,
+      "tag": "0017_upsell_costs",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792417126356,
+      "tag": "0018_human_calls",
       "breakpoints": true
     }
   ]

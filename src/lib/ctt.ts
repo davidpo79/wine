@@ -19,16 +19,16 @@ const ISO3: Record<string, string> = { PT: "PRT", ES: "ESP", DE: "DEU", NL: "NLD
 
 export function cttConfig() {
   return {
-    appId: process.env.CTT_APP_ID ?? "",
-    publicKey: process.env.CTT_PUBLIC_KEY ?? "",
-    secret: process.env.CTT_SECRET_KEY ?? "",
+    appId: (process.env.CTT_APP_ID ?? "").trim(),
+    publicKey: (process.env.CTT_PUBLIC_KEY ?? "").trim(),
+    secret: (process.env.CTT_SECRET_KEY ?? "").trim(),
     base: (process.env.CTT_API_BASE ?? "https://enviosecommerceapi.ctt.pt/v3").replace(/\/$/, ""),
     simulate: process.env.CTT_SIMULATE === "1",
     carrierId: process.env.CTT_CARRIER_ID ? Number(process.env.CTT_CARRIER_ID) : null, // empty: the rulebook in the CTT app decides
     optionIds: (process.env.CTT_OPTION_IDS ?? "").split(",").map((s) => Number(s.trim())).filter((n) => n > 0),
     labelType: Number(process.env.CTT_LABEL_TYPE ?? 0), // 0 = PDF, 1 = ZPL
     labelStart: Number(process.env.CTT_LABEL_START ?? 1),
-    boxWeightG: Number(process.env.CTT_BOX_WEIGHT_G ?? 4800), // one Trilogia box: 3 bottles + gift box + carton
+    boxWeightG: Number(process.env.CTT_BOX_WEIGHT_G ?? 4000), // one Trilogia box: 2 boxes (6 bottles) fit the 8 kg CTT band
     shopUrl: `${(process.env.SITE_URL ?? "").replace(/\/$/, "")}/api/webhooks/ctt`,
   };
 }
@@ -40,9 +40,14 @@ export const cttConfigured = () => {
 
 const b64nopad = (buf: Buffer) => buf.toString("base64").replace(/=+$/, "");
 
-/** Password for Basic auth: HMAC-SHA256 of (username + body) with the secret key, base64 without padding. */
-export function cttSign(username: string, body: string, secret = cttConfig().secret) {
-  return b64nopad(createHmac("sha256", secret).update(username + body).digest());
+/**
+ * Password for Basic auth: HMAC-SHA256 of (username + body) with the secret key, base64. The docs say "padding
+ * removed", but CTT's own WooCommerce plugin (Shiptimize API v3 client) sends it with the "=" padding, so that is
+ * the default; CTT_SIG_PADDING=0 switches to the documented form.
+ */
+export function cttSign(username: string, body: string, secret = cttConfig().secret, padded = process.env.CTT_SIG_PADDING !== "0") {
+  const sig = createHmac("sha256", secret).update(username + body).digest().toString("base64");
+  return padded ? sig : sig.replace(/=+$/, "");
 }
 
 /** ShopItemId must be a hex string (max 60): the order id, hex encoded. */
@@ -79,15 +84,15 @@ async function saveToken(t: { key: string; expire: string } | null) {
   await db.insert(schema.settings).values({ key: TOKEN_KEY, value: t }).onConflictDoUpdate({ target: schema.settings.key, set: { value: t } });
 }
 
-async function raw(method: string, path: string, username: string, body?: unknown) {
+async function raw(method: string, path: string, username: string, body?: unknown, appId?: string, padded?: boolean) {
   const c = cttConfig();
   const text = body === undefined ? "" : JSON.stringify(body);
   const url = path.startsWith("http") ? path : `${c.base}${path}`;
   const res = await fetch(url, {
     method,
     headers: {
-      Authorization: `Basic ${Buffer.from(`${username}:${cttSign(username, text, c.secret)}`).toString("base64")}`,
-      "X-APPID": c.appId,
+      Authorization: `Basic ${Buffer.from(`${username}:${cttSign(username, text, c.secret, padded)}`).toString("base64")}`,
+      "X-APPID": appId ?? c.appId,
       ...(c.simulate ? { X_SIMULATE: "1" } : {}),
       ...(text ? { "Content-Type": "application/json" } : {}),
       Accept: "application/json",
@@ -138,7 +143,7 @@ export async function cttCreateShipment(o: Order) {
   const shipment = {
     ClientReferenceCode: o.id,
     ShopItemId: shopItemId(o.id),
-    ColliCount: "1",
+    ColliCount: String(Math.max(1, Math.ceil(o.qtyBoxes / 2))), // up to 8 kg (2 boxes) per parcel
     Weight: Math.max(1, o.qtyBoxes) * c.boxWeightG,
     OrderTotal: (o.totalCents / 100).toFixed(2),
     Note1: o.isGift ? "Oferta" : undefined,
@@ -203,4 +208,52 @@ export async function cttTrack(orderIds: string[]) {
     }
   }
   return out;
+}
+
+/**
+ * Admin "Test CTT connection": asks for a token (POST /keys/) and reads the account settings (GET /settings/),
+ * nothing is created. appId overrides CTT_APP_ID for this test only. Never returns the token or keys.
+ */
+export async function cttTestConnection(appIdOverride?: string) {
+  const c = cttConfig();
+  const appId = appIdOverride?.trim() || c.appId;
+  const missing = [!appId && "CTT_APP_ID", !c.publicKey && "CTT_PUBLIC_KEY", !c.secret && "CTT_SECRET_KEY"].filter(Boolean) as string[];
+  if (missing.length) return { ok: false, steps: [`Missing in Railway: ${missing.join(", ")}`] };
+  // Shape of the values only (never the values): a key pair is long random text, not a short portal number.
+  const shape = (v: string) => `${v.length} chars${/^\d+$/.test(v) ? ", digits only" : ""}${/^\s|\s$/.test(v) ? ", has spaces at the ends" : ""}`;
+  const keysLine = `Values used: application id ${shape(appIdOverride ?? process.env.CTT_APP_ID ?? "")} · CTT_PUBLIC_KEY ${shape(process.env.CTT_PUBLIC_KEY ?? "")} · CTT_SECRET_KEY ${shape(process.env.CTT_SECRET_KEY ?? "")}`;
+  const short = (j: unknown) => JSON.stringify(j).replace(/"(Key|Token)":"[^"]+"/g, '"$1":"…"').slice(0, 400);
+  const steps: string[] = [keysLine];
+  try {
+    const keyBody = { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl };
+    // Both signature forms (with "=" padding like CTT's plugin, and without as in the docs).
+    let k = await raw("POST", "/keys/", c.publicKey, keyBody, appId, true);
+    steps.push(`POST /keys/ (signature with padding) → HTTP ${k.status} · ${short(k.json)}`);
+    let padded = true;
+    if (k.status === 401) {
+      k = await raw("POST", "/keys/", c.publicKey, keyBody, appId, false);
+      padded = false;
+      steps.push(`POST /keys/ (signature without padding) → HTTP ${k.status} · ${short(k.json)}`);
+    }
+    const key = (k.json.Key ?? k.json.Token ?? k.json.key) as string | undefined;
+    if (k.status !== 200 || !key) {
+      steps.push(
+        "401 = CTT refused the application id or the key pair. The application id (X-APPID) is not shown in the portal: CTT's plugins carry their own, and a custom shop needs one issued by the CTT salesperson. Also check that CTT_PUBLIC_KEY / CTT_SECRET_KEY have no spaces.",
+      );
+      return { ok: false, steps };
+    }
+    steps.push(`Token received (${padded ? "with" : "without"} padding${padded ? "" : ": set CTT_SIG_PADDING=0 in Railway"}).`);
+    const st = await raw("GET", "/settings/", key, undefined, appId, padded);
+    steps.push(`GET /settings/ → HTTP ${st.status} · ${short(st.json)}`);
+    const cr = await raw("GET", "/carriers/", key, undefined, appId, padded);
+    const carriers = ((cr.json.Carrier as { Id?: number; Name?: string }[] | undefined) ?? []).map((x) => `${x.Id} ${x.Name}`);
+    steps.push(`GET /carriers/ → HTTP ${cr.status}${carriers.length ? ` · ${carriers.join(", ")}` : ` · ${short(cr.json)}`}`);
+    if (!appIdOverride || appIdOverride.trim() === c.appId) await saveToken({ key, expire: String(k.json.Expire ?? "") });
+    if ([st.status, cr.status].includes(405)) steps.push("405 = that endpoint is not enabled for this application key: ask CTT to enable keys, shipments, labels, tracking, carriers, settings.");
+    // A token means the application id and the key pair are accepted.
+    return { ok: true, steps };
+  } catch (e) {
+    steps.push(`Network error: ${e instanceof Error ? e.message : String(e)}`);
+    return { ok: false, steps };
+  }
 }
