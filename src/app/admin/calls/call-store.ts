@@ -7,7 +7,7 @@
 import { useSyncExternalStore } from "react";
 import { createRemoteAudioElement, createSoftphone, destroyRemoteAudioElement, requestMicrophone, stopStream, type SoftphoneCall, type SoftphoneClient } from "@/lib/softphone";
 
-export type CallTarget = { orderId?: string; leadId?: number; name: string };
+export type CallTarget = { orderId?: string; leadId?: number; ptLeadId?: number; name: string; lang?: "pt" };
 export type Device = "idle" | "registering" | "ready" | "micDenied" | "forbidden" | "unavailable" | "connectionLost";
 export type CallView = {
   target: CallTarget;
@@ -139,12 +139,26 @@ async function placeCall() {
   const c = state.call;
   if (!c) return;
   setCall({ phase: "starting", status: "starting" });
+  if (c.target.ptLeadId) return placePtCall(c.target.ptLeadId);
   const r = await post("start", c.target.orderId ? { orderId: c.target.orderId } : { leadId: c.target.leadId }).catch(() => ({ status: 0, json: {} as Record<string, unknown> }));
   if (r.status === 409 && r.json.code === "rep_busy") return setCall({ phase: "repBusy", status: null, callId: (r.json.activeCallId as string) ?? null });
   if (r.status !== 200) return setCall({ phase: "startFailed", status: null, error: (r.json.error as string) ?? "The call could not be started." });
   const callId = r.json.callId as string;
   if (r.json.dialed === false) return setCall({ callId, phase: "failed", status: "failed", error: (r.json.dialError as string) ?? null });
   setCall({ callId, phase: r.json.status as string, status: r.json.status as string });
+  schedulePoll();
+}
+
+/** Portugal-callers lead: the rep's own endpoint rechecks every rule on the server before ringing this device. */
+async function placePtCall(leadId: number) {
+  const r = await fetch("/admin/pt-callers/api/rep/dial", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId }), credentials: "include" })
+    .then(async (x) => ({ status: x.status, json: (await x.json().catch(() => ({}))) as Record<string, unknown> }))
+    .catch(() => ({ status: 0, json: {} as Record<string, unknown> }));
+  if (r.status !== 200 || r.json.ok !== true) {
+    const reason = String(r.json.reason ?? "call_failed");
+    return setCall({ phase: reason === "busy" ? "repBusy" : "startFailed", status: null, callId: (r.json.callId as string) ?? null, error: (r.json.dialError as string) ?? `pt:${reason}` });
+  }
+  setCall({ callId: r.json.callId as string, phase: r.json.status as string, status: r.json.status as string });
   schedulePoll();
 }
 

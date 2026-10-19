@@ -495,6 +495,150 @@ export const humanCallRepEndpoints = pgTable("human_call_rep_endpoints", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Portugal callers (Apollo HR leads called by sales reps). Separate from orders / customers / shop leads on purpose:
+// a sales rep can never reach customer data. Minimal business data only (GDPR); retention field, no deletion job.
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const ptLeads = pgTable(
+  "pt_leads",
+  {
+    id: serial("id").primaryKey(),
+    apolloPersonId: text("apollo_person_id").notNull().unique(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    title: text("title"),
+    company: text("company"),
+    companyApolloId: text("company_apollo_id"),
+    companySize: integer("company_size"),
+    location: text("location"), // person's city / region
+    phone: text("phone"), // E.164, only after an approved enrichment
+    phoneType: text("phone_type"), // Apollo type_cd: mobile | work_direct | other ...
+    numberClass: text("number_class").notNull().default("unknown"), // business | personal | unknown (set by an admin)
+    legalBasis: text("legal_basis"), // recorded by an admin before the lead can be dialed
+    // new | ready | calling | no_answer | callback | interested | not_interested | wrong_number | opt_out | blocked | enrichment_pending | failed
+    status: text("status").notNull().default("new"),
+    statusBeforeCall: text("status_before_call"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvedBy: integer("approved_by").references(() => adminUsers.id),
+    assignedTo: integer("assigned_to").references(() => adminUsers.id),
+    lockedBy: integer("locked_by").references(() => adminUsers.id),
+    lockUntil: timestamp("lock_until", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    callbackAt: timestamp("callback_at", { withTimezone: true }),
+    note: text("note"), // short business note only, no personal remarks
+    failReason: text("fail_reason"),
+    source: text("source").notNull().default("apollo"),
+    demo: boolean("demo").notNull().default(false), // created by the mock while the flags are off: never dialable
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+    enrichedAt: timestamp("enriched_at", { withTimezone: true }),
+    retentionUntil: timestamp("retention_until", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pt_leads_assigned_idx").on(t.assignedTo, t.status), index("pt_leads_status_idx").on(t.status)],
+);
+
+/** Permanent opt-out / block list: hashed identifiers only. Never deleted; re-import and re-enrichment check it. */
+export const ptBlocks = pgTable(
+  "pt_blocks",
+  {
+    id: serial("id").primaryKey(),
+    kind: text("kind").notNull(), // phone | apollo_id
+    valueHash: text("value_hash").notNull(), // sha256 of the normalized value
+    scope: text("scope").notNull().default("all_marketing"),
+    reason: text("reason").notNull(), // opt_out | admin_block
+    createdBy: integer("created_by").references(() => adminUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("pt_blocks_kind_hash_uq").on(t.kind, t.valueHash)],
+);
+
+/** Apollo credit ledger: a row is reserved before every credit-consuming call and settled exactly once. */
+export const ptCreditLedger = pgTable(
+  "pt_credit_ledger",
+  {
+    id: serial("id").primaryKey(),
+    requestKey: text("request_key").notNull().unique(), // = pt_enrichment_requests.id
+    reserved: integer("reserved").notNull(),
+    settled: text("settled"), // Apollo's figure (can be fractional), as text: set once
+    status: text("status").notNull().default("reserved"), // reserved | settled
+    demo: boolean("demo").notNull().default(false),
+    createdBy: integer("created_by").references(() => adminUsers.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    note: text("note"),
+  },
+  (t) => [index("pt_credit_ledger_created_idx").on(t.createdAt)],
+);
+
+export const ptEnrichmentRequests = pgTable("pt_enrichment_requests", {
+  id: text("id").primaryKey(), // ours: er_ + 16 hex
+  apolloRequestId: text("apollo_request_id"), // signed 64-bit integer from Apollo, kept as a string (never a JS number)
+  mode: text("mode").notNull(), // webhook | poll
+  secretHash: text("secret_hash"), // sha256 of the webhook URL secret (webhook mode)
+  status: text("status").notNull().default("sending"), // sending | pending | complete | timeout | failed | closed
+  syncCredits: text("sync_credits"), // credits_consumed in Apollo's first answer
+  demo: boolean("demo").notNull().default(false),
+  createdBy: integer("created_by").references(() => adminUsers.id),
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  error: text("error"),
+});
+
+export const ptEnrichmentItems = pgTable(
+  "pt_enrichment_items",
+  {
+    id: serial("id").primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => ptEnrichmentRequests.id),
+    leadId: integer("lead_id")
+      .notNull()
+      .references(() => ptLeads.id),
+    apolloPersonId: text("apollo_person_id").notNull(),
+    state: text("state").notNull().default("pending"), // pending | phone | no_phone | blocked
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("pt_enrichment_items_req_person_uq").on(t.requestId, t.apolloPersonId), index("pt_enrichment_items_lead_idx").on(t.leadId, t.state)],
+);
+
+/** One row per dial: links #4's human_calls row to the lead (human_calls itself is not changed). */
+export const ptCalls = pgTable(
+  "pt_calls",
+  {
+    id: serial("id").primaryKey(),
+    humanCallId: text("human_call_id")
+      .notNull()
+      .unique()
+      .references(() => humanCalls.id),
+    leadId: integer("lead_id")
+      .notNull()
+      .references(() => ptLeads.id),
+    repId: integer("rep_id")
+      .notNull()
+      .references(() => adminUsers.id),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pt_calls_lead_idx").on(t.leadId), index("pt_calls_created_idx").on(t.createdAt)],
+);
+
+/** Who viewed, revealed, called or changed which lead. */
+export const ptAccessLog = pgTable(
+  "pt_access_log",
+  {
+    id: serial("id").primaryKey(),
+    adminId: integer("admin_id").references(() => adminUsers.id),
+    leadId: integer("lead_id").references(() => ptLeads.id),
+    action: text("action").notNull(), // view | reveal | dial | dial_refused | outcome | opt_out | import | approve | enrich | assign | classify
+    detail: jsonb("detail").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("pt_access_log_lead_idx").on(t.leadId, t.createdAt)],
+);
+
 export type Product = typeof products.$inferSelect;
 export type Bundle = typeof bundles.$inferSelect;
 export type Order = typeof orders.$inferSelect;
@@ -507,3 +651,4 @@ export type AdminUser = typeof adminUsers.$inferSelect;
 export type ReviewRow = typeof reviews.$inferSelect;
 export type Shipment = typeof shipments.$inferSelect;
 export type HumanCall = typeof humanCalls.$inferSelect;
+export type PtLead = typeof ptLeads.$inferSelect;

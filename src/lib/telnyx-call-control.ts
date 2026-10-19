@@ -204,7 +204,8 @@ export async function dialRepLeg(p: { callId: string; sipUsername: string }) {
 }
 
 /** Leg B: the customer, bridged to leg A the moment they answer. */
-export async function dialCustomerLeg(p: { callId: string; to: string; linkTo: string }) {
+/** `amd: false` leaves answering-machine detection off (it costs money per call). */
+export async function dialCustomerLeg(p: { callId: string; to: string; linkTo: string; amd?: boolean }) {
   const c = humanCallConfig();
   if (!/^\+\d{7,15}$/.test(p.to)) throw new TelnyxError("the customer number must be E.164", 0);
   const r = await tx("POST", "/calls", {
@@ -218,7 +219,7 @@ export async function dialCustomerLeg(p: { callId: string; to: string; linkTo: s
     command_id: `hc-cust-${p.callId}`,
     timeout_secs: c.customerTimeoutSecs,
     time_limit_secs: c.timeLimitSecs,
-    answering_machine_detection: c.amdMode,
+    ...(p.amd === false ? {} : { answering_machine_detection: c.amdMode }),
   });
   const d = data(r);
   if (!d.call_control_id) throw new TelnyxError("Telnyx returned no call_control_id for the customer leg", 0);

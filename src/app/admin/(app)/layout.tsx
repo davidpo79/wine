@@ -29,6 +29,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/products", label: "Products & pricing", icon: "product" },
       { href: "/admin/reviews", label: "Reviews", icon: "star" },
       { href: "/admin/leads", label: "Leads", icon: "leads" },
+      { href: "/admin/pt-callers", label: "Portugal HR callers", icon: "leads" },
       { href: "/admin/creatives", label: "Ads", icon: "ads" },
     ],
   },
@@ -62,15 +63,21 @@ async function pendingReviews() {
   return r?.n ?? 0;
 }
 
+const PT_CALLER_NAV: NavGroup[] = [{ items: [{ href: "/admin/pt-callers", label: "Contactos RH", icon: "leads" }] }];
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const admin = await requireAdmin();
-  const nav = withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, { "/admin/inbox": await unreadCount().catch(() => 0), "/admin/reviews": await pendingReviews().catch(() => 0) });
+  // Sales reps (Portugal callers) get this shell only around their own screen: every other page refuses them.
+  const admin = await requireAdmin({ allowPtCaller: true });
+  const rep = admin.role === "pt_caller";
+  const nav = rep
+    ? PT_CALLER_NAV
+    : withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, { "/admin/inbox": await unreadCount().catch(() => 0), "/admin/reviews": await pendingReviews().catch(() => 0) });
   const mode = ifthenpayMode();
   const stripe = stripeConfigured() ? (stripeMode() === "live" ? "live" : "test") : null;
   const footer = (
     <div className="space-y-2 px-2 text-sm">
       <p className="truncate text-xs text-muted" title={admin.email}>{admin.email}</p>
-      <p className="text-xs text-muted">Role: {admin.role === "admin" ? "Admin" : "Fulfilment"}</p>
+      <p className="text-xs text-muted">Role: {admin.role === "admin" ? "Admin" : rep ? "Sales rep (Portugal callers)" : "Fulfilment"}</p>
       <Link href="/admin/password" className="flex items-center gap-2 text-ink/80 hover:text-ink"><Icon name="key" /> Change password</Link>
       <form action={logoutAction}>
         <button className="text-left text-ink/80 underline hover:text-ink">Log out</button>
@@ -81,17 +88,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-paper">
       <header className="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-3 bg-night px-3 text-paper">
         <Sidebar groups={nav} footer={footer} />
-        <Link href={admin.role === "admin" ? "/admin" : "/admin/orders"} aria-label="Wine Portugal"><img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={390} className="h-7 w-auto" /></Link>
+        <Link href={admin.role === "admin" ? "/admin" : rep ? "/admin/pt-callers" : "/admin/orders"} aria-label="Wine Portugal"><img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={390} className="h-7 w-auto" /></Link>
         <div className="ml-auto flex items-center gap-2 text-[11px]">
-          <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>ifthenpay {mode === "live" ? "LIVE" : mode === "sandbox" ? "SANDBOX" : "off"}</span>
-          <span className={`hidden rounded px-2 py-0.5 font-semibold sm:inline ${stripe === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>Stripe {stripe === "live" ? "LIVE" : stripe === "test" ? "TEST" : "off"}</span>
+          {!rep && (
+            <>
+              <span className={`rounded px-2 py-0.5 font-semibold ${mode === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>ifthenpay {mode === "live" ? "LIVE" : mode === "sandbox" ? "SANDBOX" : "off"}</span>
+              <span className={`hidden rounded px-2 py-0.5 font-semibold sm:inline ${stripe === "live" ? "bg-green-600" : "bg-amber-500 text-night"}`}>Stripe {stripe === "live" ? "LIVE" : stripe === "test" ? "TEST" : "off"}</span>
+            </>
+          )}
           <span className="hidden max-w-[14rem] truncate text-paper/80 lg:inline">{admin.email}</span>
         </div>
       </header>
       <main className="px-4 pb-10 pt-16 md:ml-60 md:px-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
-      {admin.role === "admin" && <CallPopup />}
+      {(admin.role === "admin" || rep) && <CallPopup />}
     </div>
   );
 }
