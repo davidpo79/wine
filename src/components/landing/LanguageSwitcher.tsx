@@ -29,11 +29,12 @@ const FLAGS: Record<Locale, React.ReactNode> = {
       <rect y="8" width="18" height="4" fill="#21468b" />
     </>
   ),
+  // French is sold to Belgium (and Luxembourg), so it carries the Belgian flag.
   fr: (
     <>
-      <rect width="6" height="12" fill="#002395" />
-      <rect x="6" width="6" height="12" fill="#fff" />
-      <rect x="12" width="6" height="12" fill="#ed2939" />
+      <rect width="6" height="12" fill="#000" />
+      <rect x="6" width="6" height="12" fill="#fdda24" />
+      <rect x="12" width="6" height="12" fill="#ef3340" />
     </>
   ),
 };
