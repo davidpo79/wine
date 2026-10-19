@@ -4,6 +4,7 @@ import { lisbonDate } from "@/lib/time";
 import { settingsAction, ga4TestAction, cttTestAction, ebookAction } from "../../actions";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
+import { OutboundCallsSection } from "./outbound-calls";
 import { COUNTRIES, MARKETS } from "@/lib/markets";
 import { PER_BOX_FLOOR_CENTS } from "@/lib/settings-defaults";
 
@@ -163,6 +164,8 @@ export default async function SettingsPage() {
         </label>
         <Submit>Test CTT connection</Submit>
       </ActionForm>
+
+      <OutboundCallsSection />
 
       <ActionForm action={ga4TestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">Google Analytics: server connection</h2>

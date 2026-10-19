@@ -1,6 +1,6 @@
 // European Portuguese (pt-PT) text for the sales reps' screen and the call script. Not Brazilian Portuguese:
 // telemóvel (not celular), ecrã (not tela), contacto (not contato), utilizador, registo, equipa, guardar.
-import type { LeadStatus } from "./flags";
+import type { LeadStatus } from "./statuses";
 
 const status: Record<LeadStatus, string> = {
   new: "Novo",

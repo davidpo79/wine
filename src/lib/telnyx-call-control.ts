@@ -12,26 +12,28 @@
 // Commands carry a command_id derived from the call id, so a replayed webhook re-issues the same command and Telnyx
 // ignores the repeat.
 
+import { outboundEnv as E } from "./outbound-settings";
+
 export const TERMINAL = ["completed", "rep_no_answer", "no_answer", "busy", "failed", "canceled"] as const;
 
-const base = () => (process.env.TELNYX_API_BASE ?? "https://api.telnyx.com/v2").replace(/\/$/, "");
-const SIP_DOMAIN = () => process.env.TELNYX_SIP_DOMAIN || "sip.telnyx.com";
+const base = () => (E().TELNYX_API_BASE ?? "https://api.telnyx.com/v2").replace(/\/$/, "");
+const SIP_DOMAIN = () => E().TELNYX_SIP_DOMAIN || "sip.telnyx.com";
 const num = (v: string | undefined, d: number) => (Number(v) > 0 ? Number(v) : d);
 
 export function humanCallConfig() {
   return {
-    apiKey: process.env.TELNYX_API_KEY ?? "",
-    webrtcConnectionId: process.env.TELNYX_WEBRTC_CONNECTION_ID ?? "",
-    callControlConnectionId: process.env.TELNYX_CONNECTION_ID ?? "",
-    fromNumber: process.env.TELNYX_FROM_NUMBER ?? "",
-    webhookUrl: `${(process.env.SITE_URL ?? "").replace(/\/$/, "")}/api/telnyx/human-call-webhook`,
+    apiKey: E().TELNYX_API_KEY ?? "",
+    webrtcConnectionId: E().TELNYX_WEBRTC_CONNECTION_ID ?? "",
+    callControlConnectionId: E().TELNYX_CONNECTION_ID ?? "",
+    fromNumber: E().TELNYX_FROM_NUMBER ?? "",
+    webhookUrl: `${(E().SITE_URL ?? "").replace(/\/$/, "")}/api/telnyx/human-call-webhook`,
     // Telnyx's ~30 s default has cancelled mobiles before they stop ringing (SIP 487 at 30 s): the customer gets 60 s.
-    repTimeoutSecs: num(process.env.HUMAN_CALL_REP_TIMEOUT_SECS, 30),
-    customerTimeoutSecs: num(process.env.HUMAN_CALL_CUSTOMER_TIMEOUT_SECS, 60),
-    timeLimitSecs: num(process.env.HUMAN_CALL_TIME_LIMIT_SECS, 3600), // counted from dial: a backstop, not a target
-    amdMode: process.env.HUMAN_CALL_AMD_MODE || "premium",
+    repTimeoutSecs: num(E().HUMAN_CALL_REP_TIMEOUT_SECS, 30),
+    customerTimeoutSecs: num(E().HUMAN_CALL_CUSTOMER_TIMEOUT_SECS, 60),
+    timeLimitSecs: num(E().HUMAN_CALL_TIME_LIMIT_SECS, 3600), // counted from dial: a backstop, not a target
+    amdMode: E().HUMAN_CALL_AMD_MODE || "premium",
     // Off unless set: in the EU the customer must be told before a call is recorded.
-    record: process.env.HUMAN_CALL_RECORDING === "1",
+    record: E().HUMAN_CALL_RECORDING === "1",
   };
 }
 
@@ -43,8 +45,8 @@ export function humanCallMissing() {
   if (!c.webrtcConnectionId) missing.push("TELNYX_WEBRTC_CONNECTION_ID");
   if (!c.callControlConnectionId) missing.push("TELNYX_CONNECTION_ID");
   if (!/^\+\d{7,15}$/.test(c.fromNumber)) missing.push("TELNYX_FROM_NUMBER");
-  if (!/^https?:\/\/[^/]/.test(process.env.SITE_URL ?? "")) missing.push("SITE_URL");
-  if (!process.env.TELNYX_PUBLIC_KEY) missing.push("TELNYX_PUBLIC_KEY");
+  if (!/^https?:\/\/[^/]/.test(E().SITE_URL ?? "")) missing.push("SITE_URL");
+  if (!E().TELNYX_PUBLIC_KEY) missing.push("TELNYX_PUBLIC_KEY");
   return missing;
 }
 
@@ -60,7 +62,7 @@ export class TelnyxError extends Error {
 }
 
 async function tx(method: string, path: string, body?: unknown, opts: { raw?: boolean } = {}): Promise<Record<string, unknown> | string> {
-  const key = process.env.TELNYX_API_KEY;
+  const key = E().TELNYX_API_KEY;
   if (!key) throw new TelnyxError("Telnyx is not configured (TELNYX_API_KEY not set)", 0);
   let res: Response;
   try {

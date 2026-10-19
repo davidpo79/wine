@@ -1,17 +1,18 @@
 import { verify as edVerify } from "node:crypto";
+import { outboundEnv as E } from "./outbound-settings";
 
 const API = "https://api.telnyx.com/v2";
 
 export function telnyxConfigured(kind: "sms" | "voice") {
-  if (!process.env.TELNYX_API_KEY || !process.env.TELNYX_FROM_NUMBER) return false;
-  if (kind === "voice") return Boolean(process.env.TELNYX_CONNECTION_ID && process.env.TELNYX_ASSISTANT_ID);
+  if (!E().TELNYX_API_KEY || !E().TELNYX_FROM_NUMBER) return false;
+  if (kind === "voice") return Boolean(E().TELNYX_CONNECTION_ID && E().TELNYX_ASSISTANT_ID);
   return true;
 }
 
 async function call(path: string, body: Record<string, unknown>) {
   const r = await fetch(`${API}${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${E().TELNYX_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(15000),
   });
@@ -21,8 +22,8 @@ async function call(path: string, body: Record<string, unknown>) {
 }
 
 export async function sendSms(to: string, text: string) {
-  const body: Record<string, unknown> = { from: process.env.TELNYX_FROM_NUMBER, to, text };
-  if (process.env.TELNYX_MESSAGING_PROFILE_ID) body.messaging_profile_id = process.env.TELNYX_MESSAGING_PROFILE_ID;
+  const body: Record<string, unknown> = { from: E().TELNYX_FROM_NUMBER, to, text };
+  if (E().TELNYX_MESSAGING_PROFILE_ID) body.messaging_profile_id = E().TELNYX_MESSAGING_PROFILE_ID;
   return call("/messages", body);
 }
 
@@ -41,10 +42,10 @@ export function decodeState(v?: string | null): CallState | null {
 /** Outbound call; the AI assistant is started from the webhook once a human answers. */
 export async function dialCall(to: string, state: CallState) {
   return call("/calls", {
-    connection_id: process.env.TELNYX_CONNECTION_ID,
+    connection_id: E().TELNYX_CONNECTION_ID,
     to,
-    from: process.env.TELNYX_FROM_NUMBER,
-    webhook_url: `${(process.env.SITE_URL ?? "").replace(/\/$/, "")}/api/telnyx/webhook`,
+    from: E().TELNYX_FROM_NUMBER,
+    webhook_url: `${(E().SITE_URL ?? "").replace(/\/$/, "")}/api/telnyx/webhook`,
     client_state: encodeState(state),
     answering_machine_detection: "detect",
     timeout_secs: 30,
@@ -53,7 +54,7 @@ export async function dialCall(to: string, state: CallState) {
 
 export async function startAssistant(callControlId: string, opts: { greeting: string; instructions: string; state: CallState }) {
   return call(`/calls/${encodeURIComponent(callControlId)}/actions/ai_assistant_start`, {
-    assistant: { id: process.env.TELNYX_ASSISTANT_ID, instructions: opts.instructions },
+    assistant: { id: E().TELNYX_ASSISTANT_ID, instructions: opts.instructions },
     greeting: opts.greeting,
     client_state: encodeState(opts.state),
     command_id: `ai_${opts.state.orderId}_${opts.state.stepId}`,
@@ -66,7 +67,7 @@ export async function hangup(callControlId: string) {
 
 /** Verifies Telnyx webhook signatures (Ed25519 over "timestamp|body"). Requires TELNYX_PUBLIC_KEY (base64). */
 export function verifyTelnyxWebhook(rawBody: string, signatureB64: string | null, timestamp: string | null) {
-  const pub = process.env.TELNYX_PUBLIC_KEY;
+  const pub = E().TELNYX_PUBLIC_KEY;
   if (!pub || !signatureB64 || !timestamp) return false;
   if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
   try {

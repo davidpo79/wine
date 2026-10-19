@@ -1,39 +1,20 @@
 // Portugal callers: every switch and limit, read from the environment on each call (server-only).
 // A switch is on only when set to exactly "true". Anything unclear refuses.
 
+import { outboundEnv } from "../outbound-settings";
+
 type Env = Record<string, string | undefined>;
 
-export const STATUSES = [
-  "new",
-  "ready",
-  "calling",
-  "no_answer",
-  "callback",
-  "interested",
-  "not_interested",
-  "wrong_number",
-  "opt_out",
-  "blocked",
-  "enrichment_pending",
-  "failed",
-] as const;
-export type LeadStatus = (typeof STATUSES)[number];
+export { STATUSES, REP_OUTCOMES, DIALABLE, FINAL_BLOCKED, type LeadStatus } from "./statuses";
 
-/** Business outcomes a rep may set after a call. Opt-out has its own always-visible button. */
-export const REP_OUTCOMES: LeadStatus[] = ["no_answer", "callback", "interested", "not_interested", "wrong_number"];
-/** Statuses a lead can be dialed from. */
-export const DIALABLE: LeadStatus[] = ["ready", "no_answer", "callback"];
-/** Never leave these (opt-out and blocks are permanent). */
-export const FINAL_BLOCKED: LeadStatus[] = ["opt_out", "blocked"];
-
-export function ptFlags(env: Env = process.env) {
+export function ptFlags(env: Env = outboundEnv()) {
   const enabled = env.PT_CALLERS_ENABLED === "true";
   const legalApproved = env.PT_CALLERS_LEGAL_APPROVED === "true";
   return { enabled, legalApproved, live: enabled && legalApproved };
 }
 
 /** Optional Apollo credit caps: unset (or empty) = no cap; a malformed value = 0, which spends nothing. */
-export function creditCaps(env: Env = process.env) {
+export function creditCaps(env: Env = outboundEnv()) {
   const one = (v: string | undefined) => {
     if (v === undefined || v.trim() === "") return null;
     const n = Number(v);
@@ -46,7 +27,7 @@ export function creditCaps(env: Env = process.env) {
  * Approved calling hours, Lisbon time: PT_CALLERS_CALL_HOURS="09:30-18:00", days PT_CALLERS_CALL_DAYS="1-5"
  * (ISO weekdays, default Monday to Friday). Unset or malformed = no approved hours = no dial.
  */
-export function inCallHours(env: Env = process.env, now = new Date()) {
+export function inCallHours(env: Env = outboundEnv(), now = new Date()) {
   const m = /^(\d{2}):(\d{2})-(\d{2}):(\d{2})$/.exec(env.PT_CALLERS_CALL_HOURS ?? "");
   if (!m) return false;
   const from = Number(m[1]) * 60 + Number(m[2]);
@@ -62,7 +43,7 @@ export function inCallHours(env: Env = process.env, now = new Date()) {
 }
 
 /** Calls per day across all reps. Unset = 0 = no dial until a spend cap is approved. */
-export function dailyCallCap(env: Env = process.env) {
+export function dailyCallCap(env: Env = outboundEnv()) {
   const n = Number(env.PT_CALLERS_DAILY_CALL_CAP);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
@@ -71,7 +52,7 @@ export function dailyCallCap(env: Env = process.env) {
  * Pilot: only numbers whose owner agreed to be called in a test may be dialed, until PT_CALLERS_PILOT_COMPLETE="true".
  * Returns null when the pilot is over (no restriction).
  */
-export function pilotNumbers(env: Env = process.env): string[] | null {
+export function pilotNumbers(env: Env = outboundEnv()): string[] | null {
   if (env.PT_CALLERS_PILOT_COMPLETE === "true") return null;
   return (env.PT_CALLERS_PILOT_NUMBERS ?? "")
     .split(",")
@@ -80,7 +61,7 @@ export function pilotNumbers(env: Env = process.env): string[] | null {
 }
 
 /** How Apollo delivers phone results: webhook (default) or polling, never both. */
-export const resultMode = (env: Env = process.env): "webhook" | "poll" => (env.PT_CALLERS_APOLLO_RESULT_MODE === "poll" ? "poll" : "webhook");
+export const resultMode = (env: Env = outboundEnv()): "webhook" | "poll" => (env.PT_CALLERS_APOLLO_RESULT_MODE === "poll" ? "poll" : "webhook");
 
 export const LOCK_MINUTES = 15;
 export const RETENTION_DAYS = 90;

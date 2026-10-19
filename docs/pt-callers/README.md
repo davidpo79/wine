@@ -4,7 +4,17 @@ Sales reps call HR managers at Portuguese companies (51–500 employees). The le
 
 **It is OFF.** It stays off until a Portuguese lawyer approves calling in writing. Until then it runs in demo mode: fictional data, no Apollo calls, no credits spent, no dialing.
 
-## Switches (Railway → Variables, server only)
+## Where the settings live
+
+**Admin → Settings → Outbound calls.** Every non-secret setting below is controlled there:
+- A value saved on the screen wins over the Railway variable of the same name.
+- An empty field falls back to Railway.
+
+**Secrets stay in Railway only:** `TELNYX_API_KEY` and `APOLLO_API_KEY`. The screen shows whether each is set and never stores or shows its value.
+
+The screen also has a **Test Apollo key** button: Apollo's free search, 1 result, 0 credits, nothing stored.
+
+## Switches (Settings → Outbound calls, or Railway)
 
 | Variable | Default | Meaning |
 |---|---|---|

@@ -12,6 +12,7 @@ import { ApolloHttpError, apolloFor, parsePhonePayload, type ParsedPerson, type 
 import { DIALABLE, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, LOCK_MINUTES, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
 import { CreditRefused, reserve, settleOnce, summary } from "./ledger";
 import { blockHash, maskPhone, normalizePtPhone } from "./phone";
+import { outboundEnv } from "../outbound-settings";
 import { isBlocked, leadById, leadRefusal, logAccess, releaseAfterCall, type Refusal } from "./rules";
 
 const LEADS = schema.ptLeads;
@@ -109,7 +110,7 @@ export async function enrichLeads(me: Me, ids: number[]): Promise<EnrichResult> 
   const client = apolloFor();
   const demo = client.kind === "mock";
   // The mock never calls the webhook (demo results are played from the admin screen), so demo needs no URL.
-  const base = (process.env.APOLLO_WEBHOOK_BASE_URL ?? (demo ? "https://demo.invalid" : "")).replace(/\/$/, "");
+  const base = (outboundEnv().APOLLO_WEBHOOK_BASE_URL ?? (demo ? "https://demo.invalid" : "")).replace(/\/$/, "");
   if (mode === "webhook" && !/^https:\/\/[^/]/.test(base)) return { ok: false, reason: "APOLLO_WEBHOOK_BASE_URL (https) is not set. Polling is used only if chosen explicitly (PT_CALLERS_APOLLO_RESULT_MODE=poll)." };
 
   const requestId = `er_${randomBytes(8).toString("hex")}`;
