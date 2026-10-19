@@ -1,0 +1,71 @@
+import { redirect } from "next/navigation";
+import { desc, eq } from "drizzle-orm";
+import { db, schema } from "@/db";
+import { requireAdmin } from "@/lib/auth";
+import { ptFlags, creditCaps, dailyCallCap, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
+import { creditSummary, listForRep, sweepTimeouts } from "@/lib/pt-callers/service";
+import { logAccess } from "@/lib/pt-callers/rules";
+import { humanCallMissing } from "@/lib/telnyx-call-control";
+import { RepPanel } from "./RepPanel";
+import { AdminPanel } from "./AdminPanel";
+
+export const dynamic = "force-dynamic";
+
+// Portugal HR callers. One page, two halves: the sales rep's (pt-PT, assigned leads only) and the admin's (English).
+export default async function PtCallers() {
+  const me = await requireAdmin({ allowPtCaller: true });
+  const flags = ptFlags();
+  if (me.role === "pt_caller") {
+    const leads = await listForRep(me);
+    return <RepPanel leads={leads} live={flags.live} />;
+  }
+  if (me.role !== "admin") redirect("/admin/orders");
+
+  await sweepTimeouts();
+  const [leads, reps, requests, credits] = await Promise.all([
+    db.select().from(schema.ptLeads).orderBy(desc(schema.ptLeads.id)).limit(500),
+    db.select({ id: schema.adminUsers.id, email: schema.adminUsers.email }).from(schema.adminUsers).where(eq(schema.adminUsers.role, "pt_caller")),
+    db.select().from(schema.ptEnrichmentRequests).orderBy(desc(schema.ptEnrichmentRequests.sentAt)).limit(50),
+    creditSummary(me),
+  ]);
+  await logAccess(me.id, null, "admin_view", { leads: leads.length });
+  return (
+    <AdminPanel
+      flags={flags}
+      config={{
+        apolloKey: !!process.env.APOLLO_API_KEY,
+        webhookBase: process.env.APOLLO_WEBHOOK_BASE_URL ?? null,
+        resultMode: resultMode(),
+        caps: creditCaps(),
+        callCap: dailyCallCap(),
+        callHours: process.env.PT_CALLERS_CALL_HOURS ?? null,
+        pilot: pilotNumbers(),
+        telnyxMissing: humanCallMissing(),
+        dnc: "No do-not-call source is wired: every dial is refused until one is.",
+      }}
+      credits={credits}
+      reps={reps}
+      leads={leads.map((l) => ({
+        id: l.id,
+        name: [l.firstName, l.lastName].filter(Boolean).join(" ") || "—",
+        title: l.title,
+        company: l.company,
+        companySize: l.companySize,
+        location: l.location,
+        phone: l.phone,
+        phoneType: l.phoneType,
+        numberClass: l.numberClass,
+        legalBasis: l.legalBasis,
+        status: l.status,
+        approved: !!l.approvedAt,
+        assignedTo: l.assignedTo,
+        demo: l.demo,
+        attempts: l.attempts,
+        failReason: l.failReason,
+        fetchedAt: l.fetchedAt.toISOString(),
+        retentionUntil: l.retentionUntil.toISOString(),
+      }))}
+      requests={requests.map((r) => ({ id: r.id, mode: r.mode, status: r.status, apolloRequestId: r.apolloRequestId, demo: r.demo, sentAt: r.sentAt.toISOString(), error: r.error }))}
+    />
+  );
+}

@@ -14,6 +14,7 @@ import type { AdminSession } from "./auth";
 import { normalizePhone } from "./leads";
 import { logOrderEvent } from "./orders";
 import { bucketConfigured, putObject } from "./bucket";
+import * as ptHooks from "./pt-callers/call-hooks";
 import {
   TERMINAL,
   TelnyxError,
@@ -162,12 +163,20 @@ export async function startCall(me: AdminSession, input: { orderId?: unknown; le
   const to = t.phone ? normalizePhone(t.phone) : null;
   if (!to) return reply(400, { error: "This customer has no valid phone number." });
   if (!t.consent) return reply(403, { error: "This customer has not agreed to be called." });
+  return placeCall(me, { to, orderId: t.orderId, leadId: t.leadId });
+}
 
+/**
+ * Inserts the row, then rings the admin's browser. `onCreated` runs after the row exists and before anything is
+ * dialed (the Portugal-callers module links its lead there, so the webhook already knows the call's rules).
+ */
+export async function placeCall(me: AdminSession, t: { to: string; orderId?: string | null; leadId?: number | null; onCreated?: (callId: string) => Promise<void> }): Promise<Result> {
   // The row exists BEFORE anything is dialed; the partial unique index allows one live call per admin.
   const id = newCallId();
+  const to = t.to;
   const from = humanCallConfig().fromNumber || null;
   try {
-    await db.insert(T).values({ id, orderId: t.orderId, leadId: t.leadId, toNumber: to, fromNumber: from, initiatedBy: me.id, initiatedByEmail: me.email, status: "dialing" });
+    await db.insert(T).values({ id, orderId: t.orderId ?? null, leadId: t.leadId ?? null, toNumber: to, fromNumber: from, initiatedBy: me.id, initiatedByEmail: me.email, status: "dialing" });
   } catch (e) {
     const pg = pgCode(e);
     if (pg.code === "23505") {
@@ -181,6 +190,14 @@ export async function startCall(me: AdminSession, input: { orderId?: unknown; le
     throw e;
   }
   if (t.orderId) await logOrderEvent(t.orderId, "human_call_attempt", { callId: id, by: me.email }).catch(() => {});
+  if (t.onCreated) {
+    try {
+      await t.onCreated(id);
+    } catch (e) {
+      await failCall(id, `call_setup_failed:${errText(e)}`);
+      throw e;
+    }
+  }
 
   const notPlaced = async (error: string, dialError: string) => {
     await failCall(id, error);
@@ -269,18 +286,24 @@ async function dialCustomerFor(row: HumanCall) {
     const missing = humanCallMissing();
     if (missing.length) throw new TelnyxError(`sales_provider_config:${missing.join(",")}`, 0);
     if (!row.repCallControlId) throw new TelnyxError("rep_leg_missing_at_bridge_time", 0);
-    const leg = await dialCustomerLeg({ callId: row.id, to: row.toNumber, linkTo: row.repCallControlId });
+    // A Portugal-callers lead is rechecked right before its phone rings (an opt-out may have landed meanwhile).
+    const pt = await ptHooks.isPtCall(row.id);
+    const refusal = pt ? await ptHooks.customerLegRefusal(row.id) : null;
+    if (refusal) throw new TelnyxError(`pt_recheck_refused:${refusal}`, 0);
+    const leg = await dialCustomerLeg({ callId: row.id, to: row.toNumber, linkTo: row.repCallControlId, amd: !pt });
     await bindLeg(row.id, "customer", leg.callControlId);
   } catch (e) {
     const msg = errText(e);
     log("customer leg dial", row.id, msg);
-    await failCall(row.id, /^(sales_provider_config|rep_leg_missing)/.test(msg) ? msg : `customer_leg_dial_rejected:${msg}`);
+    await failCall(row.id, /^(sales_provider_config|rep_leg_missing|pt_recheck_refused)/.test(msg) ? msg : `customer_leg_dial_rejected:${msg}`);
     if (row.repCallControlId) await hangupLeg(row.repCallControlId).catch(() => {});
+    if (await ptHooks.isPtCall(row.id).catch(() => false)) await ptHooks.onCallEnded(row.id).catch(() => {});
   }
 }
 
 async function startRecordingFor(row: HumanCall) {
   if (!humanCallConfig().record || !row.callControlId) return;
+  if (await ptHooks.isPtCall(row.id)) return; // Portugal-callers calls are never recorded
   const [claimed] = await db
     .update(T)
     .set({ recordingStatus: "requested", updatedAt: new Date() })
@@ -381,6 +404,7 @@ export async function handleHumanCallEvent(evt: { event_type?: string; occurred_
   } else if (isTerminal(row.status)) {
     if (row.repCallControlId) await stopRingback(row.repCallControlId, row.id).catch(() => {});
     await hangupOtherLegs(row, ccid);
+    if (await ptHooks.isPtCall(row.id)) await ptHooks.onCallEnded(row.id).catch((e) => log("pt call end", row.id, errText(e)));
     if (status && row.orderId) await logOrderEvent(row.orderId, "human_call_ended", { callId: row.id, status: row.status, durationMs: row.durationMs }).catch(() => {});
   }
 }

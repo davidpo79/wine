@@ -7,7 +7,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { db, schema } from "@/db";
 import type { OrderStatus } from "@/db/schema";
-import { hashPassword, login, logout, requireAdmin, setSessionCookie } from "@/lib/auth";
+import { hashPassword, homeOf, login, logout, requireAdmin, roleOf, setSessionCookie } from "@/lib/auth";
 import { clientIp } from "@/lib/request";
 import { getOrder, logOrderEvent, setStatus } from "@/lib/orders";
 import { ebookLink, sendConfirmation, sendShipped, sendTeamInvite, sendTestEmail } from "@/lib/email";
@@ -25,9 +25,12 @@ export type FormState = { error?: string; ok?: string } | undefined;
 
 export async function loginAction(_: FormState, fd: FormData): Promise<FormState> {
   const ip = clientIp(await headers()) ?? "unknown";
-  const r = await login(String(fd.get("email") ?? ""), String(fd.get("password") ?? ""), ip);
+  const email = String(fd.get("email") ?? "");
+  const r = await login(email, String(fd.get("password") ?? ""), ip);
   if (!r.ok) return { error: r.error };
-  redirect("/admin");
+  const [u] = await db.select({ role: schema.adminUsers.role }).from(schema.adminUsers).where(eq(schema.adminUsers.email, email.trim().toLowerCase())).limit(1);
+  const role = roleOf(u?.role);
+  redirect(role ? homeOf(role) : "/admin");
 }
 
 export async function logoutAction() {
@@ -411,7 +414,7 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
   const action = String(fd.get("action") ?? "");
   if (action === "add") {
     const email = String(fd.get("email") ?? "").trim().toLowerCase();
-    const role = fd.get("role") === "admin" ? "admin" : "fulfilment";
+    const role = fd.get("role") === "admin" ? "admin" : fd.get("role") === "pt_caller" ? "pt_caller" : "fulfilment";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email." };
     const [exists] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.email, email)).limit(1);
     if (exists) return { error: "This email already has an account." };
@@ -433,7 +436,7 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
   if (u.id === me.id && ["disable", "delete", "role"].includes(action)) return { error: "You cannot change your own access. Ask another admin." };
   switch (action) {
     case "role": {
-      const role = fd.get("role") === "admin" ? "admin" : "fulfilment";
+      const role = fd.get("role") === "admin" ? "admin" : fd.get("role") === "pt_caller" ? "pt_caller" : "fulfilment";
       if (role !== "admin" && isLastAdmin) return { error: "Keep at least one active admin." };
       await db.update(schema.adminUsers).set({ role }).where(eq(schema.adminUsers.id, id));
       break;
@@ -475,7 +478,7 @@ export async function passwordAction(_: FormState, fd: FormData): Promise<FormSt
     .where(eq(schema.adminUsers.id, me.id))
     .returning();
   await setSessionCookie(u.id, u.sessionVersion); // other devices are logged out, this one stays in
-  redirect(u.role === "admin" ? "/admin" : "/admin/orders");
+  redirect(homeOf(roleOf(u.role) ?? "fulfilment"));
 }
 
 /** Sends one test event to GA4 through the Measurement Protocol (the same path as the server-side purchase). */

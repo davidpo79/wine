@@ -1,0 +1,584 @@
+// Portugal callers (Apollo HR leads + sales-rep calling). Written before the implementation.
+// Pure tests always run. The service / ledger / middleware tests need a Postgres with all migrations applied:
+//   TEST_DATABASE_URL=postgres://... npm test        (HUMAN_CALLS_DB_URL is accepted too)
+// Apollo and Telnyx are in-process fakes: nothing here can reach a real provider.
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { createServer, type Server } from "node:http";
+import { once } from "node:events";
+
+const DB_URL = process.env.TEST_DATABASE_URL ?? process.env.HUMAN_CALLS_DB_URL;
+if (DB_URL) process.env.DATABASE_URL = DB_URL;
+process.env.SESSION_SECRET ??= "s".repeat(40);
+for (const k of ["PT_CALLERS_ENABLED", "PT_CALLERS_LEGAL_APPROVED", "APOLLO_API_KEY", "APOLLO_DAILY_CREDIT_CAP", "APOLLO_MONTHLY_CREDIT_CAP"]) delete process.env[k];
+
+const flags = await import("../src/lib/pt-callers/flags");
+const phone = await import("../src/lib/pt-callers/phone");
+const access = await import("../src/lib/pt-callers/access");
+const apollo = await import("../src/lib/pt-callers/apollo");
+const strings = await import("../src/lib/pt-callers/strings-pt");
+const { roleOf, sessionFor } = await import("../src/lib/auth");
+
+// --- Flags ------------------------------------------------------------------------------------------------------------
+
+test("flags: on only when exactly 'true'; either off = demo (no real Apollo, no dial)", () => {
+  assert.equal(flags.ptFlags({}).live, false);
+  assert.equal(flags.ptFlags({ PT_CALLERS_ENABLED: "true" }).live, false);
+  assert.equal(flags.ptFlags({ PT_CALLERS_ENABLED: "true", PT_CALLERS_LEGAL_APPROVED: "TRUE" }).live, false);
+  assert.equal(flags.ptFlags({ PT_CALLERS_ENABLED: "1", PT_CALLERS_LEGAL_APPROVED: "true" }).live, false);
+  assert.equal(flags.ptFlags({ PT_CALLERS_ENABLED: "true", PT_CALLERS_LEGAL_APPROVED: "true" }).live, true);
+});
+
+test("credit caps: unset = no cap; a number = cap; malformed = 0 (spends nothing)", () => {
+  assert.deepEqual(flags.creditCaps({}), { daily: null, monthly: null });
+  assert.deepEqual(flags.creditCaps({ APOLLO_DAILY_CREDIT_CAP: "300", APOLLO_MONTHLY_CREDIT_CAP: "4000" }), { daily: 300, monthly: 4000 });
+  assert.deepEqual(flags.creditCaps({ APOLLO_DAILY_CREDIT_CAP: "lots" }), { daily: 0, monthly: null });
+  assert.deepEqual(flags.creditCaps({ APOLLO_MONTHLY_CREDIT_CAP: "" }), { daily: null, monthly: null });
+});
+
+test("call hours: unset refuses; weekdays only inside the Lisbon window", () => {
+  assert.equal(flags.inCallHours({}, new Date("2026-10-20T10:00:00Z")), false);
+  const env = { PT_CALLERS_CALL_HOURS: "09:30-18:00" };
+  assert.equal(flags.inCallHours(env, new Date("2026-10-20T10:00:00Z")), true); // Tue 11:00 Lisbon (WEST)
+  assert.equal(flags.inCallHours(env, new Date("2026-10-20T07:00:00Z")), false); // 08:00 Lisbon
+  assert.equal(flags.inCallHours(env, new Date("2026-10-24T10:00:00Z")), false); // Saturday
+  assert.equal(flags.inCallHours({ PT_CALLERS_CALL_HOURS: "nonsense" }, new Date("2026-10-20T10:00:00Z")), false);
+});
+
+// --- Phone ------------------------------------------------------------------------------------------------------------
+
+test("phone: +351 normalization, dialable check, masking, hashed block keys", () => {
+  assert.equal(phone.normalizePtPhone("912 345 678"), "+351912345678");
+  assert.equal(phone.normalizePtPhone("00351 21 123 4567"), "+351211234567");
+  assert.equal(phone.normalizePtPhone("+351912345678"), "+351912345678");
+  assert.equal(phone.normalizePtPhone("+34612345678"), null);
+  assert.equal(phone.normalizePtPhone("12345"), null);
+  assert.equal(phone.isDialablePt("+351912345678"), true);
+  assert.equal(phone.isDialablePt("+351812345678"), false);
+  assert.equal(phone.maskPhone("+351912345678"), "+351 9•• ••• •78");
+  assert.equal(phone.blockHash("phone", "912 345 678"), phone.blockHash("phone", "+351912345678"));
+  assert.notEqual(phone.blockHash("phone", "+351912345678"), phone.blockHash("apollo_id", "+351912345678"));
+  assert.match(phone.blockHash("apollo_id", "abc"), /^[0-9a-f]{64}$/);
+});
+
+// --- Role allow-list --------------------------------------------------------------------------------------------------
+
+test("roles: unknown role gets no access (no silent fallback to admin)", () => {
+  assert.equal(roleOf("admin"), "admin");
+  assert.equal(roleOf("fulfilment"), "fulfilment");
+  assert.equal(roleOf("pt_caller"), "pt_caller");
+  assert.equal(roleOf("superuser"), null);
+  assert.equal(roleOf(null), null);
+});
+
+test("sessions: a sales rep is not a session anywhere unless the caller opts in", () => {
+  const u = (role: string) => ({ id: 1, email: "x@y.z", role, mustChangePassword: false, disabledAt: null, sessionVersion: 3 });
+  assert.equal(sessionFor(u("pt_caller"), 3), null);
+  assert.equal(sessionFor(u("pt_caller"), 3, { allowPtCaller: true })?.role, "pt_caller");
+  assert.equal(sessionFor(u("admin"), 3)?.role, "admin");
+  assert.equal(sessionFor(u("fulfilment"), 3)?.role, "fulfilment");
+  assert.equal(sessionFor(u("root"), 3, { allowPtCaller: true }), null);
+  assert.equal(sessionFor(u("admin"), 2), null); // old session version
+  assert.equal(sessionFor({ ...u("admin"), disabledAt: new Date() }, 3), null);
+});
+
+/** Every URL the app serves, from the file system (route groups dropped, dynamic segments filled). */
+function appPaths(dir = join(process.cwd(), "src/app"), prefix = ""): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) {
+      const seg = name.startsWith("(") ? "" : name.startsWith("[[...") ? "" : name.startsWith("[...") ? "/x/y" : name.startsWith("[") ? "/x" : `/${name}`;
+      out.push(...appPaths(p, prefix + seg));
+    } else if (/^(page|route)\.tsx?$/.test(name)) out.push(prefix || "/");
+  }
+  return [...new Set(out)];
+}
+
+test("allow-list: a sales rep gets 403 on every admin and API path except their own screen, phone and login", () => {
+  const paths = appPaths().filter((p) => p.startsWith("/admin") || p.startsWith("/api"));
+  assert.ok(paths.length > 30, `found only ${paths.length} paths`);
+  const allowed = new Set<string>();
+  for (const p of paths) for (const m of ["GET", "POST"]) if (access.ptCallerAllowed(m, p)) allowed.add(`${m} ${p}`);
+  assert.deepEqual([...allowed].sort(), [
+    "GET /admin/login",
+    "GET /admin/password",
+    "GET /admin/pt-callers",
+    "POST /admin/calls/state",
+    "POST /admin/calls/webrtc-token",
+    "POST /admin/login",
+    "POST /admin/password",
+    "POST /admin/pt-callers",
+    "POST /admin/pt-callers/api/rep/dial",
+    "POST /admin/pt-callers/api/rep/opt-out",
+    "POST /admin/pt-callers/api/rep/outcome",
+  ]);
+  // Prefix tricks are refused.
+  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
+    assert.equal(access.ptCallerAllowed("POST", p), false, p);
+    assert.equal(access.ptCallerAllowed("GET", p), false, p);
+  }
+});
+
+test("server actions and routes: only the listed files let a sales rep in", () => {
+  // Server actions can be posted to any page path, so the middleware alone is not enough: every action goes through
+  // requireAdmin/getAdmin, which deny a pt_caller unless the call opts in. Only these places may opt in.
+  const files: string[] = [];
+  const walk = (d: string) => readdirSync(d).forEach((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : /\.tsx?$/.test(n) && files.push(join(d, n))));
+  walk(join(process.cwd(), "src"));
+  const optIn = files.filter((f) => /allowPtCaller:\s*true/.test(readFileSync(f, "utf8"))).map((f) => f.slice(process.cwd().length + 1)).sort();
+  assert.deepEqual(optIn, [
+    "src/app/admin/(app)/layout.tsx",
+    "src/app/admin/(app)/pt-callers/page.tsx",
+    "src/app/admin/calls/guard.ts",
+    "src/app/admin/pt-callers/api/guard.ts",
+    "src/lib/auth.ts",
+  ]);
+  // The calls guard only lets reps reach the token and state endpoints, never /start or /recording.
+  for (const r of ["start", "recording"]) assert.doesNotMatch(readFileSync(join(process.cwd(), `src/app/admin/calls/${r}/route.ts`), "utf8"), /allowPtCaller|rep: true/);
+});
+
+// --- Apollo request shapes --------------------------------------------------------------------------------------------
+
+test("apollo search: exact documented filters, 0-credit endpoint", () => {
+  const b = apollo.searchBody(2);
+  assert.equal(apollo.SEARCH_PATH, "/api/v1/mixed_people/api_search");
+  assert.deepEqual(b.person_locations, ["Portugal"]);
+  assert.deepEqual(b.organization_locations, ["Portugal"]);
+  assert.deepEqual(b.organization_num_employees_ranges, ["51,100", "101,500"]);
+  assert.deepEqual(b.person_titles, ["HR Manager", "Human Resources Manager", "Head of HR", "HR Director", "Responsável de Recursos Humanos", "Diretor de Recursos Humanos", "Diretora de Recursos Humanos"]);
+  assert.deepEqual(b.person_seniorities, ["manager", "head", "director"]);
+  assert.equal(b.include_similar_titles, false);
+  assert.equal(b.per_page, 25);
+  assert.equal(b.page, 2);
+});
+
+test("apollo enrichment: phone on, personal emails off, waterfall off, webhook XOR poll_only, max 10", () => {
+  const w = apollo.enrichBody(["a", "b"], { webhookUrl: "https://wine.test/api/apollo/webhook/er_1/s3cret" });
+  assert.equal(apollo.ENRICH_PATH, "/api/v1/people/bulk_match");
+  assert.deepEqual(w.details, [{ id: "a" }, { id: "b" }]);
+  assert.equal(w.reveal_phone_number, true);
+  assert.equal(w.reveal_personal_emails, false);
+  assert.equal(w.run_waterfall_phone, false);
+  assert.equal(w.run_waterfall_email, false);
+  assert.equal(w.webhook_url, "https://wine.test/api/apollo/webhook/er_1/s3cret");
+  assert.equal("poll_only" in w, false);
+  const p = apollo.enrichBody(["a"], { pollOnly: true });
+  assert.equal(p.poll_only, true);
+  assert.equal("webhook_url" in p, false);
+  assert.throws(() => apollo.enrichBody(["a"], { pollOnly: true, webhookUrl: "https://x" }));
+  assert.throws(() => apollo.enrichBody(["a"], {}));
+  assert.throws(() => apollo.enrichBody(Array.from({ length: 11 }, (_, i) => String(i)), { pollOnly: true }));
+});
+
+test("apollo request_id: read from the raw body as a string (64-bit, may be negative)", () => {
+  assert.equal(apollo.requestIdFromRaw('{"request_id": 9223372036854775807, "x": 1}'), "9223372036854775807");
+  assert.equal(apollo.requestIdFromRaw('{"request_id":-4611686018427387905}'), "-4611686018427387905");
+  assert.equal(apollo.requestIdFromRaw('{"request_id":"123"}'), "123");
+  assert.equal(apollo.requestIdFromRaw('{"other":1}'), null);
+  // JSON.parse would have lost it:
+  assert.notEqual(String(JSON.parse('{"r":9223372036854775807}').r), "9223372036854775807");
+});
+
+test("apollo phone payload: people[].phone_numbers[] parsed; Portuguese numbers normalized", () => {
+  const r = apollo.parsePhonePayload({
+    request_id: 5,
+    people: [
+      { id: "p1", phone_numbers: [{ raw_number: "+351 912 345 678", sanitized_number: "+351912345678", type_cd: "mobile", status_cd: "valid_number" }] },
+      { id: "p2", phone_numbers: [] },
+    ],
+  });
+  assert.deepEqual(r, [
+    { apolloPersonId: "p1", phones: [{ number: "+351912345678", type: "mobile" }] },
+    { apolloPersonId: "p2", phones: [] },
+  ]);
+  assert.deepEqual(apollo.parsePhonePayload({ nothing: true }), []);
+});
+
+test("apollo client: the API key goes only in the x-api-key header; a timeout is an ApolloTimeout, not 'no number'", async () => {
+  const seen: { url: string; headers: Record<string, string>; body: string }[] = [];
+  const client = apollo.createApolloClient({
+    apiKey: "KEY",
+    fetch: async (url, init) => {
+      seen.push({ url: String(url), headers: init?.headers as Record<string, string>, body: String(init?.body) });
+      return new Response('{"request_id": 9223372036854775807, "credits_consumed": 1.5, "matches": []}', { status: 200 });
+    },
+  });
+  const r = await client.enrich(["p1"], { pollOnly: true });
+  assert.equal(r.requestId, "9223372036854775807");
+  assert.equal(r.creditsConsumed, "1.5");
+  assert.equal(seen[0].url, "https://api.apollo.io/api/v1/people/bulk_match");
+  assert.equal(seen[0].headers["x-api-key"], "KEY");
+  assert.doesNotMatch(seen[0].url + seen[0].body, /KEY/);
+  const slow = apollo.createApolloClient({ apiKey: "KEY", timeoutMs: 20, fetch: (_u, init) => new Promise((_r, rej) => init?.signal?.addEventListener("abort", () => rej(new DOMException("timeout", "TimeoutError")))) });
+  await assert.rejects(slow.enrich(["p1"], { pollOnly: true }), (e: unknown) => e instanceof apollo.ApolloTimeout);
+});
+
+test("apollo selection: mock unless both flags are on AND a key is set", () => {
+  assert.equal(apollo.apolloFor({}).kind, "mock");
+  assert.equal(apollo.apolloFor({ PT_CALLERS_ENABLED: "true", PT_CALLERS_LEGAL_APPROVED: "true" }).kind, "mock");
+  assert.equal(apollo.apolloFor({ APOLLO_API_KEY: "k" }).kind, "mock");
+  assert.equal(apollo.apolloFor({ PT_CALLERS_ENABLED: "true", PT_CALLERS_LEGAL_APPROVED: "true", APOLLO_API_KEY: "k" }).kind, "apollo");
+});
+
+// --- pt-PT ------------------------------------------------------------------------------------------------------------
+
+test("pt-PT strings: European Portuguese, no Brazilian forms, opt-out wording and Article 21 line in the script", () => {
+  const all = JSON.stringify(strings.PT).toLowerCase();
+  for (const br of ["celular", "tela", "contato", "você", "usuário", "registro", "equipe", "ônibus", "time de", "cadastro", "deletar", "salvar", "arquivo"]) {
+    assert.ok(!all.includes(br), `Brazilian form found: ${br}`);
+  }
+  for (const pt of ["telemóvel", "ecrã", "contacto", "utilizador", "registo", "equipa"]) assert.ok(all.includes(pt), `missing pt-PT form: ${pt}`);
+  for (const s of flags.STATUSES) assert.ok(strings.PT.status[s], `no label for ${s}`);
+  assert.match(strings.PT.script.join(" "), /opor|oposição/i);
+  assert.match(strings.PT.optOut, /Não contactar/);
+});
+
+// --- Database: ledger, enrichment, opt-out, lock, pre-dial, middleware ------------------------------------------------
+
+const dbTest = (name: string, fn: () => Promise<void>) => test(name, { skip: !DB_URL && "TEST_DATABASE_URL not set" }, fn);
+const D = DB_URL ? await import("../src/db") : null;
+const svc = DB_URL ? await import("../src/lib/pt-callers/service") : null;
+const ledger = DB_URL ? await import("../src/lib/pt-callers/ledger") : null;
+const dnc = await import("../src/lib/pt-callers/dnc");
+type Me = { id: number; email: string; role: "admin" | "pt_caller"; mustChangePassword: boolean };
+const admin: Me = { id: 0, email: "", role: "admin", mustChangePassword: false };
+const rep: Me = { id: 0, email: "", role: "pt_caller", mustChangePassword: false };
+const rep2: Me = { id: 0, email: "", role: "pt_caller", mustChangePassword: false };
+const RUN = Date.now().toString(36);
+let telnyx: Server;
+const telnyxCalls: { path: string; body: Record<string, unknown> }[] = [];
+const LIVE = { PT_CALLERS_ENABLED: "true", PT_CALLERS_LEGAL_APPROVED: "true", PT_CALLERS_CALL_HOURS: "00:00-24:00", PT_CALLERS_CALL_DAYS: "1-7", PT_CALLERS_DAILY_CALL_CAP: "100000", PT_CALLERS_PILOT_COMPLETE: "true", PT_CALLERS_PILOT_NUMBERS: undefined as string | undefined };
+const setEnv = (e: Record<string, string | undefined>) => {
+  for (const [k, v] of Object.entries(e)) if (v === undefined) delete process.env[k];
+  else process.env[k] = v;
+};
+const offEnv = Object.fromEntries(Object.keys(LIVE).map((k) => [k, undefined]));
+
+before(async () => {
+  if (!D) return;
+  telnyx = createServer(async (req, res) => {
+    let raw = "";
+    for await (const c of req) raw += c;
+    const path = (req.url ?? "").replace(/^\/v2/, "");
+    const body = raw ? JSON.parse(raw) : {};
+    telnyxCalls.push({ path, body });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    if (path === "/calls") return res.end(JSON.stringify({ data: { call_control_id: `cc-${body.command_id}`, call_session_id: "s" } }));
+    res.end(JSON.stringify({ data: { result: "ok" } }));
+  }).listen(0);
+  await once(telnyx, "listening");
+  setEnv({
+    TELNYX_API_BASE: `http://127.0.0.1:${(telnyx.address() as { port: number }).port}/v2`,
+    TELNYX_API_KEY: "KEY_test",
+    TELNYX_WEBRTC_CONNECTION_ID: "cred-conn",
+    TELNYX_CONNECTION_ID: "cc-app",
+    TELNYX_FROM_NUMBER: "+351210000000",
+    SITE_URL: "https://wine.test",
+    TELNYX_PUBLIC_KEY: "dGVzdA==",
+    APOLLO_WEBHOOK_BASE_URL: "https://wine.test",
+  });
+  const mk = async (me: Me, role: string) => {
+    const [u] = await D.db.insert(D.schema.adminUsers).values({ email: `${role}-${RUN}-${Math.random()}@wine.test`, passwordHash: "x", role }).returning();
+    Object.assign(me, { id: u.id, email: u.email });
+    // A phone device for the rep (normally created by /admin/calls/webrtc-token).
+    await D.db.insert(D.schema.humanCallRepEndpoints).values({ adminId: u.id, sipUsername: `sip${RUN}${u.id}`, credentialId: `cred${RUN}${u.id}`, connectionId: "cred-conn" });
+  };
+  await mk(admin, "admin");
+  await mk(rep, "pt_caller");
+  await mk(rep2, "pt_caller");
+});
+
+after(async () => {
+  if (!D) return;
+  telnyx.close();
+  await D.sql.end();
+});
+
+const leadRow = async (id: number) => (await D!.sql`select * from pt_leads where id = ${id}`)[0];
+/** A dialable lead in the pilot list, assigned to `who`. */
+async function readyLead(who: Me, n: number) {
+  const [l] = await D!.db
+    .insert(D!.schema.ptLeads)
+    .values({ apolloPersonId: `ready-${RUN}-${n}-${Math.random()}`, firstName: "Ana", lastName: "Teste", title: "HR Manager", company: "Empresa", phone: `+3519${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`, phoneType: "work_direct", numberClass: "business", legalBasis: "test basis", status: "ready", assignedTo: who.id, approvedAt: new Date(), retentionUntil: new Date(Date.now() + 90 * 86400_000) })
+    .returning();
+  return l;
+}
+
+dbTest("ledger: reserve before, settle exactly once; unset caps = no cap; caps enforced; unreadable ledger refuses", async () => {
+  setEnv({ APOLLO_DAILY_CREDIT_CAP: undefined, APOLLO_MONTHLY_CREDIT_CAP: undefined });
+  const k1 = `t-${RUN}-1`;
+  await ledger!.reserve({ key: k1, credits: 100000, demo: true, by: admin.id }); // no cap: any size passes
+  assert.equal(await ledger!.settleOnce(k1, "9"), true);
+  assert.equal(await ledger!.settleOnce(k1, "18"), false); // a retry cannot settle (or charge) twice
+  await assert.rejects(ledger!.reserve({ key: k1, credits: 9, demo: true, by: admin.id })); // same request key twice
+  const s1 = await ledger!.summary(true);
+  setEnv({ APOLLO_DAILY_CREDIT_CAP: String(s1.today + 10) });
+  await ledger!.reserve({ key: `t-${RUN}-2`, credits: 9, demo: true, by: admin.id });
+  await assert.rejects(ledger!.reserve({ key: `t-${RUN}-3`, credits: 9, demo: true, by: admin.id }), /cap/i);
+  setEnv({ APOLLO_DAILY_CREDIT_CAP: undefined, APOLLO_MONTHLY_CREDIT_CAP: "0" });
+  await assert.rejects(ledger!.reserve({ key: `t-${RUN}-4`, credits: 1, demo: true, by: admin.id }), /cap/i);
+  setEnv({ APOLLO_MONTHLY_CREDIT_CAP: undefined });
+  const s = await ledger!.summary(true);
+  assert.equal(s.caps.daily, null);
+  assert.equal(s.remaining.daily, null);
+  // Unreadable ledger: refuse (fail closed).
+  await assert.rejects(ledger!.reserve({ key: `t-${RUN}-5`, credits: 1, demo: true, by: admin.id }, { readTotals: async () => Promise.reject(new Error("db down")) }), /ledger/i);
+});
+
+dbTest("flags off: import uses the mock (demo rows), dial is refused with a reason, no Telnyx request", async () => {
+  setEnv(offEnv);
+  const r = await svc!.importLeads(admin, { page: 1 });
+  assert.equal(r.source, "mock");
+  assert.ok(r.inserted + r.duplicates > 0);
+  const [l] = await D!.sql`select * from pt_leads where demo = true limit 1`;
+  assert.ok(l);
+  const before = telnyxCalls.length;
+  const lead = await readyLead(rep, 1);
+  const d = await svc!.dial(rep, lead.id);
+  assert.equal(d.ok, false);
+  assert.equal(d.reason, "flags_off");
+  assert.equal(telnyxCalls.length, before);
+  // Re-import: dedupe by Apollo person id.
+  const again = await svc!.importLeads(admin, { page: 1 });
+  assert.equal(again.inserted, 0);
+});
+
+dbTest("roles: only admins import, approve, enrich, assign; a rep sees only assigned leads, numbers masked", async () => {
+  await assert.rejects(svc!.importLeads(rep as never, { page: 1 }), /forbidden/);
+  await assert.rejects(svc!.approveLeads(rep as never, [1]), /forbidden/);
+  await assert.rejects(svc!.enrichLeads(rep as never, [1]), /forbidden/);
+  await assert.rejects(svc!.assignLeads(rep as never, [1], rep.id), /forbidden/);
+  const mine = await readyLead(rep, 2);
+  const theirs = await readyLead(rep2, 3);
+  const list = await svc!.listForRep(rep);
+  assert.ok(list.some((l) => l.id === mine.id));
+  assert.ok(!list.some((l) => l.id === theirs.id));
+  const row = list.find((l) => l.id === mine.id)!;
+  assert.equal(row.phone, phone.maskPhone(mine.phone));
+  assert.match(row.phone, /•/);
+  assert.equal("legalBasis" in row, false);
+  assert.ok((await D!.sql`select 1 from pt_access_log where lead_id = ${mine.id} and admin_id = ${rep.id} and action = 'view'`).length > 0);
+  // A rep can't act on someone else's lead.
+  assert.equal((await svc!.optOut(rep, theirs.id)).ok, false);
+  assert.equal((await svc!.setOutcome(rep, theirs.id, { status: "interested" })).ok, false);
+});
+
+async function enrichOne(mode: "webhook" | "poll") {
+  setEnv({ ...offEnv, PT_CALLERS_APOLLO_RESULT_MODE: mode === "poll" ? "poll" : undefined });
+  const [p] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `enr-${RUN}-${Math.random()}`, firstName: "Rita", title: "Head of HR", company: "X", status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  await svc!.approveLeads(admin, [p.id]);
+  const r = await svc!.enrichLeads(admin, [p.id]);
+  return { lead: p, r };
+}
+
+dbTest("enrichment: duplicate webhook and out-of-order results merge once; ledger settled once", async () => {
+  const { lead, r } = await enrichOne("webhook");
+  assert.equal(r.ok, true);
+  assert.equal((await leadRow(lead.id)).status, "enrichment_pending");
+  const reqRow = (await D!.sql`select * from pt_enrichment_requests where id = ${r.requestId!}`)[0];
+  assert.equal(typeof reqRow.apollo_request_id, "string");
+  assert.equal(reqRow.mode, "webhook");
+  const payload = JSON.stringify({ request_id: reqRow.apollo_request_id, people: [{ id: lead.apolloPersonId, phone_numbers: [{ sanitized_number: "+351912000009", type_cd: "mobile" }] }] });
+  // Wrong secret: refused, nothing applied.
+  assert.equal((await svc!.handleApolloWebhook(r.requestId!, "wrong", payload)).status, 404);
+  assert.equal((await leadRow(lead.id)).status, "enrichment_pending");
+  const ok1 = await svc!.handleApolloWebhook(r.requestId!, r.testSecret!, payload);
+  const ok2 = await svc!.handleApolloWebhook(r.requestId!, r.testSecret!, payload); // duplicate
+  assert.equal(ok1.status, 200);
+  assert.equal(ok2.status, 200);
+  const l = await leadRow(lead.id);
+  assert.equal(l.phone, "+351912000009");
+  assert.equal(l.status, "new"); // needs an admin to classify the number before it can be dialed
+  const led = (await D!.sql`select * from pt_credit_ledger where request_key = ${r.requestId!}`)[0];
+  assert.equal(led.status, "settled");
+  assert.equal(led.reserved, 9);
+  assert.equal(led.settled, "9");
+});
+
+dbTest("enrichment: partial result keeps the rest pending; no blind retry while pending; timeout is not 'no number'", async () => {
+  setEnv(offEnv);
+  const mk = async () => (await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `part-${RUN}-${Math.random()}`, firstName: "P", status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning())[0];
+  const a = await mk();
+  const b = await mk();
+  await svc!.approveLeads(admin, [a.id, b.id]);
+  const r = await svc!.enrichLeads(admin, [a.id, b.id]);
+  await svc!.handleApolloWebhook(r.requestId!, r.testSecret!, JSON.stringify({ people: [{ id: a.apolloPersonId, phone_numbers: [] }] }));
+  assert.equal((await leadRow(a.id)).status, "failed"); // a real answer with no number
+  assert.equal((await leadRow(a.id)).fail_reason, "no_number");
+  assert.equal((await leadRow(b.id)).status, "enrichment_pending");
+  assert.equal((await D!.sql`select status from pt_enrichment_requests where id = ${r.requestId!}`)[0].status, "pending");
+  // No blind retry: enriching b again is refused while its first request is open.
+  const again = await svc!.enrichLeads(admin, [b.id]);
+  assert.equal(again.ok, false);
+  assert.match(String(again.reason), /pending/);
+  // Mark the request timed out: b stays pending (not "no number"), still not re-enrichable.
+  await D!.sql`update pt_enrichment_requests set sent_at = now() - interval '2 hours' where id = ${r.requestId!}`;
+  await svc!.sweepTimeouts();
+  assert.equal((await D!.sql`select status from pt_enrichment_requests where id = ${r.requestId!}`)[0].status, "timeout");
+  assert.equal((await leadRow(b.id)).status, "enrichment_pending");
+  assert.notEqual((await leadRow(b.id)).fail_reason, "no_number");
+  assert.equal((await svc!.enrichLeads(admin, [b.id])).ok, false);
+  // A late result after the timeout still lands, once.
+  await svc!.handleApolloWebhook(r.requestId!, r.testSecret!, JSON.stringify({ people: [{ id: b.apolloPersonId, phone_numbers: [{ sanitized_number: "+351912000008", type_cd: "work_direct" }] }] }));
+  assert.equal((await leadRow(b.id)).phone, "+351912000008");
+  // Already enriched: a second enrichment is refused (no re-reveal, no second charge).
+  assert.equal((await svc!.enrichLeads(admin, [b.id])).ok, false);
+});
+
+dbTest("opt-out: immediate, permanent; re-import and re-enrichment never un-block", async () => {
+  setEnv(offEnv);
+  const lead = await readyLead(rep, 4);
+  assert.equal((await svc!.optOut(rep, lead.id)).ok, true);
+  assert.equal((await leadRow(lead.id)).status, "opt_out");
+  // Outcome / admin re-classify cannot bring it back.
+  assert.equal((await svc!.setOutcome(rep, lead.id, { status: "interested" })).ok, false);
+  assert.equal((await svc!.classifyLead(admin, lead.id, { numberClass: "business", legalBasis: "x" })).ok, false);
+  // The same person re-imported under the same Apollo id: skipped.
+  const blockedImport = await svc!.insertSearchResults(admin, [{ id: lead.apolloPersonId, first_name: "Ana", title: "HR Manager", organization: { name: "Empresa" } }], { demo: true });
+  assert.equal(blockedImport.blocked, 1);
+  // Another lead later enriched to the opted-out number: blocked on arrival.
+  const { lead: other, r } = await enrichOne("webhook");
+  await svc!.handleApolloWebhook(r.requestId!, r.testSecret!, JSON.stringify({ people: [{ id: other.apolloPersonId, phone_numbers: [{ sanitized_number: lead.phone, type_cd: "mobile" }] }] }));
+  assert.equal((await leadRow(other.id)).status, "blocked");
+  assert.equal((await D!.sql`select count(*)::int as n from pt_blocks where value_hash = ${phone.blockHash("phone", lead.phone!)}`)[0].n, 1);
+});
+
+dbTest("pre-dial recheck: every gate refuses on its own; DNC 'unavailable' refuses", async () => {
+  const lead = await readyLead(rep, 5);
+  const ok = { dnc: async () => ({ status: "clear" as const }) };
+  setEnv(LIVE);
+  dnc.setDncAdapter(ok.dnc);
+  assert.deepEqual(await svc!.predialCheck(rep, lead.id), { ok: true });
+  const expect = async (reason: string, mutate: () => Promise<unknown> | void, undo: () => Promise<unknown> | void) => {
+    await mutate();
+    const r = await svc!.predialCheck(rep, lead.id);
+    await undo();
+    assert.deepEqual(r, { ok: false, reason }, reason);
+  };
+  await expect("flags_off", () => setEnv({ PT_CALLERS_LEGAL_APPROVED: "false" }), () => setEnv(LIVE));
+  await expect("not_assigned", () => D!.sql`update pt_leads set assigned_to = ${rep2.id} where id = ${lead.id}`, () => D!.sql`update pt_leads set assigned_to = ${rep.id} where id = ${lead.id}`);
+  await expect("blocked", () => D!.sql`insert into pt_blocks (kind, value_hash, reason) values ('phone', ${phone.blockHash("phone", lead.phone!)}, 'admin_block')`, () => D!.sql`delete from pt_blocks where value_hash = ${phone.blockHash("phone", lead.phone!)}`);
+  await expect("dnc_unavailable", () => dnc.setDncAdapter(null), () => dnc.setDncAdapter(ok.dnc));
+  await expect("dnc_listed", () => dnc.setDncAdapter(async () => ({ status: "listed" })), () => dnc.setDncAdapter(ok.dnc));
+  await expect("not_pt_number", () => D!.sql`update pt_leads set phone = '+34612345678' where id = ${lead.id}`, () => D!.sql`update pt_leads set phone = ${lead.phone!} where id = ${lead.id}`);
+  await expect("not_business_number", () => D!.sql`update pt_leads set number_class = 'unknown' where id = ${lead.id}`, () => D!.sql`update pt_leads set number_class = 'business' where id = ${lead.id}`);
+  await expect("outside_call_hours", () => setEnv({ PT_CALLERS_CALL_HOURS: undefined }), () => setEnv(LIVE));
+  await expect("not_in_pilot_list", () => setEnv({ PT_CALLERS_PILOT_COMPLETE: undefined, PT_CALLERS_PILOT_NUMBERS: "+351910000000" }), () => setEnv(LIVE));
+  await expect("not_in_pilot_list", () => setEnv({ PT_CALLERS_PILOT_COMPLETE: undefined }), () => setEnv(LIVE)); // no pilot list = no dial
+  await expect("call_cap", () => setEnv({ PT_CALLERS_DAILY_CALL_CAP: undefined }), () => setEnv(LIVE));
+  await expect("locked_by_other", () => D!.sql`update pt_leads set locked_by = ${rep2.id}, lock_until = now() + interval '10 minutes' where id = ${lead.id}`, () => D!.sql`update pt_leads set locked_by = null, lock_until = null where id = ${lead.id}`);
+  await expect("demo_lead", () => D!.sql`update pt_leads set demo = true where id = ${lead.id}`, () => D!.sql`update pt_leads set demo = false where id = ${lead.id}`);
+  assert.deepEqual(await svc!.predialCheck(rep, lead.id), { ok: true });
+  dnc.setDncAdapter(null);
+});
+
+dbTest("dial: one rep per lead (lock), rep leg first through #4's phone, no AMD, no recording; call end releases", async () => {
+  setEnv({ ...LIVE, HUMAN_CALL_RECORDING: "1" });
+  dnc.setDncAdapter(async () => ({ status: "clear" }));
+  const lead = await readyLead(rep, 6);
+  await D!.sql`update pt_leads set assigned_to = ${rep.id} where id = ${lead.id}`;
+  const n = telnyxCalls.length;
+  const d = await svc!.dial(rep, lead.id);
+  assert.equal(d.ok, true, JSON.stringify(d));
+  assert.equal((await leadRow(lead.id)).status, "calling");
+  assert.equal((await leadRow(lead.id)).locked_by, rep.id);
+  // The same lead, a second rep (even if reassigned meanwhile): refused by the lock.
+  await D!.sql`update pt_leads set assigned_to = ${rep2.id} where id = ${lead.id}`;
+  const d2 = await svc!.dial(rep2, lead.id);
+  assert.equal(d2.ok, false);
+  await D!.sql`update pt_leads set assigned_to = ${rep.id} where id = ${lead.id}`;
+  const rep1Dial = telnyxCalls.slice(n).filter((c) => c.path === "/calls");
+  assert.equal(rep1Dial.length, 1);
+  assert.match(String(rep1Dial[0].body.to), /^sip:/); // the rep's browser first, never the lead
+  const hc = await import("../src/lib/human-calls");
+  const callId = d.callId!;
+  const repCc = `cc-hc-rep-${callId}`;
+  await hc.handleHumanCallEvent({ event_type: "call.answered", payload: { call_control_id: repCc } });
+  const cust = telnyxCalls.slice(n).filter((c) => c.path === "/calls" && !String(c.body.to).startsWith("sip:"));
+  assert.equal(cust.length, 1);
+  assert.equal(cust[0].body.to, lead.phone);
+  assert.equal("answering_machine_detection" in cust[0].body, false);
+  const custCc = `cc-hc-cust-${callId}`;
+  await hc.handleHumanCallEvent({ event_type: "call.bridged", payload: { call_control_id: custCc } });
+  assert.equal(telnyxCalls.slice(n).some((c) => c.path.endsWith("/record_start")), false); // never recorded
+  await D!.sql`update human_calls set bridged_at = now() - interval '1 minute' where id = ${callId}`;
+  await hc.handleHumanCallEvent({ event_type: "call.hangup", payload: { call_control_id: repCc, hangup_cause: "normal_clearing" } });
+  const after = await leadRow(lead.id);
+  assert.equal(after.locked_by, null);
+  assert.equal(after.status, "ready"); // back to what it was; the rep records the business outcome
+  assert.equal(after.attempts, 1);
+  assert.equal((await svc!.setOutcome(rep, lead.id, { status: "callback", callbackAt: new Date(Date.now() + 86400_000).toISOString(), note: "Ligar amanhã" })).ok, true);
+  assert.equal((await leadRow(lead.id)).status, "callback");
+  dnc.setDncAdapter(null);
+});
+
+dbTest("lock: a double click or two tabs start one call; an expired lock frees a stuck lead", async () => {
+  setEnv(LIVE);
+  dnc.setDncAdapter(async () => ({ status: "clear" }));
+  const lead = await readyLead(rep, 8);
+  const [a, b] = await Promise.all([svc!.dial(rep, lead.id), svc!.dial(rep, lead.id)]);
+  assert.equal([a, b].filter((x) => x.ok).length, 1, JSON.stringify([a, b]));
+  // The call-end event never arrives: while the lock is live the lead cannot be dialed again...
+  const callId = (a.ok ? a : b).callId!;
+  await D!.sql`update human_calls set status = 'completed', ended_at = now() where id = ${callId}`; // free the rep's line
+  assert.equal((await svc!.dial(rep, lead.id)).ok, false);
+  // ...and once the lock has expired it can, from the status it had before the stuck call.
+  await D!.sql`update pt_leads set lock_until = now() - interval '1 minute' where id = ${lead.id}`;
+  const again = await svc!.dial(rep, lead.id);
+  assert.equal(again.ok, true, JSON.stringify(again));
+  assert.equal((await leadRow(lead.id)).status_before_call, "ready");
+  await D!.sql`update human_calls set status = 'completed', ended_at = now() where id = ${again.callId!}`;
+  dnc.setDncAdapter(null);
+});
+
+dbTest("opt-out while another rep has the card open stops the customer leg (recheck before the lead's phone rings)", async () => {
+  setEnv(LIVE);
+  dnc.setDncAdapter(async () => ({ status: "clear" }));
+  const lead = await readyLead(rep, 7);
+  const d = await svc!.dial(rep, lead.id);
+  assert.equal(d.ok, true, JSON.stringify(d));
+  // An admin blocks the lead while the rep's browser is still ringing.
+  assert.equal((await svc!.optOut(admin, lead.id)).ok, true);
+  const n = telnyxCalls.length;
+  const hc = await import("../src/lib/human-calls");
+  await hc.handleHumanCallEvent({ event_type: "call.answered", payload: { call_control_id: `cc-hc-rep-${d.callId}` } });
+  assert.equal(telnyxCalls.slice(n).filter((c) => c.path === "/calls").length, 0); // the lead is never dialed
+  assert.ok(telnyxCalls.slice(n).some((c) => c.path.endsWith("/hangup")));
+  assert.equal((await D!.sql`select status from human_calls where id = ${d.callId!}`)[0].status, "failed");
+  assert.equal((await leadRow(lead.id)).status, "opt_out");
+  dnc.setDncAdapter(null);
+});
+
+dbTest("middleware: a signed-in sales rep gets 403 on admin pages and APIs, passes on their own routes", async () => {
+  const { middleware } = await import("../src/middleware");
+  const { makeToken } = await import("../src/lib/session-token");
+  const { NextRequest } = await import("next/server");
+  const [r] = await D!.sql`select session_version from admin_users where id = ${rep.id}`;
+  const cookie = `wp_admin=${makeToken(rep.id, Date.now(), r.session_version)}`;
+  const at = (method: string, path: string) => middleware(new NextRequest(`https://wine.test${path}`, { method, headers: { cookie } }));
+  for (const p of ["/admin", "/admin/orders", "/admin/settings", "/admin/export/leads", "/admin/calls/start", "/admin/pt-callers/api/admin/import", "/api/checkout"]) {
+    assert.equal((await at(p === "/admin/calls/start" ? "POST" : "GET", p)).status, 403, p);
+  }
+  for (const [m, p] of [["GET", "/admin/pt-callers"], ["POST", "/admin/pt-callers/api/rep/dial"], ["POST", "/admin/calls/webrtc-token"]]) {
+    assert.notEqual((await at(m, p)).status, 403, p);
+  }
+  // An admin's cookie is not touched.
+  const [a] = await D!.sql`select session_version from admin_users where id = ${admin.id}`;
+  const adminRes = await middleware(new NextRequest("https://wine.test/admin/orders", { headers: { cookie: `wp_admin=${makeToken(admin.id, Date.now(), a.session_version)}` } }));
+  assert.notEqual(adminRes.status, 403);
+});
+
+dbTest("credit summary: used and remaining shown; unset caps = remaining null (no cap)", async () => {
+  setEnv({ APOLLO_DAILY_CREDIT_CAP: undefined, APOLLO_MONTHLY_CREDIT_CAP: undefined });
+  const s = await svc!.creditSummary(admin);
+  assert.equal(typeof s.real.today, "number");
+  assert.equal(s.real.remaining.daily, null);
+  setEnv({ APOLLO_MONTHLY_CREDIT_CAP: "500" });
+  const s2 = await svc!.creditSummary(admin);
+  assert.equal(s2.real.remaining.monthly, 500 - s2.real.month);
+  setEnv({ APOLLO_MONTHLY_CREDIT_CAP: undefined });
+  await assert.rejects(svc!.creditSummary(rep as never), /forbidden/);
+});

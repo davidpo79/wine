@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PT } from "@/lib/pt-callers/strings-pt";
 import { call, close, connectAndCall, hangUp, isLive, toggleMute, useCallStore, type CallTarget, type CallView } from "./call-store";
 
 /** "Call" button for an order's customer or a lead. The popup is mounted once in the admin layout. */
-export function CallButton({ target, disabled, title }: { target: CallTarget; disabled?: boolean; title?: string }) {
+export function CallButton({ target, disabled, title, label }: { target: CallTarget; disabled?: boolean; title?: string; label?: string }) {
   const { call: c } = useCallStore();
   return (
     <button
@@ -14,7 +15,7 @@ export function CallButton({ target, disabled, title }: { target: CallTarget; di
       title={title}
       className="inline-flex min-h-8 items-center justify-center rounded border border-[#0F2340] px-3 text-xs font-semibold text-[#0F2340] hover:bg-[#0F2340] hover:text-white disabled:opacity-40"
     >
-      📞 Call
+      📞 {label ?? "Call"}
     </button>
   );
 }
@@ -71,14 +72,19 @@ export function CallPopup() {
   const { call: c, device, deviceError, muted } = useCallStore();
   if (!c) return null;
   const live = isLive(c);
-  const headline = (HEADLINE[c.phase] ?? c.phase).replace("{name}", c.target.name);
+  const pt = c.target.lang === "pt";
+  const T = pt
+    ? { headline: PT.popup.headline, needsDevice: PT.popup.needsDevice, repAnswered: PT.popup.repAnswered, errors: PT.popup.errors, live: PT.popup.live, connect: PT.popup.connect, mute: PT.popup.mute, unmute: PT.popup.unmute, end: PT.popup.end, close: PT.popup.close }
+    : { headline: HEADLINE, needsDevice: "Connect once per session: your browser asks for the microphone, then calls ring here.", repAnswered: "You are on the line. We are calling them now, so wait for them to answer before you speak.", errors: ERROR_COPY, live: "● Live", connect: "Connect", mute: "Mute", unmute: "Unmute", end: "End call", close: "Close" };
+  const headline = (T.headline[c.phase] ?? c.phase).replace("{name}", c.target.name);
+  const errorText = (e: string) => (e.startsWith("pt:") ? (PT.refused[e.slice(3)] ?? PT.refused.call_failed) : (T.errors[e] ?? e));
   const sub =
     c.phase === "needsDevice"
-      ? (deviceError ?? "Connect once per session: your browser asks for the microphone, then calls ring here.")
+      ? (pt ? PT.popup.needsDevice : (deviceError ?? T.needsDevice))
       : c.phase === "rep_answered"
-        ? "You are on the line. We are calling them now, so wait for them to answer before you speak."
+        ? T.repAnswered
         : c.error
-          ? (ERROR_COPY[c.error] ?? c.error)
+          ? errorText(c.error)
           : null;
   return (
     <div className="fixed bottom-4 right-4 z-50 w-80 rounded-lg border bg-white p-4 text-sm shadow-xl" role="dialog" aria-label="Phone call">
@@ -87,27 +93,27 @@ export function CallPopup() {
         <p className="font-semibold">{headline}</p>
         <Timer c={c} />
       </div>
-      {c.connected && c.status === "bridged" && <p className="mt-1 text-xs font-semibold text-green-700">● Live</p>}
+      {c.connected && c.status === "bridged" && <p className="mt-1 text-xs font-semibold text-green-700">{T.live}</p>}
       {sub && <p className="mt-2 text-xs text-muted">{sub}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         {c.phase === "needsDevice" && (
           <button type="button" onClick={() => void connectAndCall()} disabled={device === "registering"} className="rounded bg-[#0F2340] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
-            Connect
+            {T.connect}
           </button>
         )}
         {live && (
           <>
             <button type="button" onClick={toggleMute} className="rounded border px-3 py-1.5 text-xs font-semibold">
-              {muted ? "Unmute" : "Mute"}
+              {muted ? T.unmute : T.mute}
             </button>
             <button type="button" onClick={hangUp} className="rounded bg-red-700 px-3 py-1.5 text-xs font-semibold text-white">
-              End call
+              {T.end}
             </button>
           </>
         )}
         {!live && c.phase !== "registering" && c.phase !== "starting" && (
           <button type="button" onClick={close} className="rounded border px-3 py-1.5 text-xs font-semibold">
-            Close
+            {T.close}
           </button>
         )}
       </div>
