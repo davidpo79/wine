@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { hash, verify } from "@node-rs/argon2";
 import { db, schema } from "@/db";
+import { admits, normalizeRole, type Role } from "@/lib/pt-callers/access";
 
 const COOKIE = "wp_admin";
 const MAX_AGE = 60 * 60 * 12; // 12h
@@ -44,32 +45,41 @@ export function readToken(token: string | undefined, now = Date.now()): number |
   return readSession(token, now)?.a ?? null;
 }
 
-export type Role = "admin" | "fulfilment";
+export type { Role };
 export type AdminSession = { id: number; email: string; role: Role; mustChangePassword: boolean };
+export type SessionOpts = { allowPtCaller?: boolean };
 
 export async function hashPassword(pw: string) {
   return hash(pw, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
 }
 
-/** The signed-in team member, checked against the database on every request (disabled = logged out at once). */
-export async function getAdmin(): Promise<AdminSession | null> {
+/**
+ * The signed-in team member, checked against the database on every request (disabled = logged out at once).
+ * An unknown role is no session. The "Sales rep (Portugal callers)" role is no session either, unless the
+ * caller is one of the Portugal callers surfaces and passes `allowPtCaller`: every other admin page and
+ * route refuses that role by default, including ones added later.
+ */
+export async function getAdmin(opts: SessionOpts = {}): Promise<AdminSession | null> {
   const jar = await cookies();
   const s = readSession(jar.get(COOKIE)?.value);
   if (!s) return null;
   const [u] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, s.a)).limit(1);
   if (!u || u.disabledAt || u.sessionVersion !== s.v) return null;
-  return { id: u.id, email: u.email, role: u.role === "fulfilment" ? "fulfilment" : "admin", mustChangePassword: u.mustChangePassword };
+  const role = normalizeRole(u.role);
+  if (!role || (role === "pt_caller" && !opts.allowPtCaller)) return null;
+  return { id: u.id, email: u.email, role, mustChangePassword: u.mustChangePassword };
 }
 
 /**
  * Pages and actions call this. `role: "admin"` keeps Fulfilment users out (they land on Orders).
  * A user with a temporary password is sent to /admin/password first.
+ * A Portugal caller is admitted only where `allowPtCaller` is passed, and lands on their screen otherwise.
  */
-export async function requireAdmin(opts: { role?: Role; allowPasswordChange?: boolean } = {}): Promise<AdminSession> {
-  const a = await getAdmin();
+export async function requireAdmin(opts: { role?: Role; allowPasswordChange?: boolean; allowPtCaller?: boolean } = {}): Promise<AdminSession> {
+  const a = await getAdmin({ allowPtCaller: true });
   if (!a) redirect("/admin/login");
   if (a.mustChangePassword && !opts.allowPasswordChange) redirect("/admin/password");
-  if (opts.role === "admin" && a.role !== "admin") redirect("/admin/orders");
+  if (!admits(a.role, opts)) redirect(a.role === "pt_caller" ? "/admin/pt-callers" : "/admin/orders");
   return a;
 }
 

@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Change password · Admin", robots: { index: false } };
 
 export default async function PasswordPage() {
-  const me = await requireAdmin({ allowPasswordChange: true });
+  const me = await requireAdmin({ allowPasswordChange: true, allowPtCaller: true });
   return (
     <main className="grid min-h-screen place-items-center bg-[#f1f1f1] p-4">
       <ActionForm action={passwordAction} className="w-full max-w-sm rounded-xl border bg-white p-6 shadow-sm">

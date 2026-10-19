@@ -18,6 +18,7 @@ import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
+import { normalizeRole } from "@/lib/pt-callers/access";
 import { COUNTRIES, isLocale } from "@/lib/markets";
 import { ebookKey } from "@/lib/ebook";
 
@@ -411,7 +412,7 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
   const action = String(fd.get("action") ?? "");
   if (action === "add") {
     const email = String(fd.get("email") ?? "").trim().toLowerCase();
-    const role = fd.get("role") === "admin" ? "admin" : "fulfilment";
+    const role = normalizeRole(fd.get("role")) ?? "fulfilment";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Enter a valid email." };
     const [exists] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(eq(schema.adminUsers.email, email)).limit(1);
     if (exists) return { error: "This email already has an account." };
@@ -433,7 +434,7 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
   if (u.id === me.id && ["disable", "delete", "role"].includes(action)) return { error: "You cannot change your own access. Ask another admin." };
   switch (action) {
     case "role": {
-      const role = fd.get("role") === "admin" ? "admin" : "fulfilment";
+      const role = normalizeRole(fd.get("role")) ?? "fulfilment";
       if (role !== "admin" && isLastAdmin) return { error: "Keep at least one active admin." };
       await db.update(schema.adminUsers).set({ role }).where(eq(schema.adminUsers.id, id));
       break;
@@ -464,7 +465,7 @@ export async function teamAction(_: FormState, fd: FormData): Promise<FormState>
 }
 
 export async function passwordAction(_: FormState, fd: FormData): Promise<FormState> {
-  const me = await requireAdmin({ allowPasswordChange: true });
+  const me = await requireAdmin({ allowPasswordChange: true, allowPtCaller: true });
   const pw = String(fd.get("password") ?? "");
   const pw2 = String(fd.get("password2") ?? "");
   if (pw.length < 12) return { error: "Use at least 12 characters." };

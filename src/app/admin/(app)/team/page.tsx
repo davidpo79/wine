@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const ROLE_INFO = {
   admin: "Everything: orders, finance, settings, prices, leads, ads and the team.",
   fulfilment: "Orders (view, mark preparing / shipped / delivered, tracking), gift cards and the shipping CSV. No finance, settings, refunds or lead exports.",
+  pt_caller: "Sales rep (Portugal callers): only the Portugal HR callers screen with the leads assigned to them and the browser phone. No orders, customers, finance or any other page.",
 };
 
 export default async function Team() {
@@ -31,6 +32,7 @@ export default async function Team() {
             <select name="role" defaultValue="fulfilment" className="mt-1 block w-full rounded-lg border p-2">
               <option value="fulfilment">Fulfilment</option>
               <option value="admin">Admin</option>
+              <option value="pt_caller">Sales rep (Portugal callers)</option>
             </select>
           </label>
           <Submit>Create account</Submit>
@@ -41,6 +43,7 @@ export default async function Team() {
         <dl className="mt-4 grid gap-2 text-xs text-muted sm:grid-cols-2">
           <div><dt className="font-semibold text-ink">Admin</dt><dd>{ROLE_INFO.admin}</dd></div>
           <div><dt className="font-semibold text-ink">Fulfilment</dt><dd>{ROLE_INFO.fulfilment}</dd></div>
+          <div><dt className="font-semibold text-ink">Sales rep (Portugal callers)</dt><dd>{ROLE_INFO.pt_caller}</dd></div>
         </dl>
         <p className="mt-3 text-xs text-muted">A temporary password is shown once after creating the account. Send it to the person privately; they choose their own password at first login.</p>
       </section>
@@ -69,6 +72,7 @@ export default async function Team() {
                         <select name="role" defaultValue={u.role} className="rounded border p-1 text-sm">
                           <option value="fulfilment">Fulfilment</option>
                           <option value="admin">Admin</option>
+                          <option value="pt_caller">Sales rep (Portugal callers)</option>
                         </select>
                         <button className="text-xs font-semibold text-azulejo underline">Save</button>
                       </ActionForm>

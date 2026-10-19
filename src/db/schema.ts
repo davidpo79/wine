@@ -10,6 +10,10 @@ import {
   index,
   pgEnum,
   pgSequence,
+  bigint,
+  bigserial,
+  numeric,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 export type WineItem = { name: string; vintage: string; type: "rose" | "branco" | "tinto"; producer: string };
@@ -444,3 +448,159 @@ export type Expense = typeof expenses.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type ReviewRow = typeof reviews.$inferSelect;
 export type Shipment = typeof shipments.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Portugal HR callers (src/lib/pt-callers). SEPARATE tables: nothing here
+// references orders, leads or any customer table, and nothing else reads them.
+// Times are epoch milliseconds. Personal data is minimal business-contact data
+// with source, fetch date and a retention horizon (90 days after last
+// activity; no deletion job is enabled). Apollo's request_id is TEXT (it is a
+// signed 64-bit integer). The block list stores only keyed hashes.
+// ---------------------------------------------------------------------------
+const ms = (name: string) => bigint(name, { mode: "number" });
+
+export const ptLeads = pgTable(
+  "pt_leads",
+  {
+    id: text("id").primaryKey(),
+    apolloId: text("apollo_id").notNull().unique(),
+    demo: boolean("demo").notNull().default(false),
+    source: text("source").notNull(),
+    fetchedAt: ms("fetched_at").notNull(),
+    batchId: text("batch_id"),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    lastNameObfuscated: text("last_name_obfuscated"),
+    title: text("title"),
+    companyName: text("company_name"),
+    employeeRange: text("employee_range"),
+    employeeCount: integer("employee_count"),
+    city: text("city"),
+    phoneE164: text("phone_e164"),
+    emailBusiness: text("email_business"),
+    status: text("status").notNull(),
+    statusBeforeCall: text("status_before_call"),
+    assignedUid: text("assigned_uid"),
+    approvedAt: ms("approved_at"),
+    approvedBy: text("approved_by"),
+    enrichState: text("enrich_state").notNull().default("none"),
+    enrichId: text("enrich_id"),
+    failReason: text("fail_reason"),
+    numberClass: text("number_class").notNull().default("unknown"),
+    legalBasis: text("legal_basis"),
+    eligibilityNote: text("eligibility_note"),
+    attempts: integer("attempts").notNull().default(0),
+    followUpAt: ms("follow_up_at"),
+    lockUid: text("lock_uid"),
+    lockExpiresAt: ms("lock_expires_at"),
+    lastCallAt: ms("last_call_at"),
+    notes: text("notes"),
+    lastActivityAt: ms("last_activity_at").notNull(),
+    retentionDays: integer("retention_days").notNull().default(90),
+    createdAt: ms("created_at").notNull(),
+    updatedAt: ms("updated_at").notNull(),
+  },
+  (t) => [index("pt_leads_assigned_idx").on(t.assignedUid, t.demo)],
+);
+
+export const ptBlocks = pgTable(
+  "pt_blocks",
+  {
+    keyHash: text("key_hash").notNull(),
+    kind: text("kind").notNull(),
+    scope: text("scope").notNull(),
+    reason: text("reason"),
+    createdBy: text("created_by"),
+    createdAt: ms("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.keyHash] })],
+);
+
+export const ptCreditLedger = pgTable(
+  "pt_credit_ledger",
+  {
+    id: text("id").primaryKey(),
+    demo: boolean("demo").notNull().default(false),
+    kind: text("kind").notNull(),
+    day: text("day").notNull(),
+    month: text("month").notNull(),
+    creditsReserved: numeric("credits_reserved").notNull(),
+    creditsSync: numeric("credits_sync"),
+    creditsAsync: numeric("credits_async"),
+    creditsActual: numeric("credits_actual"),
+    status: text("status").notNull(),
+    enrichId: text("enrich_id"),
+    uid: text("uid"),
+    createdAt: ms("created_at").notNull(),
+    updatedAt: ms("updated_at").notNull(),
+  },
+  (t) => [index("pt_credit_ledger_month_idx").on(t.month, t.day)],
+);
+
+export const ptEnrichRequests = pgTable("pt_enrich_requests", {
+  id: text("id").primaryKey(),
+  demo: boolean("demo").notNull().default(false),
+  apolloRequestId: text("apollo_request_id"),
+  mode: text("mode").notNull(),
+  secretHash: text("secret_hash"),
+  leadIds: jsonb("lead_ids").$type<string[]>().notNull(),
+  apolloIds: jsonb("apollo_ids").$type<string[]>().notNull(),
+  ledgerId: text("ledger_id"),
+  status: text("status").notNull(),
+  creditsSettled: boolean("credits_settled").notNull().default(false),
+  deliveries: integer("deliveries").notNull().default(0),
+  createdAt: ms("created_at").notNull(),
+  updatedAt: ms("updated_at").notNull(),
+  lastDeliveryAt: ms("last_delivery_at"),
+});
+
+export const ptCalls = pgTable(
+  "pt_calls",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull(),
+    uid: text("uid").notNull(),
+    status: text("status").notNull(),
+    repCallControlId: text("rep_call_control_id"),
+    customerCallControlId: text("customer_call_control_id"),
+    refusedReason: text("refused_reason"),
+    day: text("day").notNull(),
+    startedAt: ms("started_at").notNull(),
+    answeredAt: ms("answered_at"),
+    endedAt: ms("ended_at"),
+  },
+  (t) => [index("pt_calls_day_idx").on(t.day, t.uid), index("pt_calls_lead_idx").on(t.leadId)],
+);
+
+export const ptAccessLog = pgTable(
+  "pt_access_log",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    uid: text("uid").notNull(),
+    action: text("action").notNull(),
+    leadIds: jsonb("lead_ids").$type<string[]>().notNull(),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull(),
+    at: ms("at").notNull(),
+  },
+  (t) => [index("pt_access_log_at_idx").on(t.at)],
+);
+
+export const ptSettings = pgTable("pt_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedBy: text("updated_by"),
+  updatedAt: ms("updated_at").notNull(),
+});
+
+// Phone devices (Telnyx WebRTC credentials) of the Portugal callers, on the
+// project's own Telnyx account. One per team member; a revoked row is never
+// reactivated by a page load.
+export const ptPhoneEndpoints = pgTable("pt_phone_endpoints", {
+  uid: text("uid").primaryKey(),
+  sipUsername: text("sip_username").notNull(),
+  credentialId: text("credential_id").notNull(),
+  connectionId: text("connection_id").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: ms("created_at").notNull(),
+  updatedAt: ms("updated_at").notNull(),
+});

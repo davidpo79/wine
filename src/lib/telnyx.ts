@@ -64,9 +64,12 @@ export async function hangup(callControlId: string) {
   return call(`/calls/${encodeURIComponent(callControlId)}/actions/hangup`, {});
 }
 
-/** Verifies Telnyx webhook signatures (Ed25519 over "timestamp|body"). Requires TELNYX_PUBLIC_KEY (base64). */
-export function verifyTelnyxWebhook(rawBody: string, signatureB64: string | null, timestamp: string | null) {
-  const pub = process.env.TELNYX_PUBLIC_KEY;
+/**
+ * Verifies Telnyx webhook signatures (Ed25519 over "timestamp|body"). Requires TELNYX_PUBLIC_KEY (base64),
+ * or the key of another Telnyx account passed explicitly (the Portugal callers' own account).
+ */
+export function verifyTelnyxWebhook(rawBody: string, signatureB64: string | null, timestamp: string | null, publicKeyB64: string | undefined = process.env.TELNYX_PUBLIC_KEY) {
+  const pub = publicKeyB64;
   if (!pub || !signatureB64 || !timestamp) return false;
   if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
   try {

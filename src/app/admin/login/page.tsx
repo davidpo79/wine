@@ -6,7 +6,8 @@ import { ActionForm, Submit } from "../ui";
 export const dynamic = "force-dynamic";
 
 export default async function Login() {
-  if (await getAdmin()) redirect("/admin");
+  const me = await getAdmin({ allowPtCaller: true });
+  if (me) redirect(me.role === "pt_caller" ? "/admin/pt-callers" : "/admin");
   return (
     <main className="grid min-h-screen place-items-center p-4">
       <ActionForm action={loginAction} className="w-full max-w-sm rounded-lg border bg-white p-6 shadow-sm">
