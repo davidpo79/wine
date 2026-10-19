@@ -30,6 +30,7 @@ export const OUTBOUND_FIELDS = [
   { key: "PT_CALLERS_DAILY_CALL_CAP", group: "pt", label: "Calls per day (all reps)", kind: "int", hint: "Empty = no dial" },
   { key: "PT_CALLERS_PILOT_NUMBERS", group: "pt", label: "Pilot numbers", kind: "text", hint: "Comma-separated test numbers; while the pilot runs only these are dialed" },
   { key: "PT_CALLERS_PILOT_COMPLETE", group: "pt", label: "Pilot complete", kind: "bool", hint: "Ticked = any approved lead can be dialed" },
+  { key: "PT_CALLERS_DNC_REQUIRED", group: "pt", label: "Require the national do-not-call check", kind: "bool", default: "true", hint: "On (default): no dial until a do-not-call source is connected. Off: dial without it (a number a connected source reports as listed is still refused)." },
 ] as const;
 
 export type OutboundKey = (typeof OUTBOUND_FIELDS)[number]["key"];

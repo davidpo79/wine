@@ -38,6 +38,13 @@ test("credit caps: unset = no cap; a number = cap; malformed = 0 (spends nothing
   assert.deepEqual(flags.creditCaps({ APOLLO_MONTHLY_CREDIT_CAP: "" }), { daily: null, monthly: null });
 });
 
+test("do-not-call requirement: on unless exactly 'false'", () => {
+  assert.equal(flags.dncRequired({}), true);
+  assert.equal(flags.dncRequired({ PT_CALLERS_DNC_REQUIRED: "true" }), true);
+  assert.equal(flags.dncRequired({ PT_CALLERS_DNC_REQUIRED: "no" }), true);
+  assert.equal(flags.dncRequired({ PT_CALLERS_DNC_REQUIRED: "false" }), false);
+});
+
 test("call hours: unset refuses; weekdays only inside the Lisbon window", () => {
   assert.equal(flags.inCallHours({}, new Date("2026-10-20T10:00:00Z")), false);
   const env = { PT_CALLERS_CALL_HOURS: "09:30-18:00" };
@@ -462,6 +469,14 @@ dbTest("pre-dial recheck: every gate refuses on its own; DNC 'unavailable' refus
   await expect("not_assigned", () => D!.sql`update pt_leads set assigned_to = ${rep2.id} where id = ${lead.id}`, () => D!.sql`update pt_leads set assigned_to = ${rep.id} where id = ${lead.id}`);
   await expect("blocked", () => D!.sql`insert into pt_blocks (kind, value_hash, reason) values ('phone', ${phone.blockHash("phone", lead.phone!)}, 'admin_block')`, () => D!.sql`delete from pt_blocks where value_hash = ${phone.blockHash("phone", lead.phone!)}`);
   await expect("dnc_unavailable", () => dnc.setDncAdapter(null), () => dnc.setDncAdapter(ok.dnc));
+  // Requirement switched off in Settings: no source is fine, but a number a connected source lists is still refused.
+  setEnv({ PT_CALLERS_DNC_REQUIRED: "false" });
+  dnc.setDncAdapter(null);
+  assert.deepEqual(await svc!.predialCheck(rep, lead.id), { ok: true });
+  dnc.setDncAdapter(async () => ({ status: "listed" }));
+  assert.deepEqual(await svc!.predialCheck(rep, lead.id), { ok: false, reason: "dnc_listed" });
+  setEnv({ PT_CALLERS_DNC_REQUIRED: undefined });
+  dnc.setDncAdapter(ok.dnc);
   await expect("dnc_listed", () => dnc.setDncAdapter(async () => ({ status: "listed" })), () => dnc.setDncAdapter(ok.dnc));
   await expect("not_pt_number", () => D!.sql`update pt_leads set phone = '+34612345678' where id = ${lead.id}`, () => D!.sql`update pt_leads set phone = ${lead.phone!} where id = ${lead.id}`);
   await expect("not_business_number", () => D!.sql`update pt_leads set number_class = 'unknown' where id = ${lead.id}`, () => D!.sql`update pt_leads set number_class = 'business' where id = ${lead.id}`);

@@ -12,6 +12,7 @@ test("outbound settings: validation (E.164, https, hours, ints, selects); boolea
   assert.equal(ok.values.PT_CALLERS_ENABLED, "true");
   assert.equal(ok.values.PT_CALLERS_LEGAL_APPROVED, "false"); // unticked = off, not "use Railway"
   assert.equal(ok.values.HUMAN_CALL_RECORDING, "0");
+  assert.equal(ok.values.PT_CALLERS_DNC_REQUIRED, "false"); // explicit when the form is posted unticked
   assert.equal("APOLLO_DAILY_CREDIT_CAP" in ok.values, false); // empty = fall back (no cap)
   assert.match(String(os.validateOutbound({ TELNYX_FROM_NUMBER: "912345678" }).error), /E\.164/);
   assert.match(String(os.validateOutbound({ APOLLO_WEBHOOK_BASE_URL: "http://x" }).error), /https/);

@@ -4,7 +4,7 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { PtLead } from "@/db/schema";
-import { DIALABLE, dailyCallCap, inCallHours, pilotNumbers, ptFlags, type LeadStatus } from "./flags";
+import { DIALABLE, dailyCallCap, dncRequired, inCallHours, pilotNumbers, ptFlags, type LeadStatus } from "./flags";
 import { blockHash, isDialablePt } from "./phone";
 import { checkDnc } from "./dnc";
 
@@ -57,7 +57,7 @@ export async function leadRefusal(lead: PtLead, repId: number, o: { forCall?: bo
   if (lead.numberClass !== "business") return "not_business_number";
   if (!lead.legalBasis?.trim()) return "no_legal_basis";
   const d = await checkDnc(lead.phone!);
-  if (d.status === "unavailable") return "dnc_unavailable";
+  if (d.status === "unavailable" && dncRequired()) return "dnc_unavailable";
   if (d.status === "listed") return "dnc_listed";
   if (!inCallHours()) return "outside_call_hours";
   const pilot = pilotNumbers();

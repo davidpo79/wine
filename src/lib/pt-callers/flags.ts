@@ -63,6 +63,9 @@ export function pilotNumbers(env: Env = outboundEnv()): string[] | null {
 /** How Apollo delivers phone results: webhook (default) or polling, never both. */
 export const resultMode = (env: Env = outboundEnv()): "webhook" | "poll" => (env.PT_CALLERS_APOLLO_RESULT_MODE === "poll" ? "poll" : "webhook");
 
+/** National do-not-call check required before a dial: on unless explicitly "false". */
+export const dncRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_DNC_REQUIRED !== "false";
+
 export const LOCK_MINUTES = 15;
 export const RETENTION_DAYS = 90;
 export const ENRICH_TIMEOUT_MINUTES = 30;
