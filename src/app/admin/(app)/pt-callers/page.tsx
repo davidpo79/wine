@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/auth";
-import { ptFlags, creditCaps, dailyCallCap, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
+import { ptFlags, creditCaps, dailyCallCap, dncRequired, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
 import { creditSummary, listForRep, sweepTimeouts } from "@/lib/pt-callers/service";
 import { logAccess } from "@/lib/pt-callers/rules";
 import { humanCallMissing } from "@/lib/telnyx-call-control";
@@ -43,7 +43,7 @@ export default async function PtCallers() {
         callHours: outboundEnv().PT_CALLERS_CALL_HOURS ?? null,
         pilot: pilotNumbers(),
         telnyxMissing: humanCallMissing(),
-        dnc: "No do-not-call source is wired: every dial is refused until one is.",
+        dncRequired: dncRequired(),
       }}
       credits={credits}
       reps={reps}

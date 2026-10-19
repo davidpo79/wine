@@ -1,6 +1,6 @@
 import { OUTBOUND_FIELDS, loadOutboundSettings, savedOutbound } from "@/lib/outbound-settings";
 import { humanCallMissing } from "@/lib/telnyx-call-control";
-import { ptFlags } from "@/lib/pt-callers/flags";
+import { dncRequired, ptFlags } from "@/lib/pt-callers/flags";
 import { apolloKeyTestAction, outboundCallsAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 
@@ -14,7 +14,8 @@ const GROUPS: Record<string, { title: string; text: string }> = {
 export async function OutboundCallsSection() {
   await loadOutboundSettings(true);
   const saved = savedOutbound();
-  const value = (k: string) => saved[k] ?? process.env[k] ?? "";
+  const defaults: Record<string, string> = Object.fromEntries(OUTBOUND_FIELDS.map((f) => [f.key, "default" in f ? f.default : ""]));
+  const value = (k: string) => saved[k] ?? process.env[k] ?? defaults[k] ?? "";
   const source = (k: string) => (saved[k] !== undefined ? "saved here" : process.env[k] ? "from Railway" : "not set");
   const missing = humanCallMissing();
   const pt = ptFlags();
@@ -33,7 +34,7 @@ export async function OutboundCallsSection() {
           <li>SITE_URL: <b>{process.env.SITE_URL ? "set in Railway" : "NOT set in Railway"}</b></li>
           <li>Browser phone: <b>{missing.length ? `missing ${missing.join(", ")}` : "ready"}</b></li>
           <li>Portugal callers: <b>{pt.live ? "LIVE" : "demo mode (switches off)"}</b></li>
-          <li>Do-not-call list (Portugal): <b>no source connected, every Portugal-callers dial is refused</b></li>
+          <li>Do-not-call list (Portugal): <b>{dncRequired() ? "required, no source connected: every Portugal-callers dial is refused" : "check switched off below (no source connected)"}</b></li>
         </ul>
       </div>
 
