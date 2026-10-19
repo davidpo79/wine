@@ -7,6 +7,7 @@ import { unreadCount } from "@/lib/inbox";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { Icon, Sidebar, type NavGroup } from "./_nav/Sidebar";
+import { CallPopup } from "../calls/CallUI";
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <main className="px-4 pb-10 pt-16 md:ml-60 md:px-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
+      {admin.role === "admin" && <CallPopup />}
     </div>
   );
 }
