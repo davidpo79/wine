@@ -9,7 +9,7 @@ import type { PtLead } from "@/db/schema";
 import type { AdminSession } from "@/lib/auth";
 import { placeCall } from "@/lib/human-calls";
 import { ApolloHttpError, apolloFor, parsePhonePayload, type ParsedPerson, type SearchPerson } from "./apollo";
-import { DIALABLE, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, LOCK_MINUTES, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
+import { DIALABLE, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, legalBasisRequired, LOCK_MINUTES, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
 import { CreditRefused, reserve, settleOnce, summary } from "./ledger";
 import { blockHash, maskPhone, normalizePtPhone } from "./phone";
 import { outboundEnv } from "../outbound-settings";
@@ -279,7 +279,7 @@ export async function classifyLead(me: Me, id: number, o: { numberClass: string;
   if (await isBlocked(lead)) return { ok: false, reason: "Blocked or opted out: it stays that way." };
   const numberClass = ["business", "personal", "unknown"].includes(o.numberClass) ? o.numberClass : "unknown";
   const legalBasis = o.legalBasis.trim().slice(0, 500) || null;
-  const ready = !!lead.phone && numberClass === "business" && !!legalBasis && ["new", "failed"].includes(lead.status);
+  const ready = !!lead.phone && numberClass === "business" && (!!legalBasis || !legalBasisRequired()) && ["new", "failed"].includes(lead.status);
   await db
     .update(LEADS)
     .set({ numberClass, legalBasis, ...(ready ? { status: "ready" } : {}), updatedAt: new Date() })

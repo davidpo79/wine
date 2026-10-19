@@ -45,6 +45,12 @@ test("do-not-call requirement: on unless exactly 'false'", () => {
   assert.equal(flags.dncRequired({ PT_CALLERS_DNC_REQUIRED: "false" }), false);
 });
 
+test("legal-basis requirement: on unless exactly 'false'", () => {
+  assert.equal(flags.legalBasisRequired({}), true);
+  assert.equal(flags.legalBasisRequired({ PT_CALLERS_LEGAL_BASIS_REQUIRED: "0" }), true);
+  assert.equal(flags.legalBasisRequired({ PT_CALLERS_LEGAL_BASIS_REQUIRED: "false" }), false);
+});
+
 test("call hours: unset refuses; weekdays only inside the Lisbon window", () => {
   assert.equal(flags.inCallHours({}, new Date("2026-10-20T10:00:00Z")), false);
   const env = { PT_CALLERS_CALL_HOURS: "09:30-18:00" };
@@ -479,6 +485,19 @@ dbTest("pre-dial recheck: every gate refuses on its own; DNC 'unavailable' refus
   dnc.setDncAdapter(ok.dnc);
   await expect("dnc_listed", () => dnc.setDncAdapter(async () => ({ status: "listed" })), () => dnc.setDncAdapter(ok.dnc));
   await expect("not_pt_number", () => D!.sql`update pt_leads set phone = '+34612345678' where id = ${lead.id}`, () => D!.sql`update pt_leads set phone = ${lead.phone!} where id = ${lead.id}`);
+  await expect("no_legal_basis", () => D!.sql`update pt_leads set legal_basis = null where id = ${lead.id}`, () => D!.sql`update pt_leads set legal_basis = 'test basis' where id = ${lead.id}`);
+  // Requirement switched off in Settings: no legal basis is fine.
+  await D!.sql`update pt_leads set legal_basis = null where id = ${lead.id}`;
+  setEnv({ PT_CALLERS_LEGAL_BASIS_REQUIRED: "false" });
+  assert.deepEqual(await svc!.predialCheck(rep, lead.id), { ok: true });
+  const [fresh] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `nb-${RUN}-${Math.random()}`, firstName: "Nb", phone: "+351912345111", status: "new", retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  assert.equal((await svc!.classifyLead(admin, fresh.id, { numberClass: "business", legalBasis: "" })).ok, true);
+  assert.equal((await leadRow(fresh.id)).status, "ready");
+  setEnv({ PT_CALLERS_LEGAL_BASIS_REQUIRED: undefined });
+  const [fresh2] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `nb2-${RUN}-${Math.random()}`, firstName: "Nb", phone: "+351912345112", status: "new", retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  await svc!.classifyLead(admin, fresh2.id, { numberClass: "business", legalBasis: "" });
+  assert.equal((await leadRow(fresh2.id)).status, "new"); // required (default): not ready without a basis
+  await D!.sql`update pt_leads set legal_basis = 'test basis' where id = ${lead.id}`;
   await expect("not_business_number", () => D!.sql`update pt_leads set number_class = 'unknown' where id = ${lead.id}`, () => D!.sql`update pt_leads set number_class = 'business' where id = ${lead.id}`);
   await expect("outside_call_hours", () => setEnv({ PT_CALLERS_CALL_HOURS: undefined }), () => setEnv(LIVE));
   await expect("not_in_pilot_list", () => setEnv({ PT_CALLERS_PILOT_COMPLETE: undefined, PT_CALLERS_PILOT_NUMBERS: "+351910000000" }), () => setEnv(LIVE));
