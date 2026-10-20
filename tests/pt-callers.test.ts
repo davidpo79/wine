@@ -74,17 +74,17 @@ test("numbers abroad: only as pilot test numbers, only while the pilot runs", ()
   assert.equal(flags.pilotTestNumber("junk", env), null);
 });
 
-test("apollo matches: full surname and work email kept; locked or malformed e-mails dropped; details never reveal a phone", () => {
+test("apollo matches: full surname, work email and LinkedIn kept (LinkedIn profile URLs only); locked or malformed e-mails dropped; details never reveal a phone", () => {
   const raw = JSON.stringify({ matches: [
-    { id: "p1", last_name: "Silva", email: "Ana.Silva@Empresa.pt" },
-    { id: "p2", last_name: "", email: "email_not_unlocked@domain.com" },
-    { id: "p3", email: "not-an-email" },
+    { id: "p1", last_name: "Silva", email: "Ana.Silva@Empresa.pt", linkedin_url: "http://www.linkedin.com/in/ana-silva-123" },
+    { id: "p2", last_name: "", email: "email_not_unlocked@domain.com", linkedin_url: "javascript:alert(1)" },
+    { id: "p3", email: "not-an-email", linkedin_url: "https://evil.example/in/x" },
     { last_name: "NoId" },
   ] });
   assert.deepEqual(apollo.parseMatches(raw), [
-    { apolloPersonId: "p1", lastName: "Silva", email: "ana.silva@empresa.pt" },
-    { apolloPersonId: "p2", lastName: null, email: null },
-    { apolloPersonId: "p3", lastName: null, email: null },
+    { apolloPersonId: "p1", lastName: "Silva", email: "ana.silva@empresa.pt", linkedinUrl: "https://www.linkedin.com/in/ana-silva-123" },
+    { apolloPersonId: "p2", lastName: null, email: null, linkedinUrl: null },
+    { apolloPersonId: "p3", lastName: null, email: null, linkedinUrl: null },
   ]);
   assert.deepEqual(apollo.parseMatches("not json"), []);
   const d = apollo.detailsBody(["a", "b"]);
@@ -673,6 +673,14 @@ dbTest("a test number abroad: can be added and dialed only while it is in the pi
   setEnv({ PT_CALLERS_PILOT_NUMBERS: il, PT_CALLERS_PILOT_COMPLETE: "true" });
   assert.deepEqual(await svc!.predialCheck(admin, f.id!), { ok: false, reason: "not_pt_number" });
   setEnv({ ...offEnv, PT_CALLERS_BUSINESS_LINE_REQUIRED: undefined, PT_CALLERS_LEGAL_BASIS_REQUIRED: undefined, PT_CALLERS_DNC_REQUIRED: undefined });
+});
+
+dbTest("import keeps Apollo's masked surname until the lookup brings the full one and the LinkedIn profile", async () => {
+  const id = `mask-${RUN}-${Math.random()}`;
+  await svc!.insertSearchResults(admin, [{ id, first_name: "Mauricio", last_name_obfuscated: "Ma***s", title: "Head of HR", organization: { name: "X" } }], { demo: false });
+  const [row] = await D!.sql`select * from pt_leads where apollo_person_id = ${id}`;
+  assert.equal(row.last_name, null);
+  assert.equal(row.last_name_masked, "Ma***s");
 });
 
 dbTest("keypad during a call: own connected call only, digits validated, sent to the other side's leg", async () => {

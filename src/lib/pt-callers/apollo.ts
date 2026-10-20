@@ -95,7 +95,7 @@ export function parsePhonePayload(body: unknown): ParsedPerson[] {
   return out;
 }
 
-export type MatchedPerson = { apolloPersonId: string; lastName: string | null; email: string | null };
+export type MatchedPerson = { apolloPersonId: string; lastName: string | null; email: string | null; linkedinUrl: string | null };
 
 /** bulk_match's immediate answer: matches[] carry the full last name and the work email (search results hide both). */
 export function parseMatches(raw: string): MatchedPerson[] {
@@ -114,7 +114,9 @@ export function parseMatches(raw: string): MatchedPerson[] {
     const ln = (m as { last_name?: unknown }).last_name;
     const em = (m as { email?: unknown }).email;
     const email = typeof em === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em) && !/^email_not_unlocked@/i.test(em) ? em.trim().toLowerCase() : null;
-    out.push({ apolloPersonId: id, lastName: typeof ln === "string" && ln.trim() ? ln.trim() : null, email });
+    const li = (m as { linkedin_url?: unknown }).linkedin_url;
+    const linkedinUrl = typeof li === "string" && /^https?:\/\/([a-z]{2,3}\.)?(www\.)?linkedin\.com\/in\/[^\s"<>]+$/i.test(li.trim()) ? li.trim().replace(/^http:/i, "https:") : null;
+    out.push({ apolloPersonId: id, lastName: typeof ln === "string" && ln.trim() ? ln.trim() : null, email, linkedinUrl });
   }
   return out;
 }
@@ -232,7 +234,7 @@ const CITIES = ["Lisboa", "Porto", "Braga", "Coimbra", "Aveiro", "Faro", "Leiria
 
 const LAST = ["Silva", "Santos", "Ferreira", "Pereira", "Oliveira", "Costa", "Rodrigues", "Martins", "Sousa", "Fernandes"];
 const mockMatches = (ids: string[]): MatchedPerson[] =>
-  ids.map((id, i) => ({ apolloPersonId: id, lastName: LAST[i % LAST.length], email: `demo.${i + 1}@exemplo.invalid` }));
+  ids.map((id, i) => ({ apolloPersonId: id, lastName: LAST[i % LAST.length], email: `demo.${i + 1}@exemplo.invalid`, linkedinUrl: null }));
 
 export function createMockApollo(): Apollo {
   return {
