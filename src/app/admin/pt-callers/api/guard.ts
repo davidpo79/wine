@@ -1,12 +1,12 @@
 import { getAdmin, type AdminSession } from "@/lib/auth";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
 
-/** Sales rep (Portugal callers) endpoints: that role only. */
-export async function repSession(): Promise<AdminSession | Response> {
+/** Sales rep (Portugal callers) endpoints: that role only, or admins too where the endpoint opts in (click-to-call). */
+export async function repSession(o: { allowAdmin?: boolean } = {}): Promise<AdminSession | Response> {
   await loadOutboundSettings();
   const me = await getAdmin({ allowPtCaller: true }).catch(() => null);
   if (!me || me.mustChangePassword) return Response.json({ error: "Sessão terminada." }, { status: 401 });
-  if (me.role !== "pt_caller") return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (me.role !== "pt_caller" && !(o.allowAdmin && me.role === "admin")) return Response.json({ error: "Forbidden" }, { status: 403 });
   return me;
 }
 

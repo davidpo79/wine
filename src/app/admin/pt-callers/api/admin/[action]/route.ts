@@ -37,6 +37,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
         return Response.json(await svc.classifyLead(me, Number(b.id), { numberClass: String(b.numberClass ?? ""), legalBasis: String(b.legalBasis ?? "") }));
       case "purge-demo":
         return Response.json(await svc.purgeDemo(me));
+      case "details":
+        return Response.json(await svc.fetchDetails(me, ids(b.ids)));
+      case "email":
+        return Response.json(await svc.sendOffer(me, Number(b.id), { subject: String(b.subject ?? ""), body: String(b.body ?? "") }));
       case "opt-out":
         return Response.json(await svc.optOut(me, Number(b.id)));
       default:

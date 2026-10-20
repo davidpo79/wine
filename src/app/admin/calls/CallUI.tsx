@@ -68,6 +68,27 @@ function Timer({ c }: { c: CallView }) {
   return null;
 }
 
+/** Portugal-callers refusals for an admin calling from the English admin screen (reps see PT.refused). */
+const PT_REFUSED_EN: Record<string, string> = {
+  flags_off: "Portugal callers are switched off (Settings → Outbound calls).",
+  not_assigned: "This lead belongs to a sales rep.",
+  blocked: "This person is blocked or asked not to be contacted.",
+  bad_status: "This lead is not ready to call.",
+  dnc_unavailable: "The do-not-call check is required but not connected (Settings → Outbound calls).",
+  dnc_listed: "This number is on the do-not-call list.",
+  not_pt_number: "Not a valid Portuguese number (+351).",
+  not_business_number: "Mark the number as a business line first, or switch that check off in Settings.",
+  no_legal_basis: "Record the legal basis first, or switch that requirement off in Settings.",
+  outside_call_hours: "Outside the calling hours set in Settings.",
+  not_in_pilot_list: "The pilot is running: only the pilot numbers can be called (Settings → Outbound calls).",
+  call_cap: "Today's call limit is reached.",
+  locked_by_other: "Someone else is calling this lead.",
+  demo_lead: "Demo lead: it cannot be called.",
+  not_found: "Lead not found.",
+  busy: "You are already on a call.",
+  call_failed: "The call could not be started. Try again.",
+};
+
 export function CallPopup() {
   const { call: c, device, deviceError, muted } = useCallStore();
   if (!c) return null;
@@ -77,7 +98,8 @@ export function CallPopup() {
     ? { headline: PT.popup.headline, needsDevice: PT.popup.needsDevice, repAnswered: PT.popup.repAnswered, errors: PT.popup.errors, live: PT.popup.live, connect: PT.popup.connect, mute: PT.popup.mute, unmute: PT.popup.unmute, end: PT.popup.end, close: PT.popup.close }
     : { headline: HEADLINE, needsDevice: "Connect once per session: your browser asks for the microphone, then calls ring here.", repAnswered: "You are on the line. We are calling them now, so wait for them to answer before you speak.", errors: ERROR_COPY, live: "● Live", connect: "Connect", mute: "Mute", unmute: "Unmute", end: "End call", close: "Close" };
   const headline = (T.headline[c.phase] ?? c.phase).replace("{name}", c.target.name);
-  const errorText = (e: string) => (e.startsWith("pt:") ? (PT.refused[e.slice(3)] ?? PT.refused.call_failed) : (T.errors[e] ?? e));
+  const errorText = (e: string) =>
+    e.startsWith("pt:") ? (pt ? (PT.refused[e.slice(3)] ?? PT.refused.call_failed) : (PT_REFUSED_EN[e.slice(3)] ?? PT_REFUSED_EN.call_failed)) : (T.errors[e] ?? e);
   const sub =
     c.phase === "needsDevice"
       ? (pt ? PT.popup.needsDevice : (deviceError ?? T.needsDevice))

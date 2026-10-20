@@ -3,10 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CallButton } from "../../calls/CallUI";
 
 type Lead = {
   id: number;
   name: string;
+  firstName: string | null;
+  hasSurname: boolean;
+  email: string | null;
+  emailedAt: string | null;
   title: string | null;
   company: string | null;
   companySize: number | null;
@@ -93,7 +98,7 @@ function Tile({ label, value, sub }: { label: string; value: string | number; su
 
 export function AdminPanel(p: {
   flags: { enabled: boolean; legalApproved: boolean; live: boolean };
-  config: { apolloKey: boolean; webhookBase: string | null; resultMode: string; caps: { daily: number | null; monthly: number | null }; callCap: number; callHours: string | null; pilot: string[] | null; telnyxMissing: string[]; dncRequired: boolean; legalBasisRequired: boolean };
+  config: { apolloKey: boolean; webhookBase: string | null; resultMode: string; caps: { daily: number | null; monthly: number | null }; callCap: number; callHours: string | null; pilot: string[] | null; telnyxMissing: string[]; dncRequired: boolean; legalBasisRequired: boolean; businessLineRequired: boolean };
   credits: { real: Bucket; demo: Bucket };
   reps: { id: number; email: string }[];
   leads: Lead[];
@@ -135,6 +140,8 @@ export function AdminPanel(p: {
   const assigned = p.leads.filter((l) => l.assignedTo).length;
   const rem = (v: number | null) => (v === null ? "no limit" : `${v} left`);
   const demoLeads = p.leads.filter((l) => l.demo).length;
+  const prep = p.config.businessLineRequired || p.config.legalBasisRequired;
+  const [mailFor, setMailFor] = useState<Lead | null>(null);
 
   return (
     <div className="space-y-6 pb-24">
@@ -217,8 +224,8 @@ export function AdminPanel(p: {
             {[
               ["Import", "Pull 25 HR managers per click. Free."],
               ["Approve & get phones", "Tick up to 10 people worth contacting. 1 credit each, +8 if a mobile is found."],
-              ["Prepare", p.config.legalBasisRequired ? "Mark the number as a business line and note the legal basis." : "Mark the number as a business line."],
-              ["Assign", "Give leads to a sales rep, who calls them."],
+              ...(prep ? [["Prepare", p.config.legalBasisRequired ? (p.config.businessLineRequired ? "Mark the number as a business line and note the legal basis." : "Note the legal basis.") : "Mark the number as a business line."]] : []),
+              ["Call or e-mail", "Call from here, send the offer by e-mail, or give leads to a sales rep."],
             ].map(([t, d], i) => (
               <li key={t} className="rounded-lg bg-paper p-3">
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0F2340] text-xs font-bold text-white">{i + 1}</span>
@@ -293,7 +300,7 @@ export function AdminPanel(p: {
                   <th>Phone</th>
                   <th>Status</th>
                   <th>Sales rep</th>
-                  <th>Before calling</th>
+                  <th>Actions</th>
                   <th />
                 </tr>
               </thead>
@@ -309,6 +316,7 @@ export function AdminPanel(p: {
                           {l.demo && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">DEMO</span>}
                         </p>
                         <p className="text-xs text-muted">{l.title}</p>
+                        {l.email && <p className="text-xs text-muted">{l.email}</p>}
                       </td>
                       <td className="py-3">
                         <p>{l.company ?? "—"}</p>
@@ -321,7 +329,30 @@ export function AdminPanel(p: {
                         {l.attempts > 0 && <span className="mt-1 block text-[11px] text-muted">{l.attempts} call{l.attempts === 1 ? "" : "s"}</span>}
                       </td>
                       <td className="py-3 text-xs">{p.reps.find((r) => r.id === l.assignedTo)?.email ?? <span className="text-muted">—</span>}</td>
-                      <td className="py-3"><Classify lead={l} needBasis={p.config.legalBasisRequired} onDone={(ok, m) => { setMsg({ ok, text: m }); router.refresh(); }} /></td>
+                      <td className="py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {l.phone && !blockedLead(l) && (
+                            <CallButton
+                              target={{ ptLeadId: l.id, name: l.name }}
+                              disabled={!p.flags.live || l.demo || p.reps.some((r) => r.id === l.assignedTo)}
+                              title={l.assignedTo && p.reps.some((r) => r.id === l.assignedTo) ? "Assigned to a sales rep" : undefined}
+                            />
+                          )}
+                          {l.email && !blockedLead(l) && (
+                            <button type="button" onClick={() => setMailFor(l)} className="inline-flex min-h-8 items-center rounded border border-[#0F2340] px-3 text-xs font-semibold text-[#0F2340] hover:bg-[#0F2340] hover:text-white">
+                              ✉ {l.emailedAt ? "Email again" : "Email offer"}
+                            </button>
+                          )}
+                          {l.phone && (!l.email || !l.hasSurname) && !blockedLead(l) && !l.demo && (
+                            <button type="button" disabled={busy} onClick={() => run("details", { ids: [l.id] }, (r) => (r.found ? "Surname and e-mail added." : "Apollo has no more details for this person."))} className="text-[11px] text-azulejo underline disabled:opacity-50" title="Apollo, 1 credit">
+                              get surname &amp; e-mail (1 credit)
+                            </button>
+                          )}
+                        </div>
+                        {l.emailedAt && <p className="mt-1 text-[11px] text-muted">e-mailed {day(l.emailedAt)}</p>}
+                        {prep && <div className="mt-1.5"><Classify lead={l} needBasis={p.config.legalBasisRequired} needLine={p.config.businessLineRequired} onDone={(ok, m) => { setMsg({ ok, text: m }); router.refresh(); }} /></div>}
+                        {!prep && !l.phone && !blockedLead(l) && <span className="text-xs text-muted">needs a phone first</span>}
+                      </td>
                       <td className="py-3 pr-3 text-right">
                         <button
                           type="button"
@@ -379,6 +410,18 @@ export function AdminPanel(p: {
         </details>
       )}
 
+      {mailFor && (
+        <OfferDialog
+          lead={mailFor}
+          onClose={() => setMailFor(null)}
+          onSent={(ok, m) => {
+            setMsg({ ok, text: m });
+            setMailFor(null);
+            router.refresh();
+          }}
+        />
+      )}
+
       {/* Selection bar */}
       {sel.length > 0 && (
         <div className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-[min(960px,calc(100%-2rem))] flex-wrap items-center gap-2 rounded-2xl bg-[#0F2340] p-3 text-sm text-white shadow-2xl md:ml-[calc(15rem+1rem)] md:w-[min(960px,calc(100%-17rem))]">
@@ -414,29 +457,29 @@ export function AdminPanel(p: {
   );
 }
 
-function Classify({ lead, needBasis, onDone }: { lead: Lead; needBasis: boolean; onDone: (ok: boolean, m: string) => void }) {
+function Classify({ lead, needBasis, needLine, onDone }: { lead: Lead; needBasis: boolean; needLine: boolean; onDone: (ok: boolean, m: string) => void }) {
   const [open, setOpen] = useState(false);
   const [numberClass, setNumberClass] = useState(lead.numberClass);
   const [legalBasis, setLegalBasis] = useState(lead.legalBasis ?? "");
   const blocked = lead.status === "opt_out" || lead.status === "blocked";
   if (!lead.phone || blocked) return <span className="text-xs text-muted">{blocked ? "—" : "needs a phone first"}</span>;
-  const done = lead.numberClass === "business" && (!needBasis || !!lead.legalBasis);
+  const done = (!needLine || lead.numberClass === "business") && (!needBasis || !!lead.legalBasis);
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)} className={`rounded-lg px-2 py-1 text-xs font-semibold ${done ? "text-green-700" : "border border-amber-400 text-amber-800 hover:bg-amber-50"}`}>
-        {done ? (needBasis ? "✓ Business line · basis noted" : "✓ Business line") : "Prepare for calling"}
+        {done ? [needLine && "✓ Business line", needBasis && "✓ Basis noted"].filter(Boolean).join(" · ") : "Prepare for calling"}
       </button>
     );
   return (
     <div className="w-64 space-y-1.5 rounded-lg border bg-paper p-2 text-xs">
-      <label className="block">
+      {needLine && <label className="block">
         <span className="font-semibold">This number is</span>
         <select value={numberClass} onChange={(e) => setNumberClass(e.target.value)} className="mt-0.5 w-full rounded border p-1">
           <option value="unknown">not checked yet</option>
           <option value="business">a business line</option>
           <option value="personal">personal (do not call)</option>
         </select>
-      </label>
+      </label>}
       {needBasis && (
         <label className="block">
           <span className="font-semibold">Legal basis</span>
@@ -449,13 +492,71 @@ function Classify({ lead, needBasis, onDone }: { lead: Lead; needBasis: boolean;
           onClick={async () => {
             const r = await post("classify", { id: lead.id, numberClass, legalBasis });
             setOpen(false);
-            onDone(!!r.ok, r.ok ? (numberClass === "business" && (!needBasis || legalBasis.trim()) ? `${lead.name} is ready to call.` : "Saved.") : String(r.reason));
+            onDone(!!r.ok, r.ok ? ((!needLine || numberClass === "business") && (!needBasis || legalBasis.trim()) ? `${lead.name} is ready to call.` : "Saved.") : String(r.reason));
           }}
           className="rounded bg-[#0F2340] px-2 py-1 font-semibold text-white"
         >
           Save
         </button>
         <button type="button" onClick={() => setOpen(false)} className="underline">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+const blockedLead = (l: Lead) => l.status === "opt_out" || l.status === "blocked";
+
+const offerSubject = () => "Prendas de Natal para a sua equipa: Trilogia 2160";
+const offerBody = (first: string | null) => `Bom dia${first ? ` ${first}` : ""},
+
+Somos a Wine Portugal (W.O.P Wines of Portugal, Unipessoal Lda.). Preparamos a Trilogia 2160: uma caixa de Natal com três vinhos do Douro DOC (branco, rosé e tinto, da Martin Boutique Wines), pronta a oferecer.
+
+Para empresas, preparamos uma proposta à medida do número de colaboradores, com entrega no escritório ou em cada morada.
+
+Pode ver a caixa aqui: https://vinho.prendadenatal.com
+
+Se fizer sentido, diga-me quantas pessoas pretende presentear e envio-lhe a proposta.
+
+Com os melhores cumprimentos,
+Equipa Wine Portugal
+
+Obtivemos o seu contacto profissional através da plataforma Apollo.io. Se não pretender receber mais contactos nossos, responda a este e-mail com «PARAR» e não voltaremos a contactá-lo/a.`;
+
+function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => void; onSent: (ok: boolean, m: string) => void }) {
+  const [subject, setSubject] = useState(offerSubject());
+  const [body, setBody] = useState(offerBody(lead.firstName));
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-label="E-mail the offer">
+      <div className="w-full max-w-xl rounded-xl bg-white p-5 shadow-2xl">
+        <h2 className="font-semibold">E-mail the offer to {lead.name}</h2>
+        <p className="mt-0.5 text-xs text-muted">To {lead.email} · replies arrive in Admin → Inbox. Edit anything before sending.</p>
+        <label className="mt-3 block text-xs font-semibold">
+          Subject
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm font-normal" />
+        </label>
+        <label className="mt-3 block text-xs font-semibold">
+          Message
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={14} className="mt-1 w-full rounded-lg border p-2 text-sm font-normal" />
+        </label>
+        {err && <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-800">⚠ {err}</p>}
+        <div className="mt-3 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm underline">Cancel</button>
+          <button
+            type="button"
+            disabled={sending}
+            onClick={async () => {
+              setSending(true);
+              const r = await post("email", { id: lead.id, subject, body }).finally(() => setSending(false));
+              if (r.ok) onSent(true, `Offer sent to ${lead.email}.`);
+              else setErr(String(r.reason ?? r.error ?? "The e-mail was not sent."));
+            }}
+            className="rounded-lg bg-[#0F2340] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {sending ? "Sending…" : "Send"}
+          </button>
+        </div>
       </div>
     </div>
   );

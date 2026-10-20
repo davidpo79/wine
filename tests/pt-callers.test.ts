@@ -51,6 +51,34 @@ test("legal-basis requirement: on unless exactly 'false'", () => {
   assert.equal(flags.legalBasisRequired({ PT_CALLERS_LEGAL_BASIS_REQUIRED: "false" }), false);
 });
 
+test("business-line check: on unless exactly 'false'; the Prepare step is needed while either check is on", () => {
+  assert.equal(flags.businessLineRequired({}), true);
+  assert.equal(flags.businessLineRequired({ PT_CALLERS_BUSINESS_LINE_REQUIRED: "false" }), false);
+  assert.equal(flags.prepareNeeded({}), true);
+  assert.equal(flags.prepareNeeded({ PT_CALLERS_BUSINESS_LINE_REQUIRED: "false" }), true); // legal basis still on
+  assert.equal(flags.prepareNeeded({ PT_CALLERS_BUSINESS_LINE_REQUIRED: "false", PT_CALLERS_LEGAL_BASIS_REQUIRED: "false" }), false);
+});
+
+test("apollo matches: full surname and work email kept; locked or malformed e-mails dropped; details never reveal a phone", () => {
+  const raw = JSON.stringify({ matches: [
+    { id: "p1", last_name: "Silva", email: "Ana.Silva@Empresa.pt" },
+    { id: "p2", last_name: "", email: "email_not_unlocked@domain.com" },
+    { id: "p3", email: "not-an-email" },
+    { last_name: "NoId" },
+  ] });
+  assert.deepEqual(apollo.parseMatches(raw), [
+    { apolloPersonId: "p1", lastName: "Silva", email: "ana.silva@empresa.pt" },
+    { apolloPersonId: "p2", lastName: null, email: null },
+    { apolloPersonId: "p3", lastName: null, email: null },
+  ]);
+  assert.deepEqual(apollo.parseMatches("not json"), []);
+  const d = apollo.detailsBody(["a", "b"]);
+  assert.equal(d.reveal_phone_number, false);
+  assert.equal(d.reveal_personal_emails, false);
+  assert.equal("webhook_url" in d, false);
+  assert.throws(() => apollo.detailsBody([]));
+});
+
 test("call hours: unset refuses; weekdays only inside the Lisbon window", () => {
   assert.equal(flags.inCallHours({}, new Date("2026-10-20T10:00:00Z")), false);
   const env = { PT_CALLERS_CALL_HOURS: "09:30-18:00" };
@@ -631,6 +659,67 @@ dbTest("approve & get phones: one call approves and sends the lookup; more than 
   const row = await leadRow(one.id);
   assert.ok(row.approved_at);
   assert.equal(row.status, "enrichment_pending");
+});
+
+dbTest("business-line check off: phone arrives ready; unknown number class may be dialed", async () => {
+  setEnv({ ...offEnv, PT_CALLERS_BUSINESS_LINE_REQUIRED: "false", PT_CALLERS_LEGAL_BASIS_REQUIRED: "false" });
+  const { lead, r } = await enrichOne("webhook");
+  // The mock's immediate answer carries the full surname and the work e-mail.
+  const after = await leadRow(lead.id);
+  assert.ok(after.last_name);
+  assert.match(after.email, /@exemplo\.invalid$/);
+  await svc!.handleApolloWebhook(r.requestId!, r.testSecret!, JSON.stringify({ people: [{ id: lead.apolloPersonId, phone_numbers: [{ sanitized_number: "+351912000077", type_cd: "mobile" }] }] }));
+  assert.equal((await leadRow(lead.id)).status, "ready");
+  const l = await readyLead(rep, 77);
+  await D!.sql`update pt_leads set number_class = 'unknown', legal_basis = null where id = ${l.id}`;
+  setEnv({ ...LIVE, PT_CALLERS_BUSINESS_LINE_REQUIRED: "false", PT_CALLERS_LEGAL_BASIS_REQUIRED: "false", PT_CALLERS_DNC_REQUIRED: "false" });
+  assert.deepEqual(await svc!.predialCheck(rep, l.id), { ok: true });
+  setEnv({ PT_CALLERS_BUSINESS_LINE_REQUIRED: undefined });
+  assert.deepEqual(await svc!.predialCheck(rep, l.id), { ok: false, reason: "not_business_number" });
+  setEnv({ ...offEnv, PT_CALLERS_LEGAL_BASIS_REQUIRED: undefined, PT_CALLERS_DNC_REQUIRED: undefined });
+});
+
+dbTest("admin calls from the admin screen: takes an unassigned lead, never a rep's lead; same gates", async () => {
+  setEnv({ ...LIVE, PT_CALLERS_BUSINESS_LINE_REQUIRED: "false", PT_CALLERS_LEGAL_BASIS_REQUIRED: "false", PT_CALLERS_DNC_REQUIRED: "false" });
+  const [mine] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `adm-${RUN}-${Math.random()}`, firstName: "Rui", phone: `+3519${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`, status: "new", approvedAt: new Date(), retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  assert.deepEqual(await svc!.predialCheck(admin, mine.id), { ok: true });
+  const row = await leadRow(mine.id);
+  assert.equal(row.assigned_to, admin.id);
+  assert.equal(row.status, "ready");
+  const repLead = await readyLead(rep, 78);
+  assert.deepEqual(await svc!.predialCheck(admin, repLead.id), { ok: false, reason: "not_assigned" });
+  assert.equal((await leadRow(repLead.id)).assigned_to, rep.id);
+  // With the business-line check on, the admin's lead waits for "Prepare" like any other.
+  setEnv({ PT_CALLERS_BUSINESS_LINE_REQUIRED: undefined });
+  const [other] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `adm2-${RUN}-${Math.random()}`, firstName: "Rui", phone: "+351912345678", status: "new", approvedAt: new Date(), retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  assert.deepEqual(await svc!.predialCheck(admin, other.id), { ok: false, reason: "bad_status" });
+  setEnv({ ...offEnv, PT_CALLERS_LEGAL_BASIS_REQUIRED: undefined, PT_CALLERS_DNC_REQUIRED: undefined });
+});
+
+dbTest("surname & e-mail lookup and the offer e-mail: admins only; blocked, demo and no-address leads refused", async () => {
+  setEnv(offEnv);
+  await assert.rejects(svc!.fetchDetails(rep as never, [1]), /forbidden/);
+  await assert.rejects(svc!.sendOffer(rep as never, 1, { subject: "s", body: "b" }), /forbidden/);
+  const [l] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `det-${RUN}-${Math.random()}`, firstName: "Marta", status: "new", demo: true, approvedAt: new Date(), retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  assert.equal((await svc!.fetchDetails(admin, Array.from({ length: 11 }, () => l.id).map((x, i) => x + i))).ok, false);
+  const d = await svc!.fetchDetails(admin, [l.id]);
+  assert.equal(d.ok, true);
+  const row = await leadRow(l.id);
+  assert.ok(row.last_name && row.email);
+  assert.equal((await svc!.sendOffer(admin, l.id, { subject: "s", body: "b" })).reason, "Demo lead: no e-mail is sent.");
+  await D!.sql`update pt_leads set demo = false where id = ${l.id}`;
+  assert.equal((await svc!.sendOffer(admin, l.id, { subject: " ", body: "b" })).ok, false);
+  const saved = { from: process.env.EMAIL_FROM };
+  delete process.env.EMAIL_FROM;
+  const r = await svc!.sendOffer(admin, l.id, { subject: "Proposta", body: "Olá" });
+  assert.equal(r.ok, false);
+  assert.match(r.reason!, /not set up/);
+  if (saved.from) process.env.EMAIL_FROM = saved.from;
+  await D!.sql`update pt_leads set email = null where id = ${l.id}`;
+  assert.equal((await svc!.sendOffer(admin, l.id, { subject: "s", body: "b" })).ok, false);
+  await D!.sql`update pt_leads set status = 'opt_out', email = 'x@y.pt' where id = ${l.id}`;
+  assert.match((await svc!.sendOffer(admin, l.id, { subject: "s", body: "b" })).reason!, /not to be contacted/);
+  assert.equal((await svc!.fetchDetails(admin, [l.id])).ok, false);
 });
 
 // Last on purpose: it removes every demo row, including the ones the tests above created.
