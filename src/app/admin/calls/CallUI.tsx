@@ -92,6 +92,7 @@ const PT_REFUSED_EN: Record<string, string> = {
 
 export function CallPopup() {
   const { call: c, device, deviceError, muted } = useCallStore();
+  const [pad, setPad] = useState(false);
   if (!c) return null;
   const live = isLive(c);
   const pt = c.target.lang === "pt";
@@ -129,6 +130,11 @@ export function CallPopup() {
             <button type="button" onClick={toggleMute} className="rounded border px-3 py-1.5 text-xs font-semibold">
               {muted ? T.unmute : T.mute}
             </button>
+            {c.status === "bridged" && c.callId && (
+              <button type="button" onClick={() => setPad(!pad)} className={`rounded border px-3 py-1.5 text-xs font-semibold ${pad ? "bg-slate-100" : ""}`}>
+                ⌨ {pt ? "Teclado" : "Keypad"}
+              </button>
+            )}
             <button type="button" onClick={hangUp} className="rounded bg-red-700 px-3 py-1.5 text-xs font-semibold text-white">
               {T.end}
             </button>
@@ -140,6 +146,7 @@ export function CallPopup() {
           </button>
         )}
       </div>
+      {pad && live && c.status === "bridged" && c.callId && <Keypad callId={c.callId} />}
       {c.target.ptLeadId && <DialerPanel key={c.target.ptLeadId} leadId={c.target.ptLeadId} callId={c.callId} pt={pt} />}
     </div>
   );
@@ -246,6 +253,30 @@ function DialerPanel({ leadId, callId, pt }: { leadId: number; callId: string | 
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Keypad during a connected call: each key is played into the other side's line (switchboard menus). */
+function Keypad({ callId }: { callId: string }) {
+  const [sent, setSent] = useState("");
+  const [err, setErr] = useState(false);
+  const press = async (d: string) => {
+    setSent((s) => (s + d).slice(-16));
+    const r = await fetch("/admin/calls/dtmf", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callId, digits: d }), credentials: "include" }).catch(() => null);
+    setErr(!r || !r.ok);
+  };
+  return (
+    <div className="mt-3 rounded-lg border bg-slate-50 p-2">
+      <p className="mb-1 h-5 text-center font-mono text-sm">{sent || " "}</p>
+      <div className="grid grid-cols-3 gap-1.5">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"].map((d) => (
+          <button key={d} type="button" onClick={() => void press(d)} className="rounded bg-white py-2 text-base font-semibold shadow-sm hover:bg-slate-100">
+            {d}
+          </button>
+        ))}
+      </div>
+      {err && <p className="mt-1 text-center text-xs text-red-700">⚠</p>}
     </div>
   );
 }

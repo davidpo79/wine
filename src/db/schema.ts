@@ -638,7 +638,7 @@ export const ptAccessLog = pgTable(
     id: serial("id").primaryKey(),
     adminId: integer("admin_id").references(() => adminUsers.id),
     leadId: integer("lead_id").references(() => ptLeads.id),
-    action: text("action").notNull(), // view | reveal | dial | dial_refused | outcome | opt_out | import | approve | enrich | assign | classify | purge_demo | email | details
+    action: text("action").notNull(), // view | reveal | dial | dial_refused | outcome | opt_out | import | approve | enrich | assign | classify | purge_demo | email | details | manual_add | free_dial
     detail: jsonb("detail").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

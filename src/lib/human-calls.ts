@@ -24,6 +24,7 @@ import {
   dialCustomerLeg,
   dialRepLeg,
   hangupLeg,
+  sendDtmf,
   humanCallConfig,
   humanCallMissing,
   isTerminal,
@@ -260,6 +261,22 @@ export async function callState(me: AdminSession, callId: unknown): Promise<Resu
   const [r] = await db.select().from(T).where(and(eq(T.id, callId), eq(T.initiatedBy, me.id))).limit(1);
   if (!r) return reply(404, { error: "Not found." });
   return reply(200, { ok: true, state: publicState(r) });
+}
+
+/** Keypad during a connected call: digits go to the other side's line (the caller's own call only). */
+export async function callDtmf(me: AdminSession, callId: unknown, digits: unknown): Promise<Result> {
+  if (typeof callId !== "string" || !callId) return reply(404, { error: "Not found." });
+  if (typeof digits !== "string" || !/^[0-9*#]{1,20}$/.test(digits)) return reply(400, { error: "Digits 0-9, * and # only." });
+  const [r] = await db.select().from(T).where(and(eq(T.id, callId), eq(T.initiatedBy, me.id))).limit(1);
+  if (!r) return reply(404, { error: "Not found." });
+  if (r.status !== "bridged" || !r.callControlId) return reply(409, { error: "The call is not connected." });
+  try {
+    await sendDtmf(r.callControlId, digits);
+  } catch (e) {
+    log("dtmf", r.id, errText(e));
+    return reply(502, { error: "The tones could not be sent." });
+  }
+  return reply(200, { ok: true });
 }
 
 // --- POST /api/telnyx/human-call-webhook ----------------------------------------------------------------------------

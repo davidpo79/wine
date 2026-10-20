@@ -67,6 +67,60 @@ export async function insertSearchResults(me: Me, people: SearchPerson[], o: { d
   return { inserted, duplicates, blocked };
 }
 
+/** A lead typed in by an admin (a contact found elsewhere, or a test number): approved, never a demo, same gates. */
+export async function addManualLead(
+  me: Me,
+  o: { firstName: string; lastName?: string; title?: string; company?: string; phone: string; email?: string },
+): Promise<{ ok: boolean; reason?: string; id?: number }> {
+  adminOnly(me);
+  const firstName = o.firstName.trim().slice(0, 80);
+  if (!firstName) return { ok: false, reason: "Enter a first name." };
+  const phone = normalizePtPhone(o.phone);
+  if (!phone) return { ok: false, reason: "Enter a Portuguese phone number (+351 and 9 digits)." };
+  const email = (o.email ?? "").trim().toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, reason: "That e-mail address does not look right." };
+  const [b] = await db.select({ id: schema.ptBlocks.id }).from(schema.ptBlocks).where(eq(schema.ptBlocks.valueHash, blockHash("phone", phone))).limit(1);
+  if (b) return { ok: false, reason: "This number asked not to be contacted." };
+  const [dup] = await db.select({ id: LEADS.id }).from(LEADS).where(eq(LEADS.phone, phone)).limit(1);
+  if (dup) return { ok: false, reason: `This number is already lead ${dup.id}.` };
+  const [l] = await db
+    .insert(LEADS)
+    .values({
+      apolloPersonId: `manual-${randomBytes(8).toString("hex")}`,
+      firstName,
+      lastName: o.lastName?.trim().slice(0, 80) || null,
+      title: o.title?.trim().slice(0, 120) || null,
+      company: o.company?.trim().slice(0, 160) || null,
+      phone,
+      phoneType: phone.startsWith("+3519") ? "mobile" : "other",
+      email: email || null,
+      status: prepareNeeded() ? "new" : "ready",
+      source: "manual",
+      demo: false,
+      approvedAt: new Date(),
+      approvedBy: me.id,
+      retentionUntil: retention(),
+    })
+    .returning({ id: LEADS.id });
+  await logAccess(me.id, l.id, "manual_add");
+  return { ok: true, id: l.id };
+}
+
+/** Free dialing from the admin screen: the lead with this number, or a new hand-added one, so the call keeps every
+ *  rule (opt-out, hours, pilot list, cap, lock) and lands in the call history. */
+export async function leadForNumber(me: Me, raw: string): Promise<{ ok: boolean; reason?: string; id?: number; name?: string }> {
+  adminOnly(me);
+  const phone = normalizePtPhone(raw);
+  if (!phone) return { ok: false, reason: "Enter a Portuguese phone number (+351 and 9 digits)." };
+  const [existing] = await db.select().from(LEADS).where(eq(LEADS.phone, phone)).limit(1);
+  if (existing) {
+    if (await isBlocked(existing)) return { ok: false, reason: "This number asked not to be contacted." };
+    return { ok: true, id: existing.id, name: [existing.firstName, existing.lastName].filter(Boolean).join(" ") || phone };
+  }
+  const r = await addManualLead(me, { firstName: phone, phone });
+  return r.ok ? { ok: true, id: r.id, name: phone } : r;
+}
+
 export async function importLeads(me: Me, o: { page: number }) {
   adminOnly(me);
   const client = apolloFor();
