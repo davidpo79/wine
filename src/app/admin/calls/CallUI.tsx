@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PT } from "@/lib/pt-callers/strings-pt";
 import { call, close, connectAndCall, hangUp, isLive, toggleMute, useCallStore, type CallTarget, type CallView } from "./call-store";
@@ -93,6 +93,8 @@ const PT_REFUSED_EN: Record<string, string> = {
 export function CallPopup() {
   const { call: c, device, deviceError, muted } = useCallStore();
   const [pad, setPad] = useState(false);
+  const [min, setMin] = useState(false);
+  const { pos, onDragStart } = useDraggable();
   if (!c) return null;
   const live = isLive(c);
   const pt = c.target.lang === "pt";
@@ -111,9 +113,39 @@ export function CallPopup() {
           ? errorText(c.error)
           : null;
   return (
-    <div className={`fixed bottom-4 right-4 z-50 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border bg-white p-4 text-sm shadow-xl ${c.target.ptLeadId ? "w-[22rem]" : "w-80"}`} role="dialog" aria-label="Phone call">
-      <p className="text-xs text-muted">{c.target.name}</p>
-      <div className="mt-1 flex items-center justify-between gap-2">
+    <div
+      className={`fixed z-50 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border bg-white text-sm shadow-xl ${pos ? "" : "bottom-4 right-4"} ${min ? "w-72" : c.target.ptLeadId ? "w-[22rem]" : "w-80"}`}
+      style={pos ? { left: pos.x, top: pos.y } : undefined}
+      role="dialog"
+      aria-label="Phone call"
+    >
+      {/* Title bar: drag to move, minimize keeps the call (and any notes typed) running. */}
+      <div onPointerDown={onDragStart} className="flex cursor-move touch-none select-none items-center gap-2 rounded-t-lg border-b bg-slate-50 px-3 py-1.5">
+        <span className="text-muted" aria-hidden>⠿</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted">{c.target.name}</span>
+        {min && <Timer c={c} />}
+        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setMin(!min)} className="rounded px-1.5 text-base leading-none hover:bg-slate-200" title={min ? "Expand" : "Minimize"} aria-label={min ? "Expand" : "Minimize"}>
+          {min ? "▢" : "–"}
+        </button>
+      </div>
+      {min && (
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <p className="truncate text-xs font-semibold">{headline}</p>
+          {live ? (
+            <button type="button" onClick={hangUp} className="shrink-0 rounded bg-red-700 px-2.5 py-1 text-xs font-semibold text-white">
+              {T.end}
+            </button>
+          ) : (
+            c.phase !== "registering" && c.phase !== "starting" && (
+              <button type="button" onClick={close} className="shrink-0 rounded border px-2.5 py-1 text-xs font-semibold">
+                {T.close}
+              </button>
+            )
+          )}
+        </div>
+      )}
+      <div className={min ? "hidden" : "p-4 pt-3"}>
+      <div className="flex items-center justify-between gap-2">
         <p className="font-semibold">{headline}</p>
         <Timer c={c} />
       </div>
@@ -147,10 +179,58 @@ export function CallPopup() {
         )}
       </div>
       {pad && live && c.status === "bridged" && c.callId && <Keypad callId={c.callId} />}
-      {c.target.ptLeadId && <DialerPanel key={c.target.ptLeadId} leadId={c.target.ptLeadId} callId={c.callId} pt={pt} />}
+      {/* Notes and summary only once a call was actually placed (not when the server refused it). */}
+      {c.target.ptLeadId && (c.callId || live) && <DialerPanel key={c.target.ptLeadId} leadId={c.target.ptLeadId} callId={c.callId} pt={pt} />}
+      </div>
     </div>
   );
 }
+
+/** The call window's position: null = bottom-right corner; dragged = kept on screen and remembered in this browser. */
+function useDraggable() {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ dx: number; dy: number; el: HTMLElement } | null>(null);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("callPopupPos") ?? "null");
+      if (saved && typeof saved.x === "number" && typeof saved.y === "number") setPos(clampPos(saved.x, saved.y, 288, 80));
+    } catch {
+      /* storage unavailable: default corner */
+    }
+  }, []);
+  const onDragStart = (e: React.PointerEvent<HTMLElement>) => {
+    const el = (e.currentTarget.parentElement ?? e.currentTarget) as HTMLElement;
+    const r = el.getBoundingClientRect();
+    drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, el };
+    const move = (ev: PointerEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      const b = d.el.getBoundingClientRect();
+      setPos(clampPos(ev.clientX - d.dx, ev.clientY - d.dy, b.width, b.height));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      const b = drag.current?.el.getBoundingClientRect();
+      drag.current = null;
+      if (b) {
+        try {
+          localStorage.setItem("callPopupPos", JSON.stringify({ x: b.left, y: b.top }));
+        } catch {
+          /* not remembered: fine */
+        }
+      }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  return { pos, onDragStart };
+}
+
+const clampPos = (x: number, y: number, w: number, h: number) => ({
+  x: Math.min(Math.max(8, x), Math.max(8, window.innerWidth - w - 8)),
+  y: Math.min(Math.max(8, y), Math.max(8, window.innerHeight - Math.min(h, 120))),
+});
 
 // --- Portugal callers: notes, call summary and the lead's call history -------------------------------------------
 
