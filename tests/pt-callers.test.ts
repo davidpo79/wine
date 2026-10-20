@@ -616,3 +616,20 @@ dbTest("credit summary: used and remaining shown; unset caps = remaining null (n
   setEnv({ APOLLO_MONTHLY_CREDIT_CAP: undefined });
   await assert.rejects(svc!.creditSummary(rep as never), /forbidden/);
 });
+
+// Last on purpose: it removes every demo row, including the ones the tests above created.
+dbTest("demo clean-up: removes demo leads, demo lookups and demo credit rows; real leads stay; admins only", async () => {
+  await assert.rejects(svc!.purgeDemo(rep as never), /forbidden/);
+  const { lead: demoLead, r } = await enrichOne("webhook");
+  assert.equal(r.ok, true);
+  const [real] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `real-${RUN}-${Math.random()}`, firstName: "Joana", title: "HR Manager", company: "Real Lda", status: "new", demo: false, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  const out = await svc!.purgeDemo(admin);
+  assert.equal(out.ok, true);
+  assert.ok(out.leads >= 1 && out.requests >= 1);
+  assert.equal((await D!.sql`select 1 from pt_leads where demo = true`).length, 0);
+  assert.equal((await D!.sql`select 1 from pt_leads where id = ${demoLead.id}`).length, 0);
+  assert.equal((await D!.sql`select 1 from pt_enrichment_requests where demo = true`).length, 0);
+  assert.equal((await D!.sql`select 1 from pt_credit_ledger where demo = true`).length, 0);
+  assert.equal((await D!.sql`select 1 from pt_leads where id = ${real.id}`).length, 1);
+  assert.ok((await D!.sql`select 1 from pt_access_log where action = 'purge_demo' and admin_id = ${admin.id}`).length > 0);
+});

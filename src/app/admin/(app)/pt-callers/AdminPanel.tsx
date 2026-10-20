@@ -134,6 +134,7 @@ export function AdminPanel(p: {
   const ready = p.leads.filter((l) => l.status === "ready").length;
   const assigned = p.leads.filter((l) => l.assignedTo).length;
   const rem = (v: number | null) => (v === null ? "no limit" : `${v} left`);
+  const demoLeads = p.leads.filter((l) => l.demo).length;
 
   return (
     <div className="space-y-6 pb-24">
@@ -153,6 +154,25 @@ export function AdminPanel(p: {
             Importing and phone lookups use fictional people (no Apollo, no credits), and nobody can be called. To go live, tick <b>Portugal callers enabled</b> and <b>Written legal approval on file</b> in{" "}
             <Link href={settings} className="font-semibold underline">Settings → Outbound calls</Link>.
           </p>
+        </div>
+      )}
+
+      {demoLeads > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <p>
+            <b>{demoLeads} demo {demoLeads === 1 ? "lead" : "leads"}</b> (fictional people from demo mode) are still in the list.
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (!confirm(`Delete all ${demoLeads} demo leads and their demo phone lookups? Real Apollo leads are not touched.`)) return;
+              run("purge-demo", {}, (r) => `Deleted ${r.leads} demo leads.`);
+            }}
+            className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 disabled:opacity-50"
+          >
+            Delete demo data
+          </button>
         </div>
       )}
 

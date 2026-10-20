@@ -433,6 +433,29 @@ export async function dial(me: Me, leadId: number): Promise<{ ok: boolean; reaso
   return { ok: true, callId: r.body.callId as string, status: r.body.status as string };
 }
 
+// --- Demo clean-up ----------------------------------------------------------------------------------------------------
+
+/** Deletes everything the demo mode created (leads, demo enrichment requests and their credit rows). Real Apollo data is
+ *  never touched: only rows flagged demo = true, plus the rows that point at a demo lead. */
+export async function purgeDemo(me: Me) {
+  adminOnly(me);
+  return db.transaction(async (tx) => {
+    const leads = (await tx.select({ id: LEADS.id }).from(LEADS).where(eq(LEADS.demo, true))).map((r) => r.id);
+    const reqs = (await tx.select({ id: REQ.id }).from(REQ).where(eq(REQ.demo, true))).map((r) => r.id);
+    if (leads.length) {
+      await tx.delete(schema.ptAccessLog).where(inArray(schema.ptAccessLog.leadId, leads));
+      await tx.delete(schema.ptCalls).where(inArray(schema.ptCalls.leadId, leads));
+      await tx.delete(ITEM).where(inArray(ITEM.leadId, leads));
+    }
+    if (reqs.length) await tx.delete(ITEM).where(inArray(ITEM.requestId, reqs));
+    const ledger = await tx.delete(schema.ptCreditLedger).where(eq(schema.ptCreditLedger.demo, true)).returning({ id: schema.ptCreditLedger.id });
+    if (reqs.length) await tx.delete(REQ).where(inArray(REQ.id, reqs));
+    if (leads.length) await tx.delete(LEADS).where(inArray(LEADS.id, leads));
+    await tx.insert(schema.ptAccessLog).values({ adminId: me.id, leadId: null, action: "purge_demo", detail: { leads: leads.length, requests: reqs.length, ledger: ledger.length } });
+    return { ok: true, leads: leads.length, requests: reqs.length };
+  });
+}
+
 // --- Admin overview -------------------------------------------------------------------------------------------------
 
 export async function creditSummary(me: Me) {
