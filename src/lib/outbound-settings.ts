@@ -31,6 +31,7 @@ export const OUTBOUND_FIELDS = [
   { key: "PT_CALLERS_PILOT_NUMBERS", group: "pt", label: "Pilot numbers", kind: "text", hint: "Comma-separated test numbers; while the pilot runs only these are dialed" },
   { key: "PT_CALLERS_PILOT_COMPLETE", group: "pt", label: "Pilot complete", kind: "bool", hint: "Ticked = any approved lead can be dialed" },
   { key: "PT_CALLERS_LEGAL_BASIS_REQUIRED", group: "pt", label: "Require a legal basis per lead", kind: "bool", default: "true", hint: "On (default): an admin records the legal basis on each lead before it can be called. Off: the field is hidden and a business line is enough." },
+  { key: "PT_CALLERS_VOICEMAIL", group: "pt", label: "When voicemail answers", kind: "select", options: ["manual", "hangup"], hint: "manual (default): you hear it and end the call. hangup: answering-machine detection ends the call by itself and logs it as voicemail (costs a little per call, and can mistake a person for a machine)." },
   { key: "PT_CALLERS_BUSINESS_LINE_REQUIRED", group: "pt", label: "Require a business-line check per number", kind: "bool", default: "true", hint: "On (default): an admin marks each number as a business line before it can be called. Off: a lead is ready to call as soon as its phone arrives." },
   { key: "PT_CALLERS_DNC_REQUIRED", group: "pt", label: "Require the national do-not-call check", kind: "bool", default: "true", hint: "On (default): no dial until a do-not-call source is connected. Off: dial without it (a number a connected source reports as listed is still refused)." },
 ] as const;

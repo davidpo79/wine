@@ -622,6 +622,10 @@ export const ptCalls = pgTable(
       .notNull()
       .references(() => adminUsers.id),
     endedAt: timestamp("ended_at", { withTimezone: true }),
+    // Call summary written in the dialer: outcome (a rep outcome, or "voicemail") and a short business note.
+    outcome: text("outcome"),
+    note: text("note"),
+    summarizedAt: timestamp("summarized_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("pt_calls_lead_idx").on(t.leadId), index("pt_calls_created_idx").on(t.createdAt)],

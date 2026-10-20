@@ -290,7 +290,8 @@ async function dialCustomerFor(row: HumanCall) {
     const pt = await ptHooks.isPtCall(row.id);
     const refusal = pt ? await ptHooks.customerLegRefusal(row.id) : null;
     if (refusal) throw new TelnyxError(`pt_recheck_refused:${refusal}`, 0);
-    const leg = await dialCustomerLeg({ callId: row.id, to: row.toNumber, linkTo: row.repCallControlId, amd: !pt });
+    // Portugal callers: answering-machine detection only when the settings say voicemail ends the call by itself.
+    const leg = await dialCustomerLeg({ callId: row.id, to: row.toNumber, linkTo: row.repCallControlId, amd: !pt || ptHooks.autoHangupOnVoicemail() });
     await bindLeg(row.id, "customer", leg.callControlId);
   } catch (e) {
     const msg = errText(e);
@@ -379,6 +380,11 @@ export async function handleHumanCallEvent(evt: { event_type?: string; occurred_
       })
       .where(eq(T.id, row.id));
     if (row.status === "bridged") await startRecordingFor(row);
+    // Portugal callers with "voicemail ends the call": hang up both legs and log the call as voicemail.
+    if (verdict.isMachine && !row.endedAt && ptHooks.autoHangupOnVoicemail() && (await ptHooks.isPtCall(row.id))) {
+      await ptHooks.onVoicemail(row.id).catch((e) => log("pt voicemail", row.id, errText(e)));
+      for (const id of [row.callControlId, row.repCallControlId]) if (id) await hangupLeg(id).catch(() => {});
+    }
     return;
   }
 

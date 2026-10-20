@@ -360,10 +360,16 @@ export async function optOut(me: Me, leadId: number) {
   return { ok: true };
 }
 
-export async function setOutcome(me: Me, leadId: number, o: { status: string; note?: string; callbackAt?: string }) {
+/**
+ * The caller's outcome, from the list or from the dialer. With a callId it is also that call's summary (outcome +
+ * note) in the lead's call history. "voicemail" is a summary outcome; the lead itself goes to "no answer".
+ */
+export async function setOutcome(me: Me, leadId: number, o: { status: string; note?: string; callbackAt?: string; callId?: string }) {
   const l = await leadById(leadId);
   if (!l || !repOwns(me, l)) return { ok: false, reason: "not_found" };
   if (FINAL_BLOCKED.includes(l.status as LeadStatus) || (await isBlocked(l))) return { ok: false, reason: "blocked" };
+  const summaryOutcome = o.status;
+  if (o.status === "voicemail") o = { ...o, status: "no_answer" };
   if (!REP_OUTCOMES.includes(o.status as LeadStatus)) return { ok: false, reason: "bad_status" };
   if (l.lockedBy && l.lockedBy !== me.id && l.lockUntil && l.lockUntil.getTime() > Date.now()) return { ok: false, reason: "locked_by_other" };
   const cb = o.status === "callback" && o.callbackAt ? new Date(o.callbackAt) : null;
@@ -379,8 +385,43 @@ export async function setOutcome(me: Me, leadId: number, o: { status: string; no
       updatedAt: new Date(),
     })
     .where(and(eq(LEADS.id, leadId), sql`${LEADS.status} not in ('opt_out','blocked')`));
-  await logAccess(me.id, leadId, "outcome", { status: o.status });
+  if (o.callId) {
+    await db
+      .update(schema.ptCalls)
+      .set({ outcome: summaryOutcome, note: o.note?.trim().slice(0, 1000) || null, summarizedAt: new Date() })
+      .where(and(eq(schema.ptCalls.humanCallId, o.callId), eq(schema.ptCalls.leadId, leadId), ...(me.role === "admin" ? [] : [eq(schema.ptCalls.repId, me.id)])));
+  }
+  await logAccess(me.id, leadId, "outcome", { status: summaryOutcome, callId: o.callId ?? null });
   return { ok: true };
+}
+
+export type CallSummary = { at: string; by: string | null; outcome: string | null; note: string | null; talkedSecs: number | null; result: string | null };
+
+/** The lead's call history for the dialer and the lists: newest first, summaries included. */
+export async function callHistory(me: Me, leadId: number): Promise<{ ok: boolean; reason?: string; calls?: CallSummary[] }> {
+  const l = await leadById(leadId);
+  if (!l || !repOwns(me, l)) return { ok: false, reason: "not_found" };
+  const H = schema.humanCalls;
+  const rows = await db
+    .select({ at: schema.ptCalls.createdAt, by: schema.adminUsers.email, outcome: schema.ptCalls.outcome, note: schema.ptCalls.note, bridgedAt: H.bridgedAt, durationMs: H.durationMs, status: H.status, answeredBy: H.answeredBy })
+    .from(schema.ptCalls)
+    .leftJoin(H, eq(H.id, schema.ptCalls.humanCallId))
+    .leftJoin(schema.adminUsers, eq(schema.adminUsers.id, schema.ptCalls.repId))
+    .where(eq(schema.ptCalls.leadId, leadId))
+    .orderBy(sql`${schema.ptCalls.createdAt} desc`)
+    .limit(30);
+  await logAccess(me.id, leadId, "view", { history: true });
+  return {
+    ok: true,
+    calls: rows.map((r) => ({
+      at: r.at.toISOString(),
+      by: r.by,
+      outcome: r.outcome,
+      note: r.note,
+      talkedSecs: r.bridgedAt && r.durationMs != null && r.answeredBy !== "machine" ? Math.round(r.durationMs / 1000) : null,
+      result: r.status,
+    })),
+  };
 }
 
 export async function predialCheck(me: Me, leadId: number): Promise<{ ok: true } | { ok: false; reason: Refusal | "forbidden_role" }> {

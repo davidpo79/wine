@@ -56,6 +56,20 @@ export const PT = {
     call_failed: "Não foi possível iniciar a chamada. Tente novamente.",
   } as Record<string, string>,
   status,
+  /** The dialer's summary panel (notes, outcome, history) in pt-PT, for reps. */
+  dialer: {
+    notes: "Notas da chamada",
+    notesHint: "Apenas informação profissional.",
+    outcome: "Resultado",
+    voicemail: "Correio de voz",
+    callbackAt: "Voltar a ligar em",
+    save: "Guardar resumo",
+    saved: "Resumo guardado.",
+    history: "Chamadas anteriores",
+    noHistory: "Primeira chamada a este contacto.",
+    talked: "falou {s}",
+    notAnswered: "sem conversa",
+  },
   /** The call popup (#4) in pt-PT, for reps. */
   popup: {
     headline: {

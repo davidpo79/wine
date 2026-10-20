@@ -8,6 +8,7 @@ const RULES: { method: "GET" | "POST"; path: string }[] = [
   { method: "POST", path: "/admin/pt-callers/api/rep/dial" },
   { method: "POST", path: "/admin/pt-callers/api/rep/outcome" },
   { method: "POST", path: "/admin/pt-callers/api/rep/opt-out" },
+  { method: "POST", path: "/admin/pt-callers/api/rep/history" },
   { method: "POST", path: "/admin/calls/webrtc-token" }, // #4's browser phone
   { method: "POST", path: "/admin/calls/state" },
   { method: "GET", path: "/admin/login" },
