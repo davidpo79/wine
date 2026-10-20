@@ -10,7 +10,7 @@ import type { AdminSession } from "@/lib/auth";
 import { placeCall } from "@/lib/human-calls";
 import { ApolloHttpError, apolloFor, parsePhonePayload, type MatchedPerson, type ParsedPerson, type SearchPerson } from "./apollo";
 import { sendOfferEmail } from "../email";
-import { businessLineRequired, DIALABLE, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, legalBasisRequired, LOCK_MINUTES, prepareNeeded, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
+import { businessLineRequired, DIALABLE, pilotTestNumber, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, legalBasisRequired, LOCK_MINUTES, prepareNeeded, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
 import { CreditRefused, reserve, settleOnce, summary } from "./ledger";
 import { blockHash, maskPhone, normalizePtPhone } from "./phone";
 import { outboundEnv } from "../outbound-settings";
@@ -75,8 +75,8 @@ export async function addManualLead(
   adminOnly(me);
   const firstName = o.firstName.trim().slice(0, 80);
   if (!firstName) return { ok: false, reason: "Enter a first name." };
-  const phone = normalizePtPhone(o.phone);
-  if (!phone) return { ok: false, reason: "Enter a Portuguese phone number (+351 and 9 digits)." };
+  const phone = normalizePtPhone(o.phone) ?? pilotTestNumber(o.phone);
+  if (!phone) return { ok: false, reason: "Enter a Portuguese phone number (+351 and 9 digits). Numbers abroad only as pilot test numbers." };
   const email = (o.email ?? "").trim().toLowerCase();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, reason: "That e-mail address does not look right." };
   const [b] = await db.select({ id: schema.ptBlocks.id }).from(schema.ptBlocks).where(eq(schema.ptBlocks.valueHash, blockHash("phone", phone))).limit(1);
@@ -110,8 +110,8 @@ export async function addManualLead(
  *  rule (opt-out, hours, pilot list, cap, lock) and lands in the call history. */
 export async function leadForNumber(me: Me, raw: string): Promise<{ ok: boolean; reason?: string; id?: number; name?: string }> {
   adminOnly(me);
-  const phone = normalizePtPhone(raw);
-  if (!phone) return { ok: false, reason: "Enter a Portuguese phone number (+351 and 9 digits)." };
+  const phone = normalizePtPhone(raw) ?? pilotTestNumber(raw);
+  if (!phone) return { ok: false, reason: "Enter a Portuguese phone number (+351 and 9 digits). Numbers abroad only as pilot test numbers." };
   const [existing] = await db.select().from(LEADS).where(eq(LEADS.phone, phone)).limit(1);
   if (existing) {
     if (await isBlocked(existing)) return { ok: false, reason: "This number asked not to be contacted." };

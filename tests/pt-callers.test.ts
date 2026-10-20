@@ -65,6 +65,15 @@ test("voicemail setting: manual unless exactly 'hangup'", () => {
   assert.equal(flags.voicemailMode({ PT_CALLERS_VOICEMAIL: "hangup" }), "hangup");
 });
 
+test("numbers abroad: only as pilot test numbers, only while the pilot runs", () => {
+  const env = { PT_CALLERS_PILOT_NUMBERS: "+351910000000, +972508544475" };
+  assert.equal(flags.pilotTestNumber("+972 50-854-4475", env), "+972508544475");
+  assert.equal(flags.pilotTestNumber("00972508544475", env), "+972508544475");
+  assert.equal(flags.pilotTestNumber("+972501111111", env), null); // not in the list
+  assert.equal(flags.pilotTestNumber("+972508544475", { ...env, PT_CALLERS_PILOT_COMPLETE: "true" }), null);
+  assert.equal(flags.pilotTestNumber("junk", env), null);
+});
+
 test("apollo matches: full surname and work email kept; locked or malformed e-mails dropped; details never reveal a phone", () => {
   const raw = JSON.stringify({ matches: [
     { id: "p1", last_name: "Silva", email: "Ana.Silva@Empresa.pt" },
@@ -650,6 +659,20 @@ dbTest("hand-added leads and free dialing: Portuguese numbers only, no duplicate
   await svc!.optOut(admin, f.id!);
   assert.equal((await svc!.leadForNumber(admin, other)).ok, false);
   assert.equal((await svc!.addManualLead(admin, { firstName: "Again", phone: other })).ok, false);
+});
+
+dbTest("a test number abroad: can be added and dialed only while it is in the pilot list", async () => {
+  const il = `+9725${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  setEnv({ ...LIVE, PT_CALLERS_PILOT_COMPLETE: undefined, PT_CALLERS_PILOT_NUMBERS: il, PT_CALLERS_BUSINESS_LINE_REQUIRED: "false", PT_CALLERS_LEGAL_BASIS_REQUIRED: "false", PT_CALLERS_DNC_REQUIRED: "false" });
+  const f = await svc!.leadForNumber(admin, il);
+  assert.equal(f.ok, true, JSON.stringify(f));
+  assert.deepEqual(await svc!.predialCheck(admin, f.id!), { ok: true });
+  setEnv({ PT_CALLERS_PILOT_NUMBERS: "+351910000000" });
+  assert.deepEqual(await svc!.predialCheck(admin, f.id!), { ok: false, reason: "not_pt_number" });
+  assert.equal((await svc!.leadForNumber(admin, "+972501234567")).ok, false);
+  setEnv({ PT_CALLERS_PILOT_NUMBERS: il, PT_CALLERS_PILOT_COMPLETE: "true" });
+  assert.deepEqual(await svc!.predialCheck(admin, f.id!), { ok: false, reason: "not_pt_number" });
+  setEnv({ ...offEnv, PT_CALLERS_BUSINESS_LINE_REQUIRED: undefined, PT_CALLERS_LEGAL_BASIS_REQUIRED: undefined, PT_CALLERS_DNC_REQUIRED: undefined });
 });
 
 dbTest("keypad during a call: own connected call only, digits validated, sent to the other side's leg", async () => {
