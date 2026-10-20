@@ -87,6 +87,16 @@ export async function approveLeads(me: Me, ids: number[]) {
   return { ok: true, count: r.length };
 }
 
+/** One click on the admin screen: approve the chosen leads, then look up their phones (credits). */
+export async function approveAndEnrich(me: Me, ids: number[]): Promise<EnrichResult> {
+  adminOnly(me);
+  const unique = [...new Set(ids)];
+  // Checked before approving, so a refused batch leaves nothing half done.
+  if (!unique.length || unique.length > 10) return { ok: false, reason: "Choose 1 to 10 leads per enrichment." };
+  await approveLeads(me, unique);
+  return enrichLeads(me, unique);
+}
+
 // --- Enrichment (credits) ---------------------------------------------------------------------------------------------
 
 type EnrichResult = { ok: boolean; reason?: string; requestId?: string; testSecret?: string };

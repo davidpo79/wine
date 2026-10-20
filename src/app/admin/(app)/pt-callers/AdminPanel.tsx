@@ -213,11 +213,10 @@ export function AdminPanel(p: {
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="rounded-xl border bg-white p-5">
           <h2 className="font-semibold">How it works</h2>
-          <ol className="mt-3 grid gap-3 text-sm sm:grid-cols-5">
+          <ol className="mt-3 grid gap-3 text-sm sm:grid-cols-4">
             {[
               ["Import", "Pull 25 HR managers per click. Free."],
-              ["Approve", "Tick the people worth contacting."],
-              ["Get phones", "Up to 10 at a time. 1 credit, +8 if a mobile is found."],
+              ["Approve & get phones", "Tick up to 10 people worth contacting. 1 credit each, +8 if a mobile is found."],
               ["Prepare", p.config.legalBasisRequired ? "Mark the number as a business line and note the legal basis." : "Mark the number as a business line."],
               ["Assign", "Give leads to a sales rep, who calls them."],
             ].map(([t, d], i) => (
@@ -386,19 +385,16 @@ export function AdminPanel(p: {
           <span className="font-semibold">{sel.length} selected</span>
           <button type="button" onClick={() => setSel([])} className="text-xs underline opacity-80">clear</button>
           <span className="mx-1 h-5 w-px bg-white/30" />
-          <button type="button" disabled={busy} onClick={() => run("approve", { ids: sel }, (r) => `Approved ${r.count}.`)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#0F2340] disabled:opacity-50">
-            Approve
-          </button>
           <button
             type="button"
             disabled={busy || sel.length > 10}
             title={sel.length > 10 ? "Up to 10 at a time" : undefined}
             onClick={() => {
-              if (window.confirm(`Look up phone numbers for ${sel.length} lead${sel.length === 1 ? "" : "s"}?\n\nUp to ${9 * sel.length} Apollo credits (1 each, +8 for each mobile found).`)) void run("enrich", { ids: sel }, () => "Lookup sent. Phone numbers arrive in a few minutes.");
+              if (window.confirm(`Approve ${sel.length} lead${sel.length === 1 ? "" : "s"} and look up their phone numbers?\n\nUp to ${9 * sel.length} Apollo credits (1 each, +8 for each mobile found).`)) void run("approve-enrich", { ids: sel }, () => "Approved. Phone numbers arrive in a few minutes.");
             }}
             className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#0F2340] disabled:opacity-50"
           >
-            Get phones {sel.length > 10 ? "(max 10)" : `(≤ ${9 * sel.length} credits)`}
+            Approve &amp; get phones {sel.length > 10 ? "(max 10)" : `(≤ ${9 * sel.length} credits)`}
           </button>
           <span className="mx-1 h-5 w-px bg-white/30" />
           <select value={rep} onChange={(e) => setRep(e.target.value)} className="rounded-lg p-1.5 text-xs text-ink">

@@ -20,6 +20,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
         const r = await svc.enrichLeads(me, ids(b.ids));
         return Response.json({ ok: r.ok, reason: r.reason ?? null, requestId: r.requestId ?? null }); // the URL secret never leaves the server
       }
+      case "approve-enrich": {
+        await svc.sweepTimeouts();
+        const r = await svc.approveAndEnrich(me, ids(b.ids));
+        return Response.json({ ok: r.ok, reason: r.reason ?? null, requestId: r.requestId ?? null }); // the URL secret never leaves the server
+      }
       case "poll":
         return Response.json(await svc.pollEnrichment(me, String(b.requestId ?? "")));
       case "simulate":
