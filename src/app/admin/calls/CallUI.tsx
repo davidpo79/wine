@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PT } from "@/lib/pt-callers/strings-pt";
+import { playBusyTone, playErrorTone, startConnectingTone, stopConnectingTone } from "./tones";
 import { call, close, connectAndCall, hangUp, isLive, toggleMute, useCallStore, type CallTarget, type CallView } from "./call-store";
 
 /** "Call" button for an order's customer or a lead. The popup is mounted once in the admin layout. */
@@ -95,6 +96,7 @@ export function CallPopup() {
   const [pad, setPad] = useState(false);
   const [min, setMin] = useState(false);
   const { pos, onDragStart } = useDraggable();
+  useCallTones(c?.phase ?? null);
   if (!c) return null;
   const live = isLive(c);
   const pt = c.target.lang === "pt";
@@ -359,4 +361,22 @@ function Keypad({ callId }: { callId: string }) {
       {err && <p className="mt-1 text-center text-xs text-red-700">⚠</p>}
     </div>
   );
+}
+
+const CONNECTING = ["starting", "dialing", "rep_ringing", "rep_answered"];
+const FAILED = ["failed", "startFailed", "no_answer", "rep_no_answer", "repBusy"];
+
+/** Connecting pulse until the other phone rings (Telnyx's ringback takes over), then busy/error tones on failure. */
+function useCallTones(phase: string | null) {
+  const last = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = last.current;
+    last.current = phase;
+    if (phase && CONNECTING.includes(phase)) return startConnectingTone();
+    stopConnectingTone();
+    if (!phase || phase === prev) return;
+    if (phase === "busy") playBusyTone();
+    else if (FAILED.includes(phase)) playErrorTone();
+  }, [phase]);
+  useEffect(() => () => stopConnectingTone(), []);
 }
