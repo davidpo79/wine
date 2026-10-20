@@ -52,6 +52,17 @@ export function dailyCallCap(env: Env = outboundEnv()) {
  * Pilot: only numbers whose owner agreed to be called in a test may be dialed, until PT_CALLERS_PILOT_COMPLETE="true".
  * Returns null when the pilot is over (no restriction).
  */
+/**
+ * A non-Portuguese number is allowed only as a test number: while the pilot runs and only when it is in the pilot
+ * list (e.g. the owner's own phone abroad). Returns it in E.164, or null.
+ */
+export function pilotTestNumber(raw: string | null | undefined, env: Env = outboundEnv()): string | null {
+  let n = String(raw ?? "").replace(/[\s().-]/g, "");
+  if (n.startsWith("00")) n = `+${n.slice(2)}`;
+  if (!/^\+\d{8,15}$/.test(n)) return null;
+  return pilotNumbers(env)?.includes(n) ? n : null;
+}
+
 export function pilotNumbers(env: Env = outboundEnv()): string[] | null {
   if (env.PT_CALLERS_PILOT_COMPLETE === "true") return null;
   return (env.PT_CALLERS_PILOT_NUMBERS ?? "")
