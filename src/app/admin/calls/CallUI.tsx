@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PT } from "@/lib/pt-callers/strings-pt";
 import { call, close, connectAndCall, hangUp, isLive, toggleMute, useCallStore, type CallTarget, type CallView } from "./call-store";
 
@@ -109,7 +110,7 @@ export function CallPopup() {
           ? errorText(c.error)
           : null;
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 rounded-lg border bg-white p-4 text-sm shadow-xl" role="dialog" aria-label="Phone call">
+    <div className={`fixed bottom-4 right-4 z-50 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border bg-white p-4 text-sm shadow-xl ${c.target.ptLeadId ? "w-[22rem]" : "w-80"}`} role="dialog" aria-label="Phone call">
       <p className="text-xs text-muted">{c.target.name}</p>
       <div className="mt-1 flex items-center justify-between gap-2">
         <p className="font-semibold">{headline}</p>
@@ -137,6 +138,112 @@ export function CallPopup() {
           <button type="button" onClick={close} className="rounded border px-3 py-1.5 text-xs font-semibold">
             {T.close}
           </button>
+        )}
+      </div>
+      {c.target.ptLeadId && <DialerPanel key={c.target.ptLeadId} leadId={c.target.ptLeadId} callId={c.callId} pt={pt} />}
+    </div>
+  );
+}
+
+// --- Portugal callers: notes, call summary and the lead's call history -------------------------------------------
+
+const EN_DIALER = {
+  notes: "Call notes",
+  notesHint: "Business information only.",
+  outcome: "Outcome",
+  voicemail: "Voicemail",
+  callbackAt: "Call back on",
+  save: "Save summary",
+  saved: "Summary saved.",
+  history: "Previous calls",
+  noHistory: "First call to this lead.",
+  talked: "talked {s}",
+  notAnswered: "no conversation",
+};
+const EN_OUTCOME: Record<string, string> = {
+  interested: "Interested",
+  not_interested: "Not interested",
+  callback: "Call back",
+  no_answer: "No answer",
+  voicemail: "Voicemail",
+  wrong_number: "Wrong number",
+};
+const OUTCOMES = ["interested", "not_interested", "callback", "no_answer", "voicemail", "wrong_number"];
+type Summary = { at: string; by: string | null; outcome: string | null; note: string | null; talkedSecs: number | null; result: string | null };
+
+function DialerPanel({ leadId, callId, pt }: { leadId: number; callId: string | null; pt: boolean }) {
+  const router = useRouter();
+  const D = pt ? PT.dialer : EN_DIALER;
+  const label = (o: string) => (pt ? (o === "voicemail" ? PT.dialer.voicemail : (PT.status as Record<string, string>)[o] ?? o) : (EN_OUTCOME[o] ?? o));
+  const [note, setNote] = useState("");
+  const [outcome, setOutcome] = useState("");
+  const [callbackAt, setCallbackAt] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [history, setHistory] = useState<Summary[] | null>(null);
+  const api = (path: string, body: unknown) =>
+    fetch(`/admin/pt-callers/api/rep/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "include" }).then((r) => r.json().catch(() => ({ ok: false })));
+  const load = () => api("history", { leadId }).then((r) => setHistory(r.ok ? r.calls : []));
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadId]);
+  const when = (iso: string) => new Date(iso).toLocaleString(pt ? "pt-PT" : "en-GB", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return (
+    <div className="mt-3 space-y-2 border-t pt-3">
+      <label className="block text-xs font-semibold">
+        {D.notes}
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={1000} placeholder={D.notesHint} className="mt-1 w-full rounded border p-2 text-sm font-normal" />
+      </label>
+      <p className="text-xs font-semibold">{D.outcome}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {OUTCOMES.map((o) => (
+          <button key={o} type="button" onClick={() => setOutcome(o)} className={`rounded-full border px-2.5 py-1 text-xs ${outcome === o ? "border-[#0F2340] bg-[#0F2340] text-white" : "hover:bg-slate-50"}`}>
+            {label(o)}
+          </button>
+        ))}
+      </div>
+      {outcome === "callback" && (
+        <label className="block text-xs font-semibold">
+          {D.callbackAt}
+          <input type="datetime-local" value={callbackAt} onChange={(e) => setCallbackAt(e.target.value)} className="mt-1 w-full rounded border p-1.5 text-sm font-normal" />
+        </label>
+      )}
+      <button
+        type="button"
+        disabled={!outcome || saving}
+        onClick={async () => {
+          setSaving(true);
+          const r = await api("outcome", { leadId, status: outcome, note, callbackAt: callbackAt ? new Date(callbackAt).toISOString() : undefined, callId }).finally(() => setSaving(false));
+          setMsg({ ok: !!r.ok, text: r.ok ? D.saved : String(r.reason ?? "error") });
+          if (r.ok) {
+            void load();
+            router.refresh();
+          }
+        }}
+        className="w-full rounded bg-[#0F2340] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+      >
+        {D.save}
+      </button>
+      {msg && <p className={`text-xs ${msg.ok ? "text-green-700" : "text-red-700"}`}>{msg.text}</p>}
+      <div className="border-t pt-2">
+        <p className="text-xs font-semibold">{D.history}</p>
+        {history === null ? (
+          <p className="text-xs text-muted">…</p>
+        ) : history.length === 0 ? (
+          <p className="text-xs text-muted">{D.noHistory}</p>
+        ) : (
+          <ul className="mt-1 max-h-48 space-y-1.5 overflow-y-auto">
+            {history.map((h, i) => (
+              <li key={i} className="rounded bg-slate-50 p-1.5 text-xs">
+                <span className="font-semibold">{when(h.at)}</span>
+                {h.outcome && <span> · {label(h.outcome)}</span>}
+                <span className="text-muted"> · {h.talkedSecs != null ? D.talked.replace("{s}", `${Math.floor(h.talkedSecs / 60)}:${String(h.talkedSecs % 60).padStart(2, "0")}`) : D.notAnswered}</span>
+                {h.by && <span className="block text-[10px] text-muted">{h.by}</span>}
+                {h.note && <span className="mt-0.5 block whitespace-pre-wrap">{h.note}</span>}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>

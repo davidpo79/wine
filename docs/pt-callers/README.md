@@ -55,6 +55,7 @@ Uses #4's settings: `TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`, `TELNYX_WEBRTC_CON
    The lead becomes *Ready* only after the checks that are switched on.
 
    The same enrichment stores the full surname and the work e-mail (never a personal e-mail). For leads enriched earlier, "get surname & e-mail" asks Apollo again without a phone reveal (1 credit). "Email offer" sends one editable pt-PT offer to the work address; replies arrive in Admin → Inbox.
+   **Dialer.** The call window has call notes, an outcome (interested, not interested, call back, no answer, voicemail, wrong number) and the lead's earlier calls with their notes; saving writes the summary on that call (`pt_calls.outcome`, `note`). `PT_CALLERS_VOICEMAIL=hangup` switches answering-machine detection on for these calls and ends a call a machine answers, logged as voicemail; the default `manual` leaves detection off and the caller ends the call.
 8. **Pilot.** Call the pilot numbers. Then set `PT_CALLERS_PILOT_COMPLETE=true`.
 
 **To undo:** set either switch back to anything but `true`. Dialing and real Apollo calls stop at once, because the switches are checked on every request.

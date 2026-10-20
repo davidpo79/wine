@@ -70,6 +70,9 @@ export const dncRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_DNC_REQU
 export const legalBasisRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_LEGAL_BASIS_REQUIRED !== "false";
 /** On unless exactly "false": an admin confirms each number is a business line before it can be dialed. */
 export const businessLineRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_BUSINESS_LINE_REQUIRED !== "false";
+/** What happens when an answering machine picks up: "manual" (the caller hears it and ends the call) or "hangup"
+ *  (answering-machine detection is switched on for these calls and the call ends by itself). */
+export const voicemailMode = (env: Env = outboundEnv()): "manual" | "hangup" => (env.PT_CALLERS_VOICEMAIL === "hangup" ? "hangup" : "manual");
 /** Whether a lead with a phone still needs the admin's "Prepare for calling" step before it is ready. */
 export const prepareNeeded = (env: Env = outboundEnv()) => businessLineRequired(env) || legalBasisRequired(env);
 

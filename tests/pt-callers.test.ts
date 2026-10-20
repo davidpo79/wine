@@ -59,6 +59,12 @@ test("business-line check: on unless exactly 'false'; the Prepare step is needed
   assert.equal(flags.prepareNeeded({ PT_CALLERS_BUSINESS_LINE_REQUIRED: "false", PT_CALLERS_LEGAL_BASIS_REQUIRED: "false" }), false);
 });
 
+test("voicemail setting: manual unless exactly 'hangup'", () => {
+  assert.equal(flags.voicemailMode({}), "manual");
+  assert.equal(flags.voicemailMode({ PT_CALLERS_VOICEMAIL: "HANGUP" }), "manual");
+  assert.equal(flags.voicemailMode({ PT_CALLERS_VOICEMAIL: "hangup" }), "hangup");
+});
+
 test("apollo matches: full surname and work email kept; locked or malformed e-mails dropped; details never reveal a phone", () => {
   const raw = JSON.stringify({ matches: [
     { id: "p1", last_name: "Silva", email: "Ana.Silva@Empresa.pt" },
@@ -153,6 +159,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "POST /admin/password",
     "POST /admin/pt-callers",
     "POST /admin/pt-callers/api/rep/dial",
+    "POST /admin/pt-callers/api/rep/history",
     "POST /admin/pt-callers/api/rep/opt-out",
     "POST /admin/pt-callers/api/rep/outcome",
   ]);
@@ -574,6 +581,45 @@ dbTest("dial: one rep per lead (lock), rep leg first through #4's phone, no AMD,
   assert.equal(after.attempts, 1);
   assert.equal((await svc!.setOutcome(rep, lead.id, { status: "callback", callbackAt: new Date(Date.now() + 86400_000).toISOString(), note: "Ligar amanhã" })).ok, true);
   assert.equal((await leadRow(lead.id)).status, "callback");
+  dnc.setDncAdapter(null);
+});
+
+dbTest("dialer: call summary + history per lead; voicemail auto-hangup only when the setting says so", async () => {
+  setEnv(LIVE);
+  dnc.setDncAdapter(async () => ({ status: "clear" }));
+  const hc = await import("../src/lib/human-calls");
+  const lead = await readyLead(rep, 9);
+  const d = await svc!.dial(rep, lead.id);
+  assert.equal(d.ok, true, JSON.stringify(d));
+  const callId = d.callId!;
+  await hc.handleHumanCallEvent({ event_type: "call.answered", payload: { call_control_id: `cc-hc-rep-${callId}` } });
+  await hc.handleHumanCallEvent({ event_type: "call.hangup", payload: { call_control_id: `cc-hc-rep-${callId}`, hangup_cause: "normal_clearing" } });
+  // Summary written in the dialer: linked to this call, visible in the lead's history; another rep sees nothing.
+  assert.equal((await svc!.setOutcome(rep, lead.id, { status: "voicemail", note: "Deixei recado.", callId })).ok, true);
+  assert.equal((await leadRow(lead.id)).status, "no_answer");
+  const h = await svc!.callHistory(rep, lead.id);
+  assert.equal(h.ok, true);
+  assert.equal(h.calls![0].outcome, "voicemail");
+  assert.equal(h.calls![0].note, "Deixei recado.");
+  assert.equal((await svc!.callHistory(rep2, lead.id)).ok, false);
+  assert.equal((await svc!.callHistory(admin, lead.id)).ok, true);
+  assert.equal((await svc!.setOutcome(rep, lead.id, { status: "made_up" })).ok, false);
+
+  // "hangup" mode: detection is on for the lead's leg, a machine verdict ends both legs and logs a voicemail.
+  setEnv({ ...LIVE, PT_CALLERS_VOICEMAIL: "hangup" });
+  const lead2 = await readyLead(rep, 10);
+  const n = telnyxCalls.length;
+  const d2 = await svc!.dial(rep, lead2.id);
+  assert.equal(d2.ok, true);
+  await hc.handleHumanCallEvent({ event_type: "call.answered", payload: { call_control_id: `cc-hc-rep-${d2.callId}` } });
+  const cust = telnyxCalls.slice(n).find((c) => c.path === "/calls" && !String(c.body.to).startsWith("sip:"));
+  assert.ok(cust && "answering_machine_detection" in cust.body);
+  await hc.handleHumanCallEvent({ event_type: "call.machine.premium.detection.ended", payload: { call_control_id: `cc-hc-cust-${d2.callId}`, result: "machine" } });
+  assert.ok(telnyxCalls.slice(n).filter((c) => c.path.endsWith("/hangup")).length >= 1);
+  await hc.handleHumanCallEvent({ event_type: "call.hangup", payload: { call_control_id: `cc-hc-rep-${d2.callId}`, hangup_cause: "normal_clearing" } });
+  assert.equal((await leadRow(lead2.id)).status, "no_answer");
+  assert.equal((await svc!.callHistory(rep, lead2.id)).calls![0].outcome, "voicemail");
+  setEnv({ PT_CALLERS_VOICEMAIL: undefined });
   dnc.setDncAdapter(null);
 });
 

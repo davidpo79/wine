@@ -70,6 +70,7 @@ export default async function PtCallers() {
         assignedTo: l.assignedTo,
         demo: l.demo,
         attempts: l.attempts,
+        note: l.note,
         failReason: l.failReason,
         fetchedAt: l.fetchedAt.toISOString(),
         retentionUntil: l.retentionUntil.toISOString(),

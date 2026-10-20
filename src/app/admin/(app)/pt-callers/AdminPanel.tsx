@@ -25,6 +25,7 @@ type Lead = {
   assignedTo: number | null;
   demo: boolean;
   attempts: number;
+  note: string | null;
   failReason: string | null;
   fetchedAt: string;
   retentionUntil: string;
@@ -327,6 +328,7 @@ export function AdminPanel(p: {
                         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
                         {!l.approved && !["opt_out", "blocked"].includes(l.status) && <span className="mt-1 block text-[11px] text-muted">not approved</span>}
                         {l.attempts > 0 && <span className="mt-1 block text-[11px] text-muted">{l.attempts} call{l.attempts === 1 ? "" : "s"}</span>}
+                        {l.note && <span className="mt-1 block max-w-[14rem] text-[11px] italic text-muted" title={l.note}>“{l.note.length > 80 ? `${l.note.slice(0, 80)}…` : l.note}”</span>}
                       </td>
                       <td className="py-3 text-xs">{p.reps.find((r) => r.id === l.assignedTo)?.email ?? <span className="text-muted">—</span>}</td>
                       <td className="py-3">
