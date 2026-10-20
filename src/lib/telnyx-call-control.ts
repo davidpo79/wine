@@ -234,6 +234,9 @@ export async function startRecording(customerCallControlId: string, callId: stri
 
 export const hangupLeg = (callControlId: string) => tolerant(`${cc(callControlId)}/hangup`, {});
 
+/** Keypad tones played into the other side's line (a switchboard menu: "press 1 for HR"). */
+export const sendDtmf = (callControlId: string, digits: string) => tx("POST", `${cc(callControlId)}/send_dtmf`, { digits, duration_millis: 250 });
+
 // Ringback to the admin while the customer's phone rings: leg A is otherwise silent between answering and the bridge.
 // Portuguese ringing tone: 425 Hz, 1 s on / 5 s off, 8 kHz 8-bit mono WAV, looped by Telnyx.
 let ringback: string | null = null;

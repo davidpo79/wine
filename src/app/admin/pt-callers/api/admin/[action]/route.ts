@@ -13,6 +13,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
     switch (action) {
       case "import":
         return Response.json({ ok: true, ...(await svc.importLeads(me, { page: Number(b.page) || 1 })) });
+      case "add":
+        return Response.json(
+          await svc.addManualLead(me, {
+            firstName: String(b.firstName ?? ""),
+            lastName: String(b.lastName ?? ""),
+            title: String(b.title ?? ""),
+            company: String(b.company ?? ""),
+            phone: String(b.phone ?? ""),
+            email: String(b.email ?? ""),
+          }),
+        );
+      case "dial-number":
+        return Response.json(await svc.leadForNumber(me, String(b.phone ?? "")));
       case "approve":
         return Response.json(await svc.approveLeads(me, ids(b.ids)));
       case "enrich": {

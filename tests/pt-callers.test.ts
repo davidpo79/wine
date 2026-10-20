@@ -153,6 +153,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "GET /admin/login",
     "GET /admin/password",
     "GET /admin/pt-callers",
+    "POST /admin/calls/dtmf",
     "POST /admin/calls/state",
     "POST /admin/calls/webrtc-token",
     "POST /admin/login",
@@ -184,7 +185,7 @@ test("server actions and routes: only the listed files let a sales rep in", () =
     "src/app/admin/pt-callers/api/guard.ts",
     "src/lib/auth.ts",
   ]);
-  // The calls guard only lets reps reach the token and state endpoints, never /start or /recording.
+  // The calls guard only lets reps reach the token, state and keypad endpoints, never /start or /recording.
   for (const r of ["start", "recording"]) assert.doesNotMatch(readFileSync(join(process.cwd(), `src/app/admin/calls/${r}/route.ts`), "utf8"), /allowPtCaller|rep: true/);
 });
 
@@ -620,6 +621,58 @@ dbTest("dialer: call summary + history per lead; voicemail auto-hangup only when
   assert.equal((await leadRow(lead2.id)).status, "no_answer");
   assert.equal((await svc!.callHistory(rep, lead2.id)).calls![0].outcome, "voicemail");
   setEnv({ PT_CALLERS_VOICEMAIL: undefined });
+  dnc.setDncAdapter(null);
+});
+
+dbTest("hand-added leads and free dialing: Portuguese numbers only, no duplicates, opt-outs refused; admins only", async () => {
+  setEnv(offEnv);
+  await assert.rejects(svc!.addManualLead(rep as never, { firstName: "X", phone: "+351912000000" }), /forbidden/);
+  await assert.rejects(svc!.leadForNumber(rep as never, "+351912000000"), /forbidden/);
+  const num = `+3519${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  assert.equal((await svc!.addManualLead(admin, { firstName: "", phone: num })).ok, false);
+  assert.equal((await svc!.addManualLead(admin, { firstName: "Ana", phone: "+34612345678" })).ok, false);
+  assert.equal((await svc!.addManualLead(admin, { firstName: "Ana", phone: num, email: "nope" })).ok, false);
+  const a = await svc!.addManualLead(admin, { firstName: "Ana", lastName: "Costa", phone: num.replace("+351", "") , email: "Ana@Empresa.pt" });
+  assert.equal(a.ok, true);
+  const row = await leadRow(a.id!);
+  assert.equal(row.phone, num);
+  assert.equal(row.demo, false);
+  assert.equal(row.source, "manual");
+  assert.ok(row.approved_at);
+  assert.equal(row.email, "ana@empresa.pt");
+  assert.equal((await svc!.addManualLead(admin, { firstName: "Ana", phone: num })).ok, false); // duplicate number
+  // Free dialing finds the existing lead; a new number becomes a lead; an opted-out number is refused.
+  assert.deepEqual(await svc!.leadForNumber(admin, num), { ok: true, id: a.id, name: "Ana Costa" });
+  const other = `+3512${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  const f = await svc!.leadForNumber(admin, other);
+  assert.equal(f.ok, true);
+  assert.equal((await leadRow(f.id!)).phone, other);
+  await svc!.optOut(admin, f.id!);
+  assert.equal((await svc!.leadForNumber(admin, other)).ok, false);
+  assert.equal((await svc!.addManualLead(admin, { firstName: "Again", phone: other })).ok, false);
+});
+
+dbTest("keypad during a call: own connected call only, digits validated, sent to the other side's leg", async () => {
+  setEnv(LIVE);
+  dnc.setDncAdapter(async () => ({ status: "clear" }));
+  const hc = await import("../src/lib/human-calls");
+  const lead = await readyLead(rep, 11);
+  const d = await svc!.dial(rep, lead.id);
+  assert.equal(d.ok, true);
+  const me = rep as never;
+  assert.equal((await hc.callDtmf(me, d.callId, "1")).status, 409); // not connected yet
+  await hc.handleHumanCallEvent({ event_type: "call.answered", payload: { call_control_id: `cc-hc-rep-${d.callId}` } });
+  await hc.handleHumanCallEvent({ event_type: "call.bridged", payload: { call_control_id: `cc-hc-cust-${d.callId}` } });
+  assert.equal((await hc.callDtmf(me, d.callId, "1; drop")).status, 400);
+  assert.equal((await hc.callDtmf(rep2 as never, d.callId, "1")).status, 404);
+  const n = telnyxCalls.length;
+  assert.equal((await hc.callDtmf(me, d.callId, "1#")).status, 200);
+  const sent = telnyxCalls.slice(n).find((c) => c.path.endsWith("/send_dtmf"));
+  assert.ok(sent);
+  assert.match(sent!.path, new RegExp(`cc-hc-cust-${d.callId}`));
+  assert.equal(sent!.body.digits, "1#");
+  await D!.sql`update human_calls set bridged_at = now() - interval '1 minute' where id = ${d.callId!}`;
+  await hc.handleHumanCallEvent({ event_type: "call.hangup", payload: { call_control_id: `cc-hc-rep-${d.callId}`, hangup_cause: "normal_clearing" } });
   dnc.setDncAdapter(null);
 });
 

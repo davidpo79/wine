@@ -11,6 +11,7 @@ const RULES: { method: "GET" | "POST"; path: string }[] = [
   { method: "POST", path: "/admin/pt-callers/api/rep/history" },
   { method: "POST", path: "/admin/calls/webrtc-token" }, // #4's browser phone
   { method: "POST", path: "/admin/calls/state" },
+  { method: "POST", path: "/admin/calls/dtmf" }, // keypad during the rep's own connected call
   { method: "GET", path: "/admin/login" },
   { method: "POST", path: "/admin/login" },
   { method: "GET", path: "/admin/password" },

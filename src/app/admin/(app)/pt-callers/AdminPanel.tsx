@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CallButton } from "../../calls/CallUI";
+import { call as startCall } from "../../calls/call-store";
 
 type Lead = {
   id: number;
@@ -254,6 +255,8 @@ export function AdminPanel(p: {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-muted">The page number moves on by itself, so you can keep clicking.</p>
+          <FreeDial disabled={busy || !canCall} onError={(m) => setMsg({ ok: false, text: m })} onLead={() => router.refresh()} />
+          <AddLead busy={busy} onAdd={(v) => run("add", v, () => `${v.firstName} added.`)} />
         </div>
       </section>
 
@@ -561,5 +564,76 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
         </div>
       </div>
     </div>
+  );
+}
+
+function AddLead({ busy, onAdd }: { busy: boolean; onAdd: (v: Record<string, string>) => void }) {
+  const empty = { firstName: "", lastName: "", title: "", company: "", phone: "", email: "" };
+  const [v, setV] = useState(empty);
+  const f = (k: keyof typeof empty, label: string, ph = "") => (
+    <label className="text-xs font-semibold">
+      {label}
+      <input value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} placeholder={ph} className="mt-0.5 w-full rounded-lg border p-1.5 text-sm font-normal" />
+    </label>
+  );
+  return (
+    <details className="mt-4 border-t pt-3">
+      <summary className="cursor-pointer text-sm font-semibold">Add a lead by hand</summary>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {f("firstName", "First name *")}
+        {f("lastName", "Surname")}
+        {f("phone", "Phone *", "+351 9…")}
+        {f("email", "Work e-mail")}
+        {f("title", "Job title")}
+        {f("company", "Company")}
+      </div>
+      <button
+        type="button"
+        disabled={busy || !v.firstName.trim() || !v.phone.trim()}
+        onClick={() => {
+          onAdd(v);
+          setV(empty);
+        }}
+        className="mt-2 w-full rounded-lg border border-[#0F2340] px-3 py-1.5 text-sm font-semibold text-[#0F2340] disabled:opacity-40"
+      >
+        Add lead
+      </button>
+      <p className="mt-1 text-[11px] text-muted">Portuguese numbers only. Added leads are approved and follow the same calling rules (hours, pilot list, do-not-contact).</p>
+    </details>
+  );
+}
+
+/** Dial any Portuguese number: it becomes (or finds) a lead, so the call keeps every rule and its history. */
+function FreeDial({ disabled, onError, onLead }: { disabled: boolean; onError: (m: string) => void; onLead: () => void }) {
+  const [num, setNum] = useState("+351");
+  const [going, setGoing] = useState(false);
+  const key = (d: string) => setNum((n) => (n + d).slice(0, 16));
+  return (
+    <details className="mt-4 border-t pt-3">
+      <summary className="cursor-pointer text-sm font-semibold">Dial a number</summary>
+      <input value={num} onChange={(e) => setNum(e.target.value)} inputMode="tel" className="mt-2 w-full rounded-lg border p-2 text-center font-mono text-lg" aria-label="Number to dial" />
+      <div className="mt-2 grid grid-cols-3 gap-1.5">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "0", "⌫"].map((d) => (
+          <button key={d} type="button" onClick={() => (d === "⌫" ? setNum((n) => n.slice(0, -1)) : key(d))} className="rounded-lg border bg-paper py-2 text-base font-semibold hover:bg-white">
+            {d}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={disabled || going || num.replace(/\D/g, "").length < 9}
+        onClick={async () => {
+          setGoing(true);
+          const r = await post("dial-number", { phone: num }).finally(() => setGoing(false));
+          if (!r.ok) return onError(String(r.reason ?? r.error));
+          onLead();
+          startCall({ ptLeadId: r.id as number, name: String(r.name) });
+        }}
+        className="mt-2 w-full rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+      >
+        📞 Call
+      </button>
+      <p className="mt-1 text-[11px] text-muted">Portuguese numbers. The number is saved as a lead (or matched to an existing one), so the same rules apply and the call appears in its history.</p>
+    </details>
   );
 }
