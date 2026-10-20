@@ -5,6 +5,7 @@
 //   Call → POST start { orderId | leadId } → the server rings this device → auto-answer → poll state every 2 s
 //   End call → hang up our own leg; the server learns it from the webhook and hangs up the customer.
 import { useSyncExternalStore } from "react";
+import { unlockTones } from "./tones";
 import { createRemoteAudioElement, createSoftphone, destroyRemoteAudioElement, requestMicrophone, stopStream, type SoftphoneCall, type SoftphoneClient } from "@/lib/softphone";
 
 export type CallTarget = { orderId?: string; leadId?: number; ptLeadId?: number; name: string; lang?: "pt" };
@@ -125,11 +126,13 @@ export async function register(): Promise<boolean> {
 /** Opens the popup; dials at once when the device is ready, otherwise the popup asks to Connect (a click). */
 export function call(target: CallTarget) {
   if (isLive(state.call)) return;
+  unlockTones(); // inside the click: browsers only allow sound that starts from a user gesture
   set({ call: { target, phase: "needsDevice", callId: null, status: null, connected: false, connectedAt: null, durationMs: null, error: null, answeredBy: null }, muted: false });
   if (state.device === "ready") void placeCall();
 }
 
 export async function connectAndCall() {
+  unlockTones();
   setCall({ phase: "registering" });
   if (await register()) await placeCall();
   else setCall({ phase: "needsDevice" });
