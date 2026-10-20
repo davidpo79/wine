@@ -21,13 +21,15 @@ export type CallView = {
   error: string | null; // shown verbatim (dialError) or a closed token
   answeredBy: string | null;
 };
-type State = { device: Device; deviceError: string | null; call: CallView | null; muted: boolean };
+/** The open dialer (no call yet): `resolve` turns a typed number into a call target, or returns a refusal message. */
+export type Dialer = { resolve: (number: string) => Promise<CallTarget | string> };
+type State = { device: Device; deviceError: string | null; call: CallView | null; muted: boolean; dialer: Dialer | null };
 
 const TERMINAL = ["completed", "rep_no_answer", "no_answer", "busy", "failed", "canceled"];
 const POLL_MS = 2000;
 const READY_TIMEOUT_MS = 10_000;
 
-let state: State = { device: "idle", deviceError: null, call: null, muted: false };
+let state: State = { device: "idle", deviceError: null, call: null, muted: false, dialer: null };
 const listeners = new Set<() => void>();
 const set = (patch: Partial<State>) => {
   state = { ...state, ...patch };
@@ -124,10 +126,20 @@ export async function register(): Promise<boolean> {
 }
 
 /** Opens the popup; dials at once when the device is ready, otherwise the popup asks to Connect (a click). */
+/** Opens the dialer window (keypad + number); Call there resolves the number and places the call. */
+export function openDialer(d: Dialer) {
+  if (isLive(state.call)) return;
+  set({ dialer: d, call: null });
+}
+
+export function closeDialer() {
+  set({ dialer: null });
+}
+
 export function call(target: CallTarget) {
   if (isLive(state.call)) return;
   unlockTones(); // inside the click: browsers only allow sound that starts from a user gesture
-  set({ call: { target, phase: "needsDevice", callId: null, status: null, connected: false, connectedAt: null, durationMs: null, error: null, answeredBy: null }, muted: false });
+  set({ dialer: null, call: { target, phase: "needsDevice", callId: null, status: null, connected: false, connectedAt: null, durationMs: null, error: null, answeredBy: null }, muted: false });
   if (state.device === "ready") void placeCall();
 }
 
@@ -231,5 +243,5 @@ const subscribe = (l: () => void) => {
   return () => listeners.delete(l);
 };
 const snapshot = () => state;
-const serverSnapshot: State = { device: "idle", deviceError: null, call: null, muted: false };
+const serverSnapshot: State = { device: "idle", deviceError: null, call: null, muted: false, dialer: null };
 export const useCallStore = () => useSyncExternalStore(subscribe, snapshot, () => serverSnapshot);
