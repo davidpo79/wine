@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PT } from "@/lib/pt-callers/strings-pt";
 import { playBusyTone, playErrorTone, startConnectingTone, stopConnectingTone } from "./tones";
+import { closeDialer, type Dialer } from "./call-store";
 import { call, close, connectAndCall, hangUp, isLive, toggleMute, useCallStore, type CallTarget, type CallView } from "./call-store";
 
 /** "Call" button for an order's customer or a lead. The popup is mounted once in the admin layout. */
@@ -92,12 +93,12 @@ const PT_REFUSED_EN: Record<string, string> = {
 };
 
 export function CallPopup() {
-  const { call: c, device, deviceError, muted } = useCallStore();
+  const { call: c, device, deviceError, muted, dialer } = useCallStore();
   const [pad, setPad] = useState(false);
   const [min, setMin] = useState(false);
   const { pos, onDragStart } = useDraggable();
   useCallTones(c?.phase ?? null);
-  if (!c) return null;
+  if (!c) return dialer ? <IdleDialer dialer={dialer} pos={pos} onDragStart={onDragStart} /> : null;
   const live = isLive(c);
   const pt = c.target.lang === "pt";
   const T = pt
@@ -379,4 +380,58 @@ function useCallTones(phase: string | null) {
     else if (FAILED.includes(phase)) playErrorTone();
   }, [phase]);
   useEffect(() => () => stopConnectingTone(), []);
+}
+
+/** The dialer before a call: a number field and a keypad; Call resolves the number (server rules) and dials it. */
+function IdleDialer({ dialer, pos, onDragStart }: { dialer: Dialer; pos: { x: number; y: number } | null; onDragStart: (e: React.PointerEvent<HTMLElement>) => void }) {
+  const [num, setNum] = useState("+351");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const dial = async () => {
+    setBusy(true);
+    setErr(null);
+    const r = await dialer.resolve(num).catch(() => "The call could not be started.");
+    setBusy(false);
+    if (typeof r === "string") return setErr(r);
+    call(r);
+  };
+  return (
+    <div className={`fixed z-50 w-72 rounded-lg border bg-white text-sm shadow-xl ${pos ? "" : "bottom-4 right-4"}`} style={pos ? { left: pos.x, top: pos.y } : undefined} role="dialog" aria-label="Dialer">
+      <div onPointerDown={onDragStart} className="flex cursor-move touch-none select-none items-center gap-2 rounded-t-lg border-b bg-slate-50 px-3 py-1.5">
+        <span className="text-muted" aria-hidden>⠿</span>
+        <span className="flex-1 text-xs font-semibold">📞 Dialer</span>
+        <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={closeDialer} className="rounded px-1.5 text-base leading-none hover:bg-slate-200" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="p-3">
+        <input
+          value={num}
+          onChange={(e) => setNum(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !busy && void dial()}
+          inputMode="tel"
+          autoFocus
+          className="w-full rounded-lg border p-2 text-center font-mono text-lg"
+          aria-label="Number to dial"
+        />
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "0", "⌫"].map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setNum((n) => (d === "⌫" ? n.slice(0, -1) : (n + d).slice(0, 16)))}
+              className="rounded-lg border bg-slate-50 py-2 text-base font-semibold hover:bg-white"
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+        {err && <p className="mt-2 rounded bg-red-50 p-2 text-xs text-red-800">⚠ {err}</p>}
+        <button type="button" disabled={busy || num.replace(/\D/g, "").length < 9} onClick={() => void dial()} className="mt-2 w-full rounded-lg bg-green-700 py-2 text-sm font-semibold text-white disabled:opacity-40">
+          {busy ? "…" : "📞 Call"}
+        </button>
+        <p className="mt-1 text-[11px] text-muted">The number is saved as a lead (or matched to one), so the same rules apply and the call lands in its history. During the call, use ⌨ Keypad for menus.</p>
+      </div>
+    </div>
+  );
 }
