@@ -310,3 +310,61 @@ test("ctt: request signature, item id and push hash", async () => {
   assert.equal(validShopUpdateHash({ Status: 2, TrackingId: "EA1PT", Hash: h }, "sec", url), false);
   assert.equal(validShopUpdateHash({ Status: 3, TrackingId: "EA1PT", Hash: h }, "", url), false);
 });
+
+test("ctt: simulate is on unless CTT_SIMULATE is explicitly 0", async () => {
+  const { cttConfig } = await import("../src/lib/ctt");
+  const before = process.env.CTT_SIMULATE;
+  try {
+    for (const [v, want] of [[undefined, true], ["", true], ["1", true], ["yes", true], ["0", false], [" 0 ", false]] as const) {
+      if (v === undefined) delete process.env.CTT_SIMULATE;
+      else process.env.CTT_SIMULATE = v;
+      assert.equal(cttConfig().simulate, want, `CTT_SIMULATE=${JSON.stringify(v)}`);
+    }
+  } finally {
+    if (before === undefined) delete process.env.CTT_SIMULATE;
+    else process.env.CTT_SIMULATE = before;
+  }
+});
+
+test("ctt: plain-language errors, HTTP status first, then Error / ErrorList", async () => {
+  const { cttErrorMessage } = await import("../src/lib/ctt");
+  assert.equal(cttErrorMessage(200, { Error: { Id: 0 }, ErrorList: [] }, "/labels/"), null);
+  assert.equal(cttErrorMessage(200, {}, "/carriers/"), null);
+  assert.match(cttErrorMessage(405, { Error: { Id: 0 } }, "/labels/")!, /labels.*not enabled for our CTT API key.*ask CTT/i);
+  assert.match(cttErrorMessage(401, {}, "/shipments/")!, /refused our API keys, even with a fresh token/);
+  assert.doesNotMatch(cttErrorMessage(401, {}, "/keys/")!, /fresh token/);
+  assert.match(cttErrorMessage(503, {}, "/labels/")!, /CTT is not responding.*try again/i);
+  // Status wins over the body: a 405 is reported as 405 even with an error body.
+  assert.match(cttErrorMessage(405, { Error: { Id: 9, Tekst: "x" } }, "/tracking/")!, /not enabled/);
+  assert.match(cttErrorMessage(400, { Error: { Id: 12, Tekst: "Bad JSON" } }, "/shipments/")!, /CTT rejected the shipment.*12 Bad JSON/);
+  assert.match(cttErrorMessage(200, { Error: { Id: 7, Text: "Label process running" } }, "/labels/")!, /CTT rejected the label.*7 Label process running/);
+  assert.match(
+    cttErrorMessage(200, { Error: { Id: 0 }, ErrorList: [{ Id: 210, Tekst: "PostalCode missing" }, { Id: 211, Message: "City missing" }] }, "/shipments/")!,
+    /210 PostalCode missing; 211 City missing/,
+  );
+});
+
+test("ctt label: admin only, Portugal only, paid or preparing", async () => {
+  const { cttLabelBlocker } = await import("../src/lib/fulfilment");
+  const o = { status: "paid", country: "PT", shippingAddress: { country: "PT" } } as Parameters<typeof cttLabelBlocker>[0];
+  assert.equal(cttLabelBlocker(o, "admin", true), null);
+  assert.equal(cttLabelBlocker({ ...o, status: "preparing" }, "admin", true), null);
+  assert.match(cttLabelBlocker(o, "fulfilment", true)!, /Only admins/);
+  assert.match(cttLabelBlocker(o, "admin", false)!, /not connected/);
+  assert.match(cttLabelBlocker({ ...o, country: "DE", shippingAddress: { country: "DE" } }, "admin", true)!, /only for orders shipping to Portugal/);
+  assert.match(cttLabelBlocker({ ...o, shippingAddress: { country: "BE" } }, "admin", true)!, /Portugal/); // the address wins
+  assert.equal(cttLabelBlocker({ ...o, shippingAddress: null }, "admin", true), null); // falls back to the order country
+  assert.match(cttLabelBlocker({ ...o, status: "shipped" }, "admin", true)!, /paid orders/);
+});
+
+test("ctt label: a stored label is reused, never requested twice", async () => {
+  const { reusableLabel } = await import("../src/lib/fulfilment");
+  const s: NonNullable<Parameters<typeof reusableLabel>[0]> = { simulated: true, labelPdf: "JVBERi0=", trackingId: "EA123456789PT" };
+  assert.deepEqual(reusableLabel(s, true), { trackingId: "EA123456789PT" });
+  assert.equal(reusableLabel(s, false), null); // simulated label, now real mode: create it for real
+  assert.deepEqual(reusableLabel({ ...s, simulated: false }, false), { trackingId: "EA123456789PT" });
+  assert.deepEqual(reusableLabel({ ...s, simulated: false }, true), { trackingId: "EA123456789PT" }); // a real label is never replaced by a simulated one
+  assert.equal(reusableLabel({ ...s, labelPdf: null }, true), null);
+  assert.equal(reusableLabel({ ...s, trackingId: null }, true), null);
+  assert.equal(reusableLabel(null, true), null);
+});

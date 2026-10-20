@@ -70,9 +70,10 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
       }
       case "ctt_label": {
         const { createCttLabel } = await import("@/lib/fulfilment");
-        const r = await createCttLabel(o, admin.email);
+        const r = await createCttLabel(o, admin);
         if ("error" in r) return { error: r.error };
         revalidatePath(`/admin/orders/${id}`);
+        if (r.reused) return { ok: `Label already created · tracking ${r.trackingId} (stored copy, CTT not called again).` };
         return { ok: r.trackingId ? `Label ready · tracking ${r.trackingId}` : "Label ready." };
       }
       case "note": {

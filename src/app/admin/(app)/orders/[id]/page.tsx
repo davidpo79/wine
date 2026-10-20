@@ -1,6 +1,6 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
-import { shipmentOf } from "@/lib/fulfilment";
-import { cttConfigured } from "@/lib/ctt";
+import { cttLabelBlocker, reusableLabel, shipmentOf } from "@/lib/fulfilment";
+import { cttConfig, cttConfigured } from "@/lib/ctt";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -32,6 +32,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const visits = isAdmin ? await sessionsOfOrder(id) : [];
   const shipment = await shipmentOf(id);
   const cttReady = cttConfigured();
+  const cttSimulate = cttConfig().simulate;
+  const cttBlocked = cttLabelBlocker(o, me.role, cttReady);
+  const cttStored = reusableLabel(shipment, cttSimulate);
   const a = o.shippingAddress;
   const paid = ["paid", "preparing", "shipped", "delivered"].includes(o.status);
 
@@ -145,13 +148,15 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             ) : (
               <p className="mt-1 text-xs text-muted">{cttReady ? "No CTT shipment yet." : "CTT API not connected yet (waiting for the API key from CTT). Ship from the CTT portal and enter the tracking below."}</p>
             )}
-            {cttReady && (o.status === "paid" || o.status === "preparing") && (
+            {!cttBlocked && !cttStored && (
               <ActionForm action={orderAction} className="mt-2">
                 <input type="hidden" name="id" value={o.id} />
                 <input type="hidden" name="action" value="ctt_label" />
-                <Submit>{shipment?.labelPdf ? "Create the label again" : "Create CTT shipment and label"}</Submit>
+                <Submit>{shipment?.labelPdf ? `Create the ${cttSimulate ? "simulated" : "real"} CTT shipment and label` : "Create CTT shipment and label"}</Submit>
               </ActionForm>
             )}
+            {cttReady && cttBlocked && (o.status === "paid" || o.status === "preparing") && <p className="mt-2 text-xs text-muted">{cttBlocked}</p>}
+            {cttReady && cttSimulate && <p className="mt-2 text-xs text-muted">Simulation mode: CTT checks the shipment but stores nothing, so the label and tracking number are not real. Real shipments start when CTT_SIMULATE is set to 0.</p>}
             {cttReady && <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email) when CTT picks the parcel up, and “delivered” on delivery: automatic.</p>}
           </div>
           {(o.status === "paid" || o.status === "preparing") && (

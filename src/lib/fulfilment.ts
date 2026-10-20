@@ -1,9 +1,10 @@
 // Order fulfilment with CTT: create the shipment and label from the admin, then follow it automatically.
 // Picked up (CTT push "shipped" or status 25) → order "shipped" + email; delivered (push or 99/94/32) → "delivered",
 // which also schedules the review invitation.
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Order, Shipment } from "@/db/schema";
+import type { Role } from "./auth";
 import { CTT_DELIVERED, CTT_PICKED_UP, cttConfig, cttConfigured, cttCreateShipment, cttLabel, cttTrack, SHOP_STATUS, type TrackingStatus } from "./ctt";
 import { logOrderEvent, setStatus } from "./orders";
 import { sendShipped } from "./email";
@@ -13,16 +14,50 @@ export async function shipmentOf(orderId: string) {
   return s ?? null;
 }
 
-/** Admin "Create CTT label": imports the shipment (once) and fetches the label. The order stays "preparing" until CTT picks it up. */
-export async function createCttLabel(o: Order, by: string) {
-  if (!cttConfigured()) return { error: "CTT is not connected yet (API key)." };
-  if (!["paid", "preparing"].includes(o.status)) return { error: `Labels are created for paid orders (this one is "${o.status}").` };
+/** Why the admin cannot create a CTT label for this order, or null. Checked before any CTT call. */
+export function cttLabelBlocker(o: Pick<Order, "status" | "country" | "shippingAddress">, role: Role, configured = cttConfigured()) {
+  if (role !== "admin") return "Only admins can create CTT shipments.";
+  if (!configured) return "CTT is not connected yet (waiting for the API key from CTT).";
+  const country = (o.shippingAddress?.country || o.country || "PT").toUpperCase();
+  if (country !== "PT") return `CTT shipments from the admin are only for orders shipping to Portugal (this one ships to ${country}).`;
+  if (!["paid", "preparing"].includes(o.status)) return `Labels are created for paid orders (this one is "${o.status}").`;
+  return null;
+}
+
+/**
+ * A stored label that is re-used, so CTT is not called again: a real one always, a simulated one only while still
+ * simulating (once simulate is off, the order gets a real shipment).
+ */
+export function reusableLabel(s: Pick<Shipment, "simulated" | "labelPdf" | "trackingId"> | null, simulated: boolean) {
+  return s && s.labelPdf && s.trackingId && (!s.simulated || simulated) ? { trackingId: s.trackingId } : null;
+}
+
+type LabelOutcome = { ok: true; trackingId: string | null; reused: boolean } | { error: string };
+
+/**
+ * Admin "Create CTT shipment and label": one shipment per order (ClientReferenceCode = order id), label fetched
+ * once and re-used on later clicks. A per-order lock turns a double click into one CTT shipment. The order becomes
+ * "preparing" with the tracking number; "shipped" (shippedAt + customer email) follows when CTT picks it up.
+ */
+export async function createCttLabel(o: Order, by: { email: string; role: Role }): Promise<LabelOutcome> {
+  const blocked = cttLabelBlocker(o, by.role);
+  if (blocked) return { error: blocked };
+  return db.transaction(async (tx) => {
+    const [r] = await tx.execute<{ locked: boolean }>(sql`select pg_try_advisory_xact_lock(hashtext(${`ctt_label:${o.id}`})) as locked`);
+    if (!r?.locked) return { error: "This order's CTT label is already being created. Wait a few seconds and reload the page." };
+    return labelOnce(o, by.email);
+  });
+}
+
+async function labelOnce(o: Order, by: string): Promise<LabelOutcome> {
   const simulated = cttConfig().simulate;
   let s = await shipmentOf(o.id);
+  const stored = reusableLabel(s, simulated);
+  if (stored) return { ok: true, trackingId: stored.trackingId, reused: true };
   try {
-    if (!s || s.simulated !== simulated) {
+    if (!s || (s.simulated && !simulated)) {
       const r = await cttCreateShipment(o);
-      const values = { carrierName: r.carrierName, simulated, error: null, updatedAt: new Date() };
+      const values = { carrierName: r.carrierName, simulated, labelPdf: null, trackingId: null, trackingUrl: null, error: null, updatedAt: new Date() };
       [s] = s
         ? await db.update(schema.shipments).set(values).where(eq(schema.shipments.id, s.id)).returning()
         : await db.insert(schema.shipments).values({ orderId: o.id, ...values }).returning();
@@ -36,7 +71,7 @@ export async function createCttLabel(o: Order, by: string) {
     const fresh = o.status === "paid" ? ((await setStatus(o, "preparing", {}, { by, via: "ctt_label" })) ?? o) : o;
     if (label.trackingId) await db.update(schema.orders).set({ trackingNumber: label.trackingId }).where(eq(schema.orders.id, fresh.id));
     await logOrderEvent(o.id, "ctt_label_created", { by, tracking: label.trackingId, simulated });
-    return { ok: true as const, trackingId: label.trackingId };
+    return { ok: true, trackingId: label.trackingId, reused: false };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (s) await db.update(schema.shipments).set({ error: msg, updatedAt: new Date() }).where(eq(schema.shipments.id, s.id));

@@ -2,7 +2,9 @@
 // Docs: https://enviosecommerceapi.ctt.pt/v3/apidocs/usa/start · spec: docs in the repo history (2026-10-18).
 // Auth: HTTP Basic, user = token (public key for POST /keys/), password = base64(HMAC-SHA256(user + body, secret))
 // without "=" padding; every call carries X-APPID (the application key issued by CTT). No test environment:
-// CTT_SIMULATE=1 sends X_SIMULATE: 1 (nothing is stored at CTT, ids are simulated).
+// simulate is ON unless CTT_SIMULATE=0: X_SIMULATE: 1 is sent and nothing is stored at CTT (ids are simulated).
+// Errors: HTTP status first (401 re-token once, 405 endpoint not enabled for our key), then Error / ErrorList,
+// turned into plain-language admin messages by cttErrorMessage.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -23,7 +25,7 @@ export function cttConfig() {
     publicKey: (process.env.CTT_PUBLIC_KEY ?? "").trim(),
     secret: (process.env.CTT_SECRET_KEY ?? "").trim(),
     base: (process.env.CTT_API_BASE ?? "https://enviosecommerceapi.ctt.pt/v3").replace(/\/$/, ""),
-    simulate: process.env.CTT_SIMULATE === "1",
+    simulate: (process.env.CTT_SIMULATE ?? "").trim() !== "0", // real shipments only when explicitly turned off
     carrierId: process.env.CTT_CARRIER_ID ? Number(process.env.CTT_CARRIER_ID) : null, // empty: the rulebook in the CTT app decides
     optionIds: (process.env.CTT_OPTION_IDS ?? "").split(",").map((s) => Number(s.trim())).filter((n) => n > 0),
     labelType: Number(process.env.CTT_LABEL_TYPE ?? 0), // 0 = PDF, 1 = ZPL
@@ -65,12 +67,35 @@ export function validShopUpdateHash(p: { Status?: unknown; TrackingId?: unknown;
   });
 }
 
-type CttError = { Id?: number; Tekst?: string; Text?: string; Info?: string };
+type CttError = { Id?: number; Tekst?: string; Text?: string; Info?: string; Message?: string };
 const errText = (e?: CttError | CttError[] | null) =>
   (Array.isArray(e) ? e : e ? [e] : [])
     .filter((x) => x && x.Id !== 0)
-    .map((x) => `${x.Id ?? ""} ${x.Tekst ?? x.Text ?? x.Info ?? ""}`.trim())
+    .map((x) => `${x.Id ?? ""} ${x.Tekst ?? x.Text ?? x.Info ?? x.Message ?? ""}`.trim())
     .join("; ");
+
+// Endpoint → [function name for 405, what was rejected], for the admin messages.
+const ENDPOINT: Record<string, [string, string]> = {
+  keys: ["token", "token request"],
+  shipments: ["shipments", "shipment"],
+  labels: ["labels", "label"],
+  tracking: ["tracking", "tracking request"],
+  pickuppoints: ["pickup points", "pickup point search"],
+  carriers: ["carriers", "carrier list"],
+  settings: ["settings", "settings request"],
+};
+
+/** Plain-language admin message for a CTT reply, or null when it succeeded. HTTP status first, then the body. */
+export function cttErrorMessage(status: number, json: Record<string, unknown>, path: string): string | null {
+  const seg = path.replace(/^https?:\/\/[^/]+/, "").replace(/^\/v3/, "").split("/").filter(Boolean)[0] ?? "";
+  const [fn, noun] = ENDPOINT[seg] ?? [seg || "API", "request"];
+  if (status === 401) return `CTT refused our API keys${seg === "keys" ? "" : ", even with a fresh token"}. Check CTT_APP_ID, CTT_PUBLIC_KEY and CTT_SECRET_KEY, or contact CTT.`;
+  if (status === 405) return `The CTT ${fn} function is not enabled for our CTT API key yet: ask CTT to enable it.`;
+  const detail = errText(json.Error as CttError) || errText(json.ErrorList as CttError[]);
+  if (status >= 500) return `CTT is not responding right now (HTTP ${status}). Try again in a few minutes.`;
+  if (status >= 400) return `CTT rejected the ${noun} (HTTP ${status})${detail ? `: ${detail}` : "."}`;
+  return detail ? `CTT rejected the ${noun}: ${detail}` : null;
+}
 
 const TOKEN_KEY = "ctt_token";
 
@@ -109,7 +134,9 @@ export async function newToken() {
   const c = cttConfig();
   const r = await raw("POST", "/keys/", c.publicKey, { PlatformVersion: "vinho-next-15", PluginVersion: "1.0.0", ShopUrl: c.shopUrl });
   const key = (r.json.Key ?? r.json.Token ?? r.json.key) as string | undefined;
-  if (r.status !== 200 || !key) throw new Error(`CTT token: HTTP ${r.status} ${errText(r.json.Error as CttError) || errText(r.json.ErrorList as CttError[])}`.trim());
+  const msg = cttErrorMessage(r.status, r.json, "/keys/");
+  if (msg) throw new Error(msg);
+  if (!key) throw new Error("CTT did not return a token. Try again in a few minutes.");
   const t = { key, expire: String(r.json.Expire ?? r.json.expire ?? "") };
   await saveToken(t);
   return t;
@@ -124,14 +151,20 @@ async function token() {
 /** Authenticated call: on 401 the token is renewed once (a second 401 means a key or account problem). */
 export async function cttCall(method: string, path: string, body?: unknown) {
   if (!cttConfigured()) throw new Error("CTT is not configured (CTT_APP_ID, CTT_PUBLIC_KEY, CTT_SECRET_KEY).");
-  let r = await raw(method, path, await token(), body);
+  const send = async (tok: string) => {
+    try {
+      return await raw(method, path, tok, body);
+    } catch {
+      throw new Error("Could not reach CTT (network error or timeout). Try again in a few minutes.");
+    }
+  };
+  let r = await send(await token());
   if (r.status === 401) {
     await saveToken(null);
-    r = await raw(method, path, (await newToken()).key, body);
+    r = await send((await newToken()).key);
   }
-  if (r.status === 405) throw new Error(`CTT: endpoint ${path} is not enabled for this API key (ask CTT to enable it).`);
-  if (r.status === 401) throw new Error("CTT: authentication refused twice. Check the keys or contact CTT.");
-  if (r.status >= 400) throw new Error(`CTT: HTTP ${r.status} on ${path} ${errText(r.json.Error as CttError)}`.trim());
+  const msg = cttErrorMessage(r.status, r.json, path);
+  if (msg) throw new Error(msg);
   return r.json;
 }
 
@@ -161,10 +194,9 @@ export async function cttCreateShipment(o: Order) {
     ...(c.optionIds.length ? { OptionList: c.optionIds.map((Id) => ({ Id })) } : {}),
   };
   const r = await cttCall("POST", "/shipments/", { Shipment: [shipment] });
-  const top = errText(r.Error as CttError) || errText(r.ErrorList as CttError[]);
   const item = (Array.isArray(r.Shipment) ? r.Shipment[0] : null) as { ErrorList?: CttError[]; WarningList?: CttError[]; CarrierSelect?: { Name?: string } } | null;
-  const err = top || errText(item?.ErrorList);
-  if (err) throw new Error(`CTT shipment not created: ${err}`);
+  const err = errText(item?.ErrorList);
+  if (err) throw new Error(`CTT rejected the shipment: ${err}`);
   return { carrierName: item?.CarrierSelect?.Name ?? null, warnings: errText(item?.WarningList) };
 }
 
@@ -174,10 +206,8 @@ export type LabelResult = { pdf: string | null; trackingId: string | null; track
 export async function cttLabel(orderId: string): Promise<LabelResult> {
   const c = cttConfig();
   const r = await cttCall("POST", "/labels/", { ClientReferenceCodeList: [orderId], LabelType: c.labelType, LabelStart: c.labelStart });
-  const err = errText(r.Error as CttError);
-  if (err) throw new Error(`CTT label: ${err}`);
   const cb = r.CallbackURL as string | undefined;
-  if (!cb) throw new Error("CTT label: no CallbackURL in the reply.");
+  if (!cb) throw new Error("CTT accepted the label request but did not say where to collect it. Try again in a few minutes.");
   const path = cb.startsWith("http") ? cb.replace(/^https?:\/\/[^/]+\/v3/, "") : cb;
   for (let i = 0; i < 40; i++) {
     await new Promise((res) => setTimeout(res, 1500));
@@ -185,10 +215,10 @@ export async function cttLabel(orderId: string): Promise<LabelResult> {
     if (Number(p.Finished ?? 0) < 100) continue;
     const ref = ((p.ClientReferenceCodeList as Record<string, unknown>[] | undefined) ?? []).find((x) => x.ReferenceCode === orderId) ?? (p.ClientReferenceCodeList as Record<string, unknown>[] | undefined)?.[0];
     const refErr = errText(ref?.Error as CttError);
-    if (refErr) throw new Error(`CTT label: ${refErr}`);
+    if (refErr) throw new Error(`CTT rejected the label: ${refErr}`);
     return { pdf: (p.LabelPDF as string) ?? (p.LabelFile as string) ?? null, trackingId: (ref?.TrackingId as string) ?? null, trackingUrl: (ref?.TrackingUrl as string) ?? null };
   }
-  throw new Error("CTT label: still not ready after 60 seconds. Try again in a few minutes.");
+  throw new Error("The CTT label is still not ready after 60 seconds. Try again in a few minutes.");
 }
 
 export type TrackingStatus = { code: number; at: string; text: string };
