@@ -68,6 +68,10 @@ export const dncRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_DNC_REQU
 
 /** A recorded legal basis per lead before a dial: on unless explicitly "false". */
 export const legalBasisRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_LEGAL_BASIS_REQUIRED !== "false";
+/** On unless exactly "false": an admin confirms each number is a business line before it can be dialed. */
+export const businessLineRequired = (env: Env = outboundEnv()) => env.PT_CALLERS_BUSINESS_LINE_REQUIRED !== "false";
+/** Whether a lead with a phone still needs the admin's "Prepare for calling" step before it is ready. */
+export const prepareNeeded = (env: Env = outboundEnv()) => businessLineRequired(env) || legalBasisRequired(env);
 
 export const LOCK_MINUTES = 15;
 export const RETENTION_DAYS = 90;

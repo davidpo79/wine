@@ -95,6 +95,36 @@ export function parsePhonePayload(body: unknown): ParsedPerson[] {
   return out;
 }
 
+export type MatchedPerson = { apolloPersonId: string; lastName: string | null; email: string | null };
+
+/** bulk_match's immediate answer: matches[] carry the full last name and the work email (search results hide both). */
+export function parseMatches(raw: string): MatchedPerson[] {
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const list = (body as { matches?: unknown })?.matches;
+  if (!Array.isArray(list)) return [];
+  const out: MatchedPerson[] = [];
+  for (const m of list) {
+    const id = (m as { id?: unknown })?.id;
+    if (typeof id !== "string" || !id) continue;
+    const ln = (m as { last_name?: unknown }).last_name;
+    const em = (m as { email?: unknown }).email;
+    const email = typeof em === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em) && !/^email_not_unlocked@/i.test(em) ? em.trim().toLowerCase() : null;
+    out.push({ apolloPersonId: id, lastName: typeof ln === "string" && ln.trim() ? ln.trim() : null, email });
+  }
+  return out;
+}
+
+/** Details-only match (no phone reveal): synchronous, 1 credit per matched person. */
+export function detailsBody(personIds: string[]) {
+  if (!personIds.length || personIds.length > 10) throw new Error("bulk_match takes 1 to 10 people");
+  return { details: personIds.map((id) => ({ id })), reveal_phone_number: false, reveal_personal_emails: false, run_waterfall_email: false, run_waterfall_phone: false };
+}
+
 export type SearchPerson = {
   id: string;
   first_name?: string | null;
@@ -125,7 +155,9 @@ export class ApolloHttpError extends Error {
 export interface Apollo {
   kind: "apollo" | "mock";
   search(page: number): Promise<{ people: SearchPerson[]; totalEntries: number | null }>;
-  enrich(personIds: string[], o: { webhookUrl?: string; pollOnly?: boolean }): Promise<{ requestId: string | null; creditsConsumed: string | null }>;
+  enrich(personIds: string[], o: { webhookUrl?: string; pollOnly?: boolean }): Promise<{ requestId: string | null; creditsConsumed: string | null; matches: MatchedPerson[] }>;
+  /** Surname and work email only, no phone: answered at once. */
+  details(personIds: string[]): Promise<{ creditsConsumed: string | null; matches: MatchedPerson[] }>;
   /** Key check: the 0-credit search with one result per page. Returns Apollo's HTTP status and the match count only. */
   ping?(): Promise<{ status: number; totalEntries: number | null }>;
   /** status "pending" = not ready yet; "gone" = Apollo answered 404/410/400 (terminal). */
@@ -176,7 +208,12 @@ export function createApolloClient(o: { apiKey: string; fetch?: FetchLike; timeo
     async enrich(ids, mode) {
       const r = await call("POST", ENRICH_PATH, enrichBody(ids, mode));
       if (r.status !== 200) throw new ApolloHttpError(r.status, `Apollo bulk_match answered ${r.status}`);
-      return { requestId: requestIdFromRaw(r.raw), creditsConsumed: creditsFromRaw(r.raw) };
+      return { requestId: requestIdFromRaw(r.raw), creditsConsumed: creditsFromRaw(r.raw), matches: parseMatches(r.raw) };
+    },
+    async details(ids) {
+      const r = await call("POST", ENRICH_PATH, detailsBody(ids));
+      if (r.status !== 200) throw new ApolloHttpError(r.status, `Apollo bulk_match answered ${r.status}`);
+      return { creditsConsumed: creditsFromRaw(r.raw), matches: parseMatches(r.raw) };
     },
     async poll(requestId) {
       const r = await call("GET", POLL_PATH(requestId));
@@ -193,6 +230,10 @@ export function createApolloClient(o: { apiKey: string; fetch?: FetchLike; timeo
 const FIRST = ["Ana", "Rita", "Joana", "Marta", "Inês", "Sofia", "Catarina", "Teresa", "Mariana", "Patrícia", "João", "Pedro", "Rui", "Tiago", "Nuno", "Miguel", "Paulo", "Ricardo", "Luís", "Bruno", "Filipa", "Helena", "Carla", "Sara", "André"];
 const CITIES = ["Lisboa", "Porto", "Braga", "Coimbra", "Aveiro", "Faro", "Leiria", "Setúbal", "Viseu"];
 
+const LAST = ["Silva", "Santos", "Ferreira", "Pereira", "Oliveira", "Costa", "Rodrigues", "Martins", "Sousa", "Fernandes"];
+const mockMatches = (ids: string[]): MatchedPerson[] =>
+  ids.map((id, i) => ({ apolloPersonId: id, lastName: LAST[i % LAST.length], email: `demo.${i + 1}@exemplo.invalid` }));
+
 export function createMockApollo(): Apollo {
   return {
     kind: "mock",
@@ -208,7 +249,10 @@ export function createMockApollo(): Apollo {
       return { people, totalEntries: 25 };
     },
     async enrich(ids) {
-      return { requestId: `-${9_000_000_000_000_000 + ids.length}${Date.now() % 1000}`, creditsConsumed: String(ids.length) };
+      return { requestId: `-${9_000_000_000_000_000 + ids.length}${Date.now() % 1000}`, creditsConsumed: String(ids.length), matches: mockMatches(ids) };
+    },
+    async details(ids) {
+      return { creditsConsumed: String(ids.length), matches: mockMatches(ids) };
     },
     async poll() {
       return { status: "pending" };

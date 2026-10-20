@@ -514,6 +514,8 @@ export const ptLeads = pgTable(
     location: text("location"), // person's city / region
     phone: text("phone"), // E.164, only after an approved enrichment
     phoneType: text("phone_type"), // Apollo type_cd: mobile | work_direct | other ...
+    email: text("email"), // work email from the same enrichment (personal emails are never requested)
+    emailedAt: timestamp("emailed_at", { withTimezone: true }), // last offer e-mail sent from the admin screen
     numberClass: text("number_class").notNull().default("unknown"), // business | personal | unknown (set by an admin)
     legalBasis: text("legal_basis"), // recorded by an admin before the lead can be dialed
     // new | ready | calling | no_answer | callback | interested | not_interested | wrong_number | opt_out | blocked | enrichment_pending | failed
@@ -632,7 +634,7 @@ export const ptAccessLog = pgTable(
     id: serial("id").primaryKey(),
     adminId: integer("admin_id").references(() => adminUsers.id),
     leadId: integer("lead_id").references(() => ptLeads.id),
-    action: text("action").notNull(), // view | reveal | dial | dial_refused | outcome | opt_out | import | approve | enrich | assign | classify | purge_demo
+    action: text("action").notNull(), // view | reveal | dial | dial_refused | outcome | opt_out | import | approve | enrich | assign | classify | purge_demo | email | details
     detail: jsonb("detail").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

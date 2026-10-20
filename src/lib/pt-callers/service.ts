@@ -8,8 +8,9 @@ import { db, schema } from "@/db";
 import type { PtLead } from "@/db/schema";
 import type { AdminSession } from "@/lib/auth";
 import { placeCall } from "@/lib/human-calls";
-import { ApolloHttpError, apolloFor, parsePhonePayload, type ParsedPerson, type SearchPerson } from "./apollo";
-import { DIALABLE, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, legalBasisRequired, LOCK_MINUTES, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
+import { ApolloHttpError, apolloFor, parsePhonePayload, type MatchedPerson, type ParsedPerson, type SearchPerson } from "./apollo";
+import { sendOfferEmail } from "../email";
+import { businessLineRequired, DIALABLE, ENRICH_TIMEOUT_MINUTES, FINAL_BLOCKED, legalBasisRequired, LOCK_MINUTES, prepareNeeded, REP_OUTCOMES, RETENTION_DAYS, resultMode, type LeadStatus } from "./flags";
 import { CreditRefused, reserve, settleOnce, summary } from "./ledger";
 import { blockHash, maskPhone, normalizePtPhone } from "./phone";
 import { outboundEnv } from "../outbound-settings";
@@ -145,6 +146,7 @@ export async function enrichLeads(me: Me, ids: number[]): Promise<EnrichResult> 
     );
     // Results may already have arrived (out of order): only move "sending" forward.
     await db.update(REQ).set({ apolloRequestId: r.requestId, syncCredits: r.creditsConsumed }).where(eq(REQ.id, requestId));
+    await storeMatches(r.matches);
     await db.update(REQ).set({ status: "pending" }).where(and(eq(REQ.id, requestId), eq(REQ.status, "sending")));
   } catch (e) {
     if (e instanceof ApolloHttpError && e.status >= 400 && e.status < 500) {
@@ -177,7 +179,7 @@ async function applyResult(requestId: string, people: ParsedPerson[]) {
     const where = and(eq(LEADS.id, item.leadId), sql`${LEADS.status} not in ('opt_out','blocked')`);
     if (!number) await db.update(LEADS).set({ status: "failed", failReason: "no_number", enrichedAt: new Date(), updatedAt: new Date() }).where(where);
     else if (blocked) await db.update(LEADS).set({ status: "blocked", failReason: "number_opted_out", enrichedAt: new Date(), updatedAt: new Date() }).where(where);
-    else await db.update(LEADS).set({ phone: number, phoneType: pick!.type, numberClass: "unknown", status: "new", failReason: null, enrichedAt: new Date(), updatedAt: new Date() }).where(where);
+    else await db.update(LEADS).set({ phone: number, phoneType: pick!.type, numberClass: "unknown", status: prepareNeeded() ? "new" : "ready", failReason: null, enrichedAt: new Date(), updatedAt: new Date() }).where(where);
   }
   // Complete when nothing is pending: settle the ledger once with Apollo's figure (sync credits + 8 per mobile).
   const [left] = await db.select({ n: sql<number>`count(*)::int` }).from(ITEM).where(and(eq(ITEM.requestId, requestId), eq(ITEM.state, "pending")));
@@ -289,7 +291,7 @@ export async function classifyLead(me: Me, id: number, o: { numberClass: string;
   if (await isBlocked(lead)) return { ok: false, reason: "Blocked or opted out: it stays that way." };
   const numberClass = ["business", "personal", "unknown"].includes(o.numberClass) ? o.numberClass : "unknown";
   const legalBasis = o.legalBasis.trim().slice(0, 500) || null;
-  const ready = !!lead.phone && numberClass === "business" && (!!legalBasis || !legalBasisRequired()) && ["new", "failed"].includes(lead.status);
+  const ready = !!lead.phone && (numberClass === "business" || !businessLineRequired()) && (!!legalBasis || !legalBasisRequired()) && ["new", "failed"].includes(lead.status);
   await db
     .update(LEADS)
     .set({ numberClass, legalBasis, ...(ready ? { status: "ready" } : {}), updatedAt: new Date() })
@@ -382,11 +384,30 @@ export async function setOutcome(me: Me, leadId: number, o: { status: string; no
 }
 
 export async function predialCheck(me: Me, leadId: number): Promise<{ ok: true } | { ok: false; reason: Refusal | "forbidden_role" }> {
-  if (me.role !== "pt_caller") return { ok: false, reason: "forbidden_role" };
+  if (me.role !== "pt_caller" && me.role !== "admin") return { ok: false, reason: "forbidden_role" };
+  if (me.role === "admin") await adminTakeLead(me, leadId);
   const lead = await leadById(leadId);
   if (!lead) return { ok: false, reason: "not_found" };
   const r = await leadRefusal(lead, me.id);
   return r ? { ok: false, reason: r } : { ok: true };
+}
+
+/**
+ * An admin calling from the admin screen: an unassigned lead becomes theirs (a lead given to a sales rep stays the
+ * rep's), and a lead with a phone that needs no "Prepare" step moves from "new" to "ready". Every other rule still holds.
+ */
+async function adminTakeLead(me: Me, leadId: number) {
+  const took = await db
+    .update(LEADS)
+    .set({ assignedTo: me.id, updatedAt: new Date() })
+    .where(and(eq(LEADS.id, leadId), isNull(LEADS.assignedTo), sql`${LEADS.status} not in ('opt_out','blocked')`))
+    .returning({ id: LEADS.id });
+  if (took.length) await logAccess(me.id, leadId, "assign", { repId: me.id, self: true });
+  if (!prepareNeeded())
+    await db
+      .update(LEADS)
+      .set({ status: "ready", updatedAt: new Date() })
+      .where(and(eq(LEADS.id, leadId), eq(LEADS.status, "new"), sql`${LEADS.phone} is not null`));
 }
 
 /** Click-to-call: recheck everything, take the lock, then ring the rep's browser through #4 (the lead comes after). */
@@ -441,6 +462,78 @@ export async function dial(me: Me, leadId: number): Promise<{ ok: boolean; reaso
     return { ok: false, reason: "call_failed", callId: r.body.callId as string | undefined, dialError: r.body.dialError as string | undefined };
   }
   return { ok: true, callId: r.body.callId as string, status: r.body.status as string };
+}
+
+// --- Surname, work email and the offer e-mail ------------------------------------------------------------------------
+
+/** Fills the full surname and the work email from Apollo's match answer. Never overwrites a value with nothing. */
+async function storeMatches(matches: MatchedPerson[]) {
+  for (const m of matches) {
+    const set: Partial<typeof LEADS.$inferInsert> = {};
+    if (m.lastName) set.lastName = m.lastName;
+    if (m.email) set.email = m.email;
+    if (Object.keys(set).length) await db.update(LEADS).set({ ...set, updatedAt: new Date() }).where(eq(LEADS.apolloPersonId, m.apolloPersonId));
+  }
+}
+
+/** Surname and work email for leads enriched before these were stored: details only, 1 credit per person, no phone. */
+export async function fetchDetails(me: Me, ids: number[]): Promise<{ ok: boolean; reason?: string; found?: number }> {
+  adminOnly(me);
+  const unique = [...new Set(ids)];
+  if (!unique.length || unique.length > 10) return { ok: false, reason: "Choose 1 to 10 leads." };
+  const leads = await db.select().from(LEADS).where(inArray(LEADS.id, unique));
+  if (leads.length !== unique.length) return { ok: false, reason: "Some leads were not found." };
+  for (const l of leads) {
+    if (!l.approvedAt) return { ok: false, reason: `Lead ${l.id} is not approved.` };
+    if (await isBlocked(l)) return { ok: false, reason: `Lead ${l.id} is blocked.` };
+  }
+  const client = apolloFor();
+  const demo = client.kind === "mock";
+  const key = `details-${randomBytes(12).toString("hex")}`;
+  try {
+    await reserve({ key, credits: leads.length, demo, by: me.id, note: `${leads.length} people, surname and work email` });
+  } catch (e) {
+    if (e instanceof CreditRefused) return { ok: false, reason: e.message };
+    throw e;
+  }
+  try {
+    const r = await client.details(leads.map((l) => l.apolloPersonId));
+    await storeMatches(r.matches);
+    await settleOnce(key, r.creditsConsumed ?? String(r.matches.length), "details");
+    for (const l of leads) await logAccess(me.id, l.id, "details", { demo });
+    return { ok: true, found: r.matches.filter((m) => m.email || m.lastName).length };
+  } catch (e) {
+    // Refused (4xx) = nothing charged; anything else = unknown, so the reservation is settled at the full amount.
+    const refused = e instanceof ApolloHttpError && e.status >= 400 && e.status < 500;
+    await settleOnce(key, refused ? "0" : String(leads.length), refused ? `rejected: HTTP ${(e as ApolloHttpError).status}` : "unknown outcome");
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** One offer e-mail to one lead's work address, written (and editable) on the admin screen. */
+export async function sendOffer(me: Me, id: number, o: { subject: string; body: string }): Promise<{ ok: boolean; reason?: string }> {
+  adminOnly(me);
+  const lead = await leadById(id);
+  if (!lead) return { ok: false, reason: "Not found." };
+  if (lead.demo) return { ok: false, reason: "Demo lead: no e-mail is sent." };
+  if (await isBlocked(lead)) return { ok: false, reason: "This person asked not to be contacted." };
+  if (!lead.email) return { ok: false, reason: "No work e-mail for this lead yet." };
+  const subject = o.subject.trim().slice(0, 200);
+  const body = o.body.trim().slice(0, 5000);
+  if (!subject || !body) return { ok: false, reason: "Write a subject and a message." };
+  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d1d1d">${esc(body)
+    .split(/\n{2,}/)
+    .map((para) => `<p>${para.replace(/\n/g, "<br>").replace(/(https:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</p>`)
+    .join("")}</div>`;
+  const r = await sendOfferEmail(lead.email, subject, html);
+  if ("skipped" in r && r.skipped) return { ok: false, reason: "E-mail is not set up on this shop (EMAIL_FROM and a provider key)." };
+  const err = "error" in r ? r.error : undefined;
+  if (err) return { ok: false, reason: `The e-mail was not sent: ${typeof err === "string" ? err : (err as { message?: string }).message ?? "error"}` };
+  await db.update(LEADS).set({ emailedAt: new Date(), updatedAt: new Date() }).where(eq(LEADS.id, id));
+  await logAccess(me.id, id, "email", { subjectLength: subject.length });
+  return { ok: true };
 }
 
 // --- Demo clean-up ----------------------------------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/auth";
-import { ptFlags, creditCaps, dailyCallCap, dncRequired, legalBasisRequired, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
+import { ptFlags, businessLineRequired, creditCaps, dailyCallCap, dncRequired, legalBasisRequired, pilotNumbers, resultMode } from "@/lib/pt-callers/flags";
 import { creditSummary, listForRep, sweepTimeouts } from "@/lib/pt-callers/service";
 import { logAccess } from "@/lib/pt-callers/rules";
 import { humanCallMissing } from "@/lib/telnyx-call-control";
@@ -25,7 +25,8 @@ export default async function PtCallers() {
 
   await sweepTimeouts();
   const [leads, reps, requests, credits] = await Promise.all([
-    db.select().from(schema.ptLeads).orderBy(desc(schema.ptLeads.id)).limit(500),
+    // Leads with a phone first (the ones that can be called), newest first inside each group.
+    db.select().from(schema.ptLeads).orderBy(sql`${schema.ptLeads.phone} is null`, desc(schema.ptLeads.id)).limit(500),
     db.select({ id: schema.adminUsers.id, email: schema.adminUsers.email }).from(schema.adminUsers).where(eq(schema.adminUsers.role, "pt_caller")),
     db.select().from(schema.ptEnrichmentRequests).orderBy(desc(schema.ptEnrichmentRequests.sentAt)).limit(50),
     creditSummary(me),
@@ -45,12 +46,17 @@ export default async function PtCallers() {
         telnyxMissing: humanCallMissing(),
         dncRequired: dncRequired(),
         legalBasisRequired: legalBasisRequired(),
+        businessLineRequired: businessLineRequired(),
       }}
       credits={credits}
       reps={reps}
       leads={leads.map((l) => ({
         id: l.id,
         name: [l.firstName, l.lastName].filter(Boolean).join(" ") || "—",
+        firstName: l.firstName,
+        hasSurname: !!l.lastName,
+        email: l.email,
+        emailedAt: l.emailedAt?.toISOString() ?? null,
         title: l.title,
         company: l.company,
         companySize: l.companySize,

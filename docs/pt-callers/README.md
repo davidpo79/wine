@@ -49,10 +49,12 @@ Uses #4's settings: `TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`, `TELNYX_WEBRTC_CON
    1. Import (0 credits).
    2. Approve.
    3. Enrich (credits: 1, plus 8 per mobile).
-   4. Classify the number as a **business line** and record the **legal basis**.
-   5. Assign to a rep.
+   4. Classify the number as a **business line** and record the **legal basis**. Each of the two can be switched off in Settings → Outbound calls (`PT_CALLERS_BUSINESS_LINE_REQUIRED`, `PT_CALLERS_LEGAL_BASIS_REQUIRED`). With both off, a lead is *Ready* as soon as its phone arrives.
+   5. Assign to a rep, or call from the admin screen (an admin's call takes an unassigned lead; a rep's lead stays the rep's).
 
-   The lead becomes *Ready* only after the classification and the legal basis.
+   The lead becomes *Ready* only after the checks that are switched on.
+
+   The same enrichment stores the full surname and the work e-mail (never a personal e-mail). For leads enriched earlier, "get surname & e-mail" asks Apollo again without a phone reveal (1 credit). "Email offer" sends one editable pt-PT offer to the work address; replies arrive in Admin → Inbox.
 8. **Pilot.** Call the pilot numbers. Then set `PT_CALLERS_PILOT_COMPLETE=true`.
 
 **To undo:** set either switch back to anything but `true`. Dialing and real Apollo calls stop at once, because the switches are checked on every request.
@@ -61,14 +63,14 @@ Uses #4's settings: `TELNYX_API_KEY`, `TELNYX_CONNECTION_ID`, `TELNYX_WEBRTC_CON
 
 These run twice: before the rep's browser rings, and again just before the lead's phone rings.
 
-- role (assigned sales rep)
+- role (the assigned sales rep, or an admin calling a lead that is unassigned or already theirs)
 - both switches
 - not blocked or opted out (by hashed phone and hashed Apollo id)
 - not a demo lead
 - dialable status
 - `+351` number format
-- the number classed as a business line
-- a legal basis is recorded
+- the number classed as a business line (unless switched off)
+- a legal basis is recorded (unless switched off)
 - the national do-not-call check
 - approved hours
 - the pilot list
