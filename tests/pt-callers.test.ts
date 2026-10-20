@@ -617,6 +617,22 @@ dbTest("credit summary: used and remaining shown; unset caps = remaining null (n
   await assert.rejects(svc!.creditSummary(rep as never), /forbidden/);
 });
 
+dbTest("approve & get phones: one call approves and sends the lookup; more than 10 approves nothing", async () => {
+  setEnv({ ...offEnv, PT_CALLERS_APOLLO_RESULT_MODE: undefined });
+  const mk = async () => (await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `ae-${RUN}-${Math.random()}`, firstName: "Inês", title: "HR Manager", company: "Y", status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning())[0];
+  await assert.rejects(svc!.approveAndEnrich(rep as never, [1]), /forbidden/);
+  const many = await Promise.all(Array.from({ length: 11 }, mk));
+  const tooMany = await svc!.approveAndEnrich(admin, many.map((l) => l.id));
+  assert.equal(tooMany.ok, false);
+  assert.equal((await D!.sql`select 1 from pt_leads where id = any(${many.map((l) => l.id)}) and approved_at is not null`).length, 0);
+  const one = await mk();
+  const r = await svc!.approveAndEnrich(admin, [one.id]);
+  assert.equal(r.ok, true);
+  const row = await leadRow(one.id);
+  assert.ok(row.approved_at);
+  assert.equal(row.status, "enrichment_pending");
+});
+
 // Last on purpose: it removes every demo row, including the ones the tests above created.
 dbTest("demo clean-up: removes demo leads, demo lookups and demo credit rows; real leads stay; admins only", async () => {
   await assert.rejects(svc!.purgeDemo(rep as never), /forbidden/);
