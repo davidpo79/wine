@@ -52,9 +52,12 @@ export default async function PtCallers() {
       reps={reps}
       leads={leads.map((l) => ({
         id: l.id,
-        name: [l.firstName, l.lastName].filter(Boolean).join(" ") || "—",
+        name: [l.firstName, l.lastName ?? l.lastNameMasked].filter(Boolean).join(" ") || "—",
         firstName: l.firstName,
         hasSurname: !!l.lastName,
+        surnameMasked: !l.lastName && !!l.lastNameMasked,
+        manual: l.source === "manual",
+        linkedinUrl: l.linkedinUrl,
         email: l.email,
         emailedAt: l.emailedAt?.toISOString() ?? null,
         title: l.title,

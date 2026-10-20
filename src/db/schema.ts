@@ -507,6 +507,8 @@ export const ptLeads = pgTable(
     apolloPersonId: text("apollo_person_id").notNull().unique(),
     firstName: text("first_name"),
     lastName: text("last_name"),
+    lastNameMasked: text("last_name_masked"), // Apollo search shows only e.g. "Ma***s"; the full surname comes with the lookup
+    linkedinUrl: text("linkedin_url"), // public LinkedIn profile, from the same lookup
     title: text("title"),
     company: text("company"),
     companyApolloId: text("company_apollo_id"),

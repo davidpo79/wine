@@ -50,6 +50,7 @@ export async function insertSearchResults(me: Me, people: SearchPerson[], o: { d
         apolloPersonId: p.id,
         firstName: p.first_name ?? null,
         lastName: p.last_name ?? null,
+        lastNameMasked: p.last_name_obfuscated ?? null,
         title: p.title ?? null,
         company: p.organization?.name ?? null,
         companyApolloId: p.organization?.id ?? null,
@@ -567,11 +568,12 @@ async function storeMatches(matches: MatchedPerson[]) {
     const set: Partial<typeof LEADS.$inferInsert> = {};
     if (m.lastName) set.lastName = m.lastName;
     if (m.email) set.email = m.email;
+    if (m.linkedinUrl) set.linkedinUrl = m.linkedinUrl;
     if (Object.keys(set).length) await db.update(LEADS).set({ ...set, updatedAt: new Date() }).where(eq(LEADS.apolloPersonId, m.apolloPersonId));
   }
 }
 
-/** Surname and work email for leads enriched before these were stored: details only, 1 credit per person, no phone. */
+/** Surname, work email and LinkedIn for leads enriched before these were stored: details only, 1 credit per person, no phone. */
 export async function fetchDetails(me: Me, ids: number[]): Promise<{ ok: boolean; reason?: string; found?: number }> {
   adminOnly(me);
   const unique = [...new Set(ids)];

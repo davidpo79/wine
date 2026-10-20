@@ -11,6 +11,9 @@ type Lead = {
   name: string;
   firstName: string | null;
   hasSurname: boolean;
+  surnameMasked: boolean;
+  manual: boolean;
+  linkedinUrl: string | null;
   email: string | null;
   emailedAt: string | null;
   title: string | null;
@@ -316,6 +319,12 @@ export function AdminPanel(p: {
                       <td className="py-3">
                         <p className="font-semibold">
                           {l.name}
+                          {l.surnameMasked && <span className="ml-1 text-[10px] font-normal text-muted" title="Apollo hides the surname until the phone lookup">(surname hidden)</span>}
+                          {l.linkedinUrl && (
+                            <a href={l.linkedinUrl} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-sm bg-[#0A66C2] align-middle text-[9px] font-bold text-white" title="LinkedIn profile" aria-label={`${l.name} on LinkedIn`}>
+                              in
+                            </a>
+                          )}
                           {l.demo && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">DEMO</span>}
                         </p>
                         <p className="text-xs text-muted">{l.title}</p>
@@ -347,9 +356,9 @@ export function AdminPanel(p: {
                               ✉ {l.emailedAt ? "Email again" : "Email offer"}
                             </button>
                           )}
-                          {l.phone && (!l.email || !l.hasSurname) && !blockedLead(l) && !l.demo && (
-                            <button type="button" disabled={busy} onClick={() => run("details", { ids: [l.id] }, (r) => (r.found ? "Surname and e-mail added." : "Apollo has no more details for this person."))} className="text-[11px] text-azulejo underline disabled:opacity-50" title="Apollo, 1 credit">
-                              get surname &amp; e-mail (1 credit)
+                          {l.phone && (!l.email || !l.hasSurname || !l.linkedinUrl) && !blockedLead(l) && !l.demo && !l.manual && (
+                            <button type="button" disabled={busy} onClick={() => run("details", { ids: [l.id] }, (r) => (r.found ? "Details added." : "Apollo has no more details for this person."))} className="text-[11px] text-azulejo underline disabled:opacity-50" title="Apollo, 1 credit">
+                              get full name, e-mail &amp; LinkedIn (1 credit)
                             </button>
                           )}
                         </div>
