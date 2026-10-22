@@ -111,3 +111,48 @@ test("whatsapp recovery template: Telnyx by default, exact payload, from the sav
     Object.assign(process.env, keep);
   }
 });
+
+test("whatsapp template: the definition matches what the reminder sends; create posts it with the WABA id", async () => {
+  const wa = await import("../src/lib/whatsapp");
+  const d = wa.recoveryTemplateDefinition("https://vinho.prendadenatal.com");
+  assert.equal(d.name, "trilogia_retomar");
+  assert.equal(d.category, "MARKETING");
+  assert.equal(d.language, "pt_PT");
+  const body = d.components[0] as { type: string; text: string; example: { body_text: string[][] } };
+  assert.equal(body.type, "BODY");
+  assert.match(body.text, /^Olá \{\{1\}\}! A sua Trilogia 2160 \(\{\{2\}\}\)/);
+  assert.deepEqual(body.example.body_text, [["Maria", "2 caixas"]]); // two variables, two examples
+  const button = (d.components[1] as { buttons: { type: string; url: string; example: string[] }[] }).buttons[0];
+  assert.equal(button.type, "URL");
+  assert.equal(button.url, "https://vinho.prendadenatal.com/{{1}}");
+  assert.equal(button.example[0], "https://vinho.prendadenatal.com/retomar/abc123");
+
+  const keep = { ...process.env };
+  const realFetch = globalThis.fetch;
+  try {
+    delete process.env.WHATSAPP_WABA_ID;
+    process.env.TELNYX_API_KEY = "KEY_test";
+    assert.equal((await wa.createRecoveryTemplate()).ok, false); // no WABA id: nothing sent
+    process.env.WHATSAPP_WABA_ID = "840441822391639";
+    const calls: { url: string; init: RequestInit }[] = [];
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ data: { id: "t1", status: "PENDING" } }), { status: 200 });
+    }) as typeof fetch;
+    const r = await wa.createRecoveryTemplate();
+    if (/^https:/.test((await import("../src/lib/site")).SITE.url)) {
+      assert.equal(r.ok, true, r.message);
+      assert.equal(calls[0].url, "https://api.telnyx.com/v2/whatsapp/message_templates");
+      const sent = JSON.parse(String(calls[0].init.body));
+      assert.equal(sent.waba_id, "840441822391639");
+      assert.equal(sent.name, "trilogia_retomar");
+    } else {
+      assert.equal(r.ok, false); // a non-https site address never goes into a template
+      assert.equal(calls.length, 0);
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+    for (const k of Object.keys(process.env)) if (!(k in keep)) delete process.env[k];
+    Object.assign(process.env, keep);
+  }
+});

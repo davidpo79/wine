@@ -1,7 +1,7 @@
 import { OUTBOUND_FIELDS, loadOutboundSettings, savedOutbound } from "@/lib/outbound-settings";
 import { humanCallMissing } from "@/lib/telnyx-call-control";
 import { dncRequired, ptFlags } from "@/lib/pt-callers/flags";
-import { apolloKeyTestAction, outboundCallsAction } from "../../actions";
+import { apolloKeyTestAction, outboundCallsAction, whatsappTemplateCreateAction, whatsappTemplateStatusAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 
 const GROUPS: Record<string, { title: string; text: string }> = {
@@ -88,6 +88,22 @@ export async function OutboundCallsSection() {
         ))}
         <Submit>Save outbound calls settings</Submit>
       </ActionForm>
+
+      <div className="space-y-2 border-t pt-4">
+        <p className="font-semibold">WhatsApp template (abandoned checkout)</p>
+        <p className="text-xs text-muted">
+          Creates <b>trilogia_retomar</b> (Portuguese, Marketing) through Telnyx, exactly as the reminder sends it: &quot;Olá {"{{1}}"}! A sua Trilogia 2160 ({"{{2}}"}) ficou à espera…&quot; with a
+          &quot;Concluir encomenda&quot; button. Needs the WABA id saved above. Fill in the template name and sender only once the status is APPROVED.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <ActionForm action={whatsappTemplateCreateAction} className="flex items-center gap-3">
+            <Submit>Create WhatsApp template</Submit>
+          </ActionForm>
+          <ActionForm action={whatsappTemplateStatusAction} className="flex items-center gap-3">
+            <Submit>Check template status</Submit>
+          </ActionForm>
+        </div>
+      </div>
 
       <ActionForm action={apolloKeyTestAction} className="flex flex-wrap items-center gap-3 border-t pt-4">
         <span className="text-muted">Checks APOLLO_API_KEY with Apollo&apos;s free people search (1 result, 0 credits, nothing stored).</span>

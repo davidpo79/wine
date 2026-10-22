@@ -17,6 +17,7 @@ export const OUTBOUND_FIELDS = [
   { key: "TELNYX_WHATSAPP_FROM", group: "whatsapp", label: "WhatsApp number (sender)", kind: "text", hint: "E.164, the number connected in Telnyx → Messaging → WhatsApp, e.g. +351910348577" },
   { key: "WHATSAPP_TEMPLATE_RECOVERY", group: "whatsapp", label: "Abandoned-checkout template name", kind: "text", hint: "Exactly as approved in WhatsApp Manager, e.g. trilogia_retomar. Empty = no WhatsApp (SMS instead)." },
   { key: "WHATSAPP_TEMPLATE_LANG", group: "whatsapp", label: "Template language code", kind: "text", hint: "pt_PT (Portuguese, Portugal)" },
+  { key: "WHATSAPP_WABA_ID", group: "whatsapp", label: "WhatsApp Business Account id (WABA)", kind: "text", hint: "Telnyx → Messaging → WhatsApp → Business Accounts → WABA ID. Used only to create the template below; it does not switch sending on." },
   { key: "WHATSAPP_PHONE_NUMBER_ID", group: "whatsapp", label: "Meta phone number id (meta only)", kind: "text", hint: "Only for the meta provider" },
   // Admin → customer calls
   { key: "HUMAN_CALL_RECORDING", group: "human", label: "Record admin → customer calls", kind: "bool01", hint: "Tell the customer first (EU). Portugal-callers calls are never recorded." },
@@ -95,6 +96,7 @@ export function validateOutbound(input: Record<string, string>): { values: Recor
   const error =
     e("TELNYX_FROM_NUMBER", (v) => /^\+\d{7,15}$/.test(v), "Caller ID must be E.164, e.g. +351210000000.") ??
     e("TELNYX_WHATSAPP_FROM", (v) => /^\+\d{7,15}$/.test(v), "WhatsApp number must be E.164, e.g. +351910348577.") ??
+    e("WHATSAPP_WABA_ID", (v) => /^\d{6,20}$/.test(v), "WABA id: digits only, as shown in Telnyx.") ??
     e("WHATSAPP_TEMPLATE_RECOVERY", (v) => /^[a-z0-9_]{1,512}$/.test(v), "Template name: lowercase letters, digits and _ only, as in WhatsApp Manager.") ??
     e("APOLLO_WEBHOOK_BASE_URL", (v) => /^https:\/\/[^/\s]+/.test(v), "Apollo webhook base URL must start with https://.") ??
     e("PT_CALLERS_CALL_HOURS", (v) => /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(v), "Calling hours look like 09:30-18:00.") ??
