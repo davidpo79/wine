@@ -12,6 +12,12 @@ export const OUTBOUND_FIELDS = [
   { key: "TELNYX_WEBRTC_CONNECTION_ID", group: "telnyx", label: "WebRTC credential connection id", kind: "text", hint: "Holds the admins' browser phones (a Credential Connection, not the Call Control app)" },
   { key: "TELNYX_PUBLIC_KEY", group: "telnyx", label: "Webhook public key", kind: "text", hint: "Base64 Ed25519 public key (Telnyx → Account → Keys). Public, not a secret." },
   { key: "TELNYX_ASSISTANT_ID", group: "telnyx", label: "AI assistant id (abandoned-checkout call)", kind: "text", hint: "" },
+  // WhatsApp abandoned-checkout message (the template is created and approved in WhatsApp Manager / Telnyx first)
+  { key: "WHATSAPP_PROVIDER", group: "whatsapp", label: "WhatsApp provider", kind: "select", options: ["telnyx", "meta"], hint: "telnyx (default): sent through Telnyx with TELNYX_API_KEY. meta: Meta Cloud API with WHATSAPP_TOKEN (Railway)." },
+  { key: "TELNYX_WHATSAPP_FROM", group: "whatsapp", label: "WhatsApp number (sender)", kind: "text", hint: "E.164, the number connected in Telnyx → Messaging → WhatsApp, e.g. +351910348577" },
+  { key: "WHATSAPP_TEMPLATE_RECOVERY", group: "whatsapp", label: "Abandoned-checkout template name", kind: "text", hint: "Exactly as approved in WhatsApp Manager, e.g. trilogia_retomar. Empty = no WhatsApp (SMS instead)." },
+  { key: "WHATSAPP_TEMPLATE_LANG", group: "whatsapp", label: "Template language code", kind: "text", hint: "pt_PT (Portuguese, Portugal)" },
+  { key: "WHATSAPP_PHONE_NUMBER_ID", group: "whatsapp", label: "Meta phone number id (meta only)", kind: "text", hint: "Only for the meta provider" },
   // Admin → customer calls
   { key: "HUMAN_CALL_RECORDING", group: "human", label: "Record admin → customer calls", kind: "bool01", hint: "Tell the customer first (EU). Portugal-callers calls are never recorded." },
   { key: "HUMAN_CALL_REP_TIMEOUT_SECS", group: "human", label: "Your phone rings for (seconds)", kind: "int", hint: "Default 30" },
@@ -88,6 +94,8 @@ export function validateOutbound(input: Record<string, string>): { values: Recor
   const e = (k: string, ok: (v: string) => boolean, msg: string) => (values[k] !== undefined && !ok(values[k]) ? msg : null);
   const error =
     e("TELNYX_FROM_NUMBER", (v) => /^\+\d{7,15}$/.test(v), "Caller ID must be E.164, e.g. +351210000000.") ??
+    e("TELNYX_WHATSAPP_FROM", (v) => /^\+\d{7,15}$/.test(v), "WhatsApp number must be E.164, e.g. +351910348577.") ??
+    e("WHATSAPP_TEMPLATE_RECOVERY", (v) => /^[a-z0-9_]{1,512}$/.test(v), "Template name: lowercase letters, digits and _ only, as in WhatsApp Manager.") ??
     e("APOLLO_WEBHOOK_BASE_URL", (v) => /^https:\/\/[^/\s]+/.test(v), "Apollo webhook base URL must start with https://.") ??
     e("PT_CALLERS_CALL_HOURS", (v) => /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(v), "Calling hours look like 09:30-18:00.") ??
     e("PT_CALLERS_CALL_DAYS", (v) => /^[1-7]-[1-7]$/.test(v), "Calling days look like 1-5.") ??

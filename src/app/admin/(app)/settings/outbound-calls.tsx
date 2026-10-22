@@ -6,6 +6,7 @@ import { ActionForm, Submit } from "../../ui";
 
 const GROUPS: Record<string, { title: string; text: string }> = {
   telnyx: { title: "Telnyx", text: "Shared by the admin browser phone, the Portugal callers and the AI abandoned-checkout call." },
+  whatsapp: { title: "WhatsApp (abandoned checkout)", text: "The reminder 20 minutes after an unfinished checkout. Fill these in only once the template is approved by Meta; until then the reminder goes by e-mail (and SMS when set up)." },
   human: { title: "Admin → customer calls", text: "The Call button on orders and leads." },
   pt: { title: "Portugal HR callers", text: "Apollo lead list and the sales reps' calls (Admin → Portugal HR callers)." },
 };

@@ -64,3 +64,50 @@ dbTest("outbound settings: saved values win over Railway, empty falls back, the 
     await sql.end();
   }
 });
+
+test("whatsapp settings: E.164 sender and a WhatsApp-style template name; the token is never a setting", () => {
+  assert.equal(os.validateOutbound({ TELNYX_WHATSAPP_FROM: "+351910348577", WHATSAPP_TEMPLATE_RECOVERY: "trilogia_retomar", WHATSAPP_TEMPLATE_LANG: "pt_PT", WHATSAPP_PROVIDER: "telnyx" }).error, null);
+  assert.match(String(os.validateOutbound({ TELNYX_WHATSAPP_FROM: "910348577" }).error), /E\.164/);
+  assert.match(String(os.validateOutbound({ WHATSAPP_TEMPLATE_RECOVERY: "Trilogia Retomar" }).error), /Template name/);
+  assert.equal(os.OUTBOUND_FIELDS.some((f) => (f.key as string) === "WHATSAPP_TOKEN"), false);
+});
+
+test("whatsapp recovery template: Telnyx by default, exact payload, from the saved sender; missing list", async () => {
+  const wa = await import("../src/lib/whatsapp");
+  const keep = { ...process.env };
+  for (const k of ["WHATSAPP_PROVIDER", "TELNYX_WHATSAPP_FROM", "WHATSAPP_TEMPLATE_RECOVERY", "WHATSAPP_TEMPLATE_LANG", "TELNYX_API_KEY"]) delete process.env[k];
+  try {
+    assert.deepEqual(wa.whatsappMissing(), ["WHATSAPP_TEMPLATE_RECOVERY", "TELNYX_API_KEY", "TELNYX_WHATSAPP_FROM"]);
+    Object.assign(process.env, { TELNYX_API_KEY: "KEY_test", TELNYX_WHATSAPP_FROM: "+351910348577", WHATSAPP_TEMPLATE_RECOVERY: "trilogia_retomar" });
+    assert.equal(wa.whatsappConfigured(), true);
+    const calls: { url: string; init: RequestInit }[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response(JSON.stringify({ data: { id: "m1" } }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      await wa.sendRecoveryTemplate("+351916926644", "Ana", "2 caixas", "retomar/abc.def");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    assert.equal(calls[0].url, "https://api.telnyx.com/v2/messages/whatsapp");
+    assert.equal((calls[0].init.headers as Record<string, string>).Authorization, "Bearer KEY_test");
+    const body = JSON.parse(String(calls[0].init.body));
+    assert.equal(body.from, "+351910348577");
+    assert.equal(body.to, "+351916926644");
+    assert.equal(body.whatsapp_message.type, "template");
+    assert.equal(body.whatsapp_message.template.name, "trilogia_retomar");
+    assert.equal(body.whatsapp_message.template.language.code, "pt_PT");
+    assert.deepEqual(body.whatsapp_message.template.components, [
+      { type: "body", parameters: [{ type: "text", text: "Ana" }, { type: "text", text: "2 caixas" }] },
+      { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: "retomar/abc.def" }] },
+    ]);
+    globalThis.fetch = (async () => new Response(JSON.stringify({ errors: [{ code: "40008" }] }), { status: 400 })) as typeof fetch;
+    await assert.rejects(wa.sendRecoveryTemplate("+351916926644", "Ana", "2 caixas", "retomar/x"), /Telnyx WhatsApp 400/);
+    globalThis.fetch = realFetch;
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in keep)) delete process.env[k];
+    Object.assign(process.env, keep);
+  }
+});
