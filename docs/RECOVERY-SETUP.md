@@ -33,7 +33,7 @@ Per David's Telnyx doc (WhatsApp Business is a Telnyx product, Cloud API reselle
 2. Pick the number (a Telnyx number with a messaging profile, or your own number on the WABA). It must not be active in the WhatsApp app. For a landline/VoIP number choose voice verification.
 3. Set the display name (approval up to 48 h) and complete the business profile **before** submitting templates.
 4. Create the template below (category MARKETING, language `pt_PT`, with example values), via Portal or `POST /v2/whatsapp/message_templates`.
-5. Railway variables: `WHATSAPP_PROVIDER=telnyx`, `TELNYX_WHATSAPP_FROM=+351...`, `WHATSAPP_TEMPLATE_RECOVERY=trilogia_retomar`, `WHATSAPP_TEMPLATE_LANG=pt_PT`. The app sends with `POST /v2/messages/whatsapp`.
+5. Admin → Settings → Outbound calls → WhatsApp (or the same Railway variables): provider `telnyx` (the default), `TELNYX_WHATSAPP_FROM=+351...`, `WHATSAPP_TEMPLATE_RECOVERY=trilogia_retomar`, `WHATSAPP_TEMPLATE_LANG=pt_PT`. Fill them in only once the template is approved. The app sends with `POST /v2/messages/whatsapp`; when WhatsApp refuses a message, the same reminder goes by SMS (if SMS is set up).
 
 ## Email through Telnyx (optional, instead of Resend)
 1. `POST /v2/email_domains` with e.g. `mail.prendadenatal.com`, add the ownership TXT, DKIM, SPF and DMARC records it returns (Namecheap), then verify. New domains have a warm-up cap.

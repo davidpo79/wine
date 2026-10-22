@@ -8,6 +8,7 @@ import { lisbonDate, lisbonToUtc } from "./time";
 import { sendRecoveryEmail } from "./email";
 import { dialCall, sendSms, telnyxConfigured } from "./telnyx";
 import { sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
+import { loadOutboundSettings } from "./outbound-settings";
 
 // Abandoned-checkout follow-ups. Every step re-checks the order before acting, so a payment at any
 // moment stops the sequence. Messages need consent_messages, calls need consent_calls.
@@ -100,7 +101,7 @@ function bundleLabel(o: Order) {
 }
 
 async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Order) {
-  const first = (order.customerName ?? "").split(" ")[0] || "olá";
+  const first = (order.customerName ?? "").trim().split(/\s+/)[0] ?? "";
   const link = resumeUrl(order.id);
   const result: Record<string, unknown> = {};
   const channels: string[] = [];
@@ -115,15 +116,19 @@ async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Or
       );
     }
     if (step.step === "reminder_20m" && order.phone) {
+      let whatsappSent = false;
       if (whatsappConfigured()) {
         channels.push("whatsapp");
-        result.whatsapp = await sendRecoveryTemplate(order.phone, first, bundleLabel(order), resumePath(order.id)).then(
-          () => "sent",
+        // A template parameter cannot be empty: no first name → "cliente".
+        result.whatsapp = await sendRecoveryTemplate(order.phone, first || "cliente", bundleLabel(order), resumePath(order.id)).then(
+          () => ((whatsappSent = true), "sent"),
           (e) => `error: ${e}`,
         );
-      } else if (telnyxConfigured("sms")) {
+      }
+      // No WhatsApp, or WhatsApp refused (no WhatsApp on that number, template paused...): the reminder still goes by SMS.
+      if (!whatsappSent && telnyxConfigured("sms")) {
         channels.push("sms");
-        const text = `Wine Portugal: Olá ${first}, a sua Trilogia 2160 (${bundleLabel(order)}) ficou por concluir. Retome aqui: ${link} Encomendas até 30/11 chegam antes do Natal. Para não receber mais: ${stopUrl(order.id)}`;
+        const text = `Wine Portugal: ${first ? `Olá ${first}, a` : "A"} sua Trilogia 2160 (${bundleLabel(order)}) ficou por concluir. Retome aqui: ${link} Encomendas até 30/11 chegam antes do Natal. Para não receber mais: ${stopUrl(order.id)}`;
         result.sms = await sendSms(order.phone, text).then(
           () => "sent",
           (e) => `error: ${e}`,
@@ -145,13 +150,16 @@ async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Or
     );
   }
 
-  const failed = Object.values(result).some((v) => (typeof v === "string" && v.startsWith("error")) || (typeof v === "object" && v && "error" in v));
+  // A WhatsApp error that the SMS backup covered is not a failed step.
+  const covered = (k: string) => k === "whatsapp" && result.sms === "sent";
+  const failed = Object.entries(result).some(([k, v]) => !covered(k) && ((typeof v === "string" && v.startsWith("error")) || (typeof v === "object" && v && "error" in v)));
   if (channels.length === 0) return { status: "skipped", result: { reason: "no_channel_available" }, channels };
   return { status: failed ? "failed" : "done", result, channels };
 }
 
 /** Processes due steps. Safe to run concurrently (rows are claimed with SKIP LOCKED). */
 export async function processDueRecovery(limit = 20) {
+  await loadOutboundSettings(); // the WhatsApp settings saved in Admin → Settings (refreshed at most every 15 s)
   const claimed = await db.execute<{ id: number }>(sql`
     update recovery_steps set status = 'running', attempted_at = now()
     where id in (select id from recovery_steps where status = 'pending' and scheduled_at <= now() order by scheduled_at limit ${limit} for update skip locked)

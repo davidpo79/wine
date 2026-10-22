@@ -635,3 +635,29 @@ export async function apolloKeyTestAction(_: FormState, _fd: FormData): Promise<
     return { error: e instanceof ApolloTimeout ? "Apollo did not answer within 15 seconds." : `Could not reach Apollo: ${e instanceof Error ? e.message : String(e)}` };
   }
 }
+
+export async function whatsappTemplateCreateAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const { loadOutboundSettings } = await import("@/lib/outbound-settings");
+  await loadOutboundSettings(true);
+  const { createRecoveryTemplate } = await import("@/lib/whatsapp");
+  try {
+    const r = await createRecoveryTemplate();
+    return r.ok ? { ok: r.message } : { error: r.message };
+  } catch (e) {
+    return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+export async function whatsappTemplateStatusAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const { loadOutboundSettings } = await import("@/lib/outbound-settings");
+  await loadOutboundSettings(true);
+  const { recoveryTemplateStatus } = await import("@/lib/whatsapp");
+  try {
+    const r = await recoveryTemplateStatus();
+    return r.ok ? { ok: r.message } : { error: r.message };
+  } catch (e) {
+    return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}

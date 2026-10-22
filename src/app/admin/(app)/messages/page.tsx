@@ -4,7 +4,8 @@ import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { telnyxConfigured } from "@/lib/telnyx";
-import { whatsappConfigured } from "@/lib/whatsapp";
+import { whatsappConfigured, whatsappMissing } from "@/lib/whatsapp";
+import { loadOutboundSettings } from "@/lib/outbound-settings";
 import { STEPS, type StepKey } from "@/lib/recovery";
 import { lisbonDateTime } from "@/lib/time";
 import { testEmailAction } from "../../actions";
@@ -14,6 +15,7 @@ const Dot = ({ ok }: { ok: boolean }) => <span className={`mr-2 inline-block h-2
 
 export default async function MessagesPage() {
   const me = await requireAdmin({ role: "admin" });
+  await loadOutboundSettings();
   const settings = await getSettings();
   const telnyxEmail = process.env.EMAIL_PROVIDER === "telnyx";
   const emailOk = !!process.env.EMAIL_FROM && (telnyxEmail ? !!process.env.TELNYX_API_KEY : !!process.env.RESEND_API_KEY);
@@ -31,7 +33,7 @@ export default async function MessagesPage() {
   const rows: [string, boolean, string][] = [
     ["Email (customer emails)", emailOk, emailOk ? `${telnyxEmail ? "Telnyx" : "Resend"} · from ${process.env.EMAIL_FROM}` : `Missing: ${[!process.env.EMAIL_FROM && "EMAIL_FROM", !telnyxEmail && !process.env.RESEND_API_KEY && "RESEND_API_KEY"].filter(Boolean).join(", ")}`],
     ["Alerts to you (new order, new message)", !!process.env.ADMIN_ALERT_EMAIL, process.env.ADMIN_ALERT_EMAIL ? `to ${process.env.ADMIN_ALERT_EMAIL}` : "ADMIN_ALERT_EMAIL not set (the Inbox in the admin still works)"],
-    ["WhatsApp (abandoned checkout)", whatsappConfigured(), whatsappConfigured() ? "configured" : "not configured: needs an approved WhatsApp template (WHATSAPP_TEMPLATE_RECOVERY) and a sender"],
+    ["WhatsApp (abandoned checkout)", whatsappConfigured(), whatsappConfigured() ? "configured (Settings → Outbound calls → WhatsApp)" : `not configured: missing ${whatsappMissing().join(", ")} (Settings → Outbound calls → WhatsApp)`],
     ["SMS (fallback when WhatsApp fails)", telnyxConfigured("sms"), telnyxConfigured("sms") ? "Telnyx" : "not configured (TELNYX_API_KEY, TELNYX_FROM_NUMBER)"],
     ["AI phone call (abandoned checkout)", telnyxConfigured("voice"), telnyxConfigured("voice") ? "Telnyx" : "not configured"],
     ["Abandoned-checkout follow-up", settings.recovery_enabled, settings.recovery_enabled ? "on (Settings)" : "off in Settings"],
