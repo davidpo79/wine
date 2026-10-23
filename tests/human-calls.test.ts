@@ -292,3 +292,12 @@ dbTest("webhook route: bad signature refused before anything is read", async () 
   const res = await POST(new Request("https://wine.test/api/telnyx/human-call-webhook", { method: "POST", body: "{}", headers: { "telnyx-signature-ed25519": "AAAA", "telnyx-timestamp": String(Math.floor(Date.now() / 1000)) } }));
   assert.equal(res.status, 400);
 });
+
+test("an incoming call to our number is forwarded, shown as our number; nothing else is", () => {
+  const inc = { direction: "incoming", call_control_id: "v3:in", to: "+351210210787", from: "+351912345678" };
+  assert.deepEqual(tcc.inboundForward("call.initiated", inc, "+351916926644"), { callControlId: "v3:in", to: "+351916926644", from: "+351210210787" });
+  assert.equal(tcc.inboundForward("call.initiated", inc, ""), null); // not configured: unchanged behaviour
+  assert.equal(tcc.inboundForward("call.initiated", { ...inc, direction: "outgoing" }, "+351916926644"), null); // our own dials and the forwarded leg
+  assert.equal(tcc.inboundForward("call.answered", inc, "+351916926644"), null);
+  assert.equal(tcc.inboundForward("call.initiated", inc, "+351210210787"), null); // never forward the number to itself
+});
