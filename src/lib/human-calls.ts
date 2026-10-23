@@ -24,6 +24,8 @@ import {
   dialCustomerLeg,
   dialRepLeg,
   hangupLeg,
+  inboundForward,
+  transferInbound,
   sendDtmf,
   humanCallConfig,
   humanCallMissing,
@@ -371,6 +373,8 @@ export async function handleHumanCallEvent(evt: { event_type?: string; occurred_
     return;
   }
   if (!ccid) return;
+  const fwd = inboundForward(type, p);
+  if (fwd) return void (await transferInbound(fwd).catch((e) => log("inbound forward", ccid, errText(e))));
 
   let found = await resolveLeg(ccid);
   if (!found) {

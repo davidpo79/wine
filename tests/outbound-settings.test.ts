@@ -156,3 +156,8 @@ test("whatsapp template: the definition matches what the reminder sends; create 
     Object.assign(process.env, keep);
   }
 });
+
+test("the inbound forward number must be E.164", () => {
+  assert.match(String(os.validateOutbound({ TELNYX_INBOUND_FORWARD_TO: "916926644" }).error), /E\.164/);
+  assert.equal(os.validateOutbound({ TELNYX_INBOUND_FORWARD_TO: "+351916926644" }).error, null);
+});

@@ -232,6 +232,21 @@ export async function startRecording(customerCallControlId: string, callId: stri
   await tx("POST", `${cc(customerCallControlId)}/record_start`, { channels: "dual", format: "mp3", command_id: `hc-rec-${callId}` });
 }
 
+/**
+ * An incoming call to our number (the Call Control app answers every number on it, so Telnyx's own number-level
+ * forwarding is refused): ring TELNYX_INBOUND_FORWARD_TO instead. The forwarded leg shows our number as the caller,
+ * because Portuguese carriers refuse a caller ID we do not own ("No Routes Found"). null = not ours to forward.
+ */
+export function inboundForward(type: string, p: Record<string, unknown>, forwardTo = E().TELNYX_INBOUND_FORWARD_TO ?? "") {
+  if (type !== "call.initiated" || p.direction !== "incoming" || !p.call_control_id) return null;
+  const from = String(p.to ?? "");
+  if (!/^\+\d{7,15}$/.test(forwardTo) || !/^\+\d{7,15}$/.test(from) || forwardTo === from) return null;
+  return { callControlId: String(p.call_control_id), to: forwardTo, from };
+}
+
+export const transferInbound = (f: { callControlId: string; to: string; from: string }) =>
+  tolerant(`${cc(f.callControlId)}/transfer`, { to: f.to, from: f.from, timeout_secs: humanCallConfig().customerTimeoutSecs, command_id: `fwd-${f.callControlId}` });
+
 export const hangupLeg = (callControlId: string) => tolerant(`${cc(callControlId)}/hangup`, {});
 
 /** Keypad tones played into the other side's line (a switchboard menu: "press 1 for HR"). */

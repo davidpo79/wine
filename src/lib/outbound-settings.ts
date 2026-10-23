@@ -8,6 +8,7 @@ import { db, schema } from "@/db";
 export const OUTBOUND_FIELDS = [
   // Telnyx, shared by the admin browser phone (#4), the Portugal callers and the AI recovery call
   { key: "TELNYX_FROM_NUMBER", group: "telnyx", label: "Caller ID (from number)", kind: "text", hint: "E.164, e.g. +351210000000" },
+  { key: "TELNYX_INBOUND_FORWARD_TO", group: "telnyx", label: "Forward incoming calls to", kind: "text", hint: "E.164, e.g. +351916926644. A call to our Telnyx number rings this phone (shown as our number). Empty = incoming calls are not answered." },
   { key: "TELNYX_CONNECTION_ID", group: "telnyx", label: "Call Control application id", kind: "text", hint: "Places every call (Telnyx → Voice → Call Control)" },
   { key: "TELNYX_WEBRTC_CONNECTION_ID", group: "telnyx", label: "WebRTC credential connection id", kind: "text", hint: "Holds the admins' browser phones (a Credential Connection, not the Call Control app)" },
   { key: "TELNYX_PUBLIC_KEY", group: "telnyx", label: "Webhook public key", kind: "text", hint: "Base64 Ed25519 public key (Telnyx → Account → Keys). Public, not a secret." },
@@ -95,6 +96,7 @@ export function validateOutbound(input: Record<string, string>): { values: Recor
   const e = (k: string, ok: (v: string) => boolean, msg: string) => (values[k] !== undefined && !ok(values[k]) ? msg : null);
   const error =
     e("TELNYX_FROM_NUMBER", (v) => /^\+\d{7,15}$/.test(v), "Caller ID must be E.164, e.g. +351210000000.") ??
+    e("TELNYX_INBOUND_FORWARD_TO", (v) => /^\+\d{7,15}$/.test(v), "Forward incoming calls to: E.164, e.g. +351916926644.") ??
     e("TELNYX_WHATSAPP_FROM", (v) => /^\+\d{7,15}$/.test(v), "WhatsApp number must be E.164, e.g. +351910348577.") ??
     e("WHATSAPP_WABA_ID", (v) => /^\d{6,20}$/.test(v), "WABA id: digits only, as shown in Telnyx.") ??
     e("WHATSAPP_TEMPLATE_RECOVERY", (v) => /^[a-z0-9_]{1,512}$/.test(v), "Template name: lowercase letters, digits and _ only, as in WhatsApp Manager.") ??
