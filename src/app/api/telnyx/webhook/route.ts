@@ -1,11 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { assistantFor, decodeState, hangup, sendSms, startAssistant, telnyxConfigured, verifyTelnyxWebhook } from "@/lib/telnyx";
-import { marketCutoffIso } from "@/lib/email";
+import { marketCutoffIso, sendRecoveryEmail } from "@/lib/email";
 import { guideFor } from "@/lib/ebook";
 import { fmt, getDict } from "@/lib/i18n";
 import { isLocale, LOCALE_INFO } from "@/lib/markets";
-import { callScript, resumeUrl, saidStop, stopRecovery } from "@/lib/recovery";
+import { callScript, resumeUrl, saidStop, stopRecovery, stopUrl } from "@/lib/recovery";
 import { logOrderEvent } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         const settings = await getSettings();
         // pt: "30/11/2026" as before; ru: "30.11.2026". The assistant speaks the order's language (pt or ru).
         const cutoff = new Date(marketCutoffIso(settings, order.country)).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" });
-        const script = callScript(order, cutoff, guideFor(settings, locale));
+        const script = callScript(order, cutoff, guideFor(settings, locale), telnyxConfigured("sms") ? "sms" : "email");
         await startAssistant(p.call_control_id, { ...script, state, assistantId: assistantFor(locale) });
         await merge({ outcome: "assistant_started" });
       }
@@ -50,9 +50,18 @@ export async function POST(req: Request) {
       await logOrderEvent(order.id, "recovery:ai_call:hangup", { cause: p.hangup_cause });
     } else if (type === "call.conversation.ended") {
       await merge({ conversation: "ended" });
-      // The assistant offers to send the link by SMS; send it if the customer allowed messages.
-      if (order.consentMessages && order.phone && telnyxConfigured("sms") && !["paid", "preparing", "shipped", "delivered"].includes(order.status)) {
-        await sendSms(order.phone, fmt(getDict(locale).messages.recovery.callSms, { link: resumeUrl(order.id) })).catch(() => {});
+      // The assistant offers the payment link by SMS, or by email while Telnyx SMS is not set up (the same choice
+      // callScript made); send it if the customer allowed messages.
+      if (order.consentMessages && !["paid", "preparing", "shipped", "delivered"].includes(order.status)) {
+        if (telnyxConfigured("sms")) {
+          if (order.phone) await sendSms(order.phone, fmt(getDict(locale).messages.recovery.callSms, { link: resumeUrl(order.id) })).catch(() => {});
+        } else if (order.email) {
+          const sent = await sendRecoveryEmail(order, "first", resumeUrl(order.id), stopUrl(order.id)).then(
+            (r) => (r && "skipped" in r ? "not_configured" : "sent"),
+            (e) => `error: ${e}`,
+          );
+          await merge({ link_email: sent });
+        }
       }
     } else if (type === "call.conversation_insights.generated") {
       const text = JSON.stringify(p).toLowerCase();

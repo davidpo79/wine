@@ -261,7 +261,15 @@ test("createRecoveryTemplate submits only the missing languages; status lists ev
 
 test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", async () => {
   const ptScript = recovery.callScript(order(), "30/11/2026");
-  assert.match(ptScript.greeting, /^Olá, Ana! Fala o assistente virtual da Wine Portugal, um sistema de inteligência artificial\./);
+  assert.match(ptScript.greeting, /^Olá, Ana! Daqui fala a Beatriz, a assistente de inteligência artificial da Wine Portugal\. Esta chamada pode ser gravada\./);
+  assert.match(ptScript.instructions, /link por SMS/);
+  // No Telnyx SMS yet: the link goes by email after the call, in the order's language.
+  const ptEmail = recovery.callScript(order(), "30/11/2026", true, "email");
+  assert.match(ptEmail.instructions, /link de pagamento por email logo a seguir à chamada/);
+  assert.doesNotMatch(ptEmail.instructions, /SMS/);
+  const ruEmail = recovery.callScript(order({ locale: "ru" }), "30.11.2026", true, "email");
+  assert.match(ruEmail.instructions, /по электронной почте/);
+  assert.doesNotMatch(ruEmail.instructions, /SMS/);
 
   const ru = recovery.callScript(order({ locale: "ru", customerName: "Ольга Иванова", qtyBoxes: 2 }), "30.11.2026");
   assert.match(ru.greeting, /^Здравствуйте, Ольга!/);
@@ -311,8 +319,8 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
       return new Response(JSON.stringify({ data: { call_control_id: "cc1" } }), { status: 200 });
     }) as typeof fetch;
     try {
-      const { startAssistant, LANGUAGE_RULE } = await import("../src/lib/telnyx");
-      const withRule = `i\n\n${LANGUAGE_RULE}`;
+      const { startAssistant, LANGUAGE_RULE, HUMAN_RULE } = await import("../src/lib/telnyx");
+      const withRule = `i\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}`;
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("ru") });
       assert.deepEqual(posted[0].body.assistant, { id: "a-ru", instructions: withRule });
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("pt") });

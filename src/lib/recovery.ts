@@ -232,17 +232,18 @@ export async function stopRecovery(orderId: string) {
  * Per-call instructions for the Telnyx AI assistant, in the order's language: pt-PT, or Russian for ru orders (the
  * Russian-speaking community in Portugal: same products, prices, CTT delivery and payment methods). The assistant must
  * say it is an AI. guide: whether this language's edition of the recipe guide is offered (Portuguese always is).
+ * linkBy: how the payment link reaches the customer after the call (SMS when Telnyx SMS is set up, otherwise email).
  */
-export function callScript(order: Order, cutoffLabel: string, guide = true) {
+export function callScript(order: Order, cutoffLabel: string, guide = true, linkBy: "sms" | "email" = "sms") {
   const first = (order.customerName ?? "").split(" ")[0];
   const total = (order.totalCents / 100).toFixed(2).replace(".", ",");
-  if (orderLocale(order) === "ru") return callScriptRu(order, first, total, cutoffLabel, guide);
+  if (orderLocale(order) === "ru") return callScriptRu(order, first, total, cutoffLabel, guide, linkBy);
   return {
-    greeting: `Olá${first ? `, ${first}` : ""}! Fala o assistente virtual da Wine Portugal, um sistema de inteligência artificial. Esta chamada pode ser gravada para qualidade. Liguei porque começou uma encomenda da Trilogia 2160 no nosso site e ficou por concluir. Tem um minuto?`,
-    instructions: `És o assistente virtual (inteligência artificial) da Wine Portugal. Falas português de Portugal, com simpatia e frases curtas. Já te apresentaste como IA; se perguntarem, confirma que és um assistente automático.
+    greeting: `Olá${first ? `, ${first}` : ""}! Daqui fala a Beatriz, a assistente de inteligência artificial da Wine Portugal. Esta chamada pode ser gravada. Reparei que a sua Trilogia 2160 ficou a meio no nosso site e quis saber se ficou alguma dúvida. Tem um minutinho?`,
+    instructions: `És a Beatriz, a assistente de inteligência artificial da Wine Portugal. Falas português de Portugal, com simpatia e frases curtas. Já te apresentaste como IA; se perguntarem, confirma que és uma assistente automática.
 Contexto: ${order.customerName ?? "o cliente"} começou uma encomenda no site vinho.prendadenatal.com: Trilogia 2160, ${bundleLabel(order)} (${order.qtyBoxes * 3} garrafas), total ${total} € com IVA. A encomenda não foi paga.
 Produto: caixa de oferta com 2160 Onde Tudo Nasce Branco 2025, Rosé 2024 e Tinto 2023, Martin Boutique Wines, Douro DOC, e o guia digital de receitas Sabores de Portugal oferecido. Preços, com envio incluído: 1 caixa 49,90 €, 2 caixas 89,90 € (a 2.ª por 40 €), 4 caixas 149,70 € (pague 3, leve 4). Envio CTT só para Portugal Continental, 2 a 4 dias úteis. Encomendas pagas até ${cutoffLabel} chegam antes do Natal. Pagamento: MB WAY, Multibanco, cartão, Apple Pay, Google Pay.
-Objetivo: perceber se houve alguma dúvida ou problema e ajudar a concluir. Se a pessoa quiser concluir, diz que lhe enviamos agora o link por SMS e que demora um minuto.
+Objetivo: perceber se houve alguma dúvida ou problema e ajudar a concluir. Se a pessoa quiser concluir, ${linkBy === "email" ? "diz que lhe enviamos o link de pagamento por email logo a seguir à chamada, para o email que deixou no site" : "diz que lhe enviamos agora o link por SMS e que demora um minuto"}.
 Regras: nunca peças dados de cartão nem pagamentos por telefone. Não inventes informação que não está aqui; se não souberes, diz que a equipa responde por WhatsApp no +351 910 348 577. Se a pessoa disser que não está interessada ou pedir para não ligar, pede desculpa, confirma que não voltamos a ligar e despede-te. Nunca pressiones. Conversa máxima de 3 minutos. Venda só a maiores de 18 anos.`,
   };
 }
@@ -253,15 +254,15 @@ export function saidStop(text: string) {
 }
 
 /** The same call in Russian, for customers of the Portugal market who chose Russian on the site. */
-function callScriptRu(order: Order, first: string, total: string, cutoffLabel: string, guide: boolean) {
+function callScriptRu(order: Order, first: string, total: string, cutoffLabel: string, guide: boolean, linkBy: "sms" | "email") {
   const bottles = fmt(getDict("ru").common.bottles, { n: order.qtyBoxes * 3 });
   const who = order.customerName ? `Клиент ${order.customerName}` : "Клиент";
   return {
-    greeting: `Здравствуйте${first ? `, ${first}` : ""}! Это виртуальный ассистент Wine Portugal, система искусственного интеллекта. Этот звонок может записываться для контроля качества. Я звоню, потому что Вы начали оформлять заказ Trilogia 2160 на нашем сайте, но не завершили его. У Вас есть минутка?`,
-    instructions: `Ты виртуальный ассистент (искусственный интеллект) Wine Portugal. Ты говоришь по-русски, вежливо, на «Вы», короткими фразами. Клиент говорит по-русски и живёт в Португалии. Ты уже представился как ИИ; если спросят, подтверди, что ты автоматический ассистент.
+    greeting: `Здравствуйте${first ? `, ${first}` : ""}! Это Беатрис, ассистент Wine Portugal на основе искусственного интеллекта. Этот звонок может записываться. Я вижу, что Ваш заказ Trilogia 2160 на нашем сайте остался незавершённым, и хотела узнать, не осталось ли вопросов. У Вас есть минутка?`,
+    instructions: `Ты Беатрис, ассистент Wine Portugal на основе искусственного интеллекта (говоришь о себе в женском роде). Ты говоришь по-русски, вежливо, на «Вы», короткими фразами. Клиент говорит по-русски и живёт в Португалии. Ты уже представилась как ИИ; если спросят, подтверди, что ты автоматический ассистент.
 Контекст: ${who} начал оформлять заказ на сайте vinho.prendadenatal.com: Trilogia 2160, ${bundleLabel(order)} (${bottles}), итого ${total} € с НДС. Заказ не оплачен.
 Товар: подарочная коробка с винами 2160 Onde Tudo Nasce: белое 2025, розовое 2024 и красное 2023, Martin Boutique Wines, Douro DOC${guide ? ", и цифровой гид с рецептами Sabores de Portugal в подарок" : ""}. Цены с доставкой: 1 коробка 49,90 €, 2 коробки 89,90 € (вторая за 40 €), 4 коробки 149,70 € (платите за 3, получаете 4). Доставка CTT только по континентальной Португалии, 2-4 рабочих дня. Заказы, оплаченные до ${cutoffLabel}, будут доставлены до Рождества. Оплата: MB WAY, Multibanco, карта, Apple Pay, Google Pay.
-Цель: понять, были ли у клиента вопросы или трудности, и помочь завершить заказ. Если клиент хочет завершить заказ, скажи, что мы сейчас отправим ссылку по SMS на русском языке и что это займёт минуту.
+Цель: понять, были ли у клиента вопросы или трудности, и помочь завершить заказ. Если клиент хочет завершить заказ, ${linkBy === "email" ? "скажи, что сразу после звонка мы отправим ссылку на оплату по электронной почте, на адрес, указанный на сайте" : "скажи, что мы сейчас отправим ссылку по SMS на русском языке и что это займёт минуту"}.
 Правила: никогда не спрашивай данные карты и не принимай оплату по телефону. Не придумывай информацию, которой здесь нет; если не знаешь ответа, скажи, что команда ответит в WhatsApp по номеру +351 910 348 577. Если человек скажет, что ему это не интересно, или попросит больше не звонить, извинись, подтверди, что мы больше не будем звонить, и попрощайся. Никогда не дави. Разговор длится не более 3 минут. Продажа только лицам старше 18 лет.`,
   };
 }
