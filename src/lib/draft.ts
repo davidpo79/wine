@@ -98,6 +98,15 @@ export const GIFT_CARD_SKU = "gift-card";
 
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, n) : undefined);
 
+/**
+ * Whether the abandoned-checkout follow-ups start for this order: once we can reach the person (email + phone), in any
+ * language the site speaks (email, SMS and WhatsApp follow the order's language; each step keeps its own rules: the
+ * AI call only for pt and ru orders on +351 numbers, WhatsApp only in an approved template language).
+ */
+export function shouldScheduleRecovery(settings: Pick<Settings, "recovery_enabled">, o: Pick<Order, "locale" | "recoveryScheduledAt" | "email" | "phone">) {
+  return !!(settings.recovery_enabled && isLocale(o.locale) && !o.recoveryScheduledAt && o.email && o.phone && /@/.test(o.email));
+}
+
 /** Autosave: stores whatever was typed (lightly cleaned). Final validation happens in validateForPayment. */
 export async function updateDraft(order: Order, patch: DraftPatch) {
   const set: Partial<typeof schema.orders.$inferInsert> = { lastSavedAt: new Date() };
@@ -169,8 +178,7 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
 
   // Abandoned-checkout follow-up starts once we can reach the person (email + phone).
   const settings = await getSettings();
-  // Follow-ups (messages, calls, email) exist in Portuguese only.
-  if (settings.recovery_enabled && updated.locale === "pt" && !updated.recoveryScheduledAt && updated.email && updated.phone && /@/.test(updated.email)) {
+  if (shouldScheduleRecovery(settings, updated) && updated.email) {
     await db.update(schema.orders).set({ recoveryScheduledAt: new Date() }).where(eq(schema.orders.id, order.id));
     await scheduleRecovery(order.id, updated.email).catch((e) => console.error("[recovery] schedule", e));
   }

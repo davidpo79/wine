@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiErrorsFor } from "@/lib/i18n";
 import { loadDraft, validateForPayment } from "@/lib/draft";
 import { startPayment } from "@/lib/payments";
 import { getSettings } from "@/lib/settings";
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
     .safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
-  if (!order || order.status !== "pending_payment") return Response.json({ error: "Esta encomenda já não está disponível." }, { status: 409 });
+  if (!order || order.status !== "pending_payment") return Response.json({ error: apiErrorsFor(order).orderUnavailable }, { status: 409 });
   const errors = validateForPayment(order, await enabledCountries(await getSettings()));
   if (Object.keys(errors).length) return Response.json({ errors }, { status: 422 });
   const r = await startPayment(order, parsed.data.method, { phone: parsed.data.phone, token: parsed.data.t });

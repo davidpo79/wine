@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { newEventId } from "@/lib/track-client";
 import { CUSTOMER_KEY, useBuy } from "./BuyContext";
 import { dealOf, dealText } from "@/lib/offers";
+import { useI18n } from "@/lib/i18n/client";
 
 const SEEN = "wp_exit_seen";
 const LEAD = "wp_lead";
@@ -35,6 +36,7 @@ function flag(store: "local" | "session", key: string, set = false) {
  */
 export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: number }) {
   const buy = useBuy();
+  const { locale } = useI18n(); // stored on the lead: the code and reminder emails go out in this language
   const ref = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<"form" | "sending" | "done">("form");
   const [lead, setLead] = useState<{ email: string; token: string; plus: boolean } | null>(null);
@@ -98,7 +100,7 @@ export function ExitIntent({ percent, maxQty }: { percent: number; maxQty: numbe
       const r = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: fd.get("name"), email: fd.get("email"), consent: fd.get("consent") === "on", website: fd.get("website") || undefined, event_id: eventId }),
+        body: JSON.stringify({ name: fd.get("name"), email: fd.get("email"), consent: fd.get("consent") === "on", website: fd.get("website") || undefined, event_id: eventId, locale }),
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok || !data.code) throw new Error(data.error ?? "Não foi possível enviar. Tente novamente.");

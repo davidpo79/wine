@@ -10,7 +10,7 @@ import { I18nProvider } from "@/lib/i18n/client";
 import { dateFor, deliveryDaysFor, getDict } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n/paths";
 import { loadDraft } from "@/lib/draft";
-import { COUNTRIES_FOR_LOCALE, defaultCountry, isCountry, isLocale, type Country, type Locale } from "@/lib/markets";
+import { COUNTRIES_FOR_LOCALE, defaultCountry, isCountry, isLocale, LOCALE_INFO, type Country, type Locale } from "@/lib/markets";
 import { enabledCountries } from "@/lib/visitor";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +39,9 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
     .map((r) => ({ name: r.name, text: r.text!, city: undefined, source: `${"★".repeat(r.rating)} · ${getDict(locale).review.verified}` }));
   return (
     <I18nProvider locale={locale} country={wanted} dict={getDict(locale)} guide={guideFor(settings, locale)}>
+      {/* data-locale: the cookie banner (outside the provider) speaks the checkout's language, also on a resumed
+          order (/retomar/<token> -> /checkout?o=&t=, no ?l= in the URL and maybe no language cookie on that device). */}
+      <div lang={LOCALE_INFO[locale].htmlLang} data-locale={locale} style={{ display: "contents" }}>
       <CheckoutPage
         bundles={bundles}
         reviews={verified.length ? verified : locale === "pt" ? settings.reviews ?? [] : []}
@@ -48,6 +51,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
         publishableKey={stripePublishableKey()}
         giftCardPrice={settings.gift_card?.enabled ? settings.gift_card.price_cents : null}
       />
+      </div>
     </I18nProvider>
   );
 }

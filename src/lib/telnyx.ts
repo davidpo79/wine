@@ -52,9 +52,22 @@ export async function dialCall(to: string, state: CallState) {
   });
 }
 
-export async function startAssistant(callControlId: string, opts: { greeting: string; instructions: string; state: CallState }) {
+/**
+ * Which Telnyx AI assistant speaks an order's language. The voice and the speech-recognition language live on the
+ * assistant in Telnyx, so each language has its own: Portuguese TELNYX_ASSISTANT_ID, Russian TELNYX_ASSISTANT_ID_RU
+ * (Admin → Settings → Outbound calls). Not set, or any other language: null, no AI call.
+ */
+export function assistantFor(locale: string): string | null {
+  const env = E();
+  if (locale === "pt") return env.TELNYX_ASSISTANT_ID || null;
+  if (locale === "ru") return env.TELNYX_ASSISTANT_ID_RU || null;
+  return null;
+}
+
+/** assistantId: assistantFor(order locale); the Portuguese assistant when not given. */
+export async function startAssistant(callControlId: string, opts: { greeting: string; instructions: string; state: CallState; assistantId?: string | null }) {
   return call(`/calls/${encodeURIComponent(callControlId)}/actions/ai_assistant_start`, {
-    assistant: { id: E().TELNYX_ASSISTANT_ID, instructions: opts.instructions },
+    assistant: { id: opts.assistantId || E().TELNYX_ASSISTANT_ID, instructions: opts.instructions },
     greeting: opts.greeting,
     client_state: encodeState(opts.state),
     command_id: `ai_${opts.state.orderId}_${opts.state.stepId}`,

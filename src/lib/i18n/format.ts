@@ -21,6 +21,11 @@ export function deliveryDaysFor(locale: Locale, days: string) {
   return locale === "ru" ? days.replace(/\s+a\s+/g, "-") : days;
 }
 
+/** Day and month of a cutoff, as short messages say it: "30/11" (pt), "30.11" (ru), "30.11." (de). */
+export function dayMonthFor(locale: Locale, iso: string) {
+  return new Date(iso).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit" });
+}
+
 export function dateFor(locale: Locale, iso: string) {
   return new Date(iso).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric" });
 }
