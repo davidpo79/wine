@@ -259,9 +259,10 @@ test("createRecoveryTemplate submits only the missing languages; status lists ev
   }
 });
 
-test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", async () => {
+test("AI call: a script per page language (pt, ru, de, nl, fr); only numbers of our markets; one assistant per language", async () => {
   const ptScript = recovery.callScript(order(), "30/11/2026");
-  assert.match(ptScript.greeting, /^Olá, Ana! Daqui fala a Beatriz, a assistente de inteligência artificial da Wine Portugal\. Esta chamada pode ser gravada\./);
+  assert.match(ptScript.greeting, /^Olá, Ana! Fala a Madalena, assistente virtual da Wine Portugal\. Esta chamada pode ser gravada\./);
+  assert.doesNotMatch(ptScript.greeting, /inteligência artificial/);
   assert.match(ptScript.instructions, /link por SMS/);
   // No Telnyx SMS yet: the link goes by email after the call, in the order's language.
   const ptEmail = recovery.callScript(order(), "30/11/2026", true, "email");
@@ -273,7 +274,7 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
 
   const ru = recovery.callScript(order({ locale: "ru", customerName: "Ольга Иванова", qtyBoxes: 2 }), "30.11.2026");
   assert.match(ru.greeting, /^Здравствуйте, Ольга!/);
-  assert.match(ru.greeting, /искусственного интеллекта/); // says it is an AI
+  assert.match(ru.greeting, /Это Ольга, виртуальный ассистент Wine Portugal/); // says it is a virtual assistant
   assert.match(ru.greeting, /может записываться/); // the call may be recorded
   assert.match(ru.instructions, /никогда не спрашивай данные карты/); // never asks for card data
   assert.match(ru.instructions, /не более 3 минут/);
@@ -287,6 +288,26 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
   assert.doesNotMatch(ru.greeting + ru.instructions, /Olá|português|encomenda/);
   assert.doesNotMatch(ru.greeting + ru.instructions, DASHES);
   assert.doesNotMatch(recovery.callScript(order({ locale: "ru" }), "30.11.2026", false).instructions, /Sabores/);
+  // de, nl, fr: greeting in the page language with the persona of its voice; the market's own facts.
+  const de = recovery.callScript(order({ locale: "de", country: "DE", customerName: "Anna Schmidt", qtyBoxes: 2, totalCents: 8990 }), "30.11.2026", false, "email", "3 bis 5");
+  assert.match(de.greeting, /^Hallo Anna! Hier ist Miriam, die virtuelle Assistentin von Wine Portugal\. Dieses Gespräch kann aufgezeichnet werden\./);
+  assert.match(de.instructions, /Speak German/);
+  assert.match(de.instructions, /2 boxes \(6 bottles\), total 89,90 euros/);
+  assert.match(de.instructions, /warehouse in Belgium, delivery in 3 bis 5 working days; orders paid by 30\.11\.2026 arrive before Christmas/);
+  assert.match(de.instructions, /Payment on the site: card, Apple Pay, Google Pay\./);
+  assert.match(de.instructions, /email them the payment link right after the call/);
+  assert.doesNotMatch(de.instructions, /MB WAY|Multibanco|CTT|Sabores/);
+  const nl = recovery.callScript(order({ locale: "nl", country: "NL" }), "30.11.2026");
+  assert.match(nl.greeting, /U spreekt met Katrien, de virtuele assistent van Wine Portugal/);
+  assert.match(nl.instructions, /card, Apple Pay, Google Pay, iDEAL/);
+  assert.doesNotMatch(nl.instructions, /delivery in/); // no delivery days set: none are promised
+  const fr = recovery.callScript(order({ locale: "fr", country: "BE" }), "30.11.2026");
+  assert.match(fr.greeting, /Ici Hélène, l'assistante virtuelle de Wine Portugal/);
+  assert.match(fr.instructions, /Bancontact/);
+  for (const x of [ptScript, ru, de, nl, fr]) assert.doesNotMatch(x.greeting + x.instructions, DASHES);
+  // Call hours in the customer's time zone: 20:30 in Berlin is after hours, 19:30 in Lisbon is not.
+  assert.equal(recovery.nextCallSlot(new Date("2026-11-11T19:30:00Z"), "Europe/Berlin").toISOString(), "2026-11-12T09:00:00.000Z");
+  assert.equal(recovery.nextCallSlot(new Date("2026-11-11T19:30:00Z")).toISOString(), "2026-11-11T19:30:00.000Z");
   // Opt-out heard in the call, Portuguese as before and now Russian.
   for (const s of ["não me ligue mais", "não estou interessada", "пожалуйста, не звоните мне", "мне не интересно", "удалите мой номер"]) assert.equal(recovery.saidStop(s), true, s);
   assert.equal(recovery.saidStop("да, хочу завершить заказ"), false);
@@ -296,14 +317,15 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
   const keep = { ...process.env };
   try {
     Object.assign(process.env, { TELNYX_API_KEY: "KEY_test", TELNYX_FROM_NUMBER: "+351210000000", TELNYX_CONNECTION_ID: "c1", TELNYX_ASSISTANT_ID: "a-pt" });
-    delete process.env.TELNYX_ASSISTANT_ID_RU;
+    for (const k of ["RU", "DE", "NL", "FR"]) delete process.env[`TELNYX_ASSISTANT_ID_${k}`];
+    // Every page language can be called, once its own assistant (native voice) is set up.
     for (const l of ["de", "nl", "fr"]) {
-      const r = await recovery.runStep(step, order({ locale: l, country: l === "de" ? "DE" : "BE" }));
-      assert.deepEqual(r.result, { reason: "non_pt_locale" }, l);
+      const r = await recovery.runStep(step, order({ locale: l, country: l === "de" ? "DE" : "BE", phone: l === "de" ? "+4915123456789" : "+32470123456" }));
+      assert.deepEqual(r.result, { reason: `${l}_assistant_not_configured` }, l);
       assert.equal(r.status, "skipped");
     }
-    // +351 still first: a foreign number is never called, whatever the language.
-    assert.deepEqual((await recovery.runStep(step, order({ locale: "ru", phone: "+4915123456789" }))).result, { reason: "non_pt_phone" });
+    // Only numbers of the countries we sell to: anything else gets messages only, whatever the language.
+    assert.deepEqual((await recovery.runStep(step, order({ locale: "de", country: "DE", phone: "+12025550123" }))).result, { reason: "non_market_phone" });
     // ru without the Russian assistant: no call (never the Portuguese assistant's voice).
     assert.deepEqual((await recovery.runStep(step, order({ locale: "ru" }))).result, { reason: "ru_assistant_not_configured" });
     assert.equal(assistantFor("ru"), null);
@@ -311,6 +333,8 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
     process.env.TELNYX_ASSISTANT_ID_RU = "a-ru";
     assert.equal(assistantFor("ru"), "a-ru");
     assert.equal(assistantFor("de"), null);
+    process.env.TELNYX_ASSISTANT_ID_DE = "a-de";
+    assert.equal(assistantFor("de"), "a-de");
     // ru with its assistant: the call is dialed (Telnyx mocked), and the webhook later starts the Russian assistant.
     const realFetch = globalThis.fetch;
     const posted: { url: string; body: Record<string, unknown> }[] = [];
@@ -320,7 +344,8 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
     }) as typeof fetch;
     try {
       const { startAssistant, LANGUAGE_RULE, HUMAN_RULE } = await import("../src/lib/telnyx");
-      const withRule = `i\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}`;
+      const { CONDUCT_RULE } = await import("../src/lib/inbound-agent");
+      const withRule = `i\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}\n${CONDUCT_RULE}`;
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("ru") });
       assert.deepEqual(posted[0].body.assistant, { id: "a-ru", instructions: withRule });
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("pt") });
