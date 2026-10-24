@@ -7,6 +7,7 @@ export const CONSENT_COPY: Record<Locale, { text: string; more: string; essentia
   de: { text: "Wir verwenden Cookies, um unsere Werbung zu messen und die Website zu verbessern.", more: "Mehr erfahren", essential: "Notwendig", stats: "Statistik (Google Analytics)", marketing: "Marketing (Meta)", save: "Speichern", options: "Optionen", reject: "Ablehnen", accept: "Akzeptieren", prefs: "Cookie-Einstellungen" },
   nl: { text: "We gebruiken cookies om onze advertenties te meten en de website te verbeteren.", more: "Meer informatie", essential: "Noodzakelijk", stats: "Statistieken (Google Analytics)", marketing: "Marketing (Meta)", save: "Opslaan", options: "Opties", reject: "Weigeren", accept: "Accepteren", prefs: "Cookievoorkeuren" },
   fr: { text: "Nous utilisons des cookies pour mesurer nos publicités et améliorer le site.", more: "En savoir plus", essential: "Essentiels", stats: "Statistiques (Google Analytics)", marketing: "Marketing (Meta)", save: "Enregistrer", options: "Options", reject: "Refuser", accept: "Accepter", prefs: "Préférences cookies" },
+  ru: { text: "Мы используем cookies, чтобы оценивать эффективность рекламы и улучшать сайт.", more: "Подробнее", essential: "Необходимые", stats: "Статистика (Google Analytics)", marketing: "Маркетинг (Meta)", save: "Сохранить", options: "Настройки", reject: "Отклонить", accept: "Принять", prefs: "Настройки cookies" },
 };
 
 export const privacyHref = (l: Locale) => legalHref("privacy", l);

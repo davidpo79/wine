@@ -11,7 +11,7 @@ import { SITE } from "@/lib/site";
 import { purchaseEventId } from "@/lib/tracking";
 import { Footer, Header, WhatsAppIcon } from "@/components/landing/Chrome";
 import { PurchasePixel } from "@/components/landing/PurchasePixel";
-import { dateFor, getDict, moneyFor } from "@/lib/i18n";
+import { dateFor, deliveryDaysFor, getDict, moneyFor } from "@/lib/i18n";
 import { fmt, Rich } from "@/lib/i18n/rich";
 import { isLocale, LOCALE_INFO, type Locale } from "@/lib/markets";
 import { getSettings } from "@/lib/settings";
@@ -40,7 +40,7 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
   }
   const settings = await getSettings();
   const isPT = order.country === "PT";
-  const days = settings.markets?.[order.country as "PT"]?.delivery_days ?? "";
+  const days = deliveryDaysFor(locale, settings.markets?.[order.country as "PT"]?.delivery_days ?? "");
 
   let paid = ["paid", "preparing", "shipped", "delivered"].includes(order.status);
   let p = paid ? null : await latestPayment(order.id);
@@ -114,7 +114,7 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
         {[
           paid ? tx.stepEmail : tx.stepPay,
           tx.stepPrepare,
-          isPT ? fmt(tx.stepShipPT, { days: days || "2 a 4" }) : tx.stepShip,
+          isPT ? fmt(tx.stepShipPT, { days: days || deliveryDaysFor(locale, "2 a 4") }) : tx.stepShip,
         ].map((t, i) => (
           <li key={i} className="flex gap-3">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-night font-bold text-gold">{i + 1}</span>
@@ -143,7 +143,7 @@ function Shell({ children, locale }: { children: React.ReactNode; locale: Locale
   return (
     <>
       <Header locale={locale} />
-      <main className="paper-grain min-h-[60vh]">
+      <main className="paper-grain min-h-[60vh]" lang={LOCALE_INFO[locale].htmlLang} data-locale={locale}>
         <div className="mx-auto max-w-2xl px-4 py-12">{children}</div>
       </main>
       <Footer locale={locale} />
