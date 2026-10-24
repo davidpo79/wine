@@ -16,11 +16,12 @@ const font = (n: string) => `file://${ROOT}/src/fonts/${n}`;
 const LOCALE = (process.env.ADS_LOCALE ?? "pt") as "pt" | "ru" | "de";
 const suffix = LOCALE === "pt" ? "" : `_${LOCALE}`;
 const CYR = "U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116";
+// The recipe guide exists in Portuguese only, so ru/de do not promise it.
 // Copy of the 2-box Reel per language (ru: Russian speakers in Portugal; de: German market, Belgian warehouse).
 const DUAS = {
   pt: { foot: "18+ · Beba com moderação", s1: "Duas prendas de Natal resolvidas 🎁", s2: "Branco · Rosé · Tinto", k: "2 caixas · 6 garrafas", price: "89,90€", save: "Poupe 9,90€", ship: "Envio grátis", guide: "+ Guia digital de receitas e harmonizações de oferta", cta: "Encomende em vinho.prendadenatal.com" },
-  ru: { foot: "18+ · Пейте умеренно", s1: "Два рождественских подарка готовы 🎁", s2: "Белое · Розовое · Красное", k: "2 коробки · 6 бутылок", price: "89,90 €", save: "Экономия 9,90 €", ship: "Доставка бесплатно", guide: "+ цифровой гид с рецептами и сочетаниями в подарок", cta: "Заказ на vinho.prendadenatal.com/ru" },
-  de: { foot: "18+ · Bitte genießen Sie verantwortungsvoll", s1: "Zwei Weihnachtsgeschenke erledigt 🎁", s2: "Weiß · Rosé · Rot", k: "2 Boxen · 6 Flaschen", price: "89,90 €", save: "Sie sparen 9,90 €", ship: "Kostenloser Versand", guide: "+ digitaler Rezept- und Weinbegleiter gratis", cta: "Bestellen auf vinho.prendadenatal.com/de" },
+  ru: { foot: "18+ · Пейте умеренно", s1: "Два рождественских подарка готовы 🎁", s2: "Белое · Розовое · Красное", k: "2 коробки · 6 бутылок", price: "89,90 €", save: "Экономия 9,90 €", ship: "Доставка бесплатно", guide: "Белое, розовое и красное в праздничной коробке", cta: "Заказ на vinho.prendadenatal.com/ru" },
+  de: { foot: "18+ · Bitte genießen Sie verantwortungsvoll", s1: "Zwei Weihnachtsgeschenke erledigt 🎁", s2: "Weiß · Rosé · Rot", k: "2 Boxen · 6 Flaschen", price: "89,90 €", save: "Sie sparen 9,90 €", ship: "Kostenloser Versand", guide: "Weiß, Rosé und Rot in einer Weihnachtsbox", cta: "Bestellen auf vinho.prendadenatal.com/de" },
 }[LOCALE];
 const FPS = 30;
 const SECONDS = 15;
