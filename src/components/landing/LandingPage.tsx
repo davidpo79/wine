@@ -151,7 +151,7 @@ export function LandingPage({
 
   const orderButton = (short = false) =>
     canBuy ? (
-      <button type="button" className="cta order" data-j={short ? "buy_button_short" : "buy_button"} onClick={buy.checkout} disabled={buy.loading}>
+      <button type="button" className="cta order" data-testid={short ? "order-button-short" : "order-button"} data-j={short ? "buy_button_short" : "buy_button"} onClick={buy.checkout} disabled={buy.loading}>
         {buy.loading ? t.opening : short ? fmt(t.orderShort, { total }) : orderLabel}
       </button>
     ) : (
@@ -162,11 +162,11 @@ export function LandingPage({
 
   const bundlesEl = (id: string) => (
     <>
-      <div aria-label={t.chooseQtyLabel} className="bundles" role="group" id={id}>
+      <div aria-label={t.chooseQtyLabel} className="bundles" role="group" id={id} data-testid={id}>
         {offers.map((o) => {
           const active = o.b.key === sel.b.key;
           return (
-            <button key={o.b.key} aria-pressed={active} className="bundle" data-qty={o.qty} data-j={`bundle_${o.qty}_boxes`} type="button" onClick={() => selectQty(o.qty)}>
+            <button key={o.b.key} aria-pressed={active} className="bundle" data-qty={o.qty} data-testid={`bundle-${o.qty}`} data-j={`bundle_${o.qty}_boxes`} type="button" onClick={() => selectQty(o.qty)}>
               <span className="bundlebanner">
                 {o.qty === 1 && !guide ? d.deal.singleBannerNoGuide : o.text.banner}
                 <small>{o.qty === 1 ? (o.freeShipping ? d.common.deliveryIncluded : t.oneBoxToGive) : o.text.small}</small>

@@ -883,7 +883,7 @@ export function CheckoutPage({
         </div>
         <div className="flex items-baseline justify-between border-t border-paper-2 pt-3 text-base font-bold">
           <dt>{d.common.total}</dt>
-          <dd>
+          <dd data-testid="checkout-total">
             <span className="mr-1 text-xs font-normal text-muted">EUR</span>
             {amounts ? money(amounts.total) : "…"}
           </dd>
@@ -940,6 +940,7 @@ export function CheckoutPage({
       </label>
       <input
         id={`f-${k}`}
+        data-testid={`checkout-${k}`}
         name={FIELD_NAME[k] ?? k}
         {...props}
         className={`w-full rounded-md border bg-white px-3 py-3 text-[15px] outline-none focus:border-azulejo focus:ring-2 focus:ring-azulejo/20 ${errors[k] ? "border-xmas" : "border-paper-2"}`}
@@ -1208,6 +1209,7 @@ export function CheckoutPage({
               <div
                 role="radiogroup"
                 aria-label={t.methodLabel}
+                data-testid="payment-methods"
                 className="overflow-hidden rounded-md border border-paper-2"
               >
                 {(["mbway", "card", "wallet", "multibanco"] as Method[])
@@ -1215,6 +1217,7 @@ export function CheckoutPage({
                   .map((m, i) => (
                     <div
                       key={m}
+                      data-testid={`payment-method-${m}`}
                       className={`${i ? "border-t border-paper-2" : ""} ${method === m ? "bg-azulejo-soft/60" : "bg-white"}`}
                     >
                       <label className="flex cursor-pointer items-center gap-3 px-4 py-3.5">
@@ -1294,6 +1297,7 @@ export function CheckoutPage({
           )}
           <button
             type="submit"
+            data-testid="pay-button"
             disabled={paying || !draft}
             className="flex min-h-14 w-full items-center justify-center rounded-md bg-xmas px-4 text-lg font-bold text-white shadow-[0_3px_0_#71202b] hover:bg-xmas-dark disabled:opacity-60"
           >

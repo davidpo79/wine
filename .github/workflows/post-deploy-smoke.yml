@@ -1,0 +1,69 @@
+name: Production smoke
+
+# Runs the mock-buyer smoke test (e2e/smoke.spec.ts) against production, so a broken funnel shows as a red run.
+# It never pays: payment requests and the autosave of the typed contact details are blocked in the browser.
+# Each run leaves two empty draft orders (no contact data, tagged utm_source=smoke-test); see the test file.
+# Scheduled runs only fire from the default branch, and GitHub pauses schedules after 60 days without repo activity.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Site to test
+        default: https://vinho.prendadenatal.com
+        required: true
+  # After every deploy: Railway deploys the base branch on push, which takes 2 to 4 minutes.
+  push:
+    branches: [claude/wine-portugal-natal-df8491]
+  schedule:
+    - cron: "17 8,14,20 * * *" # three times a day (UTC); only fires if this is on the default branch
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: production smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://vinho.prendadenatal.com' }}
+    steps:
+      - name: Wait for the Railway deploy
+        if: github.event_name == 'push'
+        run: sleep 300
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Mock-buyer smoke test against ${{ env.BASE_URL }}
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-production
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
