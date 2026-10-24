@@ -68,7 +68,8 @@ export function assistantFor(locale: string): string | null {
 // Appended to every call's instructions: the call opens in the order's language, but the customer may answer in
 // another one. The assistant's speech recognition detects the language and has a voice per language (Telnyx side).
 export const LANGUAGE_RULE =
-  "LANGUAGE: open in the language above, but if the person answers in another language or asks for one, switch to that language at once and keep it until the end of the call; never insist on Portuguese or Russian. All the rules above still apply in any language.";
+  "LANGUAGE: open in the language above, but if the person answers in another language or asks for one, switch to that language at once and keep it until the end of the call; never insist on Portuguese or Russian. All the rules above still apply in any language.\n" +
+  "STYLE: this is a phone call. You already introduced yourself in the greeting, so never repeat the introduction (confirm you are an AI only if asked). Short natural sentences, one idea at a time, no lists, symbols or formatting. Answer exactly what the person said, ask at most one question at a time and never repeat a sentence you already said. Only talk about the product described above, never invent other wines or prices. If you hear an answering machine or voicemail, say goodbye in one sentence and stop.";
 
 export async function startAssistant(callControlId: string, opts: { greeting: string; instructions: string; state: CallState; assistantId?: string | null }) {
   return call(`/calls/${encodeURIComponent(callControlId)}/actions/ai_assistant_start`, {
