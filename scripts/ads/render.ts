@@ -1,11 +1,12 @@
 // Static Meta ads (feed 4:5 1080x1350 and story 9:16 1080x1920) rendered from HTML with the real product photos.
-// Usage: tsx scripts/ads/render.ts [outDir] [conceptKey...]
+// Usage: ADS_LOCALE=pt|ru|de tsx scripts/ads/render.ts [outDir] [conceptKey...]   (ru/de files get a _ru/_de suffix)
 // Copy rules: pt-PT, no em-dashes, only true claims (prices, -15% on 3 boxes, free shipping from 2 boxes, card +3,90 €,
 // orders until 30/11 for delivery before Christmas, CTT 2 to 4 working days, mainland Portugal).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright-core";
 import { CONCEPTS, type Concept } from "./concepts";
+import { AD_LOCALES, AD_STRINGS, localizedConcepts, type AdLocale } from "./i18n";
 import { LOGO_PATH, LOGO_VIEWBOX } from "../../src/lib/logo-path";
 
 const ROOT = resolve(import.meta.dirname, "../..");
@@ -13,6 +14,11 @@ const out = resolve(process.argv[2] ?? "ads-out");
 const only = process.argv.slice(3);
 const img = (n: string) => `file://${ROOT}/public/lp/${n}`;
 const font = (n: string) => `file://${ROOT}/src/fonts/${n}`;
+const LOCALE = (process.env.ADS_LOCALE ?? "pt") as AdLocale;
+if (!AD_LOCALES.includes(LOCALE)) throw new Error(`ADS_LOCALE must be one of ${AD_LOCALES.join(", ")}`);
+const T = AD_STRINGS[LOCALE];
+const suffix = LOCALE === "pt" ? "" : `_${LOCALE}`;
+const CYR = "U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116";
 
 // Story: Meta puts the profile on top and the CTA at the bottom; keep this much clear.
 const SAFE_BOTTOM = 300;
@@ -25,6 +31,11 @@ const CSS = `
 @font-face{font-family:Cormorant;src:url(${font("cormorant-garamond-latin-700-normal.woff2")});font-weight:700}
 @font-face{font-family:Cormorant;src:url(${font("cormorant-garamond-latin-500-italic.woff2")});font-style:italic;font-weight:500}
 @font-face{font-family:Caveat;src:url(${font("caveat-latin-600-normal.woff2")});font-weight:600}
+@font-face{font-family:Inter;src:url(${font("inter-cyrillic-wght-normal.woff2")}) format("woff2");font-weight:100 900;unicode-range:${CYR}}
+@font-face{font-family:Cormorant;src:url(${font("cormorant-garamond-cyrillic-600-normal.woff2")});font-weight:600;unicode-range:${CYR}}
+@font-face{font-family:Cormorant;src:url(${font("cormorant-garamond-cyrillic-700-normal.woff2")});font-weight:700;unicode-range:${CYR}}
+@font-face{font-family:Cormorant;src:url(${font("cormorant-garamond-cyrillic-500-italic.woff2")});font-style:italic;font-weight:500;unicode-range:${CYR}}
+@font-face{font-family:Caveat;src:url(${font("caveat-cyrillic-600-normal.woff2")});font-weight:600;unicode-range:${CYR}}
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--red:#a72d39;--red2:#71202b;--deep:#4a1219;--gold:#c19d55;--gold2:#e9d9b0;--cream:#fbf7ee;--ink:#202b25;--green:#102d21}
 body{width:var(--w);height:var(--h);overflow:hidden;font-family:Inter,sans-serif;color:var(--ink);background:var(--cream)}
@@ -64,8 +75,8 @@ const logo = (h: number) =>
   `<svg height="${h}" viewBox="${LOGO_VIEWBOX}" style="display:block" aria-label="Wine Portugal"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8ecc8"/><stop offset="1" stop-color="#d2ae66"/></linearGradient></defs><path fill="url(#lg)" fill-rule="evenodd" d="${LOGO_PATH}"/></svg>`;
 const ticks = (items: string[]) => `<ul class="ticks">${items.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 // Trust (research: buying from a new shop seen on social media is the main barrier in Portugal).
-const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;font-size:30px;color:${color}">Pague com MB WAY, Multibanco ou cartão</div>`;
-const sticker = (pos: string, top = "pague 3", price = "<small>leve</small> 4", bottom = "envio incluído") =>
+const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;font-size:30px;color:${color}">${T.trust}</div>`;
+const sticker = (pos: string, [top, price, bottom] = T.sticker) =>
   `<div class="sticker" style="${pos}"><div class="s1">${top}</div><div class="s2">${price}</div><div class="s3">${bottom}</div></div>`;
 
 function layout(c: Concept, f: Format) {
@@ -75,7 +86,7 @@ function layout(c: Concept, f: Format) {
   const logoTop = story ? 250 : 36;
   const centeredLogo = `<div style="position:absolute;left:0;right:0;top:${logoTop}px;display:flex;justify-content:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))">${logo(story ? 92 : 78)}</div>`;
   const stripH = story ? 0 : 92;
-  const deadline = `<b>Encomendas até 30/11</b> · Entrega antes do Natal`;
+  const deadline = T.deadlineStrip;
   const stripHtml = story
     ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px">${deadline}</div>`
     : `<div class="strip" style="bottom:0;height:${stripH}px">${deadline}</div>`;
@@ -124,7 +135,7 @@ function layout(c: Concept, f: Format) {
         <div class="h1" style="font-size:${story ? 88 : 76}px;margin-top:12px">${c.headline}</div>
       </div>
       <div class="card" style="left:${story ? 130 : 150}px;right:${story ? 130 : 150}px;top:${story ? 690 : 410}px;transform:rotate(-3deg)">
-        <div class="t">Feliz Natal</div><div class="t2">e um próspero Ano Novo</div>
+        <div class="t">${T.cardTitle}</div><div class="t2">${T.cardSubtitle}</div>
         <div class="msg">${c.cardMessage}</div>
       </div>
       <div style="position:absolute;left:60px;right:60px;top:${story ? 1260 : 1010}px;text-align:center;color:#fff">
@@ -146,7 +157,7 @@ function layout(c: Concept, f: Format) {
       </div>
       ${[0, 1, 2, 3].map((i) => `<img src="${img("box-cutout.webp")}" style="position:absolute;top:${y + (i === 1 || i === 2 ? 0 : 50)}px;left:${20 + i * step}px;width:${w}px;z-index:${i === 1 || i === 2 ? 2 : 1};filter:drop-shadow(0 24px 30px rgba(0,0,0,.45))">`).join("")}
       <div style="position:absolute;left:60px;right:60px;top:${story ? 1230 : 860}px;text-align:center;color:#fff;z-index:3">
-        <div style="font-weight:900;font-size:${story ? 120 : 104}px;letter-spacing:-.03em;line-height:1">149,70 € <span style="font-size:.45em;font-weight:750">as 4</span></div>
+        <div style="font-weight:900;font-size:${story ? 120 : 104}px;letter-spacing:-.03em;line-height:1">149,70 € <span style="font-size:.45em;font-weight:750">${T.forFour}</span></div>
         <div class="sub" style="font-size:${story ? 40 : 36}px;margin-top:14px"><span class="strike">199,60 €</span> &nbsp;·&nbsp; ${c.sub}</div>
       </div>
       ${stripHtml}`;
@@ -159,36 +170,36 @@ function layout(c: Concept, f: Format) {
         <div class="h1" style="font-size:${story ? 100 : 90}px;margin-top:12px">${c.headline}</div>
       </div>
       <div style="position:absolute;left:50%;top:${story ? 720 : 400}px;transform:translateX(-50%);width:${story ? 520 : 460}px;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5);text-align:center">
-        <div style="background:var(--red);color:#fff;font-weight:850;font-size:40px;padding:18px 0;letter-spacing:.1em">NOVEMBRO</div>
+        <div style="background:var(--red);color:#fff;font-weight:850;font-size:40px;padding:18px 0;letter-spacing:.1em">${T.month}</div>
         <div style="font-weight:900;font-size:${story ? 230 : 200}px;line-height:1.05;color:var(--deep);letter-spacing:-.04em">30</div>
-        <div style="font-weight:700;font-size:32px;color:#555;padding-bottom:22px">último dia para encomendar</div>
+        <div style="font-weight:700;font-size:32px;color:#555;padding-bottom:22px">${T.lastDay}</div>
       </div>
       <div style="position:absolute;left:60px;right:60px;top:${story ? 1270 : 890}px;color:#fff;display:flex;justify-content:center">${ticks(c.ticks)}</div>
-      ${story ? "" : `<div class="strip" style="bottom:0;height:${stripH}px"><b>Pague 3, leve 4</b> · Envio incluído · Desde 49,90 €</div>`}
-      ${story ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px"><b>Pague 3, leve 4</b> · Envio incluído</div>` : ""}`;
+      ${story ? "" : `<div class="strip" style="bottom:0;height:${stripH}px">${T.deadlineFeedStrip}</div>`}
+      ${story ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px">${T.deadlineStoryStrip}</div>` : ""}`;
     }
   }
 }
 
 function html(c: Concept, f: Format) {
   const { w, h } = FORMATS[f];
-  return `<!doctype html><html><head><meta charset="utf-8"><style>:root{--w:${w}px;--h:${h}px}${CSS}</style></head><body><div class="ad">${layout(c, f)}</div></body></html>`;
+  return `<!doctype html><html lang="${LOCALE}"><head><meta charset="utf-8"><style>:root{--w:${w}px;--h:${h}px}${CSS}</style></head><body><div class="ad">${layout(c, f)}</div></body></html>`;
 }
 
 mkdirSync(out, { recursive: true });
 const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
-for (const c of CONCEPTS.filter((x) => !only.length || only.includes(x.key))) {
+for (const c of localizedConcepts(CONCEPTS, LOCALE).filter((x) => !only.length || only.includes(x.key))) {
   for (const f of Object.keys(FORMATS) as Format[]) {
     const { w, h } = FORMATS[f];
     const p = await b.newPage({ viewport: { width: w, height: h } });
-    const file = `${out}/${c.key}_${f}.html`;
+    const file = `${out}/${c.key}${suffix}_${f}.html`;
     writeFileSync(file, html(c, f));
     await p.goto(`file://${file}`);
     await p.evaluate("document.fonts.ready");
     await p.waitForTimeout(200);
-    await p.screenshot({ path: `${out}/${c.key}_${f === "feed" ? "4x5" : "9x16"}.png` });
+    await p.screenshot({ path: `${out}/${c.key}${suffix}_${f === "feed" ? "4x5" : "9x16"}.png` });
     await p.close();
   }
-  console.log("rendered", c.key);
+  console.log("rendered", c.key, LOCALE);
 }
 await b.close();
