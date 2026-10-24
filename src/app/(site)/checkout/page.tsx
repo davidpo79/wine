@@ -7,7 +7,7 @@ import { getSettings } from "@/lib/settings";
 import { CheckoutPage } from "@/components/checkout/CheckoutPage";
 import { stripePublishableKey } from "@/lib/stripe";
 import { I18nProvider } from "@/lib/i18n/client";
-import { dateFor, getDict } from "@/lib/i18n";
+import { dateFor, deliveryDaysFor, getDict } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n/paths";
 import { loadDraft } from "@/lib/draft";
 import { COUNTRIES_FOR_LOCALE, defaultCountry, isCountry, isLocale, type Country, type Locale } from "@/lib/markets";
@@ -43,7 +43,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
         bundles={bundles}
         reviews={verified.length ? verified : locale === "pt" ? settings.reviews ?? [] : []}
         cutoffLabel={cutoffLabel}
-        deliveryDays={settings.markets?.[wanted]?.delivery_days ?? ""}
+        deliveryDays={deliveryDaysFor(locale, settings.markets?.[wanted]?.delivery_days ?? "")}
         countries={countries}
         publishableKey={stripePublishableKey()}
         giftCardPrice={settings.gift_card?.enabled ? settings.gift_card.price_cents : null}

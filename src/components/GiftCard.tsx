@@ -32,7 +32,8 @@ const FLAKES: [number, number, number][] = [
   [12, 22, 3.4], [84, 18, 3], [22, 48, 2.2], [88, 44, 2.6], [10, 72, 2.4], [90, 70, 2.2], [30, 12, 2], [70, 30, 2], [16, 88, 2.6], [78, 88, 2.4],
 ];
 
-export function GiftCard({ message, orderId, className = "" }: { message: string; orderId?: string; className?: string }) {
+/** placeholder: preview text while the message is empty, in the checkout's language (the printed design stays Portuguese). */
+export function GiftCard({ message, orderId, className = "", placeholder = "A sua mensagem aparece aqui." }: { message: string; orderId?: string; className?: string; placeholder?: string }) {
   const text = message.trim();
   const size = text.length <= 60 ? "gc-lg" : text.length <= 120 ? "gc-md" : "gc-sm";
   return (
@@ -52,7 +53,7 @@ export function GiftCard({ message, orderId, className = "" }: { message: string
           <p className="gc-title">Feliz Natal</p>
           <p className="gc-sub">e um próspero Ano Novo</p>
           <span className="gc-rule" aria-hidden="true" />
-          <p className={`gc-msg ${size}`}>{text || "A sua mensagem aparece aqui."}</p>
+          <p className={`gc-msg ${size}`}>{text || placeholder}</p>
           <p className="gc-foot">Wine Portugal · Trilogia 2160</p>
         </div>
       </div>

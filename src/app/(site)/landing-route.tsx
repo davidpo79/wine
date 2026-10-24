@@ -7,7 +7,7 @@ import { SITE } from "@/lib/site";
 import { BuyProvider, type PublicBundle, type SalesMode } from "@/components/landing/BuyContext";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { I18nProvider } from "@/lib/i18n/client";
-import { dateFor, getDict } from "@/lib/i18n";
+import { dateFor, deliveryDaysFor, getDict } from "@/lib/i18n";
 import { homeHref } from "@/lib/i18n/paths";
 import { LOCALE_INFO, LOCALES, type Locale } from "@/lib/markets";
 import { countryFor, enabledCountries, languagesOf, visitor } from "@/lib/visitor";
@@ -76,8 +76,8 @@ export async function LandingRoute({ locale }: { locale: Locale }) {
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
         <div lang={LOCALE_INFO[locale].htmlLang}>
           <LandingPage
-            deliveryDays={market?.delivery_days ?? ""}
-            deliveryTextOverride={country === "PT" ? settings.delivery_text : undefined}
+            deliveryDays={deliveryDaysFor(locale, market?.delivery_days ?? "")}
+            deliveryTextOverride={country === "PT" && locale === "pt" ? settings.delivery_text : undefined /* the Settings text is Portuguese */}
             cutoffLabel={dateFor(locale, cutoffIso)}
             cutoffIso={cutoffIso}
             exitPopup={locale === "pt" && settings.exit_popup_enabled}

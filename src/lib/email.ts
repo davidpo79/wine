@@ -7,7 +7,7 @@ import { bucketConfigured, presignedGet } from "./bucket";
 import { ctTrackingUrl, logOrderEvent } from "./orders";
 import { getDict, moneyFor } from "./i18n";
 import { fmt } from "./i18n/rich";
-import { isLocale, type Locale } from "./markets";
+import { isLocale, LOCALE_INFO, type Locale } from "./markets";
 import { logOutbound, shopAddress } from "./inbox";
 import { reviewUrl } from "./reviews";
 import { ebookFileName, ebookKey, ebookTitle, guideFor } from "./ebook";
@@ -140,17 +140,21 @@ export type MultibancoDetails = { entity: string | null; reference: string | nul
 
 export async function sendPending(o: Order, mb: MultibancoDetails) {
   if (!o.email) return;
-  const exp = mb.expiresAt ? mb.expiresAt.toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" }) : null;
+  // Multibanco is a Portugal-market method: Portuguese or Russian.
+  const locale = localeOf(o);
+  const t = getDict(locale).email;
+  const exp = mb.expiresAt ? mb.expiresAt.toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" }) : null;
   const ref = (mb.reference ?? "").replace(/\D/g, "").replace(/(\d{3})(?=\d)/g, "$1 ");
   const html = layout(
-    "Pagamento pendente",
-    `<p>Olá,</p>
-<p>Recebemos a sua encomenda. Falta apenas o pagamento por Multibanco (no multibanco ou no homebanking, em Pagamentos de Serviços). Assim que o pagamento for confirmado, enviamos a confirmação e o livro de receitas.</p>
-<p style="font-size:17px;background:#F6EFE2;padding:12px 14px">Entidade: <strong>${esc(mb.entity ?? "")}</strong><br>Referência: <strong>${esc(ref)}</strong><br>Valor: <strong>${eur(mb.amountCents)}</strong>${exp ? `<br>Pagar até: <strong>${esc(exp)}</strong>` : ""}</p>
+    t.pendingTitle,
+    `<p>${t.helloPlain}</p>
+<p>${t.pendingText}</p>
+<p style="font-size:17px;background:#F6EFE2;padding:12px 14px">${t.pendingEntity}: <strong>${esc(mb.entity ?? "")}</strong><br>${t.pendingReference}: <strong>${esc(ref)}</strong><br>${t.pendingAmount}: <strong>${moneyFor(locale)(mb.amountCents)}</strong>${exp ? `<br>${t.pendingPayBy}: <strong>${esc(exp)}</strong>` : ""}</p>
 ${orderSummary(o)}
-<p>Para entrega antes do Natal, o pagamento tem de ser feito até 30/11.</p>`,
+<p>${t.pendingXmas}</p>`,
+    locale,
   );
-  return send(o, o.email, `Encomenda ${o.id}: pagamento Multibanco pendente`, html, "pending");
+  return send(o, o.email, fmt(t.pendingSubject, { id: o.id }), html, "pending");
 }
 
 export async function sendShipped(o: Order) {

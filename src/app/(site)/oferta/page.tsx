@@ -12,7 +12,7 @@ import { stripePublishableKey } from "@/lib/stripe";
 import { UpsellFlow } from "@/components/checkout/UpsellFlow";
 import { I18nProvider } from "@/lib/i18n/client";
 import { getDict } from "@/lib/i18n";
-import { isCountry, isLocale } from "@/lib/markets";
+import { isCountry, isLocale, LOCALE_INFO } from "@/lib/markets";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -66,6 +66,8 @@ export default async function Oferta({
       country={isCountry(order.country) ? order.country : "PT"}
       dict={getDict(locale)}
     >
+      {/* lang and data-locale: the cookie banner (outside the provider) speaks the order's language. */}
+      <div lang={LOCALE_INFO[locale].htmlLang} data-locale={locale} style={{ display: "contents" }}>
       <UpsellFlow
         orderId={order.id}
         token={t}
@@ -77,6 +79,7 @@ export default async function Oferta({
         phone={order.phone ?? ""}
         publishableKey={stripePublishableKey()}
       />
+      </div>
     </I18nProvider>
   );
 }
