@@ -1,3 +1,5 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { requireAdmin } from "@/lib/auth";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -6,6 +8,23 @@ import { creativeAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 
 type SP = { concept?: string; status?: string };
+
+// The ads actually uploaded to Meta are rendered by scripts/ads and served from public/ads (Meta fetches them by URL).
+// List them here, grouped by concept, so they can be seen and downloaded without knowing the file names.
+function library() {
+  const files: string[] = [];
+  for (const dir of ["ads", "ads/anim"]) {
+    try {
+      for (const f of readdirSync(join(process.cwd(), "public", dir))) if (/\.(jpe?g|png|webp|mp4)$/i.test(f)) files.push(`${dir}/${f}`);
+    } catch {}
+  }
+  const groups = new Map<string, string[]>();
+  for (const f of files.sort()) {
+    const k = f.replace(/^ads\/(anim\/)?/, "").replace(/(_reel)?(_video)?(_cover)?_?(9x16|4x5|1x1)?\.(jpe?g|png|webp|mp4)$/i, "");
+    groups.set(k, [...(groups.get(k) ?? []), f]);
+  }
+  return groups;
+}
 
 export default async function Creatives({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdmin({ role: "admin" });
@@ -41,7 +60,7 @@ export default async function Creatives({ searchParams }: { searchParams: Promis
         </select>
         <button className="rounded bg-night px-3 py-1.5 font-semibold text-white">Filter</button>
       </form>
-      {groups.size === 0 && <p className="mt-8 text-muted">No ads yet. They are generated in phase 6, after the landing page is approved.</p>}
+      {groups.size === 0 && <p className="mt-6 text-sm text-muted">Nothing to review here. The ads already made are in the library below.</p>}
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
         {[...groups.entries()].map(([k, items]) => {
           const c = items[0];
@@ -81,6 +100,30 @@ export default async function Creatives({ searchParams }: { searchParams: Promis
             </article>
           );
         })}
+      </div>
+      <h2 className="mt-10 font-serif text-2xl font-semibold">Ad library</h2>
+      <p className="mt-1 text-sm text-muted">Every image and video in /ads, the files uploaded to Meta. Tap a file name to open or download it.</p>
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
+        {[...library().entries()].map(([k, files]) => (
+          <article key={k} className="rounded-lg border bg-white p-4">
+            <h3 className="font-mono font-semibold">{k}</h3>
+            <div className="mt-3 flex flex-wrap items-start gap-2">
+              {files.map((f) => (
+                <figure key={f} className="w-[calc(50%-0.25rem)]">
+                  {f.endsWith(".mp4") ? (
+                    <video src={`/${f}`} controls preload="metadata" playsInline className="w-full rounded border bg-black" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`/${f}`} alt={f} className="w-full rounded border" loading="lazy" />
+                  )}
+                  <figcaption className="mt-1 break-all text-center text-xs">
+                    <a href={`/${f}`} download className="text-azulejo underline">{f.replace(/^ads\//, "")}</a>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </article>
+        ))}
       </div>
     </div>
   );
