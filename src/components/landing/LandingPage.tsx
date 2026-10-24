@@ -251,6 +251,9 @@ export function LandingPage({
         </nav>
       </header>
       <div className="benefitbar">
+        <a className="benefitphone" href={SITE.phoneLink} data-j="phone_top">
+          📞 {SITE.whatsapp}
+        </a>
         <span>{allFree ? t.benefitDeliveryAll : t.benefitDeliveryFrom2}</span>
         <span>{t.benefitReady}</span>
         <span>{t.benefitOrigin}</span>

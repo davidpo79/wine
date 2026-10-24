@@ -44,15 +44,21 @@ export function Header({ locale = "pt" }: { locale?: Locale }) {
         <a href={homeHref(locale)} className="leading-none text-night" aria-label={t.homeLabel}>
           <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} className="h-9 w-auto" />
         </a>
+        <div className="flex items-center gap-2">
+        <a href={SITE.phoneLink} className="inline-flex min-h-11 items-center px-1 text-sm font-semibold text-night hover:underline">
+          📞 {SITE.whatsapp}
+        </a>
         <a
           href={SITE.whatsappLink}
           target="_blank"
           rel="noopener"
+          aria-label={t.questions}
           className="inline-flex min-h-11 items-center gap-2 rounded-full border border-night/15 px-3 text-sm font-medium text-night hover:bg-white"
         >
           <WhatsAppIcon className="h-5 w-5 text-[#1f8f4e]" />
-          <span>{t.questions}</span>
+          <span className="hidden sm:inline">{t.questions}</span>
         </a>
+        </div>
       </div>
     </header>
   );
