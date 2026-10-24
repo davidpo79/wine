@@ -221,6 +221,13 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
           <Top rows={top.rage} empty="None." />
           <h2 className="mt-4 text-sm font-semibold uppercase tracking-wider text-muted">JavaScript errors</h2>
           <Top rows={top.js} empty="None." />
+          {top.jsNoise.length > 0 && (
+            <>
+              <h2 className="mt-4 text-sm font-semibold uppercase tracking-wider text-muted">In-app browser noise (ignored)</h2>
+              <p className="text-xs text-muted">Thrown by the Facebook / Instagram app&apos;s own browser code, not by the site; the visitor sees nothing. Not counted as visits with problems.</p>
+              <Top rows={top.jsNoise} empty="None." />
+            </>
+          )}
         </section>
       </div>
 

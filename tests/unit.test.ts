@@ -261,7 +261,11 @@ test("markets: phone, postal code, language and country detection", async () => 
 });
 
 test("journey: device, privacy filter, batch validation and step logic", async () => {
-  const { deviceOf, cleanProps, JourneyBatch } = await import("../src/lib/journey");
+  const { deviceOf, cleanProps, JourneyBatch, isInAppNoise } = await import("../src/lib/journey");
+  assert.equal(isInAppNoise("Uncaught Error: Error invoking postMessage: Java object is gone"), true);
+  assert.equal(isInAppNoise("Script error."), true);
+  assert.equal(isInAppNoise("TypeError: Cannot read properties of undefined (reading 'total')"), false);
+  assert.equal(isInAppNoise(undefined), false);
   const { reached } = await import("../src/lib/journey-stats");
   assert.deepEqual(deviceOf("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 [FBAN/FBIOS;FBAV/450.0]"), { device: "mobile", browser: "Facebook app" });
   assert.deepEqual(deviceOf("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Safari/604.1"), { device: "tablet", browser: "Safari" });
