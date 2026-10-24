@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import type { Order } from "@/db/schema";
 import { logOrderEvent } from "./orders";
 import { SITE } from "./site";
-import { lisbonDate, lisbonToUtc } from "./time";
+import { zonedDate, zonedToUtc } from "./time";
 import { marketCutoffIso, sendRecoveryEmail } from "./email";
 import { assistantFor, dialCall, sendSms, telnyxConfigured } from "./telnyx";
 import { recoveryTemplateLanguage, sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
@@ -12,7 +12,7 @@ import { loadOutboundSettings } from "./outbound-settings";
 import { getSettings } from "./settings";
 import { dayMonthFor, getDict } from "./i18n";
 import { fmt } from "./i18n/rich";
-import { isLocale, type Locale } from "./markets";
+import { COUNTRIES, isCountry, isLocale, MARKETS, type Country, type Locale } from "./markets";
 
 // Abandoned-checkout follow-ups. Every step re-checks the order before acting, so a payment at any
 // moment stops the sequence. Messages need consent_messages, calls need consent_calls.
@@ -44,17 +44,20 @@ export const resumePath = (orderId: string) => `retomar/${resumeToken(orderId)}`
 export const resumeUrl = (orderId: string) => `${SITE.url}/${resumePath(orderId)}`;
 export const stopUrl = (orderId: string) => `${SITE.url}/api/recovery/stop?t=${encodeURIComponent(resumeToken(orderId))}`;
 
-/** Calls only Mon-Sat 09:00-20:00 Europe/Lisbon. Returns the given time if allowed, else the next 10:00 slot. */
-export function nextCallSlot(at: Date): Date {
+/** The customer's time zone for the call hours, by the order's country. */
+export const CALL_TZ: Record<Country, string> = { PT: "Europe/Lisbon", DE: "Europe/Berlin", NL: "Europe/Amsterdam", BE: "Europe/Brussels", LU: "Europe/Luxembourg" };
+
+/** Calls only Mon-Sat 09:00-20:00 in the customer's time zone. Returns the given time if allowed, else the next 10:00 slot. */
+export function nextCallSlot(at: Date, timeZone = "Europe/Lisbon"): Date {
   const local = (d: Date) => {
-    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Lisbon", weekday: "short", hour: "2-digit", hour12: false }).formatToParts(d);
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", hour: "2-digit", hour12: false }).formatToParts(d);
     return { wd: parts.find((p) => p.type === "weekday")!.value, h: Number(parts.find((p) => p.type === "hour")!.value) };
   };
   const { wd, h } = local(at);
   if (wd !== "Sun" && h >= 9 && h < 20) return at;
   let d = h >= 20 ? new Date(at.getTime() + 86_400_000) : at;
   for (let i = 0; i < 8; i++) {
-    const slot = lisbonToUtc(lisbonDate(d), "10:00");
+    const slot = zonedToUtc(zonedDate(d, timeZone), "10:00", timeZone);
     if (local(slot).wd !== "Sun" && slot.getTime() > at.getTime()) return slot;
     d = new Date(d.getTime() + 86_400_000);
   }
@@ -159,13 +162,12 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
   } else if (step.step === "ai_call") {
     if (!order.consentCalls) return { status: "skipped", result: { reason: "no_call_consent" }, channels };
     if (!order.phone) return { status: "skipped", result: { reason: "no_phone" }, channels };
-    // Calls only to Portuguese numbers (Lisbon call hours, PT caller ID); foreign numbers get messages only.
-    if (!order.phone.startsWith("+351")) return { status: "skipped", result: { reason: "non_pt_phone" }, channels };
-    // The AI call speaks Portuguese or Russian (the Portugal market's languages); other languages get messages only.
-    if (locale !== "pt" && locale !== "ru") return { status: "skipped", result: { reason: "non_pt_locale" }, channels };
+    // Calls only to numbers of the countries we sell to; any other number gets messages only.
+    if (!COUNTRIES.some((c) => order.phone!.startsWith(MARKETS[c].callingCode))) return { status: "skipped", result: { reason: "non_market_phone" }, channels };
     if (!telnyxConfigured("voice")) return { status: "skipped", result: { reason: "telnyx_voice_not_configured" }, channels };
+    // Every page language has its own assistant (native voice); one not set up yet means messages only.
     if (!assistantFor(locale)) return { status: "skipped", result: { reason: `${locale}_assistant_not_configured` }, channels };
-    const slot = nextCallSlot(new Date());
+    const slot = nextCallSlot(new Date(), CALL_TZ[isCountry(order.country) ? order.country : "PT"]);
     if (slot.getTime() > Date.now() + 60_000) return { status: "pending", reschedule: slot, result: { reason: "outside_call_window" }, channels };
     channels.push("call");
     result.call = await dialCall(order.phone, { orderId: order.id, stepId: step.id }).then(
@@ -234,19 +236,58 @@ export async function stopRecovery(orderId: string) {
  * say it is an AI. guide: whether this language's edition of the recipe guide is offered (Portuguese always is).
  * linkBy: how the payment link reaches the customer after the call (SMS when Telnyx SMS is set up, otherwise email).
  */
-export function callScript(order: Order, cutoffLabel: string, guide = true, linkBy: "sms" | "email" = "sms") {
+export function callScript(order: Order, cutoffLabel: string, guide = true, linkBy: "sms" | "email" = "sms", deliveryDays = "") {
   const first = (order.customerName ?? "").split(" ")[0];
   const total = (order.totalCents / 100).toFixed(2).replace(".", ",");
-  if (orderLocale(order) === "ru") return callScriptRu(order, first, total, cutoffLabel, guide, linkBy);
+  const locale = orderLocale(order);
+  if (locale === "ru") return callScriptRu(order, first, total, cutoffLabel, guide, linkBy);
+  if (locale !== "pt") return callScriptIntl(order, locale, first, total, cutoffLabel, guide, linkBy, deliveryDays);
   return {
-    greeting: `Olá${first ? `, ${first}` : ""}! Daqui fala a Madalena, a assistente de inteligência artificial da Wine Portugal. Esta chamada pode ser gravada. Reparei que a sua Trilogia 2160 ficou a meio no nosso site e quis saber se ficou alguma dúvida. Tem um minutinho?`,
-    instructions: `És a Madalena, a assistente de inteligência artificial da Wine Portugal. Falas português de Portugal, com simpatia e frases curtas. Já te apresentaste como IA; se perguntarem, confirma que és uma assistente automática.
+    greeting: `Olá${first ? `, ${first}` : ""}! Fala a Madalena, assistente virtual da Wine Portugal. Esta chamada pode ser gravada. Reparei que a sua Trilogia 2160 ficou a meio no nosso site e quis saber se ficou alguma dúvida. Tem um minutinho?`,
+    instructions: `És a Madalena, assistente virtual da Wine Portugal. Falas português de Portugal, com simpatia e frases curtas. Já te apresentaste como assistente virtual; se perguntarem se és uma pessoa, diz com honestidade que és uma assistente virtual automática.
 Contexto: ${order.customerName ?? "o cliente"} começou uma encomenda no site vinho.prendadenatal.com: Trilogia 2160, ${bundleLabel(order)} (${order.qtyBoxes * 3} garrafas), total ${total} € com IVA. A encomenda não foi paga.
 Produto: caixa de oferta com 2160 Onde Tudo Nasce Branco 2025, Rosé 2024 e Tinto 2023, Martin Boutique Wines, Douro DOC, e o guia digital de receitas Sabores de Portugal oferecido. Preços, com envio incluído: 1 caixa 49,90 €, 2 caixas 89,90 € (a 2.ª por 40 €), 4 caixas 149,70 € (pague 3, leve 4). Envio CTT só para Portugal Continental, 2 a 4 dias úteis. Encomendas pagas até ${cutoffLabel} chegam antes do Natal. Pagamento: MB WAY, Multibanco, cartão, Apple Pay, Google Pay.
 Objetivo: perceber se houve alguma dúvida ou problema e ajudar a concluir. Se a pessoa quiser concluir, ${linkBy === "email" ? "diz que lhe enviamos o link de pagamento por email logo a seguir à chamada, para o email que deixou no site" : "diz que lhe enviamos agora o link por SMS e que demora um minuto"}.
 Regras: nunca peças dados de cartão nem pagamentos por telefone. Não inventes informação que não está aqui; se não souberes, diz que a equipa responde por WhatsApp no +351 910 348 577. Se a pessoa disser que não está interessada ou pedir para não ligar, pede desculpa, confirma que não voltamos a ligar e despede-te. Nunca pressiones. Conversa máxima de 3 minutos. Venda só a maiores de 18 anos.`,
   };
 }
+
+// The Belgian-warehouse markets (de, nl, fr pages): a native voice and persona per language. The greeting is written
+// in the language; the instructions are in English with "speak <language>", and carry the market's own facts.
+const INTL: Record<"de" | "nl" | "fr", { language: string; name: string; greeting: (first: string) => string }> = {
+  de: {
+    language: "German (formal Sie)",
+    name: "Miriam",
+    greeting: (f) => `Hallo${f ? ` ${f}` : ""}! Hier ist Miriam, die virtuelle Assistentin von Wine Portugal. Dieses Gespräch kann aufgezeichnet werden. Ich habe gesehen, dass Ihre Bestellung der Trilogia 2160 auf unserer Website nicht abgeschlossen wurde, und wollte fragen, ob noch etwas offen ist. Haben Sie kurz eine Minute?`,
+  },
+  nl: {
+    language: "Dutch (formal u)",
+    name: "Katrien",
+    greeting: (f) => `Hallo${f ? ` ${f}` : ""}! U spreekt met Katrien, de virtuele assistent van Wine Portugal. Dit gesprek kan worden opgenomen. Ik zag dat uw bestelling van de Trilogia 2160 op onze website niet is afgerond en wilde even vragen of u nog vragen heeft. Heeft u een minuutje?`,
+  },
+  fr: {
+    language: "French (formal vous)",
+    name: "Hélène",
+    greeting: (f) => `Bonjour${f ? ` ${f}` : ""} ! Ici Hélène, l'assistante virtuelle de Wine Portugal. Cet appel peut être enregistré. J'ai vu que votre commande de la Trilogia 2160 sur notre site n'a pas été finalisée, et je voulais savoir s'il vous restait une question. Vous avez une petite minute ?`,
+  },
+};
+
+function callScriptIntl(order: Order, locale: Locale, first: string, total: string, cutoffLabel: string, guide: boolean, linkBy: "sms" | "email", deliveryDays: string) {
+  const l = INTL[locale as keyof typeof INTL];
+  const market = MARKETS[isCountry(order.country) ? order.country : "DE"];
+  const extra = market.stripeRedirectMethods.map((m) => (m === "ideal" ? "iDEAL" : "Bancontact"));
+  const payment = ["card", "Apple Pay", "Google Pay", ...extra].join(", ");
+  return {
+    greeting: l.greeting(first),
+    instructions: `You are ${l.name}, the virtual assistant of Wine Portugal (a woman). Speak ${l.language}, warmly, in short sentences. You already introduced yourself as a virtual assistant; if asked whether you are a person, say honestly that you are an automated virtual assistant.
+Context: ${order.customerName ?? "The customer"} started an order on the shop's site (in ${LANGUAGE_NAMES[locale]}): Trilogia 2160, ${order.qtyBoxes} ${order.qtyBoxes === 1 ? "box" : "boxes"} (${order.qtyBoxes * 3} bottles), total ${total} euros including VAT. The order was not paid.
+Product: a Christmas gift box with three Douro DOC wines, 2160 Onde Tudo Nasce by Martin Boutique Wines: Branco 2025, Rosé 2024 and Tinto 2023${guide ? ", plus the free digital recipe guide Sabores de Portugal" : ""}. Prices with shipping included: 1 box 49,90 euros, 2 boxes 89,90 euros (the second for 40 euros), 4 boxes 149,70 euros (pay 3, get 4). Shipped from our warehouse in Belgium${deliveryDays ? `, delivery in ${deliveryDays} working days` : ""}; orders paid by ${cutoffLabel} arrive before Christmas. Payment on the site: ${payment}.
+Goal: find out whether there was a question or a problem, and help them finish. If they want to finish, ${linkBy === "email" ? "say we will email them the payment link right after the call, to the address they left on the site" : "say we will text them the link now and it takes a minute"}.
+Rules: never ask for card details or take a payment by phone. Never invent information that is not here; if you do not know, say the team answers on WhatsApp at +351 910 348 577. If they are not interested or ask not to be called, apologise, confirm we will not call again and say goodbye. Never pressure. At most 3 minutes. Sales only to adults over 18.`,
+  };
+}
+
+const LANGUAGE_NAMES: Record<Locale, string> = { pt: "Portuguese", ru: "Russian", de: "German", nl: "Dutch", fr: "French" };
 
 /** "Do not call me" / "not interested" in the AI call's insights (lower-cased), in Portuguese or Russian. */
 export function saidStop(text: string) {
@@ -258,8 +299,8 @@ function callScriptRu(order: Order, first: string, total: string, cutoffLabel: s
   const bottles = fmt(getDict("ru").common.bottles, { n: order.qtyBoxes * 3 });
   const who = order.customerName ? `Клиент ${order.customerName}` : "Клиент";
   return {
-    greeting: `Здравствуйте${first ? `, ${first}` : ""}! Это Ольга, ассистент Wine Portugal на основе искусственного интеллекта. Этот звонок может записываться. Я вижу, что Ваш заказ Trilogia 2160 на нашем сайте остался незавершённым, и хотела узнать, не осталось ли вопросов. У Вас есть минутка?`,
-    instructions: `Ты Ольга, ассистент Wine Portugal на основе искусственного интеллекта (говоришь о себе в женском роде). Ты говоришь по-русски, вежливо, на «Вы», короткими фразами. Клиент говорит по-русски и живёт в Португалии. Ты уже представилась как ИИ; если спросят, подтверди, что ты автоматический ассистент.
+    greeting: `Здравствуйте${first ? `, ${first}` : ""}! Это Ольга, виртуальный ассистент Wine Portugal. Этот звонок может записываться. Я вижу, что Ваш заказ Trilogia 2160 на нашем сайте остался незавершённым, и хотела узнать, не осталось ли вопросов. У Вас есть минутка?`,
+    instructions: `Ты Ольга, виртуальный ассистент Wine Portugal (говоришь о себе в женском роде). Ты говоришь по-русски, вежливо, на «Вы», короткими фразами. Клиент говорит по-русски и живёт в Португалии. Ты уже представилась как виртуальный ассистент; если спросят, человек ли ты, честно скажи, что ты автоматический виртуальный ассистент.
 Контекст: ${who} начал оформлять заказ на сайте vinho.prendadenatal.com: Trilogia 2160, ${bundleLabel(order)} (${bottles}), итого ${total} € с НДС. Заказ не оплачен.
 Товар: подарочная коробка с винами 2160 Onde Tudo Nasce: белое 2025, розовое 2024 и красное 2023, Martin Boutique Wines, Douro DOC${guide ? ", и цифровой гид с рецептами Sabores de Portugal в подарок" : ""}. Цены с доставкой: 1 коробка 49,90 €, 2 коробки 89,90 € (вторая за 40 €), 4 коробки 149,70 € (платите за 3, получаете 4). Доставка CTT только по континентальной Португалии, 2-4 рабочих дня. Заказы, оплаченные до ${cutoffLabel}, будут доставлены до Рождества. Оплата: MB WAY, Multibanco, карта, Apple Pay, Google Pay.
 Цель: понять, были ли у клиента вопросы или трудности, и помочь завершить заказ. Если клиент хочет завершить заказ, ${linkBy === "email" ? "скажи, что сразу после звонка мы отправим ссылку на оплату по электронной почте, на адрес, указанный на сайте" : "скажи, что мы сейчас отправим ссылку по SMS на русском языке и что это займёт минуту"}.

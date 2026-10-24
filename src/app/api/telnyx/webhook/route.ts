@@ -4,7 +4,7 @@ import { assistantFor, decodeState, hangup, sendSms, startAssistant, telnyxConfi
 import { marketCutoffIso, sendRecoveryEmail } from "@/lib/email";
 import { guideFor } from "@/lib/ebook";
 import { fmt, getDict } from "@/lib/i18n";
-import { isLocale, LOCALE_INFO } from "@/lib/markets";
+import { isCountry, isLocale, LOCALE_INFO } from "@/lib/markets";
 import { callScript, resumeUrl, saidStop, stopRecovery, stopUrl } from "@/lib/recovery";
 import { logOrderEvent } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
@@ -39,9 +39,10 @@ export async function POST(req: Request) {
         await merge({ outcome: "voicemail_hung_up" });
       } else {
         const settings = await getSettings();
-        // pt: "30/11/2026" as before; ru: "30.11.2026". The assistant speaks the order's language (pt or ru).
+        // pt: "30/11/2026" as before; ru: "30.11.2026", de: "30.11.2026"... The assistant speaks the order's language.
         const cutoff = new Date(marketCutoffIso(settings, order.country)).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" });
-        const script = callScript(order, cutoff, guideFor(settings, locale), telnyxConfigured("sms") ? "sms" : "email");
+        const days = isCountry(order.country) ? settings.markets?.[order.country]?.delivery_days ?? "" : "";
+        const script = callScript(order, cutoff, guideFor(settings, locale), telnyxConfigured("sms") ? "sms" : "email", days);
         await startAssistant(p.call_control_id, { ...script, state, assistantId: assistantFor(locale) });
         await merge({ outcome: "assistant_started" });
       }

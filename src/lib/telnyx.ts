@@ -55,13 +55,13 @@ export async function dialCall(to: string, state: CallState) {
 
 /**
  * Which Telnyx AI assistant speaks an order's language. The voice and the speech-recognition language live on the
- * assistant in Telnyx, so each language has its own: Portuguese TELNYX_ASSISTANT_ID, Russian TELNYX_ASSISTANT_ID_RU
- * (Admin → Settings → Outbound calls). Not set, or any other language: null, no AI call.
+ * assistant in Telnyx, so each language has its own: Portuguese TELNYX_ASSISTANT_ID, the others
+ * TELNYX_ASSISTANT_ID_RU / _DE / _NL / _FR (Admin → Settings → Outbound calls). Not set: null, no AI call.
  */
 export function assistantFor(locale: string): string | null {
   const env = E();
   if (locale === "pt") return env.TELNYX_ASSISTANT_ID || null;
-  if (locale === "ru") return env.TELNYX_ASSISTANT_ID_RU || null;
+  if (locale === "ru" || locale === "de" || locale === "nl" || locale === "fr") return env[`TELNYX_ASSISTANT_ID_${locale.toUpperCase()}`] || null;
   return null;
 }
 
@@ -69,7 +69,7 @@ export function assistantFor(locale: string): string | null {
 // Appended to every call's instructions: the call opens in the order's language, but the customer may answer in
 // another one. The assistant's speech recognition detects the language and has a voice per language (Telnyx side).
 export const LANGUAGE_RULE =
-  "LANGUAGE: open in the language above, but if the person answers in another language or asks for one, switch to that language at once and keep it until the end of the call (always reply in the language of their last sentence, even if it is close to Portuguese, such as Spanish); never insist on Portuguese or Russian. All the rules above still apply in any language.\n" +
+  "LANGUAGE: open in the language above, but if the person answers in another language or asks for one, switch to that language at once and keep it until the end of the call (always reply in the language of their last sentence, even if it is close to Portuguese, such as Spanish); never insist on the opening language. All the rules above still apply in any language.\n" +
   "STYLE: this is a phone call. You already introduced yourself in the greeting, so never repeat the introduction (confirm you are an AI only if asked). Short natural sentences, one idea at a time, no lists, symbols or formatting. Answer exactly what the person said, ask at most one question at a time and never repeat a sentence you already said. Only talk about the product described above, never invent other wines or prices. If you hear an answering machine or voicemail, say goodbye in one sentence and stop.\n" +
   "FLOW: you lead the call and every reply moves it one step forward: answer what the person said, then add one relevant question or next step. Never reply with only a greeting, your name or a restatement of why you called. Steps: (1) after the greeting, ask what stopped them from finishing (a question about the wine, the price, delivery, payment, or simply no time); (2) answer that concern concretely with the facts above; (3) when they are ready, offer to send the payment link the way the instructions above say (SMS to the number you are calling, or email to the address they left on the site) and confirm they want it (never ask for their phone number, email or any personal data; if they ask for another channel such as WhatsApp, say kindly that it goes the way above); (4) close warmly in one sentence. If you did not understand, say so briefly and ask them to repeat. When you switch language, do not introduce yourself again: continue from the step you were at.\n" +
   "MEMORY: the greeting and everything said so far in this call really happened and the person heard it. Never start over: never say hello again, never say your name or that you are a virtual assistant again, never explain again why you called or what they left in the cart, and never ask again if they have a minute. Before each reply, check which step you are at and say only something new. If the speech-to-text looks garbled or mixed languages, do not restart: ask one short question in the language they seem to use, such as asking them to repeat or which language they prefer.";
