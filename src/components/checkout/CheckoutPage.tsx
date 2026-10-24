@@ -418,6 +418,12 @@ export function CheckoutPage({
     queue({ [k]: v } as Partial<Fields>, immediate);
   };
 
+  // One consent covers both: calls (incl. the AI assistant) and messages about the order and promotions.
+  const setConsent = (v: boolean) => {
+    setFields((f) => ({ ...f, consentMessages: v, consentCalls: v }));
+    queue({ consentMessages: v, consentCalls: v }, true);
+  };
+
   // ---- Stripe Payment Element (card + Apple Pay + Google Pay), deferred intent: created on "Pagar" ----
   useEffect(() => {
     if (!stripeCard || method !== "card" || !amounts || !cardDivRef.current)
@@ -1038,7 +1044,7 @@ export function CheckoutPage({
               <input
                 type="checkbox"
                 checked={fields.consentMessages}
-                onChange={(e) => set("consentMessages", e.target.checked, true)}
+                onChange={(e) => setConsent(e.target.checked)}
                 className="mt-0.5 h-4 w-4 accent-azulejo"
               />
               <span>{t.consentMessages}</span>
@@ -1272,18 +1278,6 @@ export function CheckoutPage({
                     </div>
                   ))}
               </div>
-            )}
-            {/* Phone follow-ups (incl. the AI assistant) exist for Portuguese orders only (in Portuguese: not for ru). */}
-            {country === "PT" && locale === "pt" && (
-              <label className="flex items-start gap-2.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={fields.consentCalls}
-                  onChange={(e) => set("consentCalls", e.target.checked, true)}
-                  className="mt-0.5 h-4 w-4 accent-azulejo"
-                />
-                <span className="text-muted">{t.consentCalls}</span>
-              </label>
             )}
           </section>
 
