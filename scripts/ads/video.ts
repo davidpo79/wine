@@ -117,6 +117,55 @@ const VIDEOS: Record<string, (tall: boolean) => string> = {
       }),
       endCard(12.4, tall),
     ].join(""),
+  // Two boxes for 89,90 €: two Christmas gifts sorted (Reel brief, 24/10). 9:16 text stays inside the Reels safe zone
+  // (top 14 % and bottom 35 % free); the 18+ footer sits just above the bottom zone in every scene.
+  duas_prendas_video: (tall) => {
+    const top = tall ? 300 : 90; // first text line, below the Reels header
+    const foot = `<div style="position:absolute;left:0;right:0;top:${tall ? 1190 : 1290}px;text-align:center;font-size:${tall ? 28 : 24}px;font-weight:600;color:rgba(255,255,255,.88);text-shadow:0 2px 8px rgba(0,0,0,.6);z-index:5">18+ · Beba com moderação</div>`;
+    return [
+      scene({
+        from: 0,
+        to: 3,
+        html: `<div class="photo" style="background-image:url(${img("unboxing.webp")});background-position:42% center;${anim("zoom", 3, 0)}"></div><div class="shade" style="background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,.1) 45%,rgba(0,0,0,.35) 100%)"></div>
+          <div style="position:absolute;left:70px;right:70px;top:${top}px">
+          <div class="h" style="font-size:${tall ? 96 : 80}px;${anim("up", 0.6, 0.2)}">Duas prendas de Natal resolvidas 🎁</div></div>`,
+      }),
+      scene({
+        from: 3,
+        to: 7,
+        html: `<div class="photo" style="background-image:url(${img("table.webp")});background-position:center 30%;${anim("zoom", 4, 3)}"></div><div class="shade" style="background:linear-gradient(180deg,rgba(0,0,0,.6) 0%,rgba(0,0,0,.1) 40%,rgba(0,0,0,.3) 100%)"></div>
+          <div style="position:absolute;left:70px;right:70px;top:${top}px">
+          <div class="h" style="font-size:${tall ? 88 : 74}px;${anim("up", 0.6, 3.2)}">Trilogia 2160 · Douro&nbsp;DOC</div>
+          <div class="s" style="font-size:${tall ? 54 : 46}px;margin-top:22px;${anim("up", 0.5, 3.7)}">Branco · Rosé · Tinto</div></div>`,
+      }),
+      scene({
+        from: 7,
+        to: 11,
+        cls: "red",
+        html: `<div class="spark"></div><div style="position:absolute;left:0;right:0;top:${top}px;display:flex;flex-direction:column;align-items:center;gap:${tall ? 26 : 16}px">
+          <div class="k" style="font-size:${tall ? 44 : 36}px;${anim("up", 0.5, 7.1)}">2 caixas · 6 garrafas</div>
+          <div style="display:flex;align-items:flex-end">
+            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 420 : 330}px;margin-right:-70px;${anim("slideL", 0.7, 7.3)}">
+            <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 420 : 330}px;position:relative;z-index:2;${anim("slideR", 0.7, 7.5)}">
+          </div>
+          <div class="h" style="font-size:${tall ? 150 : 120}px;${anim("pop", 0.7, 8.0)}">89,90€</div>
+          <div class="chip" style="font-size:${tall ? 46 : 40}px;${anim("pop", 0.6, 8.5)}">Poupe 9,90€</div></div>`,
+      }),
+      scene({
+        from: 11,
+        to: 15,
+        last: true,
+        cls: "red",
+        html: `<div class="spark"></div><div style="position:absolute;left:0;right:0;top:${tall ? 280 : 70}px;display:flex;flex-direction:column;align-items:center;gap:${tall ? 24 : 14}px;padding:0 70px">
+          <div style="${anim("pop", 0.5, 11.1)}">${logo(tall ? 110 : 90)}</div>
+          <img class="box" src="${img("box-cutout.webp")}" style="width:${tall ? 400 : 300}px;${anim("pop", 0.7, 11.3)}">
+          <div class="h" style="font-size:${tall ? 76 : 64}px;${anim("up", 0.5, 11.7)}">Envio grátis</div>
+          <div class="s" style="font-size:${tall ? 38 : 32}px;${anim("up", 0.5, 12.0)}">+ Guia digital de receitas e harmonizações de oferta</div>
+          <div class="chip" style="font-size:${tall ? 40 : 34}px;${anim("pop", 0.6, 12.4)}">Encomende em vinho.prendadenatal.com</div></div>`,
+      }),
+      foot,
+    ].join("");
+  },
   // Consoada: who brings the wine.
   consoada_video: (tall) =>
     [
