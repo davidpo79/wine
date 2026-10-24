@@ -10,3 +10,5 @@ next-env.d.ts
 /tmp
 /ads/creatives/**/*.tmp
 screenshots/
+playwright-report/
+test-results/

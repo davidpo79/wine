@@ -1,0 +1,62 @@
+name: Production smoke
+
+# Runs the mock-buyer smoke test (e2e/smoke.spec.ts) against production, so a broken funnel shows as a red run.
+# It never pays: payment requests and the autosave of the typed contact details are blocked in the browser.
+# Each run leaves two empty draft orders (no contact data, tagged utm_source=smoke-test); see the test file.
+# Scheduled runs only fire from the default branch, and GitHub pauses schedules after 60 days without repo activity.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Site to test
+        default: https://vinho.prendadenatal.com
+        required: true
+  schedule:
+    - cron: "17 */2 * * *" # every 2 hours, at minute 17 (UTC)
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: production smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://vinho.prendadenatal.com' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Mock-buyer smoke test against ${{ env.BASE_URL }}
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-production
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

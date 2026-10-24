@@ -1,0 +1,110 @@
+name: CI
+
+# Typecheck, unit tests, build and the mock-buyer smoke test (e2e/smoke.spec.ts) against the freshly built app.
+# The required status check for branch protection is the job below: "ci".
+on:
+  pull_request:
+    branches: [claude/wine-portugal-natal-df8491]
+  push:
+    branches: [claude/wine-portugal-natal-df8491]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # The landing page and checkout read the catalog from Postgres, and part of the unit tests
+    # (outbound settings, PT callers, human calls) run against a real database. Throwaway, CI only.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vinho_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/vinho_ci
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/vinho_ci
+      HUMAN_CALLS_DB_URL: postgres://postgres:postgres@localhost:5432/vinho_ci
+      NEXT_TELEMETRY_DISABLED: "1"
+      RECOVERY_WORKER: "0"
+      SESSION_SECRET: ci-only-session-secret-not-used-anywhere-else
+      SITE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Migrate and seed the CI database
+        run: npm run db:migrate && npm run db:seed
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'public/**', 'next.config.ts') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: Build
+        run: npm run build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      # Playwright starts `next start` itself (playwright.config.ts) and walks the funnel without paying.
+      # The ifthenpay values are clearly fake and exist only here: the checkout shows a payment method when its key
+      # is set, and the smoke test never presses pay (payment requests are blocked in the browser).
+      - name: Mock-buyer smoke test
+        env:
+          BASE_URL: http://localhost:3000
+          IFTHENPAY_SANDBOX: "1"
+          IFTHENPAY_MBWAY_KEY: CI-FAKE-MBWAY-KEY
+          IFTHENPAY_MB_KEY: CI-FAKE-MB-KEY
+          IFTHENPAY_CCARD_KEY: CI-FAKE-CCARD-KEY
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-ci
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
