@@ -11,8 +11,11 @@ on:
         description: Site to test
         default: https://vinho.prendadenatal.com
         required: true
+  # After every deploy: Railway deploys the base branch on push, which takes 2 to 4 minutes.
+  push:
+    branches: [claude/wine-portugal-natal-df8491]
   schedule:
-    - cron: "17 */2 * * *" # every 2 hours, at minute 17 (UTC)
+    - cron: "17 8,14,20 * * *" # three times a day (UTC); only fires if this is on the default branch
 
 concurrency:
   group: production-smoke
@@ -29,6 +32,10 @@ jobs:
     env:
       BASE_URL: ${{ github.event.inputs.base_url || 'https://vinho.prendadenatal.com' }}
     steps:
+      - name: Wait for the Railway deploy
+        if: github.event_name == 'push'
+        run: sleep 300
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
