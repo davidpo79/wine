@@ -127,7 +127,7 @@ ${orderSummary(o, addons)}
 ${
   guide
     ? `<p>${html_(fmt(t.guideOffer, { title: esc(ebookTitle(locale)) }))}</p>
-${link ? button(link, t.guideButton) + `<p style="font-size:12px;color:#55606e">${t.guideValidity}</p>` : `<p>[[TODO: e-book ainda não carregado no bucket]] ${t.guideLater}</p>`}`
+${link ? button(link, t.guideButton) + `<p style="font-size:12px;color:#55606e">${t.guideValidity}</p>` : `<p>${t.guideLater}</p>`}`
     : ""
 }
 <p>${fmt(t.invoice, { nif: o.nif ? fmt(t.invoiceNif, { nif: esc(o.nif) }) : "" })}</p>`,
