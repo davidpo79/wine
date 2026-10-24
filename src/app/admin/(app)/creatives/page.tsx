@@ -13,14 +13,14 @@ type SP = { concept?: string; status?: string };
 // List them here, grouped by concept, so they can be seen and downloaded without knowing the file names.
 function library() {
   const files: string[] = [];
-  for (const dir of ["ads", "ads/anim"]) {
+  for (const dir of ["ads", "ads/anim", "lp"]) {
     try {
-      for (const f of readdirSync(join(process.cwd(), "public", dir))) if (/\.(jpe?g|png|webp|mp4)$/i.test(f)) files.push(`${dir}/${f}`);
+      for (const f of readdirSync(join(process.cwd(), "public", dir))) if (/\.(jpe?g|png|webp|mp4)$/i.test(f) && !/-(768|thumb)\./.test(f)) files.push(`${dir}/${f}`);
     } catch {}
   }
   const groups = new Map<string, string[]>();
   for (const f of files.sort()) {
-    const k = f.replace(/^ads\/(anim\/)?/, "").replace(/(_reel)?(_video)?(_cover)?_?(9x16|4x5|1x1)?\.(jpe?g|png|webp|mp4)$/i, "");
+    const k = f.startsWith("lp/") ? "photos (landing page)" : f.replace(/^ads\/(anim\/)?/, "").replace(/(_reel)?(_video)?(_cover)?_?(9x16|4x5|1x1)?\.(jpe?g|png|webp|mp4)$/i, "");
     groups.set(k, [...(groups.get(k) ?? []), f]);
   }
   return groups;
@@ -102,7 +102,7 @@ export default async function Creatives({ searchParams }: { searchParams: Promis
         })}
       </div>
       <h2 className="mt-10 font-serif text-2xl font-semibold">Ad library</h2>
-      <p className="mt-1 text-sm text-muted">Every image and video in /ads, the files uploaded to Meta. Tap a file name to open or download it.</p>
+      <p className="mt-1 text-sm text-muted">Every image and video in /ads (the files uploaded to Meta) and the original photos of the landing page. Tap a file name to open or download it.</p>
       <div className="mt-4 grid gap-5 lg:grid-cols-2">
         {[...library().entries()].map(([k, files]) => (
           <article key={k} className="rounded-lg border bg-white p-4">
@@ -117,7 +117,7 @@ export default async function Creatives({ searchParams }: { searchParams: Promis
                     <img src={`/${f}`} alt={f} className="w-full rounded border" loading="lazy" />
                   )}
                   <figcaption className="mt-1 break-all text-center text-xs">
-                    <a href={`/${f}`} download className="text-azulejo underline">{f.replace(/^ads\//, "")}</a>
+                    <a href={`/${f}`} download className="text-azulejo underline">{f.replace(/^(ads|lp)\//, "")}</a>
                   </figcaption>
                 </figure>
               ))}
