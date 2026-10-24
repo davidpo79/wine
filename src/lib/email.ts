@@ -347,6 +347,15 @@ export async function sendPaymentIssueAlert(orderId: string, message: string) {
   return send(null, to, `[Pagamento] ${orderId}: verificar`, html, "payment_issue");
 }
 
+/** An incoming call the team did not answer, handled by the AI assistant: the team should call back. */
+export async function sendInboundCallAlert(from: string) {
+  const to = process.env.ADMIN_ALERT_EMAIL;
+  if (!to) return;
+  const who = from || "número desconhecido";
+  const html = layout("Chamada atendida pela assistente", `<p>Ninguém atendeu uma chamada de <b>${esc(who)}</b> e a assistente virtual atendeu. Ligue de volta; a conversa está no Telnyx (AI Assistants → Conversations).</p>`);
+  return send(null, to, `[Chamada] ${who}: atendida pela assistente, ligar de volta`, html, "inbound_call");
+}
+
 export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
   if (!o.email) return;
   const locale = localeOf(o);

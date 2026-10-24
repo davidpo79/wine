@@ -249,6 +249,40 @@ export const transferInbound = (f: { callControlId: string; to: string; from: st
 
 export const hangupLeg = (callControlId: string) => tolerant(`${cc(callControlId)}/hangup`, {});
 
+// --- Incoming calls with the AI fallback (inbound-agent.ts) --------------------------------------------------------
+
+export const answerInbound = (callControlId: string, clientState: string) =>
+  tolerant(`${cc(callControlId)}/answer`, { client_state: clientState, command_id: `in-answer-${callControlId}` });
+
+/** Rings the team phone for ringSecs, shown as our number; bridged to the caller the moment someone answers. */
+export async function dialTeamLeg(p: { to: string; from: string; callerCcid: string; clientState: string; ringSecs: number }) {
+  const c = humanCallConfig();
+  const r = await tx("POST", "/calls", {
+    connection_id: c.callControlConnectionId,
+    to: p.to,
+    from: p.from,
+    link_to: p.callerCcid,
+    bridge_on_answer: true,
+    webhook_url: c.webhookUrl,
+    client_state: p.clientState,
+    command_id: `in-team-${p.callerCcid}`,
+    timeout_secs: p.ringSecs,
+    time_limit_secs: c.timeLimitSecs,
+  });
+  return data(r).call_control_id ?? null;
+}
+
+export const updateClientState = (callControlId: string, clientState: string) =>
+  tolerant(`${cc(callControlId)}/client_state_update`, { client_state: clientState });
+
+export const startInboundAssistant = (callControlId: string, p: { assistantId: string; greeting: string; instructions: string; clientState: string }) =>
+  tolerant(`${cc(callControlId)}/ai_assistant_start`, {
+    assistant: { id: p.assistantId, instructions: p.instructions },
+    greeting: p.greeting,
+    client_state: p.clientState,
+    command_id: `in-ai-${callControlId}`,
+  });
+
 /** Keypad tones played into the other side's line (a switchboard menu: "press 1 for HR"). */
 export const sendDtmf = (callControlId: string, digits: string) => tx("POST", `${cc(callControlId)}/send_dtmf`, { digits, duration_millis: 250 });
 

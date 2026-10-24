@@ -15,6 +15,10 @@ import { normalizePhone } from "./leads";
 import { logOrderEvent } from "./orders";
 import { bucketConfigured, putObject } from "./bucket";
 import * as ptHooks from "./pt-callers/call-hooks";
+import { outboundEnv } from "./outbound-settings";
+import { CONDUCT_RULE, encodeIn, inboundAction, inboundGreeting, inboundInstructions, type InState } from "./inbound-agent";
+import { marketCutoffIso, sendInboundCallAlert } from "./email";
+import { getSettings } from "./settings";
 import {
   TERMINAL,
   TelnyxError,
@@ -26,6 +30,10 @@ import {
   hangupLeg,
   inboundForward,
   transferInbound,
+  answerInbound,
+  dialTeamLeg,
+  updateClientState,
+  startInboundAssistant,
   sendDtmf,
   humanCallConfig,
   humanCallMissing,
@@ -362,6 +370,43 @@ async function saveRecording(p: Record<string, unknown>) {
   }
 }
 
+/** Incoming calls with the AI fallback; false = not configured or not such a leg (the forward below takes it). */
+async function handleInbound(type: string, p: Record<string, unknown>) {
+  const env = outboundEnv();
+  const act = inboundAction(type, p, { assistantId: env.TELNYX_INBOUND_ASSISTANT_ID ?? "", forwardTo: env.TELNYX_INBOUND_FORWARD_TO ?? "", ourNumber: String(p.to ?? env.TELNYX_FROM_NUMBER ?? "") });
+  if (!act) return false;
+  if (act.do === "answer") await answerInbound(act.ccid, encodeIn(act.state));
+  else if (act.do === "ring_team") {
+    await startRingback(act.ccid, act.ccid);
+    const b = await dialTeamLeg({
+      to: env.TELNYX_INBOUND_FORWARD_TO!,
+      from: env.TELNYX_FROM_NUMBER || String(p.to ?? ""),
+      callerCcid: act.ccid,
+      clientState: encodeIn({ k: "in", r: "team", from: act.state.from, a: act.ccid }),
+      ringSecs: Number(env.TELNYX_INBOUND_RING_SECS) > 0 ? Number(env.TELNYX_INBOUND_RING_SECS) : 15,
+    }).catch((e) => (log("inbound team dial", act.ccid, errText(e)), null));
+    // Remember the team leg on the caller's leg (a caller who hangs up stops it), or answer with the AI right away.
+    if (b) await updateClientState(act.ccid, encodeIn({ ...act.state, b }));
+    else await startAi(act.ccid, act.state);
+  } else if (act.do === "start_ai") await startAi(act.ccid, act.state);
+  else if (act.do === "team_answered") await stopRingback(act.callerCcid, act.callerCcid);
+  else if (act.do === "hangup") await hangupLeg(act.ccid);
+  else if (act.do === "alert") await sendInboundCallAlert(act.from);
+  return true;
+}
+
+async function startAi(callerCcid: string, state: InState) {
+  await stopRingback(callerCcid, callerCcid);
+  const settings = await getSettings();
+  const cutoff = new Date(marketCutoffIso(settings, "PT")).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit" });
+  await startInboundAssistant(callerCcid, {
+    assistantId: outboundEnv().TELNYX_INBOUND_ASSISTANT_ID!,
+    greeting: inboundGreeting(),
+    instructions: `${inboundInstructions(cutoff)}\n\n${CONDUCT_RULE}`,
+    clientState: encodeIn({ k: "in", r: "caller", from: state.from }),
+  });
+}
+
 /** Called after the signature check. Every event on the account arrives here; unknown legs are ignored. */
 export async function handleHumanCallEvent(evt: { event_type?: string; occurred_at?: string; payload?: Record<string, unknown> }) {
   const type = evt.event_type ?? "";
@@ -373,6 +418,7 @@ export async function handleHumanCallEvent(evt: { event_type?: string; occurred_
     return;
   }
   if (!ccid) return;
+  if (await handleInbound(type, p).catch((e) => (log("inbound", ccid, errText(e)), true))) return;
   const fwd = inboundForward(type, p);
   if (fwd) return void (await transferInbound(fwd).catch((e) => log("inbound forward", ccid, errText(e))));
 

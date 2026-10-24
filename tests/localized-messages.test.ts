@@ -261,7 +261,7 @@ test("createRecoveryTemplate submits only the missing languages; status lists ev
 
 test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", async () => {
   const ptScript = recovery.callScript(order(), "30/11/2026");
-  assert.match(ptScript.greeting, /^Olá, Ana! Daqui fala a Beatriz, a assistente de inteligência artificial da Wine Portugal\. Esta chamada pode ser gravada\./);
+  assert.match(ptScript.greeting, /^Olá, Ana! Daqui fala a Madalena, a assistente de inteligência artificial da Wine Portugal\. Esta chamada pode ser gravada\./);
   assert.match(ptScript.instructions, /link por SMS/);
   // No Telnyx SMS yet: the link goes by email after the call, in the order's language.
   const ptEmail = recovery.callScript(order(), "30/11/2026", true, "email");
@@ -320,7 +320,8 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
     }) as typeof fetch;
     try {
       const { startAssistant, LANGUAGE_RULE, HUMAN_RULE } = await import("../src/lib/telnyx");
-      const withRule = `i\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}`;
+      const { CONDUCT_RULE } = await import("../src/lib/inbound-agent");
+      const withRule = `i\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}\n${CONDUCT_RULE}`;
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("ru") });
       assert.deepEqual(posted[0].body.assistant, { id: "a-ru", instructions: withRule });
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("pt") });

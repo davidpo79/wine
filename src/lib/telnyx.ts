@@ -1,5 +1,6 @@
 import { verify as edVerify } from "node:crypto";
 import { outboundEnv as E } from "./outbound-settings";
+import { CONDUCT_RULE } from "./inbound-agent";
 
 const API = "https://api.telnyx.com/v2";
 
@@ -79,7 +80,7 @@ export const HUMAN_RULE =
 
 export async function startAssistant(callControlId: string, opts: { greeting: string; instructions: string; state: CallState; assistantId?: string | null }) {
   return call(`/calls/${encodeURIComponent(callControlId)}/actions/ai_assistant_start`, {
-    assistant: { id: opts.assistantId || E().TELNYX_ASSISTANT_ID, instructions: `${opts.instructions}\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}` },
+    assistant: { id: opts.assistantId || E().TELNYX_ASSISTANT_ID, instructions: `${opts.instructions}\n\n${LANGUAGE_RULE}\n${HUMAN_RULE}\n${CONDUCT_RULE}` },
     greeting: opts.greeting,
     client_state: encodeState(opts.state),
     command_id: `ai_${opts.state.orderId}_${opts.state.stepId}`,

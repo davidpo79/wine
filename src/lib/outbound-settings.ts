@@ -13,6 +13,8 @@ export const OUTBOUND_FIELDS = [
   { key: "TELNYX_WEBRTC_CONNECTION_ID", group: "telnyx", label: "WebRTC credential connection id", kind: "text", hint: "Holds the admins' browser phones (a Credential Connection, not the Call Control app)" },
   { key: "TELNYX_PUBLIC_KEY", group: "telnyx", label: "Webhook public key", kind: "text", hint: "Base64 Ed25519 public key (Telnyx → Account → Keys). Public, not a secret." },
   { key: "TELNYX_ASSISTANT_ID", group: "telnyx", label: "AI assistant id (abandoned-checkout call)", kind: "text", hint: "Portuguese calls" },
+  { key: "TELNYX_INBOUND_ASSISTANT_ID", group: "telnyx", label: "AI assistant id (incoming calls)", kind: "text", hint: "Answers incoming calls when nobody answers the forward phone in time (or no forward phone is set); you get an email with the caller's number. Empty = incoming calls only ring the forward phone, as before." },
+  { key: "TELNYX_INBOUND_RING_SECS", group: "telnyx", label: "Forward phone rings for (seconds) before the AI answers", kind: "int", hint: "Default 15. Keep it shorter than that phone's voicemail, or the voicemail takes the call." },
   { key: "TELNYX_ASSISTANT_ID_RU", group: "telnyx", label: "AI assistant id, Russian (abandoned-checkout call)", kind: "text", hint: "The Telnyx AI assistant set to Russian (ru-RU voice, ru transcription). Empty = Russian orders get messages only, no AI call." },
   // WhatsApp abandoned-checkout message (the template is created and approved in WhatsApp Manager / Telnyx first)
   { key: "WHATSAPP_PROVIDER", group: "whatsapp", label: "WhatsApp provider", kind: "select", options: ["telnyx", "meta"], hint: "telnyx (default): sent through Telnyx with TELNYX_API_KEY. meta: Meta Cloud API with WHATSAPP_TOKEN (Railway)." },
