@@ -65,9 +65,14 @@ export function assistantFor(locale: string): string | null {
 }
 
 /** assistantId: assistantFor(order locale); the Portuguese assistant when not given. */
+// Appended to every call's instructions: the call opens in the order's language, but the customer may answer in
+// another one. The assistant's speech recognition detects the language and has a voice per language (Telnyx side).
+export const LANGUAGE_RULE =
+  "LANGUAGE: open in the language above, but if the person answers in another language or asks for one, switch to that language at once and keep it until the end of the call; never insist on Portuguese or Russian. All the rules above still apply in any language.";
+
 export async function startAssistant(callControlId: string, opts: { greeting: string; instructions: string; state: CallState; assistantId?: string | null }) {
   return call(`/calls/${encodeURIComponent(callControlId)}/actions/ai_assistant_start`, {
-    assistant: { id: opts.assistantId || E().TELNYX_ASSISTANT_ID, instructions: opts.instructions },
+    assistant: { id: opts.assistantId || E().TELNYX_ASSISTANT_ID, instructions: `${opts.instructions}\n\n${LANGUAGE_RULE}` },
     greeting: opts.greeting,
     client_state: encodeState(opts.state),
     command_id: `ai_${opts.state.orderId}_${opts.state.stepId}`,

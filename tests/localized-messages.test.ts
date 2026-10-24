@@ -311,11 +311,12 @@ test("AI call: Russian script for ru orders; skipped for de; +351 rule kept", as
       return new Response(JSON.stringify({ data: { call_control_id: "cc1" } }), { status: 200 });
     }) as typeof fetch;
     try {
-      const { startAssistant } = await import("../src/lib/telnyx");
+      const { startAssistant, LANGUAGE_RULE } = await import("../src/lib/telnyx");
+      const withRule = `i\n\n${LANGUAGE_RULE}`;
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("ru") });
-      assert.deepEqual(posted[0].body.assistant, { id: "a-ru", instructions: "i" });
+      assert.deepEqual(posted[0].body.assistant, { id: "a-ru", instructions: withRule });
       await startAssistant("cc1", { greeting: "g", instructions: "i", state: { orderId: "WP-TEST1", stepId: 1 }, assistantId: assistantFor("pt") });
-      assert.deepEqual(posted[1].body.assistant, { id: "a-pt", instructions: "i" });
+      assert.deepEqual(posted[1].body.assistant, { id: "a-pt", instructions: withRule });
     } finally {
       globalThis.fetch = realFetch;
     }
