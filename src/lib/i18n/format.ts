@@ -13,6 +13,14 @@ export function moneyShortFor(locale: Locale) {
   return (cents: number) => (cents % 100 === 0 ? whole.format(cents / 100).replace(/ /g, " ") : full(cents));
 }
 
+/**
+ * Delivery days as typed in Admin → Settings for Portugal ("2 a 4", in Portuguese), in the page language. Russian is
+ * the only other language of the Portugal market, so only Russian needs it: "2 a 4" -> "2-4".
+ */
+export function deliveryDaysFor(locale: Locale, days: string) {
+  return locale === "ru" ? days.replace(/\s+a\s+/g, "-") : days;
+}
+
 export function dateFor(locale: Locale, iso: string) {
   return new Date(iso).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric" });
 }

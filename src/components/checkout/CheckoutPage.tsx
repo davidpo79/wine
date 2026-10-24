@@ -1157,6 +1157,7 @@ export function CheckoutPage({
                 <div className="mt-3 grid grid-cols-[120px_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[150px_minmax(0,1fr)]">
                   <GiftCard
                     message={fields.giftMessage}
+                    placeholder={t.cardPreviewEmpty}
                     className="rounded shadow-md"
                   />
                   <div className="min-w-0">
@@ -1269,8 +1270,8 @@ export function CheckoutPage({
                   ))}
               </div>
             )}
-            {/* Phone follow-ups (incl. the AI assistant) exist for Portuguese orders only. */}
-            {country === "PT" && (
+            {/* Phone follow-ups (incl. the AI assistant) exist for Portuguese orders only (in Portuguese: not for ru). */}
+            {country === "PT" && locale === "pt" && (
               <label className="flex items-start gap-2.5 text-sm">
                 <input
                   type="checkbox"

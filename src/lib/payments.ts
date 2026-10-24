@@ -147,7 +147,7 @@ export async function startPayment(order: Order, method: ifp.PayMethod, opts: { 
       const r = await ifp.multibancoCreate({ ref, amountCents: amount, expiryDays: MB_EXPIRY_DAYS(), description, name: order.customerName, email: order.email, phone: order.phone });
       if (!r.ok) {
         await logOrderEvent(order.id, "payment_error", { method, message: r.message });
-        return { ok: false, status: 502, error: "Não foi possível gerar a referência Multibanco. Tente novamente." };
+        return { ok: false, status: 502, error: t.mbRefFailed };
       }
       const [p] = await db.insert(schema.payments).values({ orderId: order.id, method, ref, requestId: r.requestId, amountCents: amount, entity: r.entity, reference: r.reference, expiresAt: r.expiresAt }).returning();
       await multibancoIssued(order, p);

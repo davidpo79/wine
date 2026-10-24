@@ -37,6 +37,13 @@ const FLAGS: Record<Locale, React.ReactNode> = {
       <rect x="12" width="6" height="12" fill="#ef3340" />
     </>
   ),
+  // Russian is a language of the Portugal market (not a country we sell to): a neutral language badge, no flag.
+  ru: (
+    <>
+      <rect width="18" height="12" rx="2" fill="#184b36" />
+      <text x="9" y="9" textAnchor="middle" fontSize="7" fontWeight="700" fontFamily="Arial, sans-serif" fill="#fff">RU</text>
+    </>
+  ),
 };
 
 function Flag({ l }: { l: Locale }) {

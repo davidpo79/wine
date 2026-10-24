@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouteLocale } from "@/lib/i18n/route-locale";
 import { CONSENT_COPY, privacyHref } from "@/lib/i18n/consent";
+import type { Locale } from "@/lib/markets";
 import { newEventId, pixelEvent, track, visit } from "@/lib/track-client";
 
 const COOKIE = "wp_consent";
@@ -197,8 +198,10 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
   );
 }
 
-export function OpenConsentLink({ className }: { className?: string }) {
-  const locale = useRouteLocale();
+/** locale: the page's language when the caller knows it (pages without a language prefix, such as /obrigado). */
+export function OpenConsentLink({ className, locale: pageLocale }: { className?: string; locale?: Locale }) {
+  const routeLocale = useRouteLocale();
+  const locale = pageLocale ?? routeLocale;
   return (
     <button type="button" className={className} onClick={() => window.dispatchEvent(new Event("wp:open-consent"))}>
       {CONSENT_COPY[locale].prefs}

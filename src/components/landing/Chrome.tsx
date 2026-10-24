@@ -3,7 +3,7 @@ import { OpenConsentLink } from "@/components/tracking/Consent";
 import { getDict } from "@/lib/i18n";
 import { fmt } from "@/lib/i18n/rich";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
-import type { Locale } from "@/lib/markets";
+import { COUNTRIES_FOR_LOCALE, type Locale } from "@/lib/markets";
 
 export function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -109,12 +109,12 @@ export function Footer({ locale = "pt" }: { locale?: Locale }) {
             <li><a href={legalHref("terms", locale)} className="inline-block py-1.5 hover:text-gold">{d.common.legal.terms}</a></li>
             <li><a href={legalHref("privacy", locale)} className="inline-block py-1.5 hover:text-gold">{d.common.legal.privacy}</a></li>
             <li><a href={legalHref("shipping", locale)} className="inline-block py-1.5 hover:text-gold">{d.common.legal.shipping}</a></li>
-            {locale === "pt" && (
+            {COUNTRIES_FOR_LOCALE[locale].includes("PT") && (
               <li>
                 <a href="https://www.livroreclamacoes.pt" target="_blank" rel="noopener" className="inline-block py-1.5 hover:text-gold">{t.complaintsOnline}</a>
               </li>
             )}
-            <li><OpenConsentLink className="inline-block py-1.5 hover:text-gold" /></li>
+            <li><OpenConsentLink className="inline-block py-1.5 hover:text-gold" locale={locale} /></li>
           </ul>
           <p className="mt-3 text-xs">
             {fmt(t.ral, { entity: SITE.ralEntity })}{" "}
