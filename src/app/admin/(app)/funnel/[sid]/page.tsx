@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { eur } from "@/lib/money";
 import { sessionTimeline } from "@/lib/journey-stats";
+import { isInAppNoise } from "@/lib/journey";
 
 type Props = Record<string, unknown> | null;
 
@@ -67,7 +68,7 @@ function describe(name: string, p: Props): string {
     case "thankyou_view":
       return `Thank-you page`;
     case "js_error":
-      return `JavaScript error: ${v("msg")} ${v("at")}`;
+      return isInAppNoise(p?.msg) ? `In-app browser noise (ignored): ${v("msg")}` : `JavaScript error: ${v("msg")} ${v("at")}`;
     default:
       return name;
   }

@@ -64,6 +64,16 @@ export const JourneyBatch = z.object({
 });
 export type JourneyBatch = z.infer<typeof JourneyBatch>;
 
+// JavaScript errors thrown by the Facebook / Instagram in-app browsers' own injected bridge (Android WebView), or by
+// cross-origin scripts with no details. Not the site's code and invisible to the visitor, so Admin → Funnel lists
+// them apart instead of counting them as visits with problems. Kept as a SQL regex too (case-insensitive).
+export const IN_APP_NOISE_PATTERN = "Java object is gone|Error invoking postMessage|webkit\\.messageHandlers|^Script error\\.?$";
+const IN_APP_NOISE = new RegExp(IN_APP_NOISE_PATTERN, "i");
+
+export function isInAppNoise(msg: unknown): boolean {
+  return typeof msg === "string" && IN_APP_NOISE.test(msg.trim());
+}
+
 /** Device class and browser family from the user agent (only these two values are kept). */
 export function deviceOf(ua: string | null | undefined): { device: string; browser: string } {
   const s = ua ?? "";

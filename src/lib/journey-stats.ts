@@ -3,6 +3,7 @@
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { PAID_STATUSES } from "./stats";
+import { IN_APP_NOISE_PATTERN } from "./journey";
 
 export type JourneyFilter = { since: Date | null; source?: string; device?: string; country?: string; adsOnly?: boolean };
 
@@ -84,7 +85,7 @@ export async function journeySessions(f: JourneyFilter): Promise<SessionRow[]> {
         max(order_id) as order_id,
         (array_agg(props->>'field' order by id desc) filter (where name in ('field_focus', 'field_done') and path like '%checkout%'))[1] as last_field,
         count(*) filter (where name = 'rage_click')::int as rage,
-        count(*) filter (where name = 'js_error')::int as js_errors
+        count(*) filter (where name = 'js_error' and coalesce(props->>'msg', '') !~* ${IN_APP_NOISE_PATTERN})::int as js_errors
       from journey_events
       where created_at >= ${since.toISOString()}::timestamptz
       group by session_id
@@ -208,25 +209,27 @@ export async function fieldStats(sessions: SessionRow[], since: Date | null) {
 /** Top validation messages, payment errors, clicks, rage clicks and JS errors in the period. */
 export async function topEvents(sessions: SessionRow[], since: Date | null) {
   const ids = sessions.map((s) => s.sessionId).slice(0, 50000);
-  if (!ids.length) return { clicks: [], rage: [], errors: [], payment: [], js: [], sections: [] };
-  const by = async (name: string, key: ReturnType<typeof sql>, limit = 15) =>
+  if (!ids.length) return { clicks: [], rage: [], errors: [], payment: [], js: [], jsNoise: [], sections: [] };
+  const by = async (name: string, key: ReturnType<typeof sql>, limit = 15, extra?: ReturnType<typeof sql>) =>
     (await db
       .select({ key: sql<string>`${key}`, n: sql<number>`count(*)::int`, sessions: sql<number>`count(distinct ${schema.journeyEvents.sessionId})::int` })
       .from(schema.journeyEvents)
-      .where(and(eq(schema.journeyEvents.name, name), inArray(schema.journeyEvents.sessionId, ids), ...(since ? [gte(schema.journeyEvents.createdAt, since)] : [])))
+      .where(and(eq(schema.journeyEvents.name, name), inArray(schema.journeyEvents.sessionId, ids), ...(since ? [gte(schema.journeyEvents.createdAt, since)] : []), ...(extra ? [extra] : [])))
       .groupBy(sql`1`)
       .orderBy(desc(sql`3`))
       .limit(limit)) as { key: string; n: number; sessions: number }[];
   const p = schema.journeyEvents.props;
-  const [clicks, rage, errors, payment, js, sections] = await Promise.all([
+  const msg = sql`coalesce(${p}->>'msg', '')`;
+  const [clicks, rage, errors, payment, js, jsNoise, sections] = await Promise.all([
     by("click", sql`coalesce(${schema.journeyEvents.path}, '') || ' · ' || coalesce(${p}->>'label', '')`, 20),
     by("rage_click", sql`coalesce(${schema.journeyEvents.path}, '') || ' · ' || coalesce(${p}->>'label', '')`),
     by("field_error", sql`coalesce(${p}->>'field', '') || ' · ' || coalesce(${p}->>'msg', '')`),
     by("payment_error", sql`coalesce(${p}->>'stage', '') || ' · ' || coalesce(${p}->>'method', '') || ' · ' || coalesce(nullif(${p}->>'code', ''), ${p}->>'msg', '')`),
-    by("js_error", sql`coalesce(${p}->>'msg', '') || ' ' || coalesce(${p}->>'at', '')`),
+    by("js_error", sql`coalesce(${p}->>'msg', '') || ' ' || coalesce(${p}->>'at', '')`, 15, sql`${msg} !~* ${IN_APP_NOISE_PATTERN}`),
+    by("js_error", sql`coalesce(${p}->>'msg', '') || ' ' || coalesce(${p}->>'at', '')`, 5, sql`${msg} ~* ${IN_APP_NOISE_PATTERN}`),
     by("section", sql`${p}->>'id'`, 20),
   ]);
-  return { clicks, rage, errors, payment, js, sections };
+  return { clicks, rage, errors, payment, js, jsNoise, sections };
 }
 
 /** Every event of one visit, merged with its order's server-side events (payments, status changes, upsells). */
