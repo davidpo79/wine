@@ -5,9 +5,11 @@ import { eur } from "./money";
 import { SITE } from "./site";
 import { bucketConfigured, presignedGet } from "./bucket";
 import { ctTrackingUrl, logOrderEvent } from "./orders";
-import { getDict, moneyFor } from "./i18n";
+import { dayMonthFor, getDict, moneyFor } from "./i18n";
 import { fmt } from "./i18n/rich";
-import { isLocale, LOCALE_INFO, type Locale } from "./markets";
+import { homeHref } from "./i18n/paths";
+import { defaultCountry, isCountry, isLocale, LOCALE_INFO, type Locale } from "./markets";
+import type { Settings } from "./settings-defaults";
 import { logOutbound, shopAddress } from "./inbox";
 import { reviewUrl } from "./reviews";
 import { ebookFileName, ebookKey, ebookTitle, guideFor } from "./ebook";
@@ -248,51 +250,92 @@ ${button(`${SITE.url}/admin/inbox/${encodeURIComponent(m.contact)}`, "Responder 
   return send(null, to, `[Mensagem] ${m.subject || m.fromAddr}`, html, "admin_alert");
 }
 
-export async function sendLeadCode(lead: Lead, code: string, percent: number, maxQty: number) {
+/** Christmas cutoff of the country a customer buys for (Admin → Settings → markets, else the global cutoff). */
+export function marketCutoffIso(settings: Pick<Settings, "cutoff_at" | "markets">, country: string): string {
+  return (isCountry(country) ? settings.markets?.[country]?.cutoff_at : null) ?? settings.cutoff_at;
+}
+
+/** Language of a lead: the page it was captured on (Portuguese when unknown). */
+export const leadLocale = (lead: Pick<Lead, "locale">): Locale => (isLocale(lead.locale) ? lead.locale : "pt");
+
+/** Landing page in the lead's language with the code in the link (?codigo= is read by the landing page). */
+export function leadCodeUrl(locale: Locale, code: string) {
+  const home = homeHref(locale);
+  return `${SITE.url}${home === "/" ? "/" : home}?codigo=${encodeURIComponent(code)}#escolher`;
+}
+
+/** Subject and HTML of the code email (pure: everything it needs is passed in). */
+export function leadCodeEmail(lead: Pick<Lead, "name" | "email" | "locale">, code: string, percent: number, maxQty: number, cutoff: string, guide: boolean) {
+  const locale = leadLocale(lead);
+  const t = getDict(locale).messages.lead;
   const first = lead.name.split(" ")[0];
-  const scope = maxQty === 1 ? "em 1 caixa" : `em 1 a ${maxQty} caixas`;
+  const scope = maxQty === 1 ? t.scopeOne : fmt(t.scopeMany, { n: maxQty });
   const html = layout(
-    "O seu código de Natal",
-    `<p>Olá ${esc(first)},</p>
-<p>Aqui está o seu código com <strong>${percent}% de desconto</strong> ${scope} da Trilogia 2160:</p>
+    t.codeTitle,
+    `<p>${fmt(getDict(locale).email.hello, { name: esc(first) })}</p>
+<p>${html_(fmt(t.codeIntro, { percent, scope }))}</p>
 <p style="font-size:26px;letter-spacing:3px;font-weight:bold;text-align:center;background:#F6EFE2;padding:14px;border:2px dashed #C8A253">${esc(code)}</p>
-${button(`${SITE.url}/?codigo=${encodeURIComponent(code)}#escolher`, "Usar o código agora")}
-<p>Três vinhos do Douro (branco, rosé e tinto) numa caixa de Natal, com o guia digital Sabores de Portugal oferecido. Encomendas até 30/11 chegam antes do Natal.</p>
-<p style="font-size:12px;color:#55606e">Recebeu este email porque pediu o código no nosso site. <a href="${unsubscribeUrl(SITE.url, lead.email)}" style="color:#55606e">Não quero receber mais emails</a>.</p>`,
+${button(leadCodeUrl(locale, code), t.codeButton)}
+<p>${fmt(guide ? t.product : t.productNoGuide, { cutoff: esc(cutoff) })}</p>
+<p style="font-size:12px;color:#55606e">${t.codeWhy} <a href="${unsubscribeUrl(SITE.url, lead.email)}" style="color:#55606e">${t.unsubscribe}</a>.</p>`,
+    locale,
   );
-  return send(null, lead.email, `O seu código ${code}: ${percent}% na Trilogia 2160`, html, "lead_code");
+  return { subject: fmt(t.codeSubject, { code, percent }), html };
+}
+
+export async function sendLeadCode(lead: Lead, code: string, percent: number, maxQty: number) {
+  const locale = leadLocale(lead);
+  const settings = await getSettings();
+  const cutoff = dayMonthFor(locale, marketCutoffIso(settings, defaultCountry(locale)));
+  const { subject, html } = leadCodeEmail(lead, code, percent, maxQty, cutoff, guideFor(settings, locale));
+  return send(null, lead.email, subject, html, "lead_code");
+}
+
+/** cutoffLabel: the full date in the lead's language (scripts/leads-remind.ts formats it per lead). */
+export function leadReminderEmail(lead: Pick<Lead, "name" | "email" | "locale">, code: string, percent: number, cutoffLabel: string) {
+  const locale = leadLocale(lead);
+  const t = getDict(locale).messages.lead;
+  const first = lead.name.split(" ")[0];
+  const html = layout(
+    t.reminderTitle,
+    `<p>${fmt(getDict(locale).email.hello, { name: esc(first) })}</p>
+<p>${html_(fmt(t.reminderText, { cutoff: esc(cutoffLabel) }))}</p>
+<p>${html_(fmt(t.reminderCode, { code: esc(code), percent }))}</p>
+${button(leadCodeUrl(locale, code), t.reminderButton)}
+<p style="font-size:12px;color:#55606e"><a href="${unsubscribeUrl(SITE.url, lead.email)}" style="color:#55606e">${t.unsubscribe}</a>.</p>`,
+    locale,
+  );
+  return { subject: fmt(t.reminderSubject, { cutoff: cutoffLabel }), html };
 }
 
 export async function sendLeadReminder(lead: Lead, code: string, percent: number, cutoffLabel: string) {
-  const first = lead.name.split(" ")[0];
+  const { subject, html } = leadReminderEmail(lead, code, percent, cutoffLabel);
+  return send(null, lead.email, subject, html, "lead_reminder");
+}
+
+/** Subject and HTML of an abandoned-checkout email, in the order's language. cutoff: "30/11" style (dayMonthFor). */
+export function recoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string, cutoff: string) {
+  const locale = localeOf(o);
+  const t = getDict(locale).messages.recovery;
+  const first = (o.customerName ?? "").split(" ")[0];
   const html = layout(
-    "Últimos dias para o Natal",
-    `<p>Olá ${esc(first)},</p>
-<p>Só um lembrete: as encomendas para entrega antes do Natal fecham a <strong>${esc(cutoffLabel)}</strong>.</p>
-<p>O seu código <strong>${esc(code)}</strong> (${percent}% de desconto) continua válido.</p>
-${button(`${SITE.url}/?codigo=${encodeURIComponent(code)}#escolher`, "Escolher a minha prenda")}
-<p style="font-size:12px;color:#55606e"><a href="${unsubscribeUrl(SITE.url, lead.email)}" style="color:#55606e">Não quero receber mais emails</a>.</p>`,
+    kind === "first" ? t.titleFirst : t.titleFinal,
+    `<p>${fmt(getDict(locale).email.hello, { name: esc(first) })}</p>
+<p>${kind === "first" ? t.textFirst : t.textFinal}</p>
+${orderSummary(o)}
+${button(link, t.button)}
+<p>${fmt(t.help, { cutoff: esc(cutoff), whatsapp: esc(SITE.whatsapp) })}</p>
+<p style="font-size:12px;color:#55606e"><a href="${esc(stopLink)}" style="color:#55606e">${t.stop}</a>.</p>`,
+    locale,
   );
-  return send(null, lead.email, `Faltam poucos dias: encomendas de Natal até ${cutoffLabel}`, html, "lead_reminder");
+  return { subject: kind === "first" ? t.subjectFirst : t.subjectFinal, html };
 }
 
 export async function sendRecoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string) {
   if (!o.email) return;
-  const first = (o.customerName ?? "").split(" ")[0];
-  const html = layout(
-    kind === "first" ? "A sua prenda ficou à espera" : "Último lembrete",
-    `<p>Olá ${esc(first)},</p>
-<p>${
-      kind === "first"
-        ? "Reparámos que a sua encomenda da Trilogia 2160 ficou por concluir. Guardámos a sua escolha:"
-        : "Só um último lembrete: a sua encomenda da Trilogia 2160 continua por concluir."
-    }</p>
-${orderSummary(o)}
-${button(link, "Concluir a encomenda")}
-<p>Encomendas pagas até 30/11 chegam antes do Natal. Se teve alguma dúvida, responda a este email ou fale connosco por WhatsApp: ${esc(SITE.whatsapp)}.</p>
-<p style="font-size:12px;color:#55606e"><a href="${esc(stopLink)}" style="color:#55606e">Não quero receber mais mensagens sobre esta encomenda</a>.</p>`,
-  );
-  return send(o, o.email, kind === "first" ? "A sua Trilogia 2160 ficou à espera" : "Último lembrete: a sua prenda de Natal", html, `recovery_${kind}`);
+  const cutoff = dayMonthFor(localeOf(o), marketCutoffIso(await getSettings(), o.country));
+  const { subject, html } = recoveryEmail(o, kind, link, stopLink, cutoff);
+  return send(o, o.email, subject, html, `recovery_${kind}`);
 }
 
 /** Payment anomalies (amount mismatch, duplicate payment) need a human: refund or contact the customer. */

@@ -1,7 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { decodeState, hangup, sendSms, startAssistant, telnyxConfigured, verifyTelnyxWebhook } from "@/lib/telnyx";
-import { callScript, resumeUrl, stopRecovery } from "@/lib/recovery";
+import { assistantFor, decodeState, hangup, sendSms, startAssistant, telnyxConfigured, verifyTelnyxWebhook } from "@/lib/telnyx";
+import { marketCutoffIso } from "@/lib/email";
+import { guideFor } from "@/lib/ebook";
+import { fmt, getDict } from "@/lib/i18n";
+import { isLocale, LOCALE_INFO } from "@/lib/markets";
+import { callScript, resumeUrl, saidStop, stopRecovery } from "@/lib/recovery";
 import { logOrderEvent } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
@@ -20,6 +24,7 @@ export async function POST(req: Request) {
   if (!state) return Response.json({ ok: true });
   const [order] = await db.select().from(schema.orders).where(eq(schema.orders.id, state.orderId)).limit(1);
   if (!order) return Response.json({ ok: true });
+  const locale = isLocale(order.locale) ? order.locale : "pt";
 
   const merge = (extra: Record<string, unknown>) =>
     db
@@ -34,9 +39,10 @@ export async function POST(req: Request) {
         await merge({ outcome: "voicemail_hung_up" });
       } else {
         const settings = await getSettings();
-        const cutoff = new Date(settings.cutoff_at).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" });
-        const script = callScript(order, cutoff);
-        await startAssistant(p.call_control_id, { ...script, state });
+        // pt: "30/11/2026" as before; ru: "30.11.2026". The assistant speaks the order's language (pt or ru).
+        const cutoff = new Date(marketCutoffIso(settings, order.country)).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" });
+        const script = callScript(order, cutoff, guideFor(settings, locale));
+        await startAssistant(p.call_control_id, { ...script, state, assistantId: assistantFor(locale) });
         await merge({ outcome: "assistant_started" });
       }
     } else if (type === "call.hangup") {
@@ -46,13 +52,13 @@ export async function POST(req: Request) {
       await merge({ conversation: "ended" });
       // The assistant offers to send the link by SMS; send it if the customer allowed messages.
       if (order.consentMessages && order.phone && telnyxConfigured("sms") && !["paid", "preparing", "shipped", "delivered"].includes(order.status)) {
-        await sendSms(order.phone, `Wine Portugal: como combinado, aqui está o link para concluir a sua Trilogia 2160: ${resumeUrl(order.id)}`).catch(() => {});
+        await sendSms(order.phone, fmt(getDict(locale).messages.recovery.callSms, { link: resumeUrl(order.id) })).catch(() => {});
       }
     } else if (type === "call.conversation_insights.generated") {
       const text = JSON.stringify(p).toLowerCase();
       await merge({ insights: p.results ?? p });
       // Respect "do not call me" captured in the conversation.
-      if (/(não (me )?lig|nao (me )?lig|não estou interessad|nao estou interessad|remov)/.test(text)) await stopRecovery(order.id);
+      if (saidStop(text)) await stopRecovery(order.id);
     }
   } catch (e) {
     await merge({ error: String(e) });

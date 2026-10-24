@@ -12,12 +12,14 @@ export const OUTBOUND_FIELDS = [
   { key: "TELNYX_CONNECTION_ID", group: "telnyx", label: "Call Control application id", kind: "text", hint: "Places every call (Telnyx → Voice → Call Control)" },
   { key: "TELNYX_WEBRTC_CONNECTION_ID", group: "telnyx", label: "WebRTC credential connection id", kind: "text", hint: "Holds the admins' browser phones (a Credential Connection, not the Call Control app)" },
   { key: "TELNYX_PUBLIC_KEY", group: "telnyx", label: "Webhook public key", kind: "text", hint: "Base64 Ed25519 public key (Telnyx → Account → Keys). Public, not a secret." },
-  { key: "TELNYX_ASSISTANT_ID", group: "telnyx", label: "AI assistant id (abandoned-checkout call)", kind: "text", hint: "" },
+  { key: "TELNYX_ASSISTANT_ID", group: "telnyx", label: "AI assistant id (abandoned-checkout call)", kind: "text", hint: "Portuguese calls" },
+  { key: "TELNYX_ASSISTANT_ID_RU", group: "telnyx", label: "AI assistant id, Russian (abandoned-checkout call)", kind: "text", hint: "The Telnyx AI assistant set to Russian (ru-RU voice, ru transcription). Empty = Russian orders get messages only, no AI call." },
   // WhatsApp abandoned-checkout message (the template is created and approved in WhatsApp Manager / Telnyx first)
   { key: "WHATSAPP_PROVIDER", group: "whatsapp", label: "WhatsApp provider", kind: "select", options: ["telnyx", "meta"], hint: "telnyx (default): sent through Telnyx with TELNYX_API_KEY. meta: Meta Cloud API with WHATSAPP_TOKEN (Railway)." },
   { key: "TELNYX_WHATSAPP_FROM", group: "whatsapp", label: "WhatsApp number (sender)", kind: "text", hint: "E.164, the number connected in Telnyx → Messaging → WhatsApp, e.g. +351910348577" },
   { key: "WHATSAPP_TEMPLATE_RECOVERY", group: "whatsapp", label: "Abandoned-checkout template name", kind: "text", hint: "Exactly as approved in WhatsApp Manager, e.g. trilogia_retomar. Empty = no WhatsApp (SMS instead)." },
   { key: "WHATSAPP_TEMPLATE_LANG", group: "whatsapp", label: "Template language code", kind: "text", hint: "pt_PT (Portuguese, Portugal)" },
+  { key: "WHATSAPP_TEMPLATE_LANGS", group: "whatsapp", label: "Approved template languages (besides Portuguese)", kind: "text", hint: "Meta codes, comma-separated, e.g. ru,de. Add a language only once \"Check template status\" shows it APPROVED. A Russian or German order whose language is not listed gets the SMS instead, never the Portuguese template." },
   { key: "WHATSAPP_WABA_ID", group: "whatsapp", label: "WhatsApp Business Account id (WABA)", kind: "text", hint: "Telnyx → Messaging → WhatsApp → Business Accounts → WABA ID. Used only to create the template below; it does not switch sending on." },
   { key: "WHATSAPP_PHONE_NUMBER_ID", group: "whatsapp", label: "Meta phone number id (meta only)", kind: "text", hint: "Only for the meta provider" },
   // Admin → customer calls
@@ -100,6 +102,7 @@ export function validateOutbound(input: Record<string, string>): { values: Recor
     e("TELNYX_WHATSAPP_FROM", (v) => /^\+\d{7,15}$/.test(v), "WhatsApp number must be E.164, e.g. +351910348577.") ??
     e("WHATSAPP_WABA_ID", (v) => /^\d{6,20}$/.test(v), "WABA id: digits only, as shown in Telnyx.") ??
     e("WHATSAPP_TEMPLATE_RECOVERY", (v) => /^[a-z0-9_]{1,512}$/.test(v), "Template name: lowercase letters, digits and _ only, as in WhatsApp Manager.") ??
+    e("WHATSAPP_TEMPLATE_LANGS", (v) => v.split(",").every((c) => /^[a-z]{2,3}(_[A-Z]{2})?$/.test(c.trim())), "Approved template languages: Meta codes separated by commas, e.g. ru,de.") ??
     e("APOLLO_WEBHOOK_BASE_URL", (v) => /^https:\/\/[^/\s]+/.test(v), "Apollo webhook base URL must start with https://.") ??
     e("PT_CALLERS_CALL_HOURS", (v) => /^\d{2}:\d{2}-\d{2}:\d{2}$/.test(v), "Calling hours look like 09:30-18:00.") ??
     e("PT_CALLERS_CALL_DAYS", (v) => /^[1-7]-[1-7]$/.test(v), "Calling days look like 1-5.") ??

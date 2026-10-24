@@ -114,7 +114,7 @@ test("whatsapp recovery template: Telnyx by default, exact payload, from the sav
 
 test("whatsapp template: the definition matches what the reminder sends; create posts it with the WABA id", async () => {
   const wa = await import("../src/lib/whatsapp");
-  const d = wa.recoveryTemplateDefinition("https://vinho.prendadenatal.com");
+  const d = wa.recoveryTemplateDefinition("pt", "https://vinho.prendadenatal.com");
   assert.equal(d.name, "trilogia_retomar");
   assert.equal(d.category, "MARKETING");
   assert.equal(d.language, "pt_PT");
@@ -142,8 +142,10 @@ test("whatsapp template: the definition matches what the reminder sends; create 
     const r = await wa.createRecoveryTemplate();
     if (/^https:/.test((await import("../src/lib/site")).SITE.url)) {
       assert.equal(r.ok, true, r.message);
-      assert.equal(calls[0].url, "https://api.telnyx.com/v2/whatsapp/message_templates");
-      const sent = JSON.parse(String(calls[0].init.body));
+      // First the list of existing templates (GET), then one POST per missing language.
+      const posts = calls.filter((c) => c.init.method === "POST");
+      assert.equal(posts[0].url, "https://api.telnyx.com/v2/whatsapp/message_templates");
+      const sent = JSON.parse(String(posts[0].init.body));
       assert.equal(sent.waba_id, "840441822391639");
       assert.equal(sent.name, "trilogia_retomar");
     } else {

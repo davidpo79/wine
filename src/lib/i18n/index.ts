@@ -14,4 +14,10 @@ export function getDict(locale: Locale): Dict {
   return DICTS[locale] ?? pt;
 }
 
-export { moneyFor, moneyShortFor, dateFor, deliveryDaysFor } from "./format";
+/** Error texts of the shop's JSON APIs in an order's language (Portuguese when the order or its language is unknown). */
+export function apiErrorsFor(o?: { locale?: string | null } | null): Dict["messages"]["apiErrors"] {
+  const l = o?.locale;
+  return (l && l in DICTS ? DICTS[l as Locale] : pt).messages.apiErrors;
+}
+
+export { moneyFor, moneyShortFor, dateFor, dayMonthFor, deliveryDaysFor } from "./format";

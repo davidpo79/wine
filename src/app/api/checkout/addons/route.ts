@@ -1,5 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
+import { apiErrorsFor } from "@/lib/i18n";
 import { db, schema } from "@/db";
 import { GIFT_CARD_SKU, loadDraft, publicAmounts } from "@/lib/draft";
 import { getCatalog, paidBoxes } from "@/lib/catalog";
@@ -15,14 +16,14 @@ export async function POST(req: Request) {
     .safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
-  if (!order || order.status !== "pending_payment") return Response.json({ error: "Esta encomenda já não está disponível." }, { status: 409 });
+  if (!order || order.status !== "pending_payment") return Response.json({ error: apiErrorsFor(order).orderUnavailable }, { status: 409 });
   const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
-  if (!catalog) return Response.json({ error: "Indisponível." }, { status: 409 });
+  if (!catalog) return Response.json({ error: apiErrorsFor(order).unavailable }, { status: 409 });
 
   const wanted = [...new Set(parsed.data.keys)].map((k) => findOffer(k, order, catalog.bundles, settings)).filter((x) => x !== null);
   const extraBoxes = wanted.reduce((n, w) => n + w.boxes, 0);
   if (extraBoxes && settings.stock_cap_boxes != null && (await paidBoxes()) + order.qtyBoxes + extraBoxes > settings.stock_cap_boxes) {
-    return Response.json({ error: "Já não há stock para juntar mais uma caixa." }, { status: 409 });
+    return Response.json({ error: apiErrorsFor(order).noStockBox }, { status: 409 });
   }
   // The printed-card order bump is managed by the checkout form, not by the offer window: keep it.
   await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), ne(schema.orderAddons.sku, GIFT_CARD_SKU)));

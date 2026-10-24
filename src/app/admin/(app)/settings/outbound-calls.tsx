@@ -92,12 +92,14 @@ export async function OutboundCallsSection() {
       <div className="space-y-2 border-t pt-4">
         <p className="font-semibold">WhatsApp template (abandoned checkout)</p>
         <p className="text-xs text-muted">
-          Creates <b>trilogia_retomar</b> (Portuguese, Marketing) through Telnyx, exactly as the reminder sends it: &quot;Olá {"{{1}}"}! A sua Trilogia 2160 ({"{{2}}"}) ficou à espera…&quot; with a
-          &quot;Concluir encomenda&quot; button. Needs the WABA id saved above. Fill in the template name and sender only once the status is APPROVED.
+          Creates <b>trilogia_retomar</b> (Marketing) through Telnyx in Portuguese (pt_PT), Russian (ru) and German (de), exactly as the reminder sends it: &quot;Olá {"{{1}}"}! A sua Trilogia 2160 ({"{{2}}"})
+          ficou à espera…&quot; with a &quot;Concluir encomenda&quot; button, and the same message in Russian and German. Only the languages that do not exist yet are submitted (the approved Portuguese one is
+          never touched). Needs the WABA id saved above. Fill in the template name and sender only once Portuguese is APPROVED; list Russian and German in &quot;Approved template languages&quot; only once each
+          one is APPROVED. Until then, Russian and German orders get the reminder by SMS in their language.
         </p>
         <div className="flex flex-wrap gap-3">
           <ActionForm action={whatsappTemplateCreateAction} className="flex items-center gap-3">
-            <Submit>Create WhatsApp template</Submit>
+            <Submit>Create missing WhatsApp templates (pt_PT, ru, de)</Submit>
           </ActionForm>
           <ActionForm action={whatsappTemplateStatusAction} className="flex items-center gap-3">
             <Submit>Check template status</Submit>

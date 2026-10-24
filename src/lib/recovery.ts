@@ -5,10 +5,14 @@ import type { Order } from "@/db/schema";
 import { logOrderEvent } from "./orders";
 import { SITE } from "./site";
 import { lisbonDate, lisbonToUtc } from "./time";
-import { sendRecoveryEmail } from "./email";
-import { dialCall, sendSms, telnyxConfigured } from "./telnyx";
-import { sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
+import { marketCutoffIso, sendRecoveryEmail } from "./email";
+import { assistantFor, dialCall, sendSms, telnyxConfigured } from "./telnyx";
+import { recoveryTemplateLanguage, sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
 import { loadOutboundSettings } from "./outbound-settings";
+import { getSettings } from "./settings";
+import { dayMonthFor, getDict } from "./i18n";
+import { fmt } from "./i18n/rich";
+import { isLocale, type Locale } from "./markets";
 
 // Abandoned-checkout follow-ups. Every step re-checks the order before acting, so a payment at any
 // moment stops the sequence. Messages need consent_messages, calls need consent_calls.
@@ -96,12 +100,25 @@ async function skipReason(order: Order): Promise<string | null> {
   return null;
 }
 
-function bundleLabel(o: Order) {
-  return `${o.qtyBoxes} ${o.qtyBoxes === 1 ? "caixa" : "caixas"}`;
+const orderLocale = (o: Pick<Order, "locale">): Locale => (isLocale(o.locale) ? o.locale : "pt");
+
+/** "1 caixa" / "2 caixas" in the order's language ("1 коробка", "2 коробки", "5 коробок"; "2 Boxen"). */
+export function bundleLabel(o: Pick<Order, "qtyBoxes" | "locale">) {
+  const c = getDict(orderLocale(o)).common;
+  return o.qtyBoxes === 1 ? c.oneBox : fmt(c.nBoxes, { n: o.qtyBoxes });
 }
 
-async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Order) {
+/** The reminder SMS in the order's language. cutoff: "30/11" style (dayMonthFor). */
+export function recoverySmsText(order: Order, link: string, stop: string, cutoff: string) {
+  const t = getDict(orderLocale(order)).messages.recovery;
   const first = (order.customerName ?? "").trim().split(/\s+/)[0] ?? "";
+  return fmt(first ? t.smsNamed : t.smsAnon, { name: first, boxes: bundleLabel(order), link, cutoff, stop });
+}
+
+/** Exported for tests. Every send goes through the customer's language; nothing falls back to Portuguese silently. */
+export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelect, "id" | "step">, order: Order) {
+  const first = (order.customerName ?? "").trim().split(/\s+/)[0] ?? "";
+  const locale = orderLocale(order);
   const link = resumeUrl(order.id);
   const result: Record<string, unknown> = {};
   const channels: string[] = [];
@@ -117,18 +134,22 @@ async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Or
     }
     if (step.step === "reminder_20m" && order.phone) {
       let whatsappSent = false;
-      if (whatsappConfigured()) {
+      if (whatsappConfigured() && !recoveryTemplateLanguage(locale)) {
+        // No approved template in this language: never the Portuguese one, the SMS below goes out instead.
+        result.whatsapp = `skipped: no approved ${locale} template`;
+      } else if (whatsappConfigured()) {
         channels.push("whatsapp");
-        // A template parameter cannot be empty: no first name → "cliente".
-        result.whatsapp = await sendRecoveryTemplate(order.phone, first || "cliente", bundleLabel(order), resumePath(order.id)).then(
-          () => ((whatsappSent = true), "sent"),
+        // A template parameter cannot be empty: no first name → "cliente" (in the customer's language).
+        result.whatsapp = await sendRecoveryTemplate(order.phone, first || getDict(locale).messages.recovery.waNameFallback, bundleLabel(order), resumePath(order.id), locale).then(
+          (r) => (r && typeof r === "object" && "skipped" in r ? `skipped: ${r.skipped}` : ((whatsappSent = true), "sent")),
           (e) => `error: ${e}`,
         );
       }
       // No WhatsApp, or WhatsApp refused (no WhatsApp on that number, template paused...): the reminder still goes by SMS.
       if (!whatsappSent && telnyxConfigured("sms")) {
         channels.push("sms");
-        const text = `Wine Portugal: ${first ? `Olá ${first}, a` : "A"} sua Trilogia 2160 (${bundleLabel(order)}) ficou por concluir. Retome aqui: ${link} Encomendas até 30/11 chegam antes do Natal. Para não receber mais: ${stopUrl(order.id)}`;
+        const cutoff = dayMonthFor(locale, marketCutoffIso(await getSettings(), order.country));
+        const text = recoverySmsText(order, link, stopUrl(order.id), cutoff);
         result.sms = await sendSms(order.phone, text).then(
           () => "sent",
           (e) => `error: ${e}`,
@@ -140,7 +161,10 @@ async function runStep(step: typeof schema.recoverySteps.$inferSelect, order: Or
     if (!order.phone) return { status: "skipped", result: { reason: "no_phone" }, channels };
     // Calls only to Portuguese numbers (Lisbon call hours, PT caller ID); foreign numbers get messages only.
     if (!order.phone.startsWith("+351")) return { status: "skipped", result: { reason: "non_pt_phone" }, channels };
+    // The AI call speaks Portuguese or Russian (the Portugal market's languages); other languages get messages only.
+    if (locale !== "pt" && locale !== "ru") return { status: "skipped", result: { reason: "non_pt_locale" }, channels };
     if (!telnyxConfigured("voice")) return { status: "skipped", result: { reason: "telnyx_voice_not_configured" }, channels };
+    if (!assistantFor(locale)) return { status: "skipped", result: { reason: `${locale}_assistant_not_configured` }, channels };
     const slot = nextCallSlot(new Date());
     if (slot.getTime() > Date.now() + 60_000) return { status: "pending", reschedule: slot, result: { reason: "outside_call_window" }, channels };
     channels.push("call");
@@ -204,10 +228,15 @@ export async function stopRecovery(orderId: string) {
   return true;
 }
 
-/** Per-call instructions for the Telnyx AI assistant (pt-PT). The assistant must say it is an AI. */
-export function callScript(order: Order, cutoffLabel: string) {
+/**
+ * Per-call instructions for the Telnyx AI assistant, in the order's language: pt-PT, or Russian for ru orders (the
+ * Russian-speaking community in Portugal: same products, prices, CTT delivery and payment methods). The assistant must
+ * say it is an AI. guide: whether this language's edition of the recipe guide is offered (Portuguese always is).
+ */
+export function callScript(order: Order, cutoffLabel: string, guide = true) {
   const first = (order.customerName ?? "").split(" ")[0];
   const total = (order.totalCents / 100).toFixed(2).replace(".", ",");
+  if (orderLocale(order) === "ru") return callScriptRu(order, first, total, cutoffLabel, guide);
   return {
     greeting: `Olá${first ? `, ${first}` : ""}! Fala o assistente virtual da Wine Portugal, um sistema de inteligência artificial. Esta chamada pode ser gravada para qualidade. Liguei porque começou uma encomenda da Trilogia 2160 no nosso site e ficou por concluir. Tem um minuto?`,
     instructions: `És o assistente virtual (inteligência artificial) da Wine Portugal. Falas português de Portugal, com simpatia e frases curtas. Já te apresentaste como IA; se perguntarem, confirma que és um assistente automático.
@@ -215,5 +244,24 @@ Contexto: ${order.customerName ?? "o cliente"} começou uma encomenda no site vi
 Produto: caixa de oferta com 2160 Onde Tudo Nasce Branco 2025, Rosé 2024 e Tinto 2023, Martin Boutique Wines, Douro DOC, e o guia digital de receitas Sabores de Portugal oferecido. Preços, com envio incluído: 1 caixa 49,90 €, 2 caixas 89,90 € (a 2.ª por 40 €), 4 caixas 149,70 € (pague 3, leve 4). Envio CTT só para Portugal Continental, 2 a 4 dias úteis. Encomendas pagas até ${cutoffLabel} chegam antes do Natal. Pagamento: MB WAY, Multibanco, cartão, Apple Pay, Google Pay.
 Objetivo: perceber se houve alguma dúvida ou problema e ajudar a concluir. Se a pessoa quiser concluir, diz que lhe enviamos agora o link por SMS e que demora um minuto.
 Regras: nunca peças dados de cartão nem pagamentos por telefone. Não inventes informação que não está aqui; se não souberes, diz que a equipa responde por WhatsApp no +351 910 348 577. Se a pessoa disser que não está interessada ou pedir para não ligar, pede desculpa, confirma que não voltamos a ligar e despede-te. Nunca pressiones. Conversa máxima de 3 minutos. Venda só a maiores de 18 anos.`,
+  };
+}
+
+/** "Do not call me" / "not interested" in the AI call's insights (lower-cased), in Portuguese or Russian. */
+export function saidStop(text: string) {
+  return /(não (me )?lig|nao (me )?lig|não estou interessad|nao estou interessad|remov|не звони|больше не звон|не интересно|не интересует|не нужно|удалит)/.test(text);
+}
+
+/** The same call in Russian, for customers of the Portugal market who chose Russian on the site. */
+function callScriptRu(order: Order, first: string, total: string, cutoffLabel: string, guide: boolean) {
+  const bottles = fmt(getDict("ru").common.bottles, { n: order.qtyBoxes * 3 });
+  const who = order.customerName ? `Клиент ${order.customerName}` : "Клиент";
+  return {
+    greeting: `Здравствуйте${first ? `, ${first}` : ""}! Это виртуальный ассистент Wine Portugal, система искусственного интеллекта. Этот звонок может записываться для контроля качества. Я звоню, потому что Вы начали оформлять заказ Trilogia 2160 на нашем сайте, но не завершили его. У Вас есть минутка?`,
+    instructions: `Ты виртуальный ассистент (искусственный интеллект) Wine Portugal. Ты говоришь по-русски, вежливо, на «Вы», короткими фразами. Клиент говорит по-русски и живёт в Португалии. Ты уже представился как ИИ; если спросят, подтверди, что ты автоматический ассистент.
+Контекст: ${who} начал оформлять заказ на сайте vinho.prendadenatal.com: Trilogia 2160, ${bundleLabel(order)} (${bottles}), итого ${total} € с НДС. Заказ не оплачен.
+Товар: подарочная коробка с винами 2160 Onde Tudo Nasce: белое 2025, розовое 2024 и красное 2023, Martin Boutique Wines, Douro DOC${guide ? ", и цифровой гид с рецептами Sabores de Portugal в подарок" : ""}. Цены с доставкой: 1 коробка 49,90 €, 2 коробки 89,90 € (вторая за 40 €), 4 коробки 149,70 € (платите за 3, получаете 4). Доставка CTT только по континентальной Португалии, 2-4 рабочих дня. Заказы, оплаченные до ${cutoffLabel}, будут доставлены до Рождества. Оплата: MB WAY, Multibanco, карта, Apple Pay, Google Pay.
+Цель: понять, были ли у клиента вопросы или трудности, и помочь завершить заказ. Если клиент хочет завершить заказ, скажи, что мы сейчас отправим ссылку по SMS на русском языке и что это займёт минуту.
+Правила: никогда не спрашивай данные карты и не принимай оплату по телефону. Не придумывай информацию, которой здесь нет; если не знаешь ответа, скажи, что команда ответит в WhatsApp по номеру +351 910 348 577. Если человек скажет, что ему это не интересно, или попросит больше не звонить, извинись, подтверди, что мы больше не будем звонить, и попрощайся. Никогда не дави. Разговор длится не более 3 минут. Продажа только лицам старше 18 лет.`,
   };
 }

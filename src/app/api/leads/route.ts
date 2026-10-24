@@ -9,6 +9,7 @@ import { sendLeadCode } from "@/lib/email";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
 import { SITE } from "@/lib/site";
+import { LOCALES } from "@/lib/markets";
 
 const Body = z.object({
   name: z.string().trim().min(2).max(80),
@@ -16,6 +17,7 @@ const Body = z.object({
   consent: z.literal(true),
   event_id: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
   website: z.string().max(0).optional(), // honeypot: must stay empty
+  locale: z.enum(LOCALES).optional(), // language of the page the lead was captured on (emails follow it)
 });
 
 export async function POST(req: Request) {
@@ -45,11 +47,12 @@ export async function POST(req: Request) {
       consentMarketing: true,
       consentText: LEAD_CONSENT_TEXT,
       source: "exit_popup",
+      locale: input.locale ?? "pt",
       promoCode: settings.lead_code,
       utm: parseUtmCookie(jar.get(UTM_COOKIE)?.value),
       ipHash,
     })
-    .onConflictDoUpdate({ target: schema.leads.email, set: { name: input.name, consentMarketing: true, unsubscribedAt: null } })
+    .onConflictDoUpdate({ target: schema.leads.email, set: { name: input.name, locale: input.locale ?? "pt", consentMarketing: true, unsubscribedAt: null } })
     .returning();
 
   await sendLeadCode(lead, settings.lead_code, settings.lead_discount_percent, settings.lead_code_max_qty).catch((e) => console.error("[leads] email", e));
