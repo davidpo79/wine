@@ -168,31 +168,34 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
 
   if (!open) return null;
   const c = CONSENT_COPY[locale];
-  // Slim bottom bar. "Rejeitar" is as easy as "Aceitar" (GDPR); "Opções" expands the per-category choice.
-  const btn = "min-h-9 rounded px-3 text-xs font-semibold whitespace-nowrap";
+  // A card over a light backdrop on the first visit (bottom sheet on phones, centred on desktop): a slim bar was
+  // ignored by most visitors. "Rejeitar" and "Aceitar" are the same size, side by side (GDPR: refusing is as easy as
+  // accepting); nothing is pre-ticked and the page stays readable behind it.
+  const btn = "min-h-11 flex-1 rounded-md px-4 text-sm font-semibold";
   return (
-    <div role="dialog" aria-modal="false" aria-label="Cookies" className="fixed inset-x-0 bottom-0 z-[60] border-t border-gold/40 bg-night text-paper shadow-[0_-4px_20px_rgba(0,0,0,0.25)]">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 sm:px-4">
-        <p className="min-w-0 flex-1 basis-64 text-xs leading-snug text-paper/85">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/35 p-0 sm:items-center sm:p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="wp-consent-title" className="w-full max-w-md rounded-t-2xl border border-gold/40 bg-night px-5 pb-5 pt-4 text-paper shadow-2xl sm:rounded-2xl">
+        <p id="wp-consent-title" className="text-base font-bold">{c.title}</p>
+        <p className="mt-1.5 text-sm leading-snug text-paper/85">
           {c.text}{" "}
           <a href={privacyHref(locale)} className="underline underline-offset-2">{c.more}</a>
         </p>
         {prefs && (
-          <div className="flex w-full flex-wrap gap-x-4 gap-y-1 text-xs sm:order-last">
-            <label className="flex items-center gap-1.5 opacity-70"><input type="checkbox" checked disabled className="accent-gold" /> {c.essential}</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={s} onChange={(e) => setS(e.target.checked)} className="accent-gold" /> {c.stats}</label>
-            <label className="flex items-center gap-1.5"><input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="accent-gold" /> {c.marketing}</label>
+          <div className="mt-3 flex flex-col gap-2 text-sm">
+            <label className="flex items-center gap-2 opacity-70"><input type="checkbox" checked disabled className="h-4 w-4 accent-gold" /> {c.essential}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={s} onChange={(e) => setS(e.target.checked)} className="h-4 w-4 accent-gold" /> {c.stats}</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="h-4 w-4 accent-gold" /> {c.marketing}</label>
           </div>
         )}
-        <div className="flex shrink-0 gap-2">
-          {prefs ? (
-            <button onClick={() => decide({ s, m })} className={`${btn} border border-paper/40 hover:bg-white/10`}>{c.save}</button>
-          ) : (
-            <button onClick={() => setPrefs(true)} className={`${btn} underline underline-offset-2 hover:bg-white/10`}>{c.options}</button>
-          )}
-          <button onClick={() => decide({ s: false, m: false })} className={`${btn} border border-paper/40 hover:bg-white/10`}>{c.reject}</button>
-          <button onClick={() => decide({ s: true, m: true })} className={`${btn} bg-gold text-night hover:bg-gold-soft`}>{c.accept}</button>
+        <div className="mt-4 flex gap-2.5">
+          <button data-testid="consent-reject" onClick={() => decide({ s: false, m: false })} className={`${btn} border border-paper/50 hover:bg-white/10`}>{c.reject}</button>
+          <button data-testid="consent-accept" onClick={() => decide({ s: true, m: true })} className={`${btn} bg-gold text-night hover:bg-gold-soft`}>{c.accept}</button>
         </div>
+        {prefs ? (
+          <button data-testid="consent-save" onClick={() => decide({ s, m })} className="mt-2.5 min-h-10 w-full rounded-md border border-paper/30 text-sm font-semibold hover:bg-white/10">{c.save}</button>
+        ) : (
+          <button data-testid="consent-options" onClick={() => setPrefs(true)} className="mt-2 w-full py-1.5 text-xs text-paper/75 underline underline-offset-2 hover:text-paper">{c.options}</button>
+        )}
       </div>
     </div>
   );
