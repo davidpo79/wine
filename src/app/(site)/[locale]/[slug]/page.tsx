@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Params }) {
   return kind ? { title: `${getDict(locale).legalPage.titles[kind]} | Wine Portugal` } : {};
 }
 
-/** Legal pages in German, Dutch, French and Russian (Portuguese keeps /termos, /privacidade, /envios-devolucoes). */
+/** Legal pages in German, Dutch, French, Russian and English (Portuguese keeps /termos, /privacidade, /envios-devolucoes). */
 export default async function LocalizedLegal({ params }: { params: Params }) {
   const { locale, slug } = await params;
   if (!isLocale(locale) || locale === "pt") notFound();

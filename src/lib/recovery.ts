@@ -241,6 +241,7 @@ export function callScript(order: Order, cutoffLabel: string, guide = true, link
   const total = (order.totalCents / 100).toFixed(2).replace(".", ",");
   const locale = orderLocale(order);
   if (locale === "ru") return callScriptRu(order, first, total, cutoffLabel, guide, linkBy);
+  if (locale === "en") return callScriptEn(order, first, total, cutoffLabel, guide, linkBy);
   if (locale !== "pt") return callScriptIntl(order, locale, first, total, cutoffLabel, guide, linkBy, deliveryDays);
   return {
     greeting: `Olá${first ? `, ${first}` : ""}! Fala a Madalena, assistente virtual da Wine Portugal. Esta chamada pode ser gravada. Reparei que a sua Trilogia 2160 ficou a meio no nosso site e quis saber se ficou alguma dúvida. Tem um minutinho?`,
@@ -287,11 +288,24 @@ Rules: never ask for card details or take a payment by phone. Never invent infor
   };
 }
 
-const LANGUAGE_NAMES: Record<Locale, string> = { pt: "Portuguese", ru: "Russian", de: "German", nl: "Dutch", fr: "French" };
+const LANGUAGE_NAMES: Record<Locale, string> = { pt: "Portuguese", ru: "Russian", de: "German", nl: "Dutch", fr: "French", en: "English" };
 
-/** "Do not call me" / "not interested" in the AI call's insights (lower-cased), in Portuguese or Russian. */
+/** "Do not call me" / "not interested" in the AI call's insights (lower-cased), in Portuguese, Russian or English. */
 export function saidStop(text: string) {
-  return /(não (me )?lig|nao (me )?lig|não estou interessad|nao estou interessad|remov|не звони|больше не звон|не интересно|не интересует|не нужно|удалит)/.test(text);
+  return /(não (me )?lig|nao (me )?lig|não estou interessad|nao estou interessad|remov|не звони|больше не звон|не интересно|не интересует|не нужно|удалит|not interested|don't call|do not call|stop calling)/.test(text);
+}
+
+/** The same call in English, for customers of the Portugal market who chose English on the site. */
+function callScriptEn(order: Order, first: string, total: string, cutoffLabel: string, guide: boolean, linkBy: "sms" | "email") {
+  const boxes = `${order.qtyBoxes} ${order.qtyBoxes === 1 ? "box" : "boxes"}`;
+  return {
+    greeting: `Hello${first ? ` ${first}` : ""}! This is Emma, the virtual assistant at Wine Portugal. This call may be recorded. I noticed your Trilogia 2160 order on our website wasn't finished, and I wanted to check whether you had any questions. Do you have a minute?`,
+    instructions: `You are Emma, the virtual assistant of Wine Portugal (a woman). Speak English, warmly, in short sentences. The customer speaks English and lives in Portugal. You already introduced yourself as a virtual assistant; if asked whether you are a person, say honestly that you are an automated virtual assistant.
+Context: ${order.customerName ?? "The customer"} started an order on vinho.prendadenatal.com (in English): Trilogia 2160, ${boxes} (${order.qtyBoxes * 3} bottles), total ${total} euros including VAT. The order was not paid.
+Product: a Christmas gift box with three Douro DOC wines, 2160 Onde Tudo Nasce by Martin Boutique Wines: Branco 2025, Rosé 2024 and Tinto 2023${guide ? ", plus the free digital recipe guide Sabores de Portugal" : ""}. Prices with shipping included: 1 box 49,90 euros, 2 boxes 89,90 euros (the second for 40 euros), 4 boxes 149,70 euros (pay 3, get 4). Delivered by CTT to mainland Portugal only, in 2 to 4 working days. Orders paid by ${cutoffLabel} arrive before Christmas. Payment: MB WAY, Multibanco, card, Apple Pay, Google Pay.
+Goal: find out whether there was a question or a problem, and help them finish. If they want to finish, ${linkBy === "email" ? "say we will email them the payment link right after the call, to the address they left on the site" : "say we will text them the link now and it takes a minute"}.
+Rules: never ask for card details or take a payment by phone. Never invent information that is not here; if you do not know, say the team answers on WhatsApp at +351 910 348 577. If they are not interested or ask not to be called, apologise, confirm we will not call again and say goodbye. Never pressure. At most 3 minutes. Sales only to adults over 18.`,
+  };
 }
 
 /** The same call in Russian, for customers of the Portugal market who chose Russian on the site. */

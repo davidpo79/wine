@@ -1,6 +1,6 @@
 import type { Locale } from "../markets";
 
-// Portuguese keeps the original URLs; other languages live under /de, /nl, /fr, /ru with their own legal slugs.
+// Portuguese keeps the original URLs; other languages live under /de, /nl, /fr, /ru, /en with their own legal slugs.
 export type LegalKind = "terms" | "privacy" | "shipping";
 
 export const LEGAL_SLUGS: Record<Locale, Record<LegalKind, string>> = {
@@ -9,6 +9,7 @@ export const LEGAL_SLUGS: Record<Locale, Record<LegalKind, string>> = {
   nl: { terms: "voorwaarden", privacy: "privacy", shipping: "verzending-retour" },
   fr: { terms: "conditions", privacy: "confidentialite", shipping: "livraison-retours" },
   ru: { terms: "usloviya", privacy: "konfidentsialnost", shipping: "dostavka-i-vozvrat" },
+  en: { terms: "terms", privacy: "privacy", shipping: "shipping-returns" },
 };
 
 export function homeHref(locale: Locale) {

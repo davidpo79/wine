@@ -18,6 +18,7 @@ export const OUTBOUND_FIELDS = [
   { key: "TELNYX_ASSISTANT_ID_RU", group: "telnyx", label: "AI assistant id, Russian (abandoned-checkout call)", kind: "text", hint: "The Telnyx AI assistant set to Russian (ru-RU voice, ru transcription). Empty = Russian orders get messages only, no AI call." },
   { key: "TELNYX_ASSISTANT_ID_DE", group: "telnyx", label: "AI assistant id, German (abandoned-checkout call)", kind: "text", hint: "German voice. Empty = German-page orders get messages only, no AI call." },
   { key: "TELNYX_ASSISTANT_ID_NL", group: "telnyx", label: "AI assistant id, Dutch (abandoned-checkout call)", kind: "text", hint: "Dutch voice. Empty = Dutch-page orders get messages only, no AI call." },
+  { key: "TELNYX_ASSISTANT_ID_EN", group: "telnyx", label: "AI assistant id, English (abandoned-checkout call)", kind: "text", hint: "English voice (English-page orders, Portugal market). Empty = English-page orders get messages only, no AI call." },
   { key: "TELNYX_ASSISTANT_ID_FR", group: "telnyx", label: "AI assistant id, French (abandoned-checkout call)", kind: "text", hint: "French voice. Empty = French-page orders get messages only, no AI call." },
   // WhatsApp abandoned-checkout message (the template is created and approved in WhatsApp Manager / Telnyx first)
   { key: "WHATSAPP_PROVIDER", group: "whatsapp", label: "WhatsApp provider", kind: "select", options: ["telnyx", "meta"], hint: "telnyx (default): sent through Telnyx with TELNYX_API_KEY. meta: Meta Cloud API with WHATSAPP_TOKEN (Railway)." },
