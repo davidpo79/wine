@@ -149,6 +149,12 @@ export function LandingPage({
   const total = money(buy.total(sel.b));
   const orderLabel = q === 1 ? fmt(t.orderMine, { total }) : fmt(t.orderN, { qty: q, total });
 
+  const shipLine = sel.saving
+    ? fmt(t.savingLine, { amount: money(sel.saving) }) + (selShip === 0 ? t.deliveryIncludedLine : "")
+    : selShip === 0
+      ? t.vatDeliveryIncluded
+      : fmt(t.vatShipping, { amount: money(selShip) });
+
   const orderButton = (short = false) =>
     canBuy ? (
       <button type="button" className="cta order" data-testid={short ? "order-button-short" : "order-button"} data-j={short ? "buy_button_short" : "buy_button"} onClick={buy.checkout} disabled={buy.loading}>
@@ -289,6 +295,18 @@ export function LandingPage({
                 {g.caption}
               </span>
             </div>
+            {/* Phones only: the price and the order button right under the photo (on a phone the bundle choice is two
+                screens further down, and most ad visitors never scrolled that far). */}
+            {canBuy && buy.mode === "open" && (
+              <div className="quickbuy">
+                <p>
+                  <b>{boxes(q)} · {total}</b> · {shipLine}
+                </p>
+                <button type="button" className="cta order" data-testid="order-button-photo" data-j="buy_button_photo" onClick={buy.checkout} disabled={buy.loading}>
+                  {buy.loading ? t.opening : orderLabel}
+                </button>
+              </div>
+            )}
             <div className="albumcontrols">
               <button aria-label={t.prevPhoto} type="button" onClick={() => show(gi - 1)}>
                 ←
@@ -373,11 +391,7 @@ export function LandingPage({
               </p>
             )}
             <p aria-live="polite" className="shipping">
-              {sel.saving
-                ? fmt(t.savingLine, { amount: money(sel.saving) }) + (selShip === 0 ? t.deliveryIncludedLine : "")
-                : selShip === 0
-                  ? t.vatDeliveryIncluded
-                  : fmt(t.vatShipping, { amount: money(selShip) })}
+              {shipLine}
             </p>
             <p className="fine">{fmt(t.securePayment, { delivery: buy.mode === "after_christmas" ? fmt(t.afterChristmasDelivery, { country: m.area }) : deliveryText })}</p>
             <div className="payrow">

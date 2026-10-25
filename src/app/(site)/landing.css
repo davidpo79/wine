@@ -101,3 +101,4 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .footentity{font-size:12px;opacity:.7;padding-top:6px;padding-bottom:14px;text-align:center}
 /* Phone at the top of the page: tap to call. */
 .benefitbar .benefitphone{color:#fff;font-weight:bold;white-space:nowrap;text-decoration:underline;text-underline-offset:2px}
+.quickbuy{display:none}@media(max-width:760px){.quickbuy{display:block;margin:12px 0 6px;text-align:center}.quickbuy p{font-size:13px;color:var(--muted)}.quickbuy p b{color:var(--ink);font-size:15px}.quickbuy .cta{max-width:none;margin-top:8px}}
