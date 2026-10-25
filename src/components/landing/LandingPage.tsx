@@ -295,6 +295,15 @@ export function LandingPage({
                 {g.caption}
               </span>
             </div>
+            {/* Portuguese pride: the wines are made in the Douro. Inline SVG flag (Windows shows flag emoji as letters). */}
+            <p className="madein">
+              <svg viewBox="0 0 18 12" width="18" height="12" aria-hidden="true">
+                <rect width="18" height="12" fill="#da291c" />
+                <rect width="7.2" height="12" fill="#046a38" />
+                <circle cx="7.2" cy="6" r="2.4" fill="#ffe900" />
+              </svg>
+              {t.madeIn} <span aria-hidden="true">♥</span>
+            </p>
             {/* Phones only: the price and the order button right under the photo (on a phone the bundle choice is two
                 screens further down, and most ad visitors never scrolled that far). */}
             {canBuy && buy.mode === "open" && (

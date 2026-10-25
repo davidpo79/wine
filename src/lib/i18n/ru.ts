@@ -74,6 +74,7 @@ export const ru: Dict = {
     imageBadgeTitle: "ИДЕАЛЬНЫЙ ПОДАРОК",
     imageBadgeSub: "3 ВИНА + ГИД В ПОДАРОК",
     imageBadgeSubNoGuide: "3 ВИНА ИЗ ДОЛИНЫ ДОРУ",
+    madeIn: "Сделано с любовью в Португалии",
     giftWord: "ПОДАРОК",
     facts: ["ВИНА DOURO DOC", "MARTIN BOUTIQUE WINES", "РОЖДЕСТВО 2026"],
     eyebrow: "TRILOGIA 2160 · РОЖДЕСТВЕНСКОЕ ИЗДАНИЕ",
