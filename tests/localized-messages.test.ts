@@ -179,6 +179,9 @@ test("WhatsApp template definitions: pt_PT unchanged; ru and de with the same st
   const ru = (wa.recoveryTemplateDefinition("ru").components[0] as { text: string }).text;
   assert.match(ru, /^Здравствуйте, \{\{1\}\}!/);
   assert.match(ru, /ответьте СТОП\.$/);
+  const en = wa.recoveryTemplateDefinition("en");
+  assert.equal(en.language, "en_GB");
+  assert.match((en.components[0] as { text: string }).text, /^Hello \{\{1\}\}! .*Orders by 30\/11 arrive before Christmas\. .*reply STOP\.$/);
   const de = (wa.recoveryTemplateDefinition("de").components[0] as { text: string }).text;
   assert.match(de, /^Hallo \{\{1\}\}!/);
   assert.match(de, /antworten Sie STOPP\.$/);
@@ -215,6 +218,10 @@ test("sendRecoveryTemplate picks the order's language and never sends Portuguese
     process.env.WHATSAPP_TEMPLATE_LANGS = "ru, de";
     assert.equal(wa.recoveryTemplateLanguage("de"), "de");
     assert.equal(wa.recoveryTemplateLanguage("nl"), null);
+    // en only once en_GB is listed as approved
+    assert.equal(wa.recoveryTemplateLanguage("en"), null);
+    process.env.WHATSAPP_TEMPLATE_LANGS = "ru, en_GB, de";
+    assert.equal(wa.recoveryTemplateLanguage("en"), "en_GB");
     assert.equal(wa.recoveryTemplateLanguage("fr"), null);
     // Listing pt_PT or anything else never makes a Portuguese template go to a Russian order.
     process.env.WHATSAPP_TEMPLATE_LANGS = "pt_PT";
@@ -242,11 +249,11 @@ test("createRecoveryTemplate submits only the missing languages; status lists ev
     const status = await wa.recoveryTemplateStatus();
     assert.match(status.message, /trilogia_retomar \(pt_PT\): APPROVED/);
     assert.match(status.message, /trilogia_retomar \(ru\): APPROVED/);
-    assert.match(status.message, /Not created yet: de\./);
+    assert.match(status.message, /Not created yet: en_GB, de\./);
     assert.match(status.message, /not in "Approved template languages" yet: ru/);
     const r = await wa.createRecoveryTemplate();
     if (/^https:/.test((await import("../src/lib/site")).SITE.url)) {
-      assert.deepEqual(posts.map((p) => p.language), ["de"]); // pt_PT and ru already exist: untouched
+      assert.deepEqual(posts.map((p) => p.language), ["en_GB", "de"]); // pt_PT and ru already exist: untouched
       assert.match(r.message, /pt_PT: already there \(APPROVED\), not submitted/);
     } else {
       assert.equal(r.ok, false); // the test site is http: nothing is ever submitted

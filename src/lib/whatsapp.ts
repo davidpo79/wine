@@ -32,7 +32,7 @@ export const whatsappConfigured = () => whatsappMissing().length === 0;
 export const RECOVERY_TEMPLATE_NAME = "trilogia_retomar";
 
 /** Languages the recovery template is written in, with Meta's language codes (same template name in each). */
-export const RECOVERY_TEMPLATE_LANGS = { pt: "pt_PT", ru: "ru", de: "de" } as const;
+export const RECOVERY_TEMPLATE_LANGS = { pt: "pt_PT", ru: "ru", en: "en_GB", de: "de" } as const;
 export type TemplateLocale = keyof typeof RECOVERY_TEMPLATE_LANGS;
 export const TEMPLATE_LOCALES = Object.keys(RECOVERY_TEMPLATE_LANGS) as TemplateLocale[];
 const isTemplateLocale = (l: string): l is TemplateLocale => l in RECOVERY_TEMPLATE_LANGS;
@@ -49,7 +49,7 @@ export function approvedTemplateLanguages(): string[] {
  * Meta language code of the approved recovery template for an order's language, or null when there is none.
  * Portuguese: WHATSAPP_TEMPLATE_LANG (default pt_PT), as before (the template name is only filled in once approved).
  * Any other language: only when its code is listed in WHATSAPP_TEMPLATE_LANGS (Admin → Settings → WhatsApp,
- * "Approved template languages", e.g. "ru,de"), which the admin fills in once Meta has approved that language.
+ * "Approved template languages", e.g. "ru,en_GB,de"), which the admin fills in once Meta has approved that language.
  */
 export function recoveryTemplateLanguage(locale: Locale): string | null {
   const env = E();
@@ -105,7 +105,7 @@ export async function sendRecoveryTemplate(toE164: string, firstName: string, bu
 // --- The abandoned-checkout template itself (created through Telnyx, reviewed by Meta) -----------------------------
 
 // Per language: body (variables {{1}} first name, {{2}} boxes), its example values, button text.
-// pt_PT is the APPROVED template: its text must never change. ru (Portugal market, same cutoff) keeps the 30/11 date;
+// pt_PT is the APPROVED template: its text must never change. ru and en (Portugal market, same cutoff) keep the 30/11 date;
 // de (Belgian warehouse) names no date, as that market's cutoff is set separately in Settings.
 const RECOVERY_COPY: Record<TemplateLocale, { body: string; example: [string, string]; button: string }> = {
   pt: {
@@ -117,6 +117,11 @@ const RECOVERY_COPY: Record<TemplateLocale, { body: string; example: [string, st
     body: "Здравствуйте, {{1}}! Ваша Trilogia 2160 ({{2}}) ждёт Вас: заказ ещё не завершён. Заказы до 30.11 будут доставлены до Рождества. Чтобы больше не получать сообщения, ответьте СТОП.",
     example: ["Мария", "2 коробки"],
     button: "Завершить заказ",
+  },
+  en: {
+    body: "Hello {{1}}! Your Trilogia 2160 ({{2}}) is waiting for you: your order is not complete yet. Orders by 30/11 arrive before Christmas. To stop receiving messages, reply STOP.",
+    example: ["Anna", "2 boxes"],
+    button: "Complete my order",
   },
   de: {
     body: "Hallo {{1}}! Ihre Trilogia 2160 ({{2}}) wartet auf Sie: Ihre Bestellung ist noch nicht abgeschlossen. Bestellen Sie jetzt, damit Ihr Geschenk rechtzeitig vor Weihnachten ankommt. Wenn Sie keine Nachrichten mehr erhalten möchten, antworten Sie STOPP.",
