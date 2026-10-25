@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CallButton } from "../../calls/CallUI";
@@ -134,6 +134,19 @@ export function AdminPanel(p: {
     return p.leads.filter((l) => f.test(l) && (!s || `${l.name} ${l.company ?? ""} ${l.title ?? ""} ${l.location ?? ""}`.toLowerCase().includes(s)));
   }, [p.leads, filter, q]);
   const toggle = (id: number) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  // Shift+click a row's box: every row between it and the last box clicked takes that box's new state.
+  const lastClicked = useRef<number | null>(null);
+  const clickBox = (id: number, shift: boolean) => {
+    const from = shown.findIndex((l) => l.id === lastClicked.current);
+    const to = shown.findIndex((l) => l.id === id);
+    lastClicked.current = id;
+    if (!shift || from < 0 || to < 0) return toggle(id);
+    const range = shown.slice(Math.min(from, to), Math.max(from, to) + 1).map((l) => l.id);
+    const on = !sel.includes(id);
+    setSel((s) => (on ? [...new Set([...s, ...range])] : s.filter((x) => !range.includes(x))));
+  };
+  /** The first n rows of the current tab and search (the "Approve & get phones" maximum). */
+  const selectFirst = (n: number) => setSel(shown.slice(0, n).map((l) => l.id));
   const allShown = shown.length > 0 && shown.every((l) => sel.includes(l.id));
 
   const c = p.credits.real;
@@ -282,7 +295,17 @@ export function AdminPanel(p: {
               {f.label} <span className="opacity-70">{counts[f.key]}</span>
             </button>
           ))}
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, company, city…" className="ml-auto w-full rounded-lg border p-1.5 text-sm sm:w-64" />
+          {shown.length > 1 && (
+            <span className="ml-auto flex items-center gap-1.5 text-xs">
+              <span className="text-muted">Select first</span>
+              {[10, 25, 50].filter((n, i) => i === 0 || shown.length > [10, 25, 50][i - 1]).map((n) => (
+                <button key={n} type="button" onClick={() => selectFirst(n)} className="rounded-md border px-2 py-1 font-semibold hover:bg-paper" title={`Select the first ${Math.min(n, shown.length)} rows shown (Shift+click a box to select a range)`}>
+                  {Math.min(n, shown.length)}
+                </button>
+              ))}
+            </span>
+          )}
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, company, city…" className={`${shown.length > 1 ? "" : "ml-auto "}w-full rounded-lg border p-1.5 text-sm sm:w-64`} />
         </div>
         {shown.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted">
@@ -315,7 +338,7 @@ export function AdminPanel(p: {
                   const st = STATUS[l.status] ?? { label: l.status, cls: "bg-slate-100" };
                   return (
                     <tr key={l.id} className={`border-b align-top last:border-0 ${sel.includes(l.id) ? "bg-sky-50/60" : "hover:bg-paper/40"}`}>
-                      <td className="p-3"><input type="checkbox" checked={sel.includes(l.id)} onChange={() => toggle(l.id)} aria-label={`Select ${l.name}`} /></td>
+                      <td className="p-3"><input type="checkbox" checked={sel.includes(l.id)} onChange={() => undefined} onClick={(e) => clickBox(l.id, e.shiftKey)} aria-label={`Select ${l.name}`} /></td>
                       <td className="py-3">
                         <p className="font-semibold">
                           {l.name}
