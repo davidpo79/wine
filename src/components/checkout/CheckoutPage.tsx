@@ -512,6 +512,15 @@ export function CheckoutPage({
     } else setPromoMsg(t.promoInvalid);
   };
 
+  // Server-side field errors: a message next to the pay button, then scroll to the first marked field once it is drawn
+  // (scrolling right after setErrors found nothing, so on phones the button seemed to do nothing).
+  function showFieldErrors(errs: Partial<Record<keyof Fields | "country", string>>, orderId?: string) {
+    setErrors(errs);
+    setFormError(t.checkFields);
+    jlog("pay_invalid", { fields: Object.keys(errs).join(",") }, orderId);
+    setTimeout(() => document.querySelector("[aria-invalid=true]")?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
+  }
+
   async function pay(e: React.FormEvent) {
     e.preventDefault();
     if (!draft || paying) return;
@@ -530,10 +539,7 @@ export function CheckoutPage({
       const data = await r.json().catch(() => ({}));
       setPaying(false);
       if (r.status === 422 && data.errors) {
-        setErrors(data.errors);
-        document
-          .querySelector("[aria-invalid=true]")
-          ?.scrollIntoView({ block: "center", behavior: "smooth" });
+        showFieldErrors(data.errors, draft.o);
         return;
       }
       if (r.ok) {
@@ -574,11 +580,8 @@ export function CheckoutPage({
     });
     const data = await r.json().catch(() => ({}));
     if (r.status === 422 && data.errors) {
-      setErrors(data.errors);
+      showFieldErrors(data.errors, draft.o);
       setPaying(false);
-      document
-        .querySelector("[aria-invalid=true]")
-        ?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
     if (!r.ok) {
@@ -645,7 +648,7 @@ export function CheckoutPage({
     });
     const data = await r.json().catch(() => ({}));
     if (r.status === 422 && data.errors) {
-      setErrors(data.errors);
+      showFieldErrors(data.errors, draft.o);
       setPaying(false);
       return;
     }

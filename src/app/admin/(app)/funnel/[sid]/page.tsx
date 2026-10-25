@@ -51,6 +51,8 @@ function describe(name: string, p: Props): string {
       return `Accepted the offer: ${(p?.keys as string[] | undefined)?.join(", ")}`;
     case "offer_decline":
       return `Declined the offer`;
+    case "pay_invalid":
+      return `Pay blocked, fields to fix: ${v("fields")}`;
     case "payment_start":
       return `Payment started: ${v("method")} (${v("kind")})`;
     case "payment_error":

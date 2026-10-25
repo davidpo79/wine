@@ -310,6 +310,7 @@ export const pt = {
     paymentActivatingShort: "O pagamento online está a ser ativado. Os seus dados ficam guardados; pode também encomendar por WhatsApp.",
     preparingPayment: "A preparar o pagamento…",
     cardLoading: "O pagamento com cartão ainda está a carregar.",
+    checkFields: "Verifique os campos assinalados a vermelho.",
     cannotContinue: "Não foi possível continuar.",
     cannotAdd: "Não foi possível juntar à encomenda.",
     notStarted: "O pagamento não foi iniciado.",

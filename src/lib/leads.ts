@@ -29,6 +29,7 @@ export function normalizePtMobile(input: string): string | null {
   let d = input.replace(/[\s().-]/g, "");
   if (d.startsWith("+351")) d = d.slice(4);
   else if (d.startsWith("00351")) d = d.slice(5);
+  else if (d.startsWith("351") && d.length === 12) d = d.slice(3);
   return /^9[1236]\d{7}$/.test(d) ? `+351${d}` : null;
 }
 

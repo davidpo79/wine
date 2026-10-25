@@ -73,9 +73,16 @@ export function normalizePhoneFor(input: string, country: Country): string | nul
   return /^\+[1-9]\d{7,14}$/.test(d) ? d : null;
 }
 
+/** Tidies what people type: Portuguese "1000 001" / "1000001" / "1000–001" become "1000-001". */
+export function normalizePostal(postal: string, country: Country): string {
+  const p = postal.trim();
+  const pt = country === "PT" ? p.match(/^(\d{4})[\s\u2010-\u2015-]*(\d{3})$/) : null;
+  return pt ? `${pt[1]}-${pt[2]}` : p;
+}
+
 export function postalValid(postal: string, country: Country): "ok" | "format" | "excluded" {
   const m = MARKETS[country];
-  const p = postal.trim();
+  const p = normalizePostal(postal, country);
   if (!m.postal.test(p)) return "format";
   if (m.postalExcluded?.test(p)) return "excluded";
   return "ok";

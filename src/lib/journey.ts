@@ -25,6 +25,7 @@ export const JOURNEY_EVENTS = [
   "bump_toggle",
   "promo_apply",
   "pay_click",
+  "pay_invalid",
   "offer_shown", // one-time offer before payment
   "offer_accept",
   "offer_decline",

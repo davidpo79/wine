@@ -310,6 +310,7 @@ export const nl: Dict = {
     paymentActivatingShort: "Online betalen wordt geactiveerd. Uw gegevens blijven bewaard; u kunt ook via WhatsApp bestellen.",
     preparingPayment: "Betaling wordt voorbereid…",
     cardLoading: "Betalen met kaart wordt nog geladen.",
+    checkFields: "Controleer de rood gemarkeerde velden.",
     cannotContinue: "Doorgaan is niet gelukt.",
     cannotAdd: "Toevoegen aan de bestelling is niet gelukt.",
     notStarted: "De betaling is niet gestart.",

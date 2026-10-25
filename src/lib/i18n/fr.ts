@@ -310,6 +310,7 @@ export const fr: Dict = {
     paymentActivatingShort: "Le paiement en ligne est en cours d’activation. Vos données restent enregistrées ; vous pouvez aussi commander par WhatsApp.",
     preparingPayment: "Préparation du paiement…",
     cardLoading: "Le paiement par carte est encore en cours de chargement.",
+    checkFields: "Veuillez vérifier les champs signalés en rouge.",
     cannotContinue: "Impossible de continuer.",
     cannotAdd: "Impossible d’ajouter à la commande.",
     notStarted: "Le paiement n’a pas été lancé.",

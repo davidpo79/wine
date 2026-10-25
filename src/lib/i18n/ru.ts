@@ -311,6 +311,7 @@ export const ru: Dict = {
     paymentActivatingShort: "Онлайн-оплата подключается. Ваши данные сохраняются; заказать можно также через WhatsApp.",
     preparingPayment: "Готовим оплату…",
     cardLoading: "Оплата картой ещё загружается.",
+    checkFields: "Проверьте поля, отмеченные красным.",
     cannotContinue: "Не удалось продолжить.",
     cannotAdd: "Не удалось добавить к заказу.",
     notStarted: "Оплата не началась.",

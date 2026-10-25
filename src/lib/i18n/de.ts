@@ -310,6 +310,7 @@ export const de: Dict = {
     paymentActivatingShort: "Die Online-Zahlung wird gerade aktiviert. Ihre Angaben bleiben gespeichert; Sie können auch per WhatsApp bestellen.",
     preparingPayment: "Zahlung wird vorbereitet…",
     cardLoading: "Die Kartenzahlung wird noch geladen.",
+    checkFields: "Bitte prüfen Sie die rot markierten Felder.",
     cannotContinue: "Fortfahren war leider nicht möglich.",
     cannotAdd: "Hinzufügen zur Bestellung war leider nicht möglich.",
     notStarted: "Die Zahlung wurde nicht gestartet.",

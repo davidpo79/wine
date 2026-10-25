@@ -12,7 +12,7 @@ import { normalizeCode, promoDiscountCents, promoShippingCents } from "./promo";
 import { resumeToken, scheduleRecovery, verifyResumeToken } from "./recovery";
 import { normalizePhone } from "./leads";
 import { getDict } from "./i18n";
-import { isCountry, isLocale, MARKETS, normalizePhoneFor, postalValid, type Country, type Locale } from "./markets";
+import { isCountry, isLocale, MARKETS, normalizePhoneFor, normalizePostal, postalValid, type Country, type Locale } from "./markets";
 import { fmt } from "./i18n/rich";
 
 const orderCountry = (o: Pick<Order, "country">): Country => (isCountry(o.country) ? o.country : "PT");
@@ -125,7 +125,8 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
   for (const [k, field, n] of [["address1", "line1", 120], ["address2", "line2", 120], ["postalCode", "postal_code", 10], ["city", "city", 60]] as const) {
     const v = patch[k];
     if (v !== undefined) {
-      (addr as Record<string, unknown>)[field] = clip(v, n)?.trim() || null;
+      const clean = clip(v, n)?.trim() || null;
+      (addr as Record<string, unknown>)[field] = field === "postal_code" && clean ? normalizePostal(clean, country) : clean;
       addrChanged = true;
     }
   }

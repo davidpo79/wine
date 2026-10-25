@@ -314,3 +314,16 @@ test("ctt: request signature, item id and push hash", async () => {
   assert.equal(validShopUpdateHash({ Status: 2, TrackingId: "EA1PT", Hash: h }, "sec", url), false);
   assert.equal(validShopUpdateHash({ Status: 3, TrackingId: "EA1PT", Hash: h }, "", url), false);
 });
+
+test("checkout accepts common ways of typing a Portuguese mobile and postal code", async () => {
+  const { normalizePhone } = await import("../src/lib/leads");
+  const { normalizePostal, postalValid } = await import("../src/lib/markets");
+  for (const p of ["912345678", "912 345 678", "+351 912 345 678", "00351912345678", "351912345678"]) assert.equal(normalizePhone(p), "+351912345678", p);
+  for (const c of ["1000-001", "1000 001", "1000001", "1000–001"]) {
+    assert.equal(normalizePostal(c, "PT"), "1000-001", c);
+    assert.equal(postalValid(c, "PT"), "ok", c);
+  }
+  assert.equal(postalValid("9000-001", "PT"), "excluded");
+  assert.equal(postalValid("1000", "PT"), "format");
+  assert.equal(normalizePostal("10115", "DE"), "10115");
+});
