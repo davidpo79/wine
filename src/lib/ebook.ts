@@ -3,7 +3,7 @@
 import type { Locale } from "./markets";
 import { SITE } from "./site";
 
-export const EBOOK_LOCALES = ["pt", "de", "nl", "fr", "ru"] as const satisfies readonly Locale[];
+export const EBOOK_LOCALES = ["pt", "de", "nl", "fr", "ru", "en"] as const satisfies readonly Locale[];
 
 export function ebookKey(locale: Locale) {
   return locale === "pt" ? SITE.ebookKey : SITE.ebookKey.replace(/\.pdf$/, `-${locale}.pdf`);
@@ -15,6 +15,7 @@ const TITLES: Record<Locale, string> = {
   nl: "Sabores de Portugal: Traditionele recepten om te delen",
   fr: "Sabores de Portugal : recettes traditionnelles à partager",
   ru: "Sabores de Portugal: традиционные рецепты, которыми хочется делиться",
+  en: "Sabores de Portugal: traditional recipes to share",
 };
 
 const FILES: Record<Locale, string> = {
@@ -23,6 +24,7 @@ const FILES: Record<Locale, string> = {
   nl: "Sabores-de-Portugal-Recepten.pdf",
   fr: "Sabores-de-Portugal-Recettes.pdf",
   ru: "Sabores-de-Portugal-Retsepty.pdf",
+  en: "Sabores-de-Portugal-Recipes.pdf",
 };
 
 export const ebookTitle = (locale: Locale) => TITLES[locale] ?? SITE.ebookTitle;

@@ -56,12 +56,12 @@ export async function dialCall(to: string, state: CallState) {
 /**
  * Which Telnyx AI assistant speaks an order's language. The voice and the speech-recognition language live on the
  * assistant in Telnyx, so each language has its own: Portuguese TELNYX_ASSISTANT_ID, the others
- * TELNYX_ASSISTANT_ID_RU / _DE / _NL / _FR (Admin → Settings → Outbound calls). Not set: null, no AI call.
+ * TELNYX_ASSISTANT_ID_RU / _EN / _DE / _NL / _FR (Admin → Settings → Outbound calls). Not set: null, no AI call.
  */
 export function assistantFor(locale: string): string | null {
   const env = E();
   if (locale === "pt") return env.TELNYX_ASSISTANT_ID || null;
-  if (locale === "ru" || locale === "de" || locale === "nl" || locale === "fr") return env[`TELNYX_ASSISTANT_ID_${locale.toUpperCase()}`] || null;
+  if (locale === "ru" || locale === "en" || locale === "de" || locale === "nl" || locale === "fr") return env[`TELNYX_ASSISTANT_ID_${locale.toUpperCase()}`] || null;
   return null;
 }
 

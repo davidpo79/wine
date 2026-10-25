@@ -18,10 +18,10 @@ test("ru is a locale of the Portugal market only", () => {
   assert.deepEqual(COUNTRIES_FOR_LOCALE.ru, ["PT"]);
   assert.equal(defaultCountry("ru"), "PT");
   // Portuguese stays the default for Portugal; Russian comes second.
-  assert.deepEqual(MARKETS.PT.locales, ["pt", "ru"]);
+  assert.deepEqual(MARKETS.PT.locales, ["pt", "ru", "en"]);
   for (const c of ["DE", "NL", "BE", "LU"] as const) assert.equal(MARKETS[c].locales.includes("ru"), false);
   assert.deepEqual(LOCALE_INFO.ru, { intl: "ru-RU", htmlLang: "ru", og: "ru_RU", name: "Русский" });
-  assert.deepEqual(languagesOf(["PT"]), ["pt", "ru"]);
+  assert.deepEqual(languagesOf(["PT"]), ["pt", "ru", "en"]);
 });
 
 test("ru money and dates keep the Portuguese market format", () => {

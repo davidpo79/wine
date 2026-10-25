@@ -1,10 +1,10 @@
 // Countries we can sell to and the languages the site speaks. Portugal ships from the Douro (CTT, MB WAY,
 // Multibanco); Germany, the Netherlands, Belgium and Luxembourg ship from the Belgian warehouse (pricing of 17/10/2026).
 // Russian is a language of the Portugal market (the Russian-speaking community living in Portugal), not a country:
-// same products, prices, CTT delivery and payment methods as Portuguese.
+// same products, prices, CTT delivery and payment methods as Portuguese. English is the same: English speakers living in Portugal.
 // A market only takes orders once it is enabled in Admin → Settings (excise and VAT must be sorted first).
 
-export const LOCALES = ["pt", "de", "nl", "fr", "ru"] as const;
+export const LOCALES = ["pt", "de", "nl", "fr", "ru", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const COUNTRIES = ["PT", "DE", "NL", "BE", "LU"] as const;
 export type Country = (typeof COUNTRIES)[number];
@@ -18,6 +18,7 @@ export const LOCALE_INFO: Record<Locale, { intl: string; htmlLang: string; og: s
   nl: { intl: "nl-NL", htmlLang: "nl", og: "nl_NL", name: "Nederlands" },
   fr: { intl: "fr-BE", htmlLang: "fr", og: "fr_BE", name: "Français" },
   ru: { intl: "ru-RU", htmlLang: "ru", og: "ru_RU", name: "Русский" },
+  en: { intl: "en-IE", htmlLang: "en", og: "en_GB", name: "English" },
 };
 
 export type Market = {
@@ -36,7 +37,7 @@ export type Market = {
 };
 
 export const MARKETS: Record<Country, Market> = {
-  PT: { country: "PT", locales: ["pt", "ru"], callingCode: "+351", postal: /^\d{4}-?\d{3}$/, postalExample: "1000-001", postalExcluded: /^9/, localMethods: ["mbway", "multibanco"], stripeRedirectMethods: [], warehouse: "douro" },
+  PT: { country: "PT", locales: ["pt", "ru", "en"], callingCode: "+351", postal: /^\d{4}-?\d{3}$/, postalExample: "1000-001", postalExcluded: /^9/, localMethods: ["mbway", "multibanco"], stripeRedirectMethods: [], warehouse: "douro" },
   DE: { country: "DE", locales: ["de"], callingCode: "+49", postal: /^\d{5}$/, postalExample: "10115", localMethods: [], stripeRedirectMethods: [], warehouse: "belgium" },
   NL: { country: "NL", locales: ["nl"], callingCode: "+31", postal: /^\d{4} ?[A-Za-z]{2}$/, postalExample: "1012 AB", localMethods: [], stripeRedirectMethods: ["ideal"], warehouse: "belgium" },
   BE: { country: "BE", locales: ["nl", "fr"], callingCode: "+32", postal: /^\d{4}$/, postalExample: "1000", localMethods: [], stripeRedirectMethods: ["bancontact"], warehouse: "belgium" },
@@ -44,7 +45,7 @@ export const MARKETS: Record<Country, Market> = {
 };
 
 /** Countries whose shop speaks this language (the order matters: first = the one we preselect). */
-export const COUNTRIES_FOR_LOCALE: Record<Locale, Country[]> = { pt: ["PT"], de: ["DE", "LU"], nl: ["NL", "BE"], fr: ["BE", "LU"], ru: ["PT"] };
+export const COUNTRIES_FOR_LOCALE: Record<Locale, Country[]> = { pt: ["PT"], de: ["DE", "LU"], nl: ["NL", "BE"], fr: ["BE", "LU"], ru: ["PT"], en: ["PT"] };
 
 export function defaultCountry(locale: Locale): Country {
   return COUNTRIES_FOR_LOCALE[locale][0];
@@ -55,6 +56,9 @@ export function localeFromAcceptLanguage(header: string | null | undefined): Loc
   for (const part of (header ?? "").split(",")) {
     const tag = part.split(";")[0].trim().toLowerCase();
     const base = tag.split("-")[0];
+    // English is never picked from the browser: many Portuguese use phones set to English. /en is reached by link or
+    // by choosing it in the language switcher.
+    if (base === "en") continue;
     if (isLocale(base)) return base;
   }
   return null;

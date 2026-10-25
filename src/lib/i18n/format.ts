@@ -14,11 +14,11 @@ export function moneyShortFor(locale: Locale) {
 }
 
 /**
- * Delivery days as typed in Admin → Settings for Portugal ("2 a 4", in Portuguese), in the page language. Russian is
- * the only other language of the Portugal market, so only Russian needs it: "2 a 4" -> "2-4".
+ * Delivery days as typed in Admin → Settings for Portugal ("2 a 4", in Portuguese), in the page language. Russian and
+ * English are the other languages of the Portugal market, so only they need it: "2 a 4" -> "2-4".
  */
 export function deliveryDaysFor(locale: Locale, days: string) {
-  return locale === "ru" ? days.replace(/\s+a\s+/g, "-") : days;
+  return locale === "ru" || locale === "en" ? days.replace(/\s+a\s+/g, "-") : days;
 }
 
 /** Day and month of a cutoff, as short messages say it: "30/11" (pt), "30.11" (ru), "30.11." (de). */

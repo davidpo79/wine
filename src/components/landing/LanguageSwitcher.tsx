@@ -44,6 +44,13 @@ const FLAGS: Record<Locale, React.ReactNode> = {
       <text x="9" y="9" textAnchor="middle" fontSize="7" fontWeight="700" fontFamily="Arial, sans-serif" fill="#fff">RU</text>
     </>
   ),
+  // English is a language of the Portugal market too: the same neutral badge.
+  en: (
+    <>
+      <rect width="18" height="12" rx="2" fill="#184b36" />
+      <text x="9" y="9" textAnchor="middle" fontSize="7" fontWeight="700" fontFamily="Arial, sans-serif" fill="#fff">EN</text>
+    </>
+  ),
 };
 
 function Flag({ l }: { l: Locale }) {
