@@ -1,5 +1,7 @@
 "use client";
 
+import { BOT_SOURCE } from "./bots";
+
 type Fbq = ((...args: unknown[]) => void) & { loaded?: boolean };
 type Gtag = (...args: unknown[]) => void;
 declare global {
@@ -85,7 +87,8 @@ export function visit(): { sid?: string; src?: string } {
     let src = sessionStorage.getItem("wp_src");
     if (!sid || !src) {
       sid = newEventId("s");
-      src = trafficSource(new URL(location.href), document.referrer);
+      // An automated browser (navigator.webdriver: Playwright, Selenium, review bots) is not a visitor.
+      src = navigator.webdriver ? BOT_SOURCE : trafficSource(new URL(location.href), document.referrer);
       sessionStorage.setItem("wp_sid", sid);
       sessionStorage.setItem("wp_src", src);
     }

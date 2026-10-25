@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { funnelSource } from "./bots";
 import { and, eq, isNotNull, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 
@@ -124,7 +125,7 @@ export async function saveJourney(b: JourneyBatch, ctx: { ua: string | null; cou
       path,
       props: cleanProps(e.p),
       ms: e.ms ?? null,
-      source: b.src ?? null,
+      source: funnelSource(b.src, ctx.ua),
       device,
       browser,
       country: ctx.country,

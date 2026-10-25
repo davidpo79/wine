@@ -3,6 +3,7 @@ import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { sourceFromUtm } from "./utm";
 import { PAID_STATUSES } from "./stats";
+import { BOT_SOURCE } from "./bots";
 
 export const PERIODS = { today: "Today", "7d": "Last 7 days", "30d": "Last 30 days", all: "All time" } as const;
 export type Period = keyof typeof PERIODS;
@@ -44,7 +45,8 @@ export async function conversionFunnel(since: Date | null, adsOnly: boolean) {
       )
     : new Set<string>();
 
-  const keep = (src: string | null | undefined) => !adsOnly || isAdSource(src);
+  // Bots and tests never count in the funnel steps; they keep their own row at the bottom of "Sessions by source".
+  const keep = (src: string | null | undefined) => src !== BOT_SOURCE && (!adsOnly || isAdSource(src));
   const sessions = (name: string) => sessionRows.filter((r) => r.name === name && keep(r.source)).reduce((n, r) => n + r.n, 0);
   const orders = (name: string) => new Set(orderRows.filter((r) => r.name === name && keep(sourceOf.get(r.orderId!))).map((r) => r.orderId)).size;
 
@@ -67,7 +69,7 @@ export async function conversionFunnel(since: Date | null, adsOnly: boolean) {
   }
   for (const id of new Set(orderRows.filter((r) => r.name === "CheckoutOpened").map((r) => r.orderId!))) row(sourceOf.get(id) ?? "Unknown").checkouts += 1;
   for (const id of purchased) row(sourceOf.get(id) ?? "Unknown").purchases += 1;
-  const sources = [...bySource.entries()].map(([source, v]) => ({ source, ...v })).sort((a, b) => b.sessions - a.sessions || b.purchases - a.purchases);
+  const sources = [...bySource.entries()].map(([source, v]) => ({ source, ...v })).sort((a, b) => Number(a.source === BOT_SOURCE) - Number(b.source === BOT_SOURCE) || b.sessions - a.sessions || b.purchases - a.purchases);
 
   return { steps, sources };
 }

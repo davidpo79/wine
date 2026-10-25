@@ -1,6 +1,7 @@
 // Admin → Funnel: step-by-step funnel, breakdowns, checkout field drop-off, landing engagement and single visits,
 // all from the anonymous visit journey (journey_events).
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { BOT_SOURCE } from "./bots";
 import { db, schema } from "@/db";
 import { PAID_STATUSES } from "./stats";
 import { IN_APP_NOISE_PATTERN } from "./journey";
@@ -127,6 +128,8 @@ export async function journeySessions(f: JourneyFilter): Promise<SessionRow[]> {
   );
   return out.filter(
     (s) =>
+      // Bots and tests only when asked for by name (Admin → Funnel → source "Bots & tests").
+      (s.source !== BOT_SOURCE || f.source === BOT_SOURCE) &&
       (!f.adsOnly || s.source.endsWith(" ads")) &&
       (!f.source || s.source === f.source) &&
       (!f.device || s.device === f.device) &&

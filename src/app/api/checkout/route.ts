@@ -6,6 +6,7 @@ import { createDraft, draftToken, loadDraft, PAID_STATUSES as PAID, publicAmount
 import { checkoutMethods, orderAddons } from "@/lib/payments";
 import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
+import { funnelSource } from "@/lib/bots";
 import { UTM_COOKIE, parseUtmCookie, sourceFromUtm } from "@/lib/utm";
 import { COUNTRIES, isCountry, LOCALES } from "@/lib/markets";
 
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
     },
   );
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status });
-  await logFunnel("CheckoutOpened", `co_${r.order.id}`, r.order.id, { sessionId: parsed.data.sid, source: parsed.data.src ?? sourceFromUtm(r.order.utm, r.order.fbc) });
+  await logFunnel("CheckoutOpened", `co_${r.order.id}`, r.order.id, { sessionId: parsed.data.sid, source: funnelSource(parsed.data.src ?? sourceFromUtm(r.order.utm, r.order.fbc), h.get("user-agent")) });
   return Response.json(publicDraft(r.order, []));
 }
 

@@ -1,5 +1,6 @@
 import { cookies, headers } from "next/headers";
 import { z } from "zod";
+import { funnelSource } from "@/lib/bots";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { SITE } from "@/lib/site";
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   const h = await headers();
   const consent = parseConsent(jar.get(CONSENT_COOKIE)?.value);
 
-  await logFunnel(ev.event_name, ev.event_id, null, { sessionId: ev.sid, source: ev.src });
+  await logFunnel(ev.event_name, ev.event_id, null, { sessionId: ev.sid, source: funnelSource(ev.src, h.get("user-agent")) });
   if (consent.marketing) {
     const url = ev.url && ev.url.startsWith(SITE.url) ? ev.url : SITE.url;
     await sendCapi({
