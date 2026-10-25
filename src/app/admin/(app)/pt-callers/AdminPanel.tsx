@@ -448,14 +448,14 @@ export function AdminPanel(p: {
           <span className="mx-1 h-5 w-px bg-white/30" />
           <button
             type="button"
-            disabled={busy || sel.length > 10}
-            title={sel.length > 10 ? "Up to 10 at a time" : undefined}
+            disabled={busy || sel.length > 50}
+            title={sel.length > 50 ? "Up to 50 at a time" : undefined}
             onClick={() => {
-              if (window.confirm(`Approve ${sel.length} lead${sel.length === 1 ? "" : "s"} and look up their phone numbers?\n\nUp to ${9 * sel.length} Apollo credits (1 each, +8 for each mobile found).`)) void run("approve-enrich", { ids: sel }, () => "Approved. Phone numbers arrive in a few minutes.");
+              if (window.confirm(`Approve ${sel.length} lead${sel.length === 1 ? "" : "s"} and look up their phone numbers?\n\nUp to ${9 * sel.length} Apollo credits (1 each, +8 for each mobile found).`)) void run("approve-enrich", { ids: sel }, (r) => (r.reason ? String(r.reason) : "Approved. Phone numbers arrive in a few minutes."));
             }}
             className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#0F2340] disabled:opacity-50"
           >
-            Approve &amp; get phones {sel.length > 10 ? "(max 10)" : `(≤ ${9 * sel.length} credits)`}
+            Approve &amp; get phones {sel.length > 50 ? "(max 50)" : `(≤ ${9 * sel.length} credits)`}
           </button>
           <span className="mx-1 h-5 w-px bg-white/30" />
           <select value={rep} onChange={(e) => setRep(e.target.value)} className="rounded-lg p-1.5 text-xs text-ink">

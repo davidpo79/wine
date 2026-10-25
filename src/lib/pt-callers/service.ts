@@ -143,14 +143,32 @@ export async function approveLeads(me: Me, ids: number[]) {
   return { ok: true, count: r.length };
 }
 
-/** One click on the admin screen: approve the chosen leads, then look up their phones (credits). */
-export async function approveAndEnrich(me: Me, ids: number[]): Promise<EnrichResult> {
+/** Most leads one "Approve & get phones" click takes; Apollo looks up 10 per request, so it sends batches of 10. */
+export const APPROVE_ENRICH_MAX = 50;
+
+/**
+ * One click on the admin screen: approve the chosen leads, then look up their phones (credits), 10 per Apollo
+ * request. A batch that is refused (credit cap, a lead already enriched...) stops the rest: those leads stay approved
+ * and can be sent again; the batches already sent go on as usual.
+ */
+export async function approveAndEnrich(me: Me, ids: number[]): Promise<EnrichResult & { sent?: number; batches?: number }> {
   adminOnly(me);
   const unique = [...new Set(ids)];
-  // Checked before approving, so a refused batch leaves nothing half done.
-  if (!unique.length || unique.length > 10) return { ok: false, reason: "Choose 1 to 10 leads per enrichment." };
+  // Checked before approving, so a refused selection leaves nothing half done.
+  if (!unique.length || unique.length > APPROVE_ENRICH_MAX) return { ok: false, reason: `Choose 1 to ${APPROVE_ENRICH_MAX} leads per enrichment.` };
   await approveLeads(me, unique);
-  return enrichLeads(me, unique);
+  let sent = 0;
+  let first: EnrichResult | null = null;
+  for (let i = 0; i < unique.length; i += 10) {
+    const r = await enrichLeads(me, unique.slice(i, i + 10));
+    first ??= r;
+    if (!r.ok) {
+      if (!sent) return r;
+      return { ok: true, sent, batches: Math.ceil(sent / 10), reason: `${sent} sent; the other ${unique.length - sent} were not: ${r.reason}`, requestId: first.requestId };
+    }
+    sent += Math.min(10, unique.length - i);
+  }
+  return { ...first!, sent, batches: Math.ceil(sent / 10) };
 }
 
 // --- Enrichment (credits) ---------------------------------------------------------------------------------------------

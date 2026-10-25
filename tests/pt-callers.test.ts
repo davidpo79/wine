@@ -775,14 +775,22 @@ dbTest("credit summary: used and remaining shown; unset caps = remaining null (n
   await assert.rejects(svc!.creditSummary(rep as never), /forbidden/);
 });
 
-dbTest("approve & get phones: one call approves and sends the lookup; more than 10 approves nothing", async () => {
+dbTest("approve & get phones: one call approves and sends the lookup in batches of 10; more than 50 approves nothing", async () => {
   setEnv({ ...offEnv, PT_CALLERS_APOLLO_RESULT_MODE: undefined });
   const mk = async () => (await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `ae-${RUN}-${Math.random()}`, firstName: "Inês", title: "HR Manager", company: "Y", status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning())[0];
   await assert.rejects(svc!.approveAndEnrich(rep as never, [1]), /forbidden/);
-  const many = await Promise.all(Array.from({ length: 11 }, mk));
+  const many = await Promise.all(Array.from({ length: 51 }, mk));
   const tooMany = await svc!.approveAndEnrich(admin, many.map((l) => l.id));
   assert.equal(tooMany.ok, false);
   assert.equal((await D!.sql`select 1 from pt_leads where id = any(${many.map((l) => l.id)}) and approved_at is not null`).length, 0);
+  // 23 leads: three Apollo requests (10 + 10 + 3), every lead pending.
+  const batch = many.slice(0, 23).map((l) => l.id);
+  const b = await svc!.approveAndEnrich(admin, batch);
+  assert.equal(b.ok, true);
+  assert.equal(b.sent, 23);
+  assert.equal(b.batches, 3);
+  assert.equal((await D!.sql`select distinct request_id from pt_enrichment_items where lead_id = any(${batch})`).length, 3);
+  assert.equal((await D!.sql`select 1 from pt_leads where id = any(${batch}) and status = 'enrichment_pending'`).length, 23);
   const one = await mk();
   const r = await svc!.approveAndEnrich(admin, [one.id]);
   assert.equal(r.ok, true);
