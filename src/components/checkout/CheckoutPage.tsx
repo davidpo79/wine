@@ -1043,14 +1043,22 @@ export function CheckoutPage({
                   : `${market.callingCode} …`,
               required: true,
             })}
-            <label className="flex items-start gap-2.5 text-sm">
+            {/* Calls/messages consent: a card right under the phone, never pre-ticked (GDPR). Without it no reminder
+                or call follows an unfinished payment, and a plain one-line checkbox was being skipped. */}
+            <label
+              data-testid="consent-messages"
+              className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 text-sm transition-colors ${fields.consentMessages ? "border-azulejo bg-azulejo/10" : "border-azulejo/40 bg-azulejo/5 hover:border-azulejo"}`}
+            >
               <input
                 type="checkbox"
                 checked={fields.consentMessages}
                 onChange={(e) => setConsent(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-azulejo"
+                className="mt-0.5 h-5 w-5 shrink-0 accent-azulejo"
               />
-              <span>{t.consentMessages}</span>
+              <span>
+                <span className="block font-semibold text-ink">{t.consentTitle}</span>
+                <span className="mt-0.5 block leading-snug text-ink/80">{t.consentMessages}</span>
+              </span>
             </label>
           </section>
 
