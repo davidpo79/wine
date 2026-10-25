@@ -10,13 +10,16 @@ export const dynamic = "force-dynamic";
 // Stripe (cards, Apple Pay, Google Pay, one-click add-ons). MB WAY / Multibanco come from ifthenpay's callback.
 export async function POST(req: Request) {
   const sig = req.headers.get("stripe-signature");
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Trimmed: a space or line break pasted into the Railway variable would fail every signature.
+  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!sig || !secret) return new Response("missing signature", { status: 400 });
   const raw = await req.text();
   let event: Stripe.Event;
   try {
     event = getStripe().webhooks.constructEvent(raw, sig, secret);
-  } catch {
+  } catch (e) {
+    // Never the secret itself: only its shape and Stripe's reason, to tell a wrong secret from a clock or body issue.
+    console.error("[stripe webhook] signature check failed", { reason: (e instanceof Error ? e.message : String(e)).slice(0, 160), secretPrefix: secret.slice(0, 6), secretLength: secret.length });
     return new Response("invalid signature", { status: 400 });
   }
   await db.insert(schema.webhookLog).values({ source: "stripe", eventId: event.id, type: event.type, payload: event as unknown as Record<string, unknown> }).onConflictDoNothing();
