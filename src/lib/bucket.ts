@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let client: S3Client | null = null;
@@ -33,6 +33,24 @@ export async function putObject(key: string, body: Buffer | Uint8Array, contentT
 export async function getObject(key: string) {
   const r = await s3().send(new GetObjectCommand({ Bucket: Bucket(), Key: key }));
   return { body: r.Body, contentType: r.ContentType ?? "application/octet-stream", length: r.ContentLength };
+}
+
+/** Size and date of an object, or null when the key does not exist. */
+export async function headObject(key: string) {
+  try {
+    const r = await s3().send(new HeadObjectCommand({ Bucket: Bucket(), Key: key }));
+    return { bytes: r.ContentLength ?? 0, lastModified: r.LastModified ?? null, contentType: r.ContentType ?? null };
+  } catch (e) {
+    const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (status === 404 || (e as Error).name === "NotFound") return null;
+    throw e;
+  }
+}
+
+/** The first bytes of an object (a ranged read, so a large file is not downloaded). */
+export async function readHead(key: string, bytes: number) {
+  const r = await s3().send(new GetObjectCommand({ Bucket: Bucket(), Key: key, Range: `bytes=0-${bytes - 1}` }));
+  return Buffer.from((await r.Body?.transformToByteArray()) ?? []);
 }
 
 export async function presignedGet(key: string, expiresInSeconds: number, downloadName?: string) {

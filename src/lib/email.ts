@@ -3,7 +3,7 @@ import type { Lead, Order, OrderAddon } from "@/db/schema";
 import { unsubscribeUrl } from "./leads";
 import { eur } from "./money";
 import { SITE } from "./site";
-import { bucketConfigured, presignedGet } from "./bucket";
+import { bucketConfigured, headObject, presignedGet } from "./bucket";
 import { ctTrackingUrl, logOrderEvent } from "./orders";
 import { dayMonthFor, getDict, moneyFor } from "./i18n";
 import { fmt } from "./i18n/rich";
@@ -108,8 +108,10 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
   return r;
 }
 
+/** A 7-day download link to this language's PDF; null when the file is not in the bucket (never a broken link). */
 export async function ebookLink(locale: Locale = "pt"): Promise<string | null> {
   if (!bucketConfigured()) return null;
+  if ((await headObject(ebookKey(locale)).catch(() => true)) === null) return null;
   return presignedGet(ebookKey(locale), EBOOK_LINK_SECONDS, ebookFileName(locale));
 }
 
