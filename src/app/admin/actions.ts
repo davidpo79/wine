@@ -19,7 +19,7 @@ import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc } from "@/lib/time";
 import { COUNTRIES, isLocale } from "@/lib/markets";
-import { ebookKey } from "@/lib/ebook";
+import { ebookKey, guideFor } from "@/lib/ebook";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -98,9 +98,12 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await db.update(schema.orders).set({ ebookKeyIssuedAt: new Date() }).where(eq(schema.orders.id, id));
         await logOrderEvent(id, action, by);
         if (action === "regenerate_ebook") {
-          const link = await ebookLink(isLocale(o.locale) ? o.locale : "pt");
+          const locale = isLocale(o.locale) ? o.locale : "pt";
           revalidatePath(`/admin/orders/${id}`);
-          return { ok: link ? `Email resent. New link (valid 7 days): ${link}` : "Email resent (no e-book in the bucket yet)." };
+          // The email carries the guide only when this language's edition is offered: no link otherwise.
+          if (!guideFor(await getSettings(), locale)) return { ok: `Email resent without the e-book: there is no ${locale.toUpperCase()} edition on offer (Admin → E-book check).` };
+          const link = await ebookLink(locale);
+          return { ok: link ? `Email resent. New ${locale.toUpperCase()} link (valid 7 days): ${link}` : "Email resent (no e-book in the bucket yet)." };
         }
         break;
       }

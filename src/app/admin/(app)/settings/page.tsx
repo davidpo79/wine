@@ -134,7 +134,7 @@ export default async function SettingsPage() {
 
       <section className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">Gift e-book (Sabores de Portugal)</h2>
-        <p className="text-xs text-muted">One PDF per language. Customers get the edition in their language (confirmation email and thank-you page), and the landing page shows the guide in that language. Portuguese is always offered.</p>
+        <p className="text-xs text-muted">One PDF per language. Customers get the edition in their language (confirmation email and thank-you page), and the landing page shows the guide in that language. Portuguese is always offered. <a href="/admin/ebook" className="underline">E-book check</a> shows which PDF each language really gets.</p>
         <ActionForm action={ebookAction} className="flex flex-wrap items-end gap-2">
           <label>Language
             <select name="locale" className="mt-1 block rounded border p-2">
