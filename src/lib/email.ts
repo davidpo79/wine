@@ -178,13 +178,38 @@ ${ctt ? `<p>${t.notHome}</p>` : ""}`,
   return send(o, o.email, fmt(ctt ? t.shippedSubject : t.shippedSubjectIntl, { id: o.id, code: o.trackingNumber }), html, "shipped");
 }
 
+/** Everything the team needs to prepare and ship without opening the admin: customer, delivery, gift, payment, source. */
+function adminOrderDetails(o: Order) {
+  const a = o.shippingAddress ?? {};
+  const b = o.billingAddress;
+  const utm = o.utm ?? {};
+  const source = [utm.utm_source, utm.utm_medium, utm.utm_campaign, utm.utm_content].filter(Boolean).join(" / ");
+  const row = (k: string, v: string | null | undefined) => (v ? `<tr><td style="padding:3px 10px 3px 0;color:#55606e;vertical-align:top;white-space:nowrap">${k}</td><td style="padding:3px 0">${esc(v)}</td></tr>` : "");
+  const addr = (x: typeof a) => [x.line1, x.line2, [x.postal_code, x.city].filter(Boolean).join(" "), x.country].filter(Boolean).join(", ");
+  const sameBilling = !b || addr(b) === addr(a);
+  return `<table style="border-collapse:collapse;font-size:14px;margin:10px 0">
+${row("Cliente", o.customerName)}
+${row("Email", o.email)}
+${row("Telemóvel", o.phone)}
+${row("Morada de entrega", addr(a))}
+${sameBilling ? "" : row("Morada de faturação", addr(b!))}
+${row("NIF", o.nif)}
+${row("País / língua", `${o.country} / ${o.locale}`)}
+${row("Presente", o.isGift ? "Sim" : "Não")}
+${row("Mensagem do cartão", o.giftMessage)}
+${row("Pagamento", o.paymentMethodType)}
+${row("Contactos (chamadas e mensagens)", o.consentMessages || o.consentCalls ? "Autorizou" : "Não autorizou")}
+${row("Origem", source || null)}
+</table>`;
+}
+
 export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
   const to = process.env.ADMIN_ALERT_EMAIL;
   if (!to) return;
   const html = layout(
     "Nova encomenda",
     `<p>Nova encomenda paga${o.country !== "PT" ? ` · ${esc(o.country)} (${esc(o.locale)})` : ""}.</p>${orderSummary(o, addons, "pt")}
-<p>Cliente: ${esc(o.customerName ?? "")} · ${esc(o.email ?? "")} · ${esc(o.phone ?? "")}<br>Pagamento: ${esc(o.paymentMethodType ?? "")}${o.nif ? `<br>NIF: ${esc(o.nif)}` : ""}</p>
+${adminOrderDetails(o)}
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
   return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
