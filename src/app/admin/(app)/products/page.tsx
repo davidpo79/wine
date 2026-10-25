@@ -53,7 +53,7 @@ export default async function Products() {
               <ActionForm action={productAction} className="mt-3 flex flex-wrap items-center gap-2">
                 <input type="hidden" name="id" value={p.id} />
                 <input type="hidden" name="intent" value="upload" />
-                <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp,image/avif" className="text-sm" />
+                <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp,image/avif" className="text-sm file:mr-3 file:cursor-pointer file:rounded file:border file:border-night file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-night hover:file:bg-paper-2" />
                 <Submit>Upload</Submit>
               </ActionForm>
             ) : (

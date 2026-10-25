@@ -146,7 +146,7 @@ export default async function SettingsPage() {
               })}
             </select>
           </label>
-          <label>PDF (for upload)<input type="file" name="file" accept="application/pdf" className="mt-1 block text-xs" /></label>
+          <label>PDF (for upload)<input type="file" name="file" accept="application/pdf" className="mt-1 block text-xs file:mr-3 file:cursor-pointer file:rounded file:border file:border-night file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-night hover:file:bg-paper-2" /></label>
           <Submit name="action" value="upload">Upload</Submit>
           <Submit name="action" value="on" className="!bg-white !text-night border">Offer</Submit>
           <Submit name="action" value="off" className="!bg-white !text-night border">Turn off</Submit>
