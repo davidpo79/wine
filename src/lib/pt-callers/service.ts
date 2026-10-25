@@ -637,6 +637,30 @@ export async function sendOffer(me: Me, id: number, o: { subject: string; body: 
 
 /** Deletes everything the demo mode created (leads, demo enrichment requests and their credit rows). Real Apollo data is
  *  never touched: only rows flagged demo = true, plus the rows that point at a demo lead. */
+/**
+ * Deletes leads for good (with their call history and enrichment items). Admin only; a lead on a live call is
+ * skipped. "Do not contact" blocks are kept (they are stored by hash, not on the lead), so a deleted opt-out is
+ * never imported or dialled again. The audit log keeps its rows, detached from the lead, plus one "delete_leads" row.
+ */
+export async function deleteLeads(me: Me, ids: number[]) {
+  adminOnly(me);
+  if (!ids.length) return { ok: false, reason: "Nothing selected." };
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: LEADS.id })
+      .from(LEADS)
+      .where(and(inArray(LEADS.id, ids), sql`not (${LEADS.status} = 'calling' and ${LEADS.lockUntil} > now())`));
+    const del = rows.map((r) => r.id);
+    if (!del.length) return { ok: false, reason: "Nothing deleted: those leads are on a call right now." };
+    await tx.update(schema.ptAccessLog).set({ leadId: null }).where(inArray(schema.ptAccessLog.leadId, del));
+    await tx.delete(schema.ptCalls).where(inArray(schema.ptCalls.leadId, del));
+    await tx.delete(ITEM).where(inArray(ITEM.leadId, del));
+    await tx.delete(LEADS).where(inArray(LEADS.id, del));
+    await tx.insert(schema.ptAccessLog).values({ adminId: me.id, leadId: null, action: "delete_leads", detail: { ids: del, count: del.length } });
+    return { ok: true, count: del.length, skipped: ids.length - del.length };
+  });
+}
+
 export async function purgeDemo(me: Me) {
   adminOnly(me);
   return db.transaction(async (tx) => {

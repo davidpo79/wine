@@ -868,3 +868,15 @@ dbTest("demo clean-up: removes demo leads, demo lookups and demo credit rows; re
   assert.equal((await D!.sql`select 1 from pt_leads where id = ${real.id}`).length, 1);
   assert.ok((await D!.sql`select 1 from pt_access_log where action = 'purge_demo' and admin_id = ${admin.id}`).length > 0);
 });
+
+dbTest("delete: admins only; the lead and its calls go, the audit stays detached; an opted-out number stays blocked", async () => {
+  setEnv(offEnv);
+  const num = `+3519${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  const a = await svc!.addManualLead(admin, { firstName: "Del", phone: num });
+  await assert.rejects(svc!.deleteLeads(rep as never, [a.id!]), /forbidden/);
+  await svc!.optOut(admin, a.id!);
+  assert.deepEqual(await svc!.deleteLeads(admin, [a.id!]), { ok: true, count: 1, skipped: 0 });
+  assert.equal(await leadRow(a.id!), undefined);
+  assert.equal((await svc!.addManualLead(admin, { firstName: "Again", phone: num })).ok, false); // the block outlives the lead
+  assert.equal((await svc!.deleteLeads(admin, [])).ok, false);
+});

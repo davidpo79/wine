@@ -469,6 +469,18 @@ export function AdminPanel(p: {
             Assign
           </button>
           {!p.reps.length && <Link href="/admin/team" className="text-xs underline opacity-90">Add a sales rep in Team →</Link>}
+          <span className="mx-1 h-5 w-px bg-white/30" />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm(`Delete ${sel.length} lead${sel.length === 1 ? "" : "s"} for good, with their call history?\n\nThis cannot be undone. "Do not contact" blocks stay in force.`))
+                void run("delete", { ids: sel }, (r) => `Deleted ${r.count}.${r.skipped ? ` ${r.skipped} on a call right now were kept.` : ""}`);
+            }}
+            className="ml-auto rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            Delete
+          </button>
         </div>
       )}
     </div>

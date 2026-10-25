@@ -54,6 +54,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
         return Response.json(await svc.fetchDetails(me, ids(b.ids)));
       case "email":
         return Response.json(await svc.sendOffer(me, Number(b.id), { subject: String(b.subject ?? ""), body: String(b.body ?? "") }));
+      case "delete":
+        return Response.json(await svc.deleteLeads(me, ids(b.ids)));
       case "opt-out":
         return Response.json(await svc.optOut(me, Number(b.id)));
       default:
