@@ -174,15 +174,15 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
 
   if (!open) return null;
   const c = CONSENT_COPY[locale];
-  // A card over a light backdrop on the first visit (bottom sheet on phones, centred on desktop): a slim bar was
-  // ignored by most visitors. "Rejeitar" and "Aceitar" are the same size, side by side (GDPR: refusing is as easy as
-  // accepting); nothing is pre-ticked and the page stays readable behind it.
-  const btn = "min-h-11 flex-1 rounded-md px-4 text-sm font-semibold";
+  // A compact card at the bottom that never blocks the page: the shop can be read, scrolled and tapped without
+  // answering it (a dimmed full-screen sheet lost most ad visitors before they saw the offer, Oct 2026). "Rejeitar"
+  // and "Aceitar" are the same size, side by side (GDPR: refusing is as easy as accepting); nothing is pre-ticked.
+  const btn = "min-h-10 flex-1 rounded-md px-4 text-sm font-semibold";
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/35 p-0 sm:items-center sm:p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="wp-consent-title" className="w-full max-w-md rounded-t-2xl border border-gold/40 bg-night px-5 pb-5 pt-4 text-paper shadow-2xl sm:rounded-2xl">
-        <p id="wp-consent-title" className="text-base font-bold">{c.title}</p>
-        <p className="mt-1.5 text-sm leading-snug text-paper/85">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center p-2 sm:p-4">
+      <div role="dialog" aria-modal="false" aria-labelledby="wp-consent-title" className="pointer-events-auto w-full max-w-md rounded-xl border border-gold/40 bg-night px-4 pb-3 pt-3 text-paper shadow-2xl">
+        <p id="wp-consent-title" className="text-sm font-bold">{c.title}</p>
+        <p className="mt-1 text-xs leading-snug text-paper/85">
           {c.text}{" "}
           <a href={privacyHref(locale)} className="underline underline-offset-2">{c.more}</a>
         </p>
@@ -193,14 +193,14 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
             <label className="flex items-center gap-2"><input type="checkbox" checked={m} onChange={(e) => setM(e.target.checked)} className="h-4 w-4 accent-gold" /> {c.marketing}</label>
           </div>
         )}
-        <div className="mt-4 flex gap-2.5">
+        <div className="mt-2.5 flex gap-2.5">
           <button data-testid="consent-reject" onClick={() => decide({ s: false, m: false })} className={`${btn} border border-paper/50 hover:bg-white/10`}>{c.reject}</button>
           <button data-testid="consent-accept" onClick={() => decide({ s: true, m: true })} className={`${btn} bg-gold text-night hover:bg-gold-soft`}>{c.accept}</button>
         </div>
         {prefs ? (
           <button data-testid="consent-save" onClick={() => decide({ s, m })} className="mt-2.5 min-h-10 w-full rounded-md border border-paper/30 text-sm font-semibold hover:bg-white/10">{c.save}</button>
         ) : (
-          <button data-testid="consent-options" onClick={() => setPrefs(true)} className="mt-2 w-full py-1.5 text-xs text-paper/75 underline underline-offset-2 hover:text-paper">{c.options}</button>
+          <button data-testid="consent-options" onClick={() => setPrefs(true)} className="mt-1 w-full py-1 text-xs text-paper/75 underline underline-offset-2 hover:text-paper">{c.options}</button>
         )}
       </div>
     </div>
