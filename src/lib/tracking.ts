@@ -8,8 +8,10 @@ export const GRAPH_VERSION = "v21.0";
 export type Consent = { statistics: boolean; marketing: boolean };
 export const CONSENT_COOKIE = "wp_consent";
 
+/** No choice yet counts as marketing allowed (Meta Pixel and CAPI run from the first visit, per David 25/10);
+ * an explicit "Rejeitar" or unticked Marketing turns them off. Statistics still waits for consent. */
 export function parseConsent(raw: string | undefined | null): Consent {
-  if (!raw) return { statistics: false, marketing: false };
+  if (!raw) return { statistics: false, marketing: true };
   try {
     const v = JSON.parse(decodeURIComponent(raw));
     return { statistics: v.s === 1, marketing: v.m === 1 };

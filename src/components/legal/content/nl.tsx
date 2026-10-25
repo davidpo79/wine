@@ -70,7 +70,7 @@ export function Privacy() {
           <strong>Nieuws per e-mail:</strong> alleen als u dat bij het betalen aangeeft. Grondslag: toestemming, die u op elk moment kunt intrekken.
         </li>
         <li>
-          <strong>Advertentiemeting (Meta Pixel en Conversions API):</strong> alleen met uw toestemming voor marketingcookies. Wij sturen Meta gebeurtenisgegevens en, bij een aankoop, versleutelde contactgegevens (SHA-256-hash) om de effectiviteit van advertenties te meten.
+          <strong>Advertentiemeting (Meta Pixel en Conversions API):</strong> actief vanaf het bezoek aan de website; u kunt dit op elk moment weigeren via „Weigeren” of de cookievoorkeuren. Wij sturen Meta gebeurtenisgegevens en, bij een aankoop, versleutelde contactgegevens (SHA-256-hash) om de effectiviteit van advertenties te meten.
         </li>
         <li>
           <strong>Statistiek (Google Analytics 4):</strong> alleen met uw toestemming voor statistische cookies.
@@ -87,7 +87,7 @@ export function Privacy() {
       </ul>
       <h2>Verwerkers</h2>
       <p>
-        Stripe (betalingen), Railway (hosting), Resend of Telnyx (versturen van e-mails), [[TODO: magazijn en vervoerder in België]] (opslag en levering), Meta Platforms, Google en Microsoft (alleen met toestemming). [[TODO: lijst en internationale doorgiften bevestigen]]
+        Stripe (betalingen), Railway (hosting), Resend of Telnyx (versturen van e-mails), [[TODO: magazijn en vervoerder in België]] (opslag en levering), Meta Platforms (tot u weigert), Google en Microsoft (alleen met toestemming). [[TODO: lijst en internationale doorgiften bevestigen]]
       </p>
       <h2>Bewaartermijn</h2>
       <p>Factuurgegevens: 10 jaar, op grond van fiscale verplichtingen. Overige bestelgegevens: [[TODO: termijn]]. Cookietoestemmingen: 6 maanden.</p>

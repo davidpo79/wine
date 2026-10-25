@@ -47,7 +47,7 @@ test("CAPI normalization and hashing", () => {
 });
 
 test("consent cookie parsing", () => {
-  assert.deepEqual(parseConsent(undefined), { statistics: false, marketing: false });
+  assert.deepEqual(parseConsent(undefined), { statistics: false, marketing: true });
   assert.deepEqual(parseConsent(encodeURIComponent('{"v":1,"s":1,"m":0}')), { statistics: true, marketing: false });
   assert.deepEqual(parseConsent("garbage"), { statistics: false, marketing: false });
   assert.equal(gaClientIdFromCookie("GA1.1.123.456"), "123.456");

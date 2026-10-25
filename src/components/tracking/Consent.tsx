@@ -42,7 +42,7 @@ function updateConsentMode(c: Choice) {
 }
 
 function setFbcFromClickId() {
-  // Meta click id: fb.1.<ms>.<fbclid>. Only written after marketing consent.
+  // Meta click id: fb.1.<ms>.<fbclid>. Written unless marketing was refused.
   const fbclid = new URLSearchParams(location.search).get("fbclid") ?? sessionStorage.getItem("wp_fbclid");
   if (!fbclid || readCookie("_fbc")) return;
   const secure = location.protocol === "https:" ? "; Secure" : "";
@@ -101,6 +101,19 @@ function loadGa4(measurementId: string) {
   document.head.appendChild(s);
 }
 
+/** Loads the Meta Pixel and fires the PageView, deduplicated with the server mirror through a shared event id. */
+function startPixel(pixelId: string, mirrorToServer: boolean) {
+  const wasLoaded = !!window.fbq;
+  if (wasLoaded) window.fbq!("consent", "grant");
+  setFbcFromClickId();
+  loadPixel(pixelId);
+  if (wasLoaded) return; // already running since the first page of the visit
+  const id = window.__wpPageViewId ?? newEventId("pageview");
+  window.__wpPageViewId = id;
+  pixelEvent("PageView", {}, id);
+  if (mirrorToServer) track("PageView", {}, id);
+}
+
 export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null; clarityId?: string | null; ga4Id?: string | null }) {
   const locale = useRouteLocale();
   const [open, setOpen] = useState(false);
@@ -119,16 +132,7 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
         window.clarity("consentv2", { ad_Storage: "denied", analytics_Storage: "denied" });
         window.clarity("consent", false);
       }
-      if (c.m && pixelId) {
-        if (window.fbq) window.fbq("consent", "grant");
-        setFbcFromClickId();
-        loadPixel(pixelId);
-        // PageView, deduplicated with the server mirror through a shared event id.
-        const id = window.__wpPageViewId ?? newEventId("pageview");
-        window.__wpPageViewId = id;
-        pixelEvent("PageView", {}, id);
-        if (!firstLoad) track("PageView", {}, id);
-      }
+      if (c.m && pixelId) startPixel(pixelId, !firstLoad);
     },
     [pixelId, clarityId, ga4Id],
   );
@@ -145,7 +149,9 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
       setM(c.m);
       apply(c, true);
     } else {
-      window.__wpConsent = { s: false, m: false };
+      // No choice yet: the Meta Pixel runs from the first page (per David 25/10); "Rejeitar" switches it off.
+      window.__wpConsent = { s: false, m: true };
+      if (pixelId) startPixel(pixelId, false);
       setOpen(true);
     }
     const reopen = () => {
@@ -157,7 +163,7 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
     };
     window.addEventListener("wp:open-consent", reopen);
     return () => window.removeEventListener("wp:open-consent", reopen);
-  }, [apply]);
+  }, [apply, pixelId]);
 
   function decide(c: Choice) {
     writeChoice(c);
