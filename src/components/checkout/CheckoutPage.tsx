@@ -148,8 +148,6 @@ export function CheckoutPage({
   const singleCents = bundles.find((b) => b.qty === 1)?.priceCents ?? 0;
   const [amounts, setAmounts] = useState<Amounts | null>(null);
   const [fields, setFields] = useState<Fields>(EMPTY);
-  // The Christmas card offer shows its text, preview and message box only once ticked (or already holding a message).
-  const cardOpen = fields.giftCard || fields.giftMessage.trim().length > 0;
   const [errors, setErrors] = useState<
     Partial<Record<keyof Fields | "country", string>>
   >({});
@@ -1146,7 +1144,7 @@ export function CheckoutPage({
             <h2 className="text-lg font-bold">{t.payment}</h2>
             {giftCardPrice != null && (
               <div
-                className={`rounded-lg border-2 border-dashed ${cardOpen ? "p-4" : "px-4 py-3"} ${fields.giftCard ? "border-xmas bg-[#fff6f2]" : "border-xmas/50 bg-[#fffaf3]"}`}
+                className={`rounded-lg border-2 border-dashed p-4 ${fields.giftCard ? "border-xmas bg-[#fff6f2]" : "border-xmas/50 bg-[#fffaf3]"}`}
               >
                 <label className="flex cursor-pointer items-start gap-3">
                   <input
@@ -1169,16 +1167,11 @@ export function CheckoutPage({
                         +{money(giftCardPrice)}
                       </span>
                     </span>
-                    {cardOpen && (
-                      <span className="mt-1 block text-sm text-muted">
-                        {t.cardBumpText}
-                      </span>
-                    )}
+                    <span className="mt-1 block text-sm text-muted">
+                      {t.cardBumpText}
+                    </span>
                   </span>
                 </label>
-                {/* Collapsed to one line until ticked: the card sits between delivery and payment, and a half-screen
-                    offer there pushed the payment methods down (visits left at that step, Oct 2026). */}
-                {cardOpen && (
                 <div className="mt-3 grid grid-cols-[120px_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[150px_minmax(0,1fr)]">
                   <GiftCard
                     message={fields.giftMessage}
@@ -1222,7 +1215,6 @@ export function CheckoutPage({
                     </p>
                   </div>
                 </div>
-                )}
               </div>
             )}
             <p className="text-xs text-muted">{t.secureAll}</p>
