@@ -1,9 +1,10 @@
 // Localized ad copy. pt is the original (concepts.ts); ru speaks to the Russian-speaking community living in Portugal
-// (same market: CTT, MB WAY, Multibanco, mainland Portugal); de is the German market (Belgian warehouse, Stripe payments,
-// no printed card, so card claims are left out). Same prices and claims as the live pt ads. No em-dashes.
+// (same market: CTT, MB WAY, Multibanco, mainland Portugal); de and nl are the German and Dutch markets (Belgian
+// warehouse, Stripe payments with iDEAL in nl, no printed card, so card claims are left out). Same prices and claims as
+// the live pt ads. No em-dashes.
 import type { Concept } from "./concepts";
 
-export const AD_LOCALES = ["pt", "ru", "de"] as const;
+export const AD_LOCALES = ["pt", "ru", "de", "nl"] as const;
 export type AdLocale = (typeof AD_LOCALES)[number];
 
 export type AdStrings = {
@@ -56,12 +57,25 @@ export const AD_STRINGS: Record<AdLocale, AdStrings> = {
     deadlineFeedStrip: "<b>4 zum Preis von 3</b> · Versand inklusive · Ab 49,90 €",
     deadlineStoryStrip: "<b>4 zum Preis von 3</b> · Versand inklusive",
   },
+  nl: {
+    trust: "Betalen met iDEAL, kaart, Apple Pay of Google Pay",
+    sticker: ["4 voor de", "<small>prijs van</small> 3", "verzending inbegrepen"],
+    deadlineStrip: "<b>Bestel vóór 30/11</b> · Bezorgd vóór Kerstmis",
+    cardTitle: "Vrolijk Kerstfeest",
+    cardSubtitle: "en een gelukkig nieuwjaar",
+    forFour: "voor 4",
+    month: "NOVEMBER",
+    lastDay: "laatste besteldag",
+    deadlineFeedStrip: "<b>4 voor de prijs van 3</b> · Vanaf 49,90 €",
+    deadlineStoryStrip: "<b>4 voor de prijs van 3</b> · Verzending inbegrepen",
+  },
 };
 
 type Copy = Pick<Concept, "kicker" | "headline" | "sub" | "ticks" | "primary" | "title" | "description"> & Partial<Pick<Concept, "cardMessage" | "chip">>;
 
 const RU_TICKS = ["Готов к вручению", "Доставка включена", "Открытка с Вашим текстом"];
 const DE_TICKS = ["Fertig zum Verschenken", "Versand inklusive", "Weiß, Rosé und Rot"];
+const NL_TICKS = ["Klaar om te geven", "Verzending inbegrepen", "Wit, rosé en rood"];
 
 // Only the concepts that run in the funnel campaigns are localized.
 export const CONCEPT_COPY: Record<Exclude<AdLocale, "pt">, Record<string, Copy>> = {
@@ -159,6 +173,48 @@ export const CONCEPT_COPY: Record<Exclude<AdLocale, "pt">, Record<string, Copy>>
         "Familie oder Freunde sind an Weihnachten weit weg? Wir schicken die Trilogia 2160 direkt zu ihnen nach Hause. 3 Douro-Weine in einer Box, fertig zum Verschenken, Versand inklusive. Bestellungen bis 30.11.",
       title: "Wir verschicken Ihr Geschenk",
       description: "Versand inklusive · Ab 49,90 €",
+    },
+  },
+  nl: {
+    preco_resolvida: {
+      kicker: "Kerstprijs",
+      headline: "Het kerstcadeau is geregeld.",
+      sub: "3 wijnen uit de Douro in een doos, klaar om te geven.",
+      ticks: NL_TICKS,
+      primary:
+        "Het kerstcadeau zonder gedoe: 3 wijnen uit de Douro-vallei in Portugal (wit, rood en rosé) in een kerstdoos, klaar om te geven. Koop 3 dozen en krijg er 4, of neem er 2 en de tweede kost 40 €. Verzending inbegrepen. Bestellingen vóór 30/11 zijn er vóór Kerstmis.",
+      title: "4 dozen voor de prijs van 3",
+      description: "Verzending inbegrepen · Vanaf 49,90 €",
+    },
+    prazo_30nov: {
+      kicker: "Kerst zonder stress",
+      headline: "Nog op tijd.",
+      sub: "",
+      ticks: ["Kerstdoos met 3 Douro-wijnen", "Thuisbezorgd", "Klaar om te geven"],
+      primary:
+        "Bestellingen vóór 30 november zijn er vóór Kerstmis. De Trilogia 2160 is een kerstdoos met witte, rode en rosé wijn uit de Douro in Portugal, klaar om te geven. 4 dozen voor de prijs van 3, verzending inbegrepen.",
+      title: "Bestel vóór 30/11",
+      description: "Bezorgd vóór Kerstmis",
+    },
+    quatro_prendas: {
+      kicker: "Meerdere cadeaus, één bestelling",
+      headline: "4 cadeaus.<br>U betaalt er 3.",
+      sub: "verzending inbegrepen",
+      ticks: NL_TICKS,
+      primary:
+        "Ouders, schoonouders, collega's, vrienden? Bestel 4 dozen en betaal er maar 3: 149,70 € in plaats van 199,60 €, verzending inbegrepen. In elke kerstdoos 3 wijnen uit de Douro, klaar om te geven. Bestellingen vóór 30/11 zijn er vóór Kerstmis.",
+      title: "4 dozen voor de prijs van 3",
+      description: "Verzending inbegrepen · Vóór Kerstmis",
+    },
+    envio_direto: {
+      kicker: "Wij versturen het voor u",
+      headline: "Bent u er niet bij? Uw cadeau wel.",
+      sub: "We bezorgen rechtstreeks op het adres van de ontvanger in Nederland.",
+      ticks: ["Verzending inbegrepen", "Met track & trace", "Klaar om te geven"],
+      primary:
+        "Familie of vrienden ver weg met Kerstmis? Wij sturen de Trilogia 2160 rechtstreeks naar hun huis. 3 Douro-wijnen in een doos, klaar om te geven, verzending inbegrepen. Bestellingen vóór 30/11.",
+      title: "Wij versturen uw cadeau",
+      description: "Verzending inbegrepen · Vanaf 49,90 €",
     },
   },
 };

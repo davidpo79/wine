@@ -13,7 +13,7 @@ const out = resolve(process.argv[2] ?? "ads-out");
 const only = process.argv.slice(3);
 const img = (n: string) => `file://${ROOT}/public/lp/${n}`;
 const font = (n: string) => `file://${ROOT}/src/fonts/${n}`;
-const LOCALE = (process.env.ADS_LOCALE ?? "pt") as "pt" | "ru" | "de";
+const LOCALE = (process.env.ADS_LOCALE ?? "pt") as "pt" | "ru" | "de" | "nl";
 const suffix = LOCALE === "pt" ? "" : `_${LOCALE}`;
 const CYR = "U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116";
 // The recipe guide exists in Portuguese only, so ru/de do not promise it.
@@ -22,6 +22,7 @@ const DUAS = {
   pt: { foot: "18+ · Beba com moderação", s1: "Duas prendas de Natal resolvidas 🎁", s2: "Branco · Rosé · Tinto", k: "2 caixas · 6 garrafas", price: "89,90€", save: "Poupe 9,90€", ship: "Envio grátis", guide: "+ Guia digital de receitas e harmonizações de oferta", cta: "Encomende em vinho.prendadenatal.com" },
   ru: { foot: "18+ · Пейте умеренно", s1: "Два рождественских подарка готовы 🎁", s2: "Белое · Розовое · Красное", k: "2 коробки · 6 бутылок", price: "89,90 €", save: "Экономия 9,90 €", ship: "Доставка бесплатно", guide: "Белое, розовое и красное в праздничной коробке", cta: "Заказ на vinho.prendadenatal.com/ru" },
   de: { foot: "18+ · Bitte genießen Sie verantwortungsvoll", s1: "Zwei Weihnachtsgeschenke erledigt 🎁", s2: "Weiß · Rosé · Rot", k: "2 Boxen · 6 Flaschen", price: "89,90 €", save: "Sie sparen 9,90 €", ship: "Kostenloser Versand", guide: "Weiß, Rosé und Rot in einer Weihnachtsbox", cta: "Bestellen auf vinho.prendadenatal.com/de" },
+  nl: { foot: "18+ · Geniet, maar drink met mate", s1: "Twee kerstcadeaus geregeld 🎁", s2: "Wit · Rosé · Rood", k: "2 dozen · 6 flessen", price: "89,90 €", save: "U bespaart 9,90 €", ship: "Gratis verzending", guide: "Wit, rosé en rood in een kerstdoos", cta: "Bestel op vinho.prendadenatal.com/nl" },
 }[LOCALE];
 const FPS = 30;
 const SECONDS = 15;

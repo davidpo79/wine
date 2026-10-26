@@ -1,5 +1,5 @@
 // Static Meta ads (feed 4:5 1080x1350 and story 9:16 1080x1920) rendered from HTML with the real product photos.
-// Usage: ADS_LOCALE=pt|ru|de tsx scripts/ads/render.ts [outDir] [conceptKey...]   (ru/de files get a _ru/_de suffix)
+// Usage: ADS_LOCALE=pt|ru|de|nl tsx scripts/ads/render.ts [outDir] [conceptKey...]   (ru/de/nl files get a _ru/_de/_nl suffix)
 // Copy rules: pt-PT, no em-dashes, only true claims (prices, -15% on 3 boxes, free shipping from 2 boxes, card +3,90 €,
 // orders until 30/11 for delivery before Christmas, CTT 2 to 4 working days, mainland Portugal).
 import { mkdirSync, writeFileSync } from "node:fs";
