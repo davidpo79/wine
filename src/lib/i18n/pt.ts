@@ -379,6 +379,7 @@ export const pt = {
     methodLabel: "Método de pagamento",
     loadingSecure: "A carregar o pagamento seguro…",
     mbwayPhone: "Telemóvel associado ao MB WAY",
+    mbwayUsesContact: "Usamos o {phone} do contacto. Se o MB WAY estiver noutro número, escreva-o aqui.",
     processing: "A processar…",
     generateRef: "Gerar referência · {total}",
     pay: "Pagar {total}",

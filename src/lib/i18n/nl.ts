@@ -379,6 +379,7 @@ export const nl: Dict = {
     methodLabel: "Betaalmethode",
     loadingSecure: "Beveiligde betaling wordt geladen…",
     mbwayPhone: "Mobiel nummer gekoppeld aan MB WAY",
+    mbwayUsesContact: "We gebruiken {phone} uit uw contactgegevens. Staat MB WAY op een ander nummer, vul het dan hier in.",
     processing: "Bezig met verwerken…",
     generateRef: "Referentie aanmaken · {total}",
     pay: "Betaal {total}",

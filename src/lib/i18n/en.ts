@@ -380,6 +380,7 @@ export const en: Dict = {
     methodLabel: "Payment method",
     loadingSecure: "Loading secure payment…",
     mbwayPhone: "Phone number linked to MB WAY",
+    mbwayUsesContact: "We'll use {phone} from your contact details. If MB WAY is on another number, type it here.",
     processing: "Processing…",
     generateRef: "Get reference · {total}",
     pay: "Pay {total}",
