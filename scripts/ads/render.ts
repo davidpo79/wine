@@ -1,5 +1,5 @@
 // Static Meta ads (feed 4:5 1080x1350 and story 9:16 1080x1920) rendered from HTML with the real product photos.
-// Usage: ADS_LOCALE=pt|ru|de|nl tsx scripts/ads/render.ts [outDir] [conceptKey...]   (ru/de/nl files get a _ru/_de/_nl suffix)
+// Usage: ADS_LOCALE=pt|ru|de|nl|nlbe|fr tsx scripts/ads/render.ts [outDir] [conceptKey...]   (other locales get a _<locale> suffix)
 // Copy rules: pt-PT, no em-dashes, only true claims (prices, -15% on 3 boxes, free shipping from 2 boxes, card +3,90 €,
 // orders until 30/11 for delivery before Christmas, CTT 2 to 4 working days, mainland Portugal).
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -16,7 +16,7 @@ const img = (n: string) => `file://${ROOT}/public/lp/${n}`;
 const font = (n: string) => `file://${ROOT}/src/fonts/${n}`;
 const LOCALE = (process.env.ADS_LOCALE ?? "pt") as AdLocale;
 if (!AD_LOCALES.includes(LOCALE)) throw new Error(`ADS_LOCALE must be one of ${AD_LOCALES.join(", ")}`);
-const T = AD_STRINGS[LOCALE];
+const T = AD_STRINGS[LOCALE]!;
 const suffix = LOCALE === "pt" ? "" : `_${LOCALE}`;
 const CYR = "U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116";
 
@@ -183,7 +183,7 @@ function layout(c: Concept, f: Format) {
 
 function html(c: Concept, f: Format) {
   const { w, h } = FORMATS[f];
-  return `<!doctype html><html lang="${LOCALE}"><head><meta charset="utf-8"><style>:root{--w:${w}px;--h:${h}px}${CSS}</style></head><body><div class="ad">${layout(c, f)}</div></body></html>`;
+  return `<!doctype html><html lang="${LOCALE === "nlbe" ? "nl" : LOCALE}"><head><meta charset="utf-8"><style>:root{--w:${w}px;--h:${h}px}${CSS}</style></head><body><div class="ad">${layout(c, f)}</div></body></html>`;
 }
 
 mkdirSync(out, { recursive: true });

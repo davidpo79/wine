@@ -4,7 +4,8 @@
 // the live pt ads. No em-dashes.
 import type { Concept } from "./concepts";
 
-export const AD_LOCALES = ["pt", "ru", "de", "nl"] as const;
+// nlbe and fr are Belgium (Flanders and Wallonia): Bancontact instead of iDEAL, delivery in Belgium.
+export const AD_LOCALES = ["pt", "ru", "de", "nl", "nlbe", "fr"] as const;
 export type AdLocale = (typeof AD_LOCALES)[number];
 
 export type AdStrings = {
@@ -20,7 +21,7 @@ export type AdStrings = {
   deadlineStoryStrip: string;
 };
 
-export const AD_STRINGS: Record<AdLocale, AdStrings> = {
+export const AD_STRINGS: Record<Exclude<AdLocale, "nlbe">, AdStrings> & Partial<Record<"nlbe", AdStrings>> = {
   pt: {
     trust: "Pague com MB WAY, Multibanco ou cartão",
     sticker: ["pague 3", "<small>leve</small> 4", "envio incluído"],
@@ -69,16 +70,30 @@ export const AD_STRINGS: Record<AdLocale, AdStrings> = {
     deadlineFeedStrip: "<b>4 voor de prijs van 3</b> · Vanaf 49,90 €",
     deadlineStoryStrip: "<b>4 voor de prijs van 3</b> · Verzending inbegrepen",
   },
+  fr: {
+    trust: "Payez par Bancontact, carte, Apple Pay ou Google Pay",
+    sticker: ["4 pour le", "<small>prix de</small> 3", "livraison incluse"],
+    deadlineStrip: "<b>Commandez avant le 30/11</b> · Livré avant Noël",
+    cardTitle: "Joyeux Noël",
+    cardSubtitle: "et une bonne année",
+    forFour: "les 4",
+    month: "NOVEMBRE",
+    lastDay: "dernier jour pour commander",
+    deadlineFeedStrip: "<b>4 pour le prix de 3</b> · Dès 49,90 €",
+    deadlineStoryStrip: "<b>4 pour le prix de 3</b> · Livraison incluse",
+  },
 };
+AD_STRINGS.nlbe = { ...AD_STRINGS.nl, trust: "Betalen met Bancontact, kaart, Apple Pay of Google Pay" };
 
 type Copy = Pick<Concept, "kicker" | "headline" | "sub" | "ticks" | "primary" | "title" | "description"> & Partial<Pick<Concept, "cardMessage" | "chip">>;
 
 const RU_TICKS = ["Готов к вручению", "Доставка включена", "Открытка с Вашим текстом"];
 const DE_TICKS = ["Fertig zum Verschenken", "Versand inklusive", "Weiß, Rosé und Rot"];
 const NL_TICKS = ["Klaar om te geven", "Verzending inbegrepen", "Wit, rosé en rood"];
+const FR_TICKS = ["Prêt à offrir", "Livraison incluse", "Blanc, rosé et rouge"];
 
 // Only the concepts that run in the funnel campaigns are localized.
-export const CONCEPT_COPY: Record<Exclude<AdLocale, "pt">, Record<string, Copy>> = {
+export const CONCEPT_COPY: Record<Exclude<AdLocale, "pt" | "nlbe">, Record<string, Copy>> & Partial<Record<"nlbe", Record<string, Copy>>> = {
   ru: {
     preco_resolvida: {
       kicker: "Рождественская цена",
@@ -217,10 +232,56 @@ export const CONCEPT_COPY: Record<Exclude<AdLocale, "pt">, Record<string, Copy>>
       description: "Verzending inbegrepen · Vanaf 49,90 €",
     },
   },
+  fr: {
+    preco_resolvida: {
+      kicker: "Prix de Noël",
+      headline: "Le cadeau de Noël est réglé.",
+      sub: "3 vins du Douro dans un coffret prêt à offrir.",
+      ticks: FR_TICKS,
+      primary:
+        "Le cadeau de Noël sans prise de tête : 3 vins de la vallée du Douro au Portugal (blanc, rouge et rosé) dans un coffret de Noël prêt à offrir. Achetez 3 coffrets et recevez-en 4, ou prenez-en 2 et le deuxième coûte 40 €. Livraison incluse. Les commandes passées avant le 30/11 arrivent avant Noël.",
+      title: "4 coffrets pour le prix de 3",
+      description: "Livraison incluse · Dès 49,90 €",
+    },
+    prazo_30nov: {
+      kicker: "Noël sans stress",
+      headline: "Encore à temps.",
+      sub: "",
+      ticks: ["Coffret de Noël, 3 vins du Douro", "Livré à domicile", "Prêt à offrir"],
+      primary:
+        "Les commandes passées avant le 30 novembre arrivent avant Noël. La Trilogia 2160 est un coffret de Noël avec un vin blanc, un rouge et un rosé du Douro au Portugal, prêt à offrir. 4 coffrets pour le prix de 3, livraison incluse.",
+      title: "Commandez avant le 30/11",
+      description: "Livré avant Noël",
+    },
+    quatro_prendas: {
+      kicker: "Plusieurs cadeaux, une commande",
+      headline: "4 cadeaux.<br>Vous en payez 3.",
+      sub: "livraison incluse",
+      ticks: FR_TICKS,
+      primary:
+        "Parents, beaux-parents, collègues, amis ? Commandez 4 coffrets et n'en payez que 3 : 149,70 € au lieu de 199,60 €, livraison incluse. Dans chaque coffret de Noël, 3 vins du Douro prêts à offrir. Les commandes passées avant le 30/11 arrivent avant Noël.",
+      title: "4 coffrets pour le prix de 3",
+      description: "Livraison incluse · Avant Noël",
+    },
+    envio_direto: {
+      kicker: "Nous l'envoyons pour vous",
+      headline: "Vous ne serez pas là ? Votre cadeau, si.",
+      sub: "Nous livrons directement à l'adresse du destinataire en Belgique.",
+      ticks: ["Livraison incluse", "Suivi de colis", "Prêt à offrir"],
+      primary:
+        "Famille ou amis loin de vous à Noël ? Nous envoyons la Trilogia 2160 directement chez eux. 3 vins du Douro dans un coffret prêt à offrir, livraison incluse. Commandes avant le 30/11.",
+      title: "Nous envoyons votre cadeau",
+      description: "Livraison incluse · Dès 49,90 €",
+    },
+  },
+};
+CONCEPT_COPY.nlbe = {
+  ...CONCEPT_COPY.nl,
+  envio_direto: { ...CONCEPT_COPY.nl.envio_direto, sub: "We bezorgen rechtstreeks op het adres van de ontvanger in België." },
 };
 
 export function localizedConcepts(all: Concept[], locale: AdLocale): Concept[] {
   if (locale === "pt") return all;
-  const copy = CONCEPT_COPY[locale];
+  const copy = CONCEPT_COPY[locale]!;
   return all.filter((c) => copy[c.key]).map((c) => ({ ...c, ...copy[c.key] }));
 }
