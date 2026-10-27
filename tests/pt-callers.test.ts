@@ -162,6 +162,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "GET /admin/login",
     "GET /admin/password",
     "GET /admin/pt-callers",
+    "GET /admin/pt-callers/mine",
     "POST /admin/calls/dtmf",
     "POST /admin/calls/state",
     "POST /admin/calls/webrtc-token",
@@ -172,9 +173,15 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "POST /admin/pt-callers/api/rep/history",
     "POST /admin/pt-callers/api/rep/opt-out",
     "POST /admin/pt-callers/api/rep/outcome",
+    "POST /admin/pt-callers/mine",
   ]);
+  // Her own leads' work actions ([action] route): allowed by name, POST only; the service checks she owns each lead.
+  for (const a of ["approve", "approve-enrich", "claim", "classify", "details", "email", "enrich", "opt-out"]) {
+    assert.equal(access.ptCallerAllowed("POST", `/admin/pt-callers/api/admin/${a}`), true, a);
+    assert.equal(access.ptCallerAllowed("GET", `/admin/pt-callers/api/admin/${a}`), false, a);
+  }
   // Prefix tricks are refused.
-  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
+  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/admin/delete", "/admin/pt-callers/api/admin/assign", "/admin/pt-callers/api/admin/distribute", "/admin/pt-callers/api/admin/dial-number", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
     assert.equal(access.ptCallerAllowed("POST", p), false, p);
     assert.equal(access.ptCallerAllowed("GET", p), false, p);
   }
@@ -189,6 +196,7 @@ test("server actions and routes: only the listed files let a sales rep in", () =
   const optIn = files.filter((f) => /allowPtCaller:\s*true/.test(readFileSync(f, "utf8"))).map((f) => f.slice(process.cwd().length + 1)).sort();
   assert.deepEqual(optIn, [
     "src/app/admin/(app)/layout.tsx",
+    "src/app/admin/(app)/pt-callers/mine/page.tsx",
     "src/app/admin/(app)/pt-callers/page.tsx",
     "src/app/admin/calls/guard.ts",
     "src/app/admin/pt-callers/api/guard.ts",
@@ -303,6 +311,8 @@ const ledger = DB_URL ? await import("../src/lib/pt-callers/ledger") : null;
 const dnc = await import("../src/lib/pt-callers/dnc");
 type Me = { id: number; email: string; role: "admin" | "pt_caller"; mustChangePassword: boolean };
 const admin: Me = { id: 0, email: "", role: "admin", mustChangePassword: false };
+/** The refusal reason of a service result (results without one read as "undefined"). */
+const why = (r: object) => String((r as { reason?: unknown }).reason);
 const rep: Me = { id: 0, email: "", role: "pt_caller", mustChangePassword: false };
 const rep2: Me = { id: 0, email: "", role: "pt_caller", mustChangePassword: false };
 const RUN = Date.now().toString(36);
@@ -404,10 +414,10 @@ dbTest("flags off: import uses the mock (demo rows), dial is refused with a reas
   assert.equal(again.inserted, 0);
 });
 
-dbTest("roles: only admins import, approve, enrich, assign; a rep sees only assigned leads, numbers masked", async () => {
+dbTest("roles: only admins import and assign; a rep approves and enriches only her own leads, sees only them, numbers masked", async () => {
   await assert.rejects(svc!.importLeads(rep as never, { page: 1 }), /forbidden/);
-  await assert.rejects(svc!.approveLeads(rep as never, [1]), /forbidden/);
-  await assert.rejects(svc!.enrichLeads(rep as never, [1]), /forbidden/);
+  assert.match(why(await svc!.approveLeads(rep, [1])), /assigned to you/);
+  assert.match(why(await svc!.enrichLeads(rep, [1])), /assigned to you/);
   await assert.rejects(svc!.assignLeads(rep as never, [1], rep.id), /forbidden/);
   const mine = await readyLead(rep, 2);
   const theirs = await readyLead(rep2, 3);
@@ -778,7 +788,7 @@ dbTest("credit summary: used and remaining shown; unset caps = remaining null (n
 dbTest("approve & get phones: one call approves and sends the lookup in batches of 10; more than 50 approves nothing", async () => {
   setEnv({ ...offEnv, PT_CALLERS_APOLLO_RESULT_MODE: undefined });
   const mk = async () => (await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `ae-${RUN}-${Math.random()}`, firstName: "Inês", title: "HR Manager", company: "Y", status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning())[0];
-  await assert.rejects(svc!.approveAndEnrich(rep as never, [1]), /forbidden/);
+  assert.match(why(await svc!.approveAndEnrich(rep, [1])), /assigned to you/);
   const many = await Promise.all(Array.from({ length: 51 }, mk));
   const tooMany = await svc!.approveAndEnrich(admin, many.map((l) => l.id));
   assert.equal(tooMany.ok, false);
@@ -834,10 +844,10 @@ dbTest("admin calls from the admin screen: takes an unassigned lead, never a rep
   setEnv({ ...offEnv, PT_CALLERS_LEGAL_BASIS_REQUIRED: undefined, PT_CALLERS_DNC_REQUIRED: undefined });
 });
 
-dbTest("surname & e-mail lookup and the offer e-mail: admins only; blocked, demo and no-address leads refused", async () => {
+dbTest("surname & e-mail lookup and the offer e-mail: admins, or a rep on her own lead; blocked, demo and no-address leads refused", async () => {
   setEnv(offEnv);
-  await assert.rejects(svc!.fetchDetails(rep as never, [1]), /forbidden/);
-  await assert.rejects(svc!.sendOffer(rep as never, 1, { subject: "s", body: "b" }), /forbidden/);
+  assert.match(why(await svc!.fetchDetails(rep, [1])), /assigned to you/);
+  assert.match(why(await svc!.sendOffer(rep, 1, { subject: "s", body: "b" })), /assigned to you/);
   const [l] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `det-${RUN}-${Math.random()}`, firstName: "Marta", status: "new", demo: true, approvedAt: new Date(), retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
   assert.equal((await svc!.fetchDetails(admin, Array.from({ length: 11 }, () => l.id).map((x, i) => x + i))).ok, false);
   const d = await svc!.fetchDetails(admin, [l.id]);
@@ -887,4 +897,39 @@ dbTest("delete: admins only; the lead and its calls go, the audit stays detached
   assert.equal(await leadRow(a.id!), undefined);
   assert.equal((await svc!.addManualLead(admin, { firstName: "Again", phone: num })).ok, false); // the block outlives the lead
   assert.equal((await svc!.deleteLeads(admin, [])).ok, false);
+});
+
+dbTest("lead split: reps taking leads at the same time never get the same one; a rep works only her own; admin splits evenly", async () => {
+  setEnv(offEnv);
+  // Keep the pool to this test's leads: park every other unassigned lead on the admin for the duration.
+  const parked = (await D!.sql`update pt_leads set assigned_to = ${admin.id} where assigned_to is null returning id`).map((r) => r.id as number);
+  try {
+    const mk = async () => (await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `split-${RUN}-${Math.random()}`, firstName: "Rita", status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning())[0];
+    const pool = await Promise.all(Array.from({ length: 30 }, mk));
+    const ids = pool.map((l) => l.id);
+    const [a, b] = await Promise.all([svc!.claimLeads(rep, 20), svc!.claimLeads(rep2, 20)]);
+    assert.equal(a.count + b.count, 30);
+    const rows = await D!.sql`select assigned_to, count(*)::int n from pt_leads where id = any(${ids}) group by assigned_to`;
+    assert.deepEqual(rows.map((r) => r.assigned_to).sort(), [rep.id, rep2.id].sort());
+    assert.equal(rows.reduce((t, r) => t + (r.n as number), 0), 30);
+    // Nothing left to take.
+    assert.equal((await svc!.claimLeads(rep, 5)).count, 0);
+    await assert.rejects(svc!.claimLeads(admin as never, 5), /forbidden/);
+    // A rep acts on her own lead, never on the other rep's.
+    const [mine] = await D!.sql`select id from pt_leads where id = any(${ids}) and assigned_to = ${rep.id} limit 1`;
+    const [theirs] = await D!.sql`select id from pt_leads where id = any(${ids}) and assigned_to = ${rep2.id} limit 1`;
+    assert.equal((await svc!.approveLeads(rep, [mine.id as number])).ok, true);
+    assert.match(why(await svc!.approveLeads(rep, [mine.id as number, theirs.id as number])), /assigned to you/);
+    // Admin split: back to nobody, then round robin over the active reps.
+    await D!.sql`update pt_leads set assigned_to = null where id = any(${ids})`;
+    await assert.rejects(svc!.distributeLeads(rep as never, []), /forbidden/);
+    const d = await svc!.distributeLeads(admin, []);
+    assert.equal(d.ok, true);
+    const per = await D!.sql`select assigned_to, count(*)::int n from pt_leads where id = any(${ids}) group by assigned_to`;
+    assert.ok(per.every((r) => r.assigned_to !== null));
+    const counts = per.map((r) => r.n as number);
+    assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, JSON.stringify(per));
+  } finally {
+    if (parked.length) await D!.sql`update pt_leads set assigned_to = null where id = any(${parked})`;
+  }
 });

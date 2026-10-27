@@ -24,6 +24,19 @@ type Me = Pick<AdminSession, "id" | "email" | "role" | "mustChangePassword">;
 function adminOnly(me: Me) {
   if (me.role !== "admin") throw new Error("forbidden: admins only");
 }
+
+/**
+ * A sales rep works her own leads from start to finish (phones, preparation, e-mail, calls): she may act only on
+ * leads assigned to her, an admin on any lead. Returns a refusal when one of the ids is not hers.
+ */
+async function ownLeadsOnly(me: Me, ids: number[]): Promise<{ ok: false; reason: string } | null> {
+  if (me.role === "admin") return null;
+  if (me.role !== "pt_caller") throw new Error("forbidden");
+  const unique = [...new Set(ids)];
+  if (!unique.length) return null;
+  const mine = await db.select({ id: LEADS.id }).from(LEADS).where(and(inArray(LEADS.id, unique), eq(LEADS.assignedTo, me.id)));
+  return mine.length === unique.length ? null : { ok: false, reason: "You can only work on leads assigned to you." };
+}
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 const retention = () => new Date(Date.now() + RETENTION_DAYS * 86400_000);
 
@@ -132,7 +145,8 @@ export async function importLeads(me: Me, o: { page: number }) {
 }
 
 export async function approveLeads(me: Me, ids: number[]) {
-  adminOnly(me);
+  const notMine = await ownLeadsOnly(me, ids);
+  if (notMine) return notMine;
   if (!ids.length) return { ok: true, count: 0 };
   const r = await db
     .update(LEADS)
@@ -152,7 +166,8 @@ export const APPROVE_ENRICH_MAX = 50;
  * and can be sent again; the batches already sent go on as usual.
  */
 export async function approveAndEnrich(me: Me, ids: number[]): Promise<EnrichResult & { sent?: number; batches?: number }> {
-  adminOnly(me);
+  const notMine = await ownLeadsOnly(me, ids);
+  if (notMine) return notMine;
   const unique = [...new Set(ids)];
   // Checked before approving, so a refused selection leaves nothing half done.
   if (!unique.length || unique.length > APPROVE_ENRICH_MAX) return { ok: false, reason: `Choose 1 to ${APPROVE_ENRICH_MAX} leads per enrichment.` };
@@ -176,7 +191,8 @@ export async function approveAndEnrich(me: Me, ids: number[]): Promise<EnrichRes
 type EnrichResult = { ok: boolean; reason?: string; requestId?: string; testSecret?: string };
 
 export async function enrichLeads(me: Me, ids: number[]): Promise<EnrichResult> {
-  adminOnly(me);
+  const notMine = await ownLeadsOnly(me, ids);
+  if (notMine) return notMine;
   const unique = [...new Set(ids)];
   if (!unique.length || unique.length > 10) return { ok: false, reason: "Choose 1 to 10 leads per enrichment." };
   const leads = await db.select().from(LEADS).where(inArray(LEADS.id, unique));
@@ -356,9 +372,59 @@ export async function assignLeads(me: Me, ids: number[], repId: number | null) {
   return { ok: true, count: r.length };
 }
 
+/** Most leads a rep can take in one click. */
+export const CLAIM_MAX = 25;
+
+/**
+ * A sales rep takes the next free leads (not assigned, not blocked), leads with a phone first. FOR UPDATE SKIP LOCKED
+ * makes simultaneous clicks by several reps take different rows, so two reps never get the same lead.
+ */
+export async function claimLeads(me: Me, n: number) {
+  if (me.role !== "pt_caller") throw new Error("forbidden: sales reps only");
+  const want = Math.max(1, Math.min(CLAIM_MAX, Math.floor(n) || 1));
+  const rows = await db.execute<{ id: number }>(sql`
+    update pt_leads set assigned_to = ${me.id}, updated_at = now()
+    where id in (
+      select id from pt_leads
+      where assigned_to is null and status not in ('opt_out', 'blocked')
+      order by (phone is null), id
+      limit ${want}
+      for update skip locked
+    ) and assigned_to is null
+    returning id`);
+  const ids = [...rows].map((r) => r.id);
+  for (const id of ids) await logAccess(me.id, id, "claim");
+  return { ok: true, count: ids.length };
+}
+
+/** Admin: splits leads evenly between the active sales reps (round robin), the chosen ones or every unassigned lead. */
+export async function distributeLeads(me: Me, ids: number[]) {
+  adminOnly(me);
+  const reps = await db
+    .select({ id: schema.adminUsers.id })
+    .from(schema.adminUsers)
+    .where(and(eq(schema.adminUsers.role, "pt_caller"), isNull(schema.adminUsers.disabledAt)))
+    .orderBy(schema.adminUsers.id);
+  if (!reps.length) return { ok: false, reason: "No active sales rep. Add one in Team first." };
+  const pool = await db
+    .select({ id: LEADS.id })
+    .from(LEADS)
+    .where(and(ids.length ? inArray(LEADS.id, ids) : isNull(LEADS.assignedTo), sql`${LEADS.status} not in ('opt_out','blocked','calling')`))
+    .orderBy(sql`${LEADS.phone} is null`, LEADS.id);
+  if (!pool.length) return { ok: false, reason: "No leads to distribute." };
+  const per: Record<number, number[]> = {};
+  pool.forEach((l, i) => (per[reps[i % reps.length].id] ??= []).push(l.id));
+  for (const [repId, list] of Object.entries(per)) {
+    await db.update(LEADS).set({ assignedTo: Number(repId), updatedAt: new Date() }).where(inArray(LEADS.id, list));
+    for (const id of list) await logAccess(me.id, id, "assign", { repId: Number(repId), distributed: true });
+  }
+  return { ok: true, count: pool.length, reps: reps.length };
+}
+
 /** The number's class (business line or not) and the legal basis, both recorded by an admin before any dial. */
 export async function classifyLead(me: Me, id: number, o: { numberClass: string; legalBasis: string }) {
-  adminOnly(me);
+  const notMine = await ownLeadsOnly(me, [id]);
+  if (notMine) return notMine;
   const lead = await leadById(id);
   if (!lead) return { ok: false, reason: "Not found." };
   if (await isBlocked(lead)) return { ok: false, reason: "Blocked or opted out: it stays that way." };
@@ -593,7 +659,8 @@ async function storeMatches(matches: MatchedPerson[]) {
 
 /** Surname, work email and LinkedIn for leads enriched before these were stored: details only, 1 credit per person, no phone. */
 export async function fetchDetails(me: Me, ids: number[]): Promise<{ ok: boolean; reason?: string; found?: number }> {
-  adminOnly(me);
+  const notMine = await ownLeadsOnly(me, ids);
+  if (notMine) return notMine;
   const unique = [...new Set(ids)];
   if (!unique.length || unique.length > 10) return { ok: false, reason: "Choose 1 to 10 leads." };
   const leads = await db.select().from(LEADS).where(inArray(LEADS.id, unique));
@@ -629,7 +696,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 /** One offer e-mail to one lead's work address, written (and editable) on the admin screen. */
 export async function sendOffer(me: Me, id: number, o: { subject: string; body: string }): Promise<{ ok: boolean; reason?: string }> {
-  adminOnly(me);
+  const notMine = await ownLeadsOnly(me, [id]);
+  if (notMine) return notMine;
   const lead = await leadById(id);
   if (!lead) return { ok: false, reason: "Not found." };
   if (lead.demo) return { ok: false, reason: "Demo lead: no e-mail is sent." };

@@ -108,6 +108,10 @@ export function AdminPanel(p: {
   reps: { id: number; email: string }[];
   leads: Lead[];
   requests: Req[];
+  /** Leads nobody has taken yet (the rep's "take new leads" pool). */
+  unclaimed?: number;
+  /** A sales rep's view: only her own leads, no import, delete, assignment or setup. */
+  limited?: boolean;
 }) {
   const router = useRouter();
   const [sel, setSel] = useState<number[]>([]);
@@ -160,19 +164,24 @@ export function AdminPanel(p: {
   const demoLeads = p.leads.filter((l) => l.demo).length;
   const prep = p.config.businessLineRequired || p.config.legalBasisRequired;
   const [mailFor, setMailFor] = useState<Lead | null>(null);
+  const lim = !!p.limited;
 
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl font-semibold">Portugal HR callers</h1>
-          <p className="mt-1 text-sm text-muted">HR managers at Portuguese companies with 51–500 employees, from Apollo. Your sales reps call them from the browser.</p>
+          <h1 className="font-serif text-3xl font-semibold">{lim ? "My leads" : "Portugal HR callers"}</h1>
+          <p className="mt-1 text-sm text-muted">
+            {lim
+              ? "Only you see these leads, and you handle each one from start to finish: get the phone, call or e-mail, record the result. Take new ones whenever you need more."
+              : "HR managers at Portuguese companies with 51–500 employees, from Apollo. Your sales reps call them from the browser."}
+          </p>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${p.flags.live ? "bg-green-600 text-white" : "bg-amber-100 text-amber-900"}`}>{p.flags.live ? "● Live" : "Demo mode"}</span>
       </div>
 
-      {!p.flags.live && (
+      {!lim && !p.flags.live && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-semibold">You are looking at demo data.</p>
           <p className="mt-1">
@@ -182,7 +191,7 @@ export function AdminPanel(p: {
         </div>
       )}
 
-      {demoLeads > 0 && (
+      {!lim && demoLeads > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
           <p>
             <b>{demoLeads} demo {demoLeads === 1 ? "lead" : "leads"}</b> (fictional people from demo mode) are still in the list.
@@ -201,6 +210,10 @@ export function AdminPanel(p: {
         </div>
       )}
 
+      {lim && <ClaimBox busy={busy} unclaimed={p.unclaimed ?? 0} onClaim={(n) => run("claim", { count: n }, (r) => (r.count ? `${r.count} new lead${r.count === 1 ? " is" : "s are"} now yours.` : "No free leads right now. Ask the admin to import more."))} />}
+
+      {!lim && (
+      <>
       {/* Setup checklist */}
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border bg-white p-5">
@@ -272,8 +285,23 @@ export function AdminPanel(p: {
           </div>
           <p className="mt-2 text-[11px] text-muted">The page number moves on by itself, so you can keep clicking.</p>
           <AddLead busy={busy} onAdd={(v) => run("add", v, () => `${v.firstName} added.`)} />
+          {p.reps.length > 0 && (
+            <div className="mt-4 border-t pt-3">
+              <p className="text-xs text-muted">Give every lead nobody has yet to the sales reps, evenly, so two reps never work the same person. Reps can also take new leads themselves.</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => window.confirm(`Split all unassigned leads evenly between ${p.reps.length} sales rep${p.reps.length === 1 ? "" : "s"}?`) && run("distribute", {}, (r) => `Gave ${r.count} leads to ${r.reps} sales rep${r.reps === 1 ? "" : "s"}.`)}
+                className="mt-2 w-full rounded-lg border border-[#0F2340] px-3 py-2 text-sm font-semibold text-[#0F2340] disabled:opacity-50"
+              >
+                Split unassigned leads between reps
+              </button>
+            </div>
+          )}
         </div>
       </section>
+      </>
+      )}
 
       {msg && (
         <div className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-sm ${msg.ok ? "border-green-300 bg-green-50 text-green-900" : "border-red-300 bg-red-50 text-red-900"}`}>
@@ -312,7 +340,7 @@ export function AdminPanel(p: {
             {p.leads.length === 0 ? (
               <>
                 <p className="text-base font-semibold text-ink">No leads yet</p>
-                <p className="mt-1">Click <b>Import 25 leads</b> above to pull the first page from Apollo.</p>
+                <p className="mt-1">{lim ? <>Click <b>Take 10 new leads</b> above.</> : <>Click <b>Import 25 leads</b> above to pull the first page from Apollo.</>}</p>
               </>
             ) : (
               <p>Nothing in this view.</p>
@@ -328,7 +356,7 @@ export function AdminPanel(p: {
                   <th>Company</th>
                   <th>Phone</th>
                   <th>Status</th>
-                  <th>Sales rep</th>
+                  {!lim && <th>Sales rep</th>}
                   <th>Actions</th>
                   <th />
                 </tr>
@@ -364,14 +392,14 @@ export function AdminPanel(p: {
                         {l.attempts > 0 && <span className="mt-1 block text-[11px] text-muted">{l.attempts} call{l.attempts === 1 ? "" : "s"}</span>}
                         {l.note && <span className="mt-1 block max-w-[14rem] text-[11px] italic text-muted" title={l.note}>“{l.note.length > 80 ? `${l.note.slice(0, 80)}…` : l.note}”</span>}
                       </td>
-                      <td className="py-3 text-xs">{p.reps.find((r) => r.id === l.assignedTo)?.email ?? <span className="text-muted">—</span>}</td>
+                      {!lim && <td className="py-3 text-xs">{p.reps.find((r) => r.id === l.assignedTo)?.email ?? <span className="text-muted">—</span>}</td>}
                       <td className="py-3">
                         <div className="flex flex-wrap items-center gap-1.5">
                           {l.phone && !blockedLead(l) && (
                             <CallButton
                               target={{ ptLeadId: l.id, name: l.name }}
-                              disabled={!p.flags.live || l.demo || p.reps.some((r) => r.id === l.assignedTo)}
-                              title={l.assignedTo && p.reps.some((r) => r.id === l.assignedTo) ? "Assigned to a sales rep" : undefined}
+                              disabled={!p.flags.live || l.demo || (!lim && p.reps.some((r) => r.id === l.assignedTo))}
+                              title={!lim && l.assignedTo && p.reps.some((r) => r.id === l.assignedTo) ? "Assigned to a sales rep" : undefined}
                             />
                           )}
                           {l.email && !blockedLead(l) && (
@@ -410,7 +438,7 @@ export function AdminPanel(p: {
         )}
       </section>
 
-      {p.requests.length > 0 && (
+      {!lim && p.requests.length > 0 && (
         <details className="rounded-xl border bg-white p-5" open={p.requests.some((r) => ["pending", "timeout", "sending"].includes(r.status))}>
           <summary className="cursor-pointer font-semibold">Phone lookups ({p.requests.length})</summary>
           <p className="mt-1 text-xs text-muted">
@@ -458,10 +486,12 @@ export function AdminPanel(p: {
         />
       )}
 
-      <DialerButton
-        disabled={!canCall}
-        onLead={() => router.refresh()}
-      />
+      {!lim && (
+        <DialerButton
+          disabled={!canCall}
+          onLead={() => router.refresh()}
+        />
+      )}
 
       {/* Selection bar */}
       {sel.length > 0 && (
@@ -480,6 +510,8 @@ export function AdminPanel(p: {
           >
             Approve &amp; get phones {sel.length > 50 ? "(max 50)" : `(≤ ${9 * sel.length} credits)`}
           </button>
+          {!lim && (
+          <>
           <span className="mx-1 h-5 w-px bg-white/30" />
           <select value={rep} onChange={(e) => setRep(e.target.value)} className="rounded-lg p-1.5 text-xs text-ink">
             <option value="">{p.reps.length ? "Choose a sales rep…" : "No sales reps yet"}</option>
@@ -492,6 +524,11 @@ export function AdminPanel(p: {
             Assign
           </button>
           {!p.reps.length && <Link href="/admin/team" className="text-xs underline opacity-90">Add a sales rep in Team →</Link>}
+          {p.reps.length > 1 && (
+            <button type="button" disabled={busy} onClick={() => run("distribute", { ids: sel }, (r) => `Split ${r.count} between ${r.reps} sales reps.`)} className="rounded-lg border border-white/60 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
+              Split evenly
+            </button>
+          )}
           <span className="mx-1 h-5 w-px bg-white/30" />
           <button
             type="button"
@@ -504,6 +541,8 @@ export function AdminPanel(p: {
           >
             Delete
           </button>
+          </>
+          )}
         </div>
       )}
     </div>
@@ -653,6 +692,22 @@ function AddLead({ busy, onAdd }: { busy: boolean; onAdd: (v: Record<string, str
 
 
 /** Floating phone button: opens the dialer window (keypad + number). Hidden while the dialer or a call is open. */
+function ClaimBox({ busy, unclaimed, onClaim }: { busy: boolean; unclaimed: number; onClaim: (n: number) => void }) {
+  return (
+    <section className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 text-sm">
+      <div className="min-w-[14rem] flex-1">
+        <p className="font-semibold">Need more people to call?</p>
+        <p className="text-xs text-muted">{unclaimed ? `${unclaimed} free lead${unclaimed === 1 ? "" : "s"} waiting. Once you take one, no other rep sees it.` : "No free leads right now. Ask the admin to import more."}</p>
+      </div>
+      {[10, 25].map((n) => (
+        <button key={n} type="button" disabled={busy || !unclaimed} onClick={() => onClaim(n)} className="rounded-lg bg-[#0F2340] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          Take {n} new leads
+        </button>
+      ))}
+    </section>
+  );
+}
+
 function DialerButton({ disabled, onLead }: { disabled: boolean; onLead: () => void }) {
   const { call: c, dialer } = useCallStore();
   if (c || dialer) return null;

@@ -9,6 +9,10 @@ const RULES: { method: "GET" | "POST"; path: string }[] = [
   { method: "POST", path: "/admin/pt-callers/api/rep/outcome" },
   { method: "POST", path: "/admin/pt-callers/api/rep/opt-out" },
   { method: "POST", path: "/admin/pt-callers/api/rep/history" },
+  // "Os meus leads": the rep's own leads, worked start to finish (the service refuses anyone else's lead).
+  { method: "GET", path: "/admin/pt-callers/mine" },
+  { method: "POST", path: "/admin/pt-callers/mine" }, // logout action
+  ...["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out"].map((a) => ({ method: "POST" as const, path: `/admin/pt-callers/api/admin/${a}` })),
   { method: "POST", path: "/admin/calls/webrtc-token" }, // #4's browser phone
   { method: "POST", path: "/admin/calls/state" },
   { method: "POST", path: "/admin/calls/dtmf" }, // keypad during the rep's own connected call

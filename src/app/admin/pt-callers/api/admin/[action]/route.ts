@@ -1,13 +1,17 @@
 import * as svc from "@/lib/pt-callers/service";
-import { adminSession, jsonBody } from "../../guard";
+import { adminSession, jsonBody, leadWorkSession } from "../../guard";
 
 const ids = (v: unknown) => (Array.isArray(v) ? v.map(Number).filter((n) => Number.isInteger(n) && n > 0) : []);
 
+// Actions a sales rep may also run, on her own leads only (the service enforces ownership): she works each lead from
+// getting its phone to the call or e-mail. Everything else (import, delete, assigning to others...) stays admin only.
+const REP_ACTIONS = new Set(["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out"]);
+
 // Admin actions of the Portugal-callers screen. Every credit-consuming step goes through the ledger in the service.
 export async function POST(req: Request, ctx: { params: Promise<{ action: string }> }) {
-  const me = await adminSession();
-  if (me instanceof Response) return me;
   const { action } = await ctx.params;
+  const me = REP_ACTIONS.has(action) ? await leadWorkSession() : await adminSession();
+  if (me instanceof Response) return me;
   const b = await jsonBody(req);
   try {
     switch (action) {
@@ -44,6 +48,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
         return Response.json(await svc.simulateDemoResult(me, String(b.requestId ?? "")));
       case "close":
         return Response.json(await svc.closeTimedOut(me, String(b.requestId ?? ""), String(b.credits ?? "")));
+      case "claim":
+        return Response.json(await svc.claimLeads(me, Number(b.count) || 10));
+      case "distribute":
+        return Response.json(await svc.distributeLeads(me, ids(b.ids)));
       case "assign":
         return Response.json(await svc.assignLeads(me, ids(b.ids), b.repId === null || b.repId === "" ? null : Number(b.repId)));
       case "classify":

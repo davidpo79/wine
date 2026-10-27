@@ -64,7 +64,14 @@ async function pendingReviews() {
   return r?.n ?? 0;
 }
 
-const PT_CALLER_NAV: NavGroup[] = [{ items: [{ href: "/admin/pt-callers", label: "Contactos RH", icon: "leads" }] }];
+const PT_CALLER_NAV: NavGroup[] = [
+  {
+    items: [
+      { href: "/admin/pt-callers", label: "Contactos RH", icon: "leads" },
+      { href: "/admin/pt-callers/mine", label: "Os meus leads", icon: "leads" },
+    ],
+  },
+];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Sales reps (Portugal callers) get this shell only around their own screen: every other page refuses them.

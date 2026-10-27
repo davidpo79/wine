@@ -20,3 +20,12 @@ export async function adminSession(): Promise<AdminSession | Response> {
 }
 
 export const jsonBody = (req: Request) => req.json().catch(() => ({})) as Promise<Record<string, unknown>>;
+
+/** Lead-work endpoints shared by admins and sales reps; the service checks that a rep only touches her own leads. */
+export async function leadWorkSession(): Promise<AdminSession | Response> {
+  await loadOutboundSettings();
+  const me = await getAdmin({ allowPtCaller: true }).catch(() => null);
+  if (!me || me.mustChangePassword) return Response.json({ error: "Not logged in." }, { status: 401 });
+  if (me.role !== "admin" && me.role !== "pt_caller") return Response.json({ error: "Forbidden" }, { status: 403 });
+  return me;
+}

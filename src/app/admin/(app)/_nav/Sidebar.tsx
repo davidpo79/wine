@@ -36,7 +36,10 @@ export function Sidebar({ groups, footer }: { groups: NavGroup[]; footer: React.
   const path = usePathname();
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [path]);
-  const active = (href: string) => (href === "/admin" ? path === "/admin" : path === href || path.startsWith(`${href}/`));
+  const hrefs = groups.flatMap((g) => g.items.map((x) => x.href));
+  // A link is active on its own page and below it, unless a longer link in the menu matches better.
+  const active = (href: string) =>
+    href === "/admin" ? path === "/admin" : (path === href || path.startsWith(`${href}/`)) && !hrefs.some((h) => h.length > href.length && (path === h || path.startsWith(`${h}/`)));
 
   const nav = (
     <nav className="flex h-full flex-col gap-4 overflow-y-auto px-3 py-4">
