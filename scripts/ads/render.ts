@@ -51,7 +51,7 @@ body{width:var(--w);height:var(--h);overflow:hidden;font-family:Inter,sans-serif
 .h1{font-weight:850;line-height:1.02;letter-spacing:-.02em}
 .sub{font-weight:500;line-height:1.25}
 .ticks{list-style:none;display:grid;gap:14px}
-.ticks li{display:flex;align-items:center;gap:16px;font-weight:650;font-size:36px;line-height:1.15}
+.ticks li{display:flex;align-items:center;gap:16px;font-weight:650;font-size:var(--tick,36px);line-height:1.15}
 .small .ticks{gap:10px}.small .ticks li{font-size:31px}.small .ticks li:before{flex-basis:34px;height:34px;background-size:22px}
 .ticks li:before{content:"";flex:0 0 40px;height:40px;border-radius:50%;background:var(--gold) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.2 4.2L19 7' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/26px no-repeat}
 .sticker{position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f3e6c2,var(--gold) 55%,#a8843f);color:var(--deep);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-shadow:0 18px 40px rgba(0,0,0,.35);transform:rotate(-8deg);border:6px solid rgba(255,255,255,.55)}
@@ -113,21 +113,20 @@ function layout(c: Concept, f: Format) {
     }
     case "cutout": {
       // The box inside a full Christmas frame: garland and bow on top, trees on the sides, gifts along the bottom.
-      const boxW = story ? 640 : 600;
-      const boxTop = story ? 860 : 480;
+      const boxW = story ? 580 : 600;
+      const boxTop = story ? 760 : 480;
       const logoY = story ? 300 : 180;
       return `
       <div class="bgimg" style="background-image:url(${xmasBg(f)})"></div>
       <div style="position:absolute;left:0;right:0;top:${logoY}px;display:flex;justify-content:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5))">${logo(story ? 84 : 66)}</div>
       <div style="position:absolute;left:0;right:0;top:${logoY + (story ? 110 : 84)}px;text-align:center;color:#fff;padding:0 130px;text-shadow:0 3px 14px rgba(0,0,0,.45)">
-        <div class="kicker" style="color:var(--gold2);font-size:${story ? 32 : 26}px">${c.kicker}</div>
-        <div class="h1" style="font-size:${story ? 92 : 72}px;margin-top:8px">${c.headline}</div>
-        ${story ? `<div class="sub" style="font-size:38px;margin-top:16px;color:#f6e9e9">${c.sub}</div>` : ""}
+        <div class="kicker" style="color:var(--gold2);font-size:${story ? 36 : 31}px">${c.kicker}</div>
+        <div class="h1" style="font-size:${story ? 104 : 84}px;margin-top:8px">${c.headline}</div>
       </div>
       <img src="${img("box-cutout.webp")}" style="position:absolute;left:${story ? 90 : 120}px;top:${boxTop}px;width:${boxW}px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55))">
-      ${sticker(story ? "right:80px;top:880px;width:290px;height:290px" : "right:90px;top:500px;width:260px;height:260px")}
-      <div style="position:absolute;right:${story ? 110 : 100}px;left:${story ? 650 : 640}px;top:${story ? 1180 : 800}px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)" class="small">${ticks(c.ticks)}</div>
-      <div class="strip" style="bottom:${story ? SAFE_BOTTOM + 10 : 36}px;left:${story ? 90 : 130}px;right:${story ? 90 : 130}px;border-radius:999px;height:${story ? 92 : 76}px;font-size:${story ? 32 : 28}px;background:rgba(16,45,33,.92);border:2px solid var(--gold)">${T.deadlineStrip}</div>`;
+      ${sticker(story ? "right:80px;top:790px;width:280px;height:280px" : "right:90px;top:500px;width:260px;height:260px")}
+      <div style="position:absolute;right:${story ? 80 : 100}px;left:${story ? 640 : 640}px;top:${story ? 1100 : 800}px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)">${ticks(c.ticks).replace('class="ticks"', `class="ticks" style="gap:14px;--tick:${story ? 40 : 37}px"`)}</div>
+      <div class="strip" style="bottom:${story ? SAFE_BOTTOM + 10 : 36}px;left:${story ? 90 : 130}px;right:${story ? 90 : 130}px;border-radius:999px;height:${story ? 100 : 84}px;font-size:${story ? 36 : 32}px;background:rgba(16,45,33,.92);border:2px solid var(--gold)">${T.deadlineStrip}</div>`;
     }
     case "card": {
       // A mock of the printed card with a handwritten message, on a warm photo.
