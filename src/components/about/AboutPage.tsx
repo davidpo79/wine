@@ -4,31 +4,57 @@ import { LOCALE_INFO, type Locale } from "@/lib/markets";
 import { ABOUT_COPY } from "./copy";
 import { SITE } from "@/lib/site";
 
-/** One row of the "usual path vs with us" comparison. */
-function Path({ label, steps, ours = false }: { label: string; steps: string[]; ours?: boolean }) {
+const Icon = {
+  vine: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-6 w-6">
+      <path d="M12 3c0 2 1 3 3 3" />
+      <circle cx="9" cy="10" r="2.2" /><circle cx="14" cy="10" r="2.2" /><circle cx="11.5" cy="14" r="2.2" /><circle cx="6.5" cy="13.5" r="2.2" /><circle cx="9" cy="18" r="2.2" />
+    </svg>
+  ),
+  bottle: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-6 w-6">
+      <path d="M10 2h4v4.5c0 1 2.5 2.2 2.5 5.5v9a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-9c0-3.3 2.5-4.5 2.5-5.5z" /><path d="M7.5 13h9v5h-9z" />
+    </svg>
+  ),
+  home: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="h-6 w-6">
+      <path d="M3 11 12 3l9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-6h4v6" />
+    </svg>
+  ),
+};
+
+/** "The usual path" (every intermediary adds +€) next to "With us" (producer, us, your door). */
+function PathCompare({ c }: { c: (typeof ABOUT_COPY)[Locale] }) {
+  const icons = [Icon.vine, Icon.bottle, Icon.home];
   return (
-    <div>
-      <p className={`!mt-0 text-xs font-bold uppercase tracking-wider ${ours ? "text-[#184b36]" : "text-muted"}`}>{label}</p>
-      <ol className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-2">
-        {steps.map((s, i) => (
-          <li key={s} className="flex items-center gap-1.5">
-            <span
-              className={
-                ours
-                  ? "rounded-full bg-[#184b36] px-3 py-1.5 text-sm font-bold text-white"
-                  : "rounded-full border border-paper-2 px-2.5 py-1 text-xs text-muted"
-              }
-            >
-              {s}
-            </span>
-            {i < steps.length - 1 && (
-              <span aria-hidden="true" className={ours ? "font-bold text-[#184b36]" : "text-muted"}>
-                →
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
+    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="rounded-2xl border border-paper-2 bg-white/70 p-5">
+        <p className="!mt-0 text-xs font-bold uppercase tracking-[0.14em] text-muted">{c.tradLabel}</p>
+        <ol className="relative mt-4 space-y-2.5 before:absolute before:bottom-3 before:left-[7px] before:top-3 before:border-l before:border-dashed before:border-paper-2">
+          {c.trad.map((s, i) => {
+            const middle = i > 0 && i < c.trad.length - 1;
+            return (
+              <li key={s} className="relative flex items-center gap-3 text-sm">
+                <span className={`relative z-10 h-[15px] w-[15px] shrink-0 rounded-full border-2 ${middle ? "border-paper-2 bg-white" : "border-muted bg-muted"}`} />
+                <span className={middle ? "text-muted" : "font-semibold text-ink"}>{s}</span>
+                {middle && <span className="ml-auto rounded-full bg-[#f6e3e5] px-2 py-0.5 text-[11px] font-bold text-[#a72d39]">+€</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <div className="relative overflow-hidden rounded-2xl bg-night p-5 text-white shadow-[0_10px_30px_-12px_rgba(16,45,33,0.6)]">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gold/15" aria-hidden="true" />
+        <p className="!mt-0 text-xs font-bold uppercase tracking-[0.14em] text-gold">{c.oursLabel}</p>
+        <ol className="relative mt-5 space-y-6 before:absolute before:bottom-6 before:left-[23px] before:top-6 before:w-0.5 before:bg-gold/60">
+          {c.ours.map((s, i) => (
+            <li key={s} className="relative flex items-center gap-4">
+              <span className={`relative z-10 grid h-12 w-12 shrink-0 place-items-center rounded-full ${i === 1 ? "bg-gold text-night" : "bg-[#1f4233] text-gold ring-1 ring-gold/50"}`}>{icons[i]}</span>
+              <span className={`font-serif text-xl ${i === 1 ? "font-bold" : "font-semibold"}`}>{s}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
   );
 }
@@ -50,10 +76,7 @@ export function AboutPage({ locale }: { locale: Locale }) {
 
           <h2>{c.howH}</h2>
           <p>{c.how}</p>
-          <div className="mt-5 space-y-4 rounded-lg border border-paper-2 bg-white p-4">
-            <Path label={c.tradLabel} steps={c.trad} />
-            <Path label={c.oursLabel} steps={c.ours} ours />
-          </div>
+          <PathCompare c={c} />
           <p>{c.value}</p>
           <p>{c.logistics}</p>
 
