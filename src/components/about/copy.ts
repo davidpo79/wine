@@ -3,6 +3,16 @@ import type { Locale } from "@/lib/markets";
 type Copy = {
   title: string;
   lead: string;
+  whyH: string;
+  why: string[];
+  howH: string;
+  how: string;
+  tradLabel: string;
+  trad: string[];
+  oursLabel: string;
+  ours: string[];
+  value: string;
+  logistics: string;
   winesH: string;
   wines: string;
   winesAlt: string;
@@ -15,37 +25,29 @@ type Copy = {
   companyH: string;
   company: string;
   vat: string;
+  closing: string;
   cta: string;
 };
 
-/** "About us" copy per language. Facts only: company, producer, wines and our promise; no invented history. */
+/** "About us" copy per language: David's text (direct from producers, fewer intermediaries) plus the box, our promise and company details. */
 export const ABOUT_COPY: Record<Locale, Copy> = {
-  pt: {
-    title: "Sobre nós",
-    lead: "A Wine Portugal é uma loja portuguesa de vinhos, com sede em Lisboa. Escolhemos vinhos portugueses de origem identificada e preparamo-los em caixas de oferta, para que oferecer um bom vinho seja simples.",
-    winesH: "Os vinhos",
-    wines: "A Trilogia 2160 junta três vinhos 2160 Onde Tudo Nasce, da Martin Boutique Wines, todos Douro DOC: um branco, um rosé e um tinto. Uma garrafa de cada estilo, para haver vinho certo para o peixe, para os petiscos e para o assado.",
-    winesAlt: "Os três vinhos 2160 com pratos portugueses",
-    boxH: "A caixa",
-    box: "Cada caixa chega pronta a oferecer. Basta escolher a quem dar.",
-    boxAlt: "Caixa de oferta Trilogia 2160",
-    promiseH: "O nosso compromisso",
-    promise: [
-      "Pagamento seguro, com os métodos que já usa.",
-      "Entrega com código de seguimento.",
-      "Se a caixa chegar danificada ou errada, substituímos ou reembolsamos sem custos para si.",
-      "Respondemos por email e WhatsApp, em português.",
-    ],
-    shippingLink: "Envios e devoluções",
-    companyH: "A empresa",
-    company: "Dados da empresa e contactos:",
-    vat: "NIF",
-    cta: "Ver a Trilogia 2160",
-  },
   en: {
     title: "About us",
-    lead: "Wine Portugal is a Portuguese wine shop based in Lisbon. We choose Portuguese wines with a known origin and put them in gift boxes, so giving a good wine is simple.",
-    winesH: "The wines",
+    lead: "Wine Portugal connects wine lovers directly with Portuguese producers.",
+    whyH: "Why we exist",
+    why: [
+      "In Portugal, many independent wineries produce exceptional wines. However, they do not always have the distribution or international visibility needed to reach markets abroad.",
+      "That is where we come in. We work directly with producers to bring their wines to you in a simple and transparent way.",
+    ],
+    howH: "A shorter path from the vineyard to your table",
+    how: "Traditional wine distribution can involve exporters, importers, distributors, warehouses, agents, supermarkets and wine shops. Each step can add cost and create more distance between the producer and the final customer.",
+    tradLabel: "The usual path",
+    trad: ["Producer", "Exporter", "Importer", "Distributor", "Warehouse", "Shop", "You"],
+    oursLabel: "With us",
+    ours: ["Producer", "Wine Portugal", "Your doorstep"],
+    value: "By cutting out unnecessary intermediaries, we can offer authentic Portuguese wines with better value for money and a closer connection to the people who make them.",
+    logistics: "We work with professional logistics and transport partners so your wines arrive safely and efficiently at your door.",
+    winesH: "The wines in our Christmas box",
     wines: "The Trilogia 2160 brings together three 2160 Onde Tudo Nasce wines from Martin Boutique Wines, all Douro DOC: a white, a rosé and a red. One bottle of each style, so there is a wine for the fish, for the starters and for the roast.",
     winesAlt: "The three 2160 wines with Portuguese dishes",
     boxH: "The box",
@@ -62,12 +64,62 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
     companyH: "The company",
     company: "Company details and contacts:",
     vat: "VAT no.",
+    closing: "Discover the wines of Portugal. Support Portuguese producers. Enjoy every bottle.",
     cta: "See the Trilogia 2160",
+  },
+  pt: {
+    title: "Sobre nós",
+    lead: "A Wine Portugal liga os apreciadores de vinho diretamente aos produtores portugueses.",
+    whyH: "Porque existimos",
+    why: [
+      "Em Portugal, muitos produtores independentes fazem vinhos excecionais. Mas nem sempre têm a distribuição ou a visibilidade necessárias para chegar a mais pessoas.",
+      "É aí que entramos nós. Trabalhamos diretamente com os produtores para levar os vinhos deles até si, de forma simples e transparente.",
+    ],
+    howH: "Um caminho mais curto da vinha até à sua mesa",
+    how: "A distribuição tradicional de vinho pode passar por exportadores, importadores, distribuidores, armazéns, agentes, supermercados e garrafeiras. Cada etapa pode acrescentar custos e afastar o produtor de quem bebe o vinho.",
+    tradLabel: "O caminho habitual",
+    trad: ["Produtor", "Exportador", "Importador", "Distribuidor", "Armazém", "Loja", "Você"],
+    oursLabel: "Connosco",
+    ours: ["Produtor", "Wine Portugal", "A sua porta"],
+    value: "Com menos intermediários, conseguimos oferecer vinhos portugueses autênticos com melhor relação qualidade-preço e uma ligação mais próxima a quem os faz.",
+    logistics: "Trabalhamos com parceiros profissionais de logística e transporte para que os vinhos cheguem à sua porta em segurança e sem demoras.",
+    winesH: "Os vinhos da nossa caixa de Natal",
+    wines: "A Trilogia 2160 junta três vinhos 2160 Onde Tudo Nasce, da Martin Boutique Wines, todos Douro DOC: um branco, um rosé e um tinto. Uma garrafa de cada estilo, para haver vinho certo para o peixe, para os petiscos e para o assado.",
+    winesAlt: "Os três vinhos 2160 com pratos portugueses",
+    boxH: "A caixa",
+    box: "Cada caixa chega pronta a oferecer. Basta escolher a quem dar.",
+    boxAlt: "Caixa de oferta Trilogia 2160",
+    promiseH: "O nosso compromisso",
+    promise: [
+      "Pagamento seguro, com os métodos que já usa.",
+      "Entrega com código de seguimento.",
+      "Se a caixa chegar danificada ou errada, substituímos ou reembolsamos sem custos para si.",
+      "Respondemos por email e WhatsApp, em português.",
+    ],
+    shippingLink: "Envios e devoluções",
+    companyH: "A empresa",
+    company: "Dados da empresa e contactos:",
+    vat: "NIF",
+    closing: "Descubra os vinhos de Portugal. Apoie os produtores portugueses. Aproveite cada garrafa.",
+    cta: "Ver a Trilogia 2160",
   },
   de: {
     title: "Über uns",
-    lead: "Wine Portugal ist ein portugiesischer Weinhändler mit Sitz in Lissabon. Wir wählen portugiesische Weine mit klarer Herkunft aus und packen sie in Geschenkboxen, damit ein guter Wein als Geschenk ganz einfach ist.",
-    winesH: "Die Weine",
+    lead: "Wine Portugal verbindet Weinliebhaber direkt mit portugiesischen Erzeugern.",
+    whyH: "Warum es uns gibt",
+    why: [
+      "In Portugal machen viele unabhängige Weingüter hervorragende Weine. Doch oft fehlen ihnen der Vertrieb und die internationale Sichtbarkeit, um Märkte im Ausland zu erreichen.",
+      "Genau hier kommen wir ins Spiel. Wir arbeiten direkt mit den Erzeugern zusammen und bringen ihre Weine einfach und transparent zu Ihnen.",
+    ],
+    howH: "Ein kürzerer Weg vom Weinberg auf Ihren Tisch",
+    how: "Im klassischen Weinhandel sind oft Exporteure, Importeure, Großhändler, Lager, Agenten, Supermärkte und Weinhandlungen beteiligt. Jede Stufe kann Kosten verursachen und den Abstand zwischen Erzeuger und Kunde vergrößern.",
+    tradLabel: "Der übliche Weg",
+    trad: ["Erzeuger", "Exporteur", "Importeur", "Großhändler", "Lager", "Händler", "Sie"],
+    oursLabel: "Mit uns",
+    ours: ["Erzeuger", "Wine Portugal", "Ihre Haustür"],
+    value: "Weil wir unnötige Zwischenhändler weglassen, können wir authentische portugiesische Weine mit einem besseren Preis-Leistungs-Verhältnis anbieten, und Sie sind näher an den Menschen, die sie machen.",
+    logistics: "Wir arbeiten mit professionellen Logistik- und Transportpartnern zusammen, damit Ihre Weine sicher und zügig bei Ihnen ankommen.",
+    winesH: "Die Weine in unserer Weihnachtsbox",
     wines: "Die Trilogia 2160 vereint drei Weine der Linie 2160 Onde Tudo Nasce von Martin Boutique Wines, alle Douro DOC: einen Weißwein, einen Rosé und einen Rotwein. Eine Flasche jedes Stils, damit es zu Fisch, Vorspeisen und Braten den passenden Wein gibt.",
     winesAlt: "Die drei 2160-Weine mit portugiesischen Gerichten",
     boxH: "Die Box",
@@ -84,12 +136,26 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
     companyH: "Das Unternehmen",
     company: "Unternehmensangaben und Kontakt:",
     vat: "USt-Nr. (NIF)",
+    closing: "Entdecken Sie die Weine Portugals. Unterstützen Sie portugiesische Erzeuger. Genießen Sie jede Flasche.",
     cta: "Zur Trilogia 2160",
   },
   nl: {
     title: "Over ons",
-    lead: "Wine Portugal is een Portugese wijnwinkel, gevestigd in Lissabon. We kiezen Portugese wijnen met een bekende herkomst en verpakken ze in geschenkdozen, zodat een goede wijn cadeau doen eenvoudig is.",
-    winesH: "De wijnen",
+    lead: "Wine Portugal brengt wijnliefhebbers rechtstreeks in contact met Portugese wijnmakers.",
+    whyH: "Waarom we bestaan",
+    why: [
+      "In Portugal maken veel onafhankelijke wijnhuizen uitstekende wijnen. Maar ze hebben niet altijd de distributie of de internationale zichtbaarheid om markten in het buitenland te bereiken.",
+      "Daar komen wij in beeld. We werken rechtstreeks met de wijnmakers en brengen hun wijnen op een eenvoudige en transparante manier naar u.",
+    ],
+    howH: "Een kortere weg van de wijngaard naar uw tafel",
+    how: "In de traditionele wijnhandel zitten vaak exporteurs, importeurs, groothandels, magazijnen, agenten, supermarkten en slijterijen. Elke stap kan kosten toevoegen en meer afstand scheppen tussen de wijnmaker en de klant.",
+    tradLabel: "De gebruikelijke weg",
+    trad: ["Wijnmaker", "Exporteur", "Importeur", "Groothandel", "Magazijn", "Winkel", "U"],
+    oursLabel: "Met ons",
+    ours: ["Wijnmaker", "Wine Portugal", "Uw voordeur"],
+    value: "Door onnodige tussenpersonen over te slaan, kunnen we authentieke Portugese wijnen aanbieden met een betere prijs-kwaliteitverhouding en een nauwere band met de mensen die ze maken.",
+    logistics: "We werken met professionele logistieke en transportpartners, zodat uw wijnen veilig en vlot bij u aankomen.",
+    winesH: "De wijnen in onze kerstdoos",
     wines: "De Trilogia 2160 brengt drie wijnen van 2160 Onde Tudo Nasce samen, van Martin Boutique Wines, allemaal Douro DOC: een witte, een rosé en een rode. Eén fles van elke stijl, zodat er wijn is bij de vis, de hapjes en het gebraad.",
     winesAlt: "De drie 2160-wijnen met Portugese gerechten",
     boxH: "De doos",
@@ -106,12 +172,26 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
     companyH: "Het bedrijf",
     company: "Bedrijfsgegevens en contact:",
     vat: "Btw-nr. (NIF)",
+    closing: "Ontdek de wijnen van Portugal. Steun Portugese wijnmakers. Geniet van elke fles.",
     cta: "Bekijk de Trilogia 2160",
   },
   fr: {
     title: "À propos",
-    lead: "Wine Portugal est une boutique de vins portugaise, basée à Lisbonne. Nous choisissons des vins portugais d'origine identifiée et les présentons en coffrets cadeaux, pour qu'offrir un bon vin soit simple.",
-    winesH: "Les vins",
+    lead: "Wine Portugal met les amateurs de vin en relation directe avec les producteurs portugais.",
+    whyH: "Pourquoi nous existons",
+    why: [
+      "Au Portugal, de nombreux domaines indépendants produisent des vins exceptionnels. Mais ils n'ont pas toujours la distribution ni la visibilité internationale nécessaires pour atteindre les marchés étrangers.",
+      "C'est là que nous intervenons. Nous travaillons directement avec les producteurs pour vous apporter leurs vins, simplement et en toute transparence.",
+    ],
+    howH: "Un chemin plus court de la vigne à votre table",
+    how: "La distribution traditionnelle du vin peut faire intervenir exportateurs, importateurs, distributeurs, entrepôts, agents, supermarchés et cavistes. Chaque étape peut ajouter des coûts et éloigner le producteur du client final.",
+    tradLabel: "Le circuit habituel",
+    trad: ["Producteur", "Exportateur", "Importateur", "Distributeur", "Entrepôt", "Magasin", "Vous"],
+    oursLabel: "Avec nous",
+    ours: ["Producteur", "Wine Portugal", "Votre porte"],
+    value: "En supprimant les intermédiaires inutiles, nous proposons des vins portugais authentiques avec un meilleur rapport qualité-prix et un lien plus proche avec ceux qui les font.",
+    logistics: "Nous travaillons avec des partenaires professionnels de logistique et de transport pour que vos vins arrivent chez vous en toute sécurité et rapidement.",
+    winesH: "Les vins de notre coffret de Noël",
     wines: "La Trilogia 2160 réunit trois vins 2160 Onde Tudo Nasce de Martin Boutique Wines, tous Douro DOC : un blanc, un rosé et un rouge. Une bouteille de chaque style, pour avoir le bon vin avec le poisson, l'apéritif et le rôti.",
     winesAlt: "Les trois vins 2160 avec des plats portugais",
     boxH: "Le coffret",
@@ -128,12 +208,26 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
     companyH: "L'entreprise",
     company: "Informations sur l'entreprise et contacts :",
     vat: "N° TVA (NIF)",
+    closing: "Découvrez les vins du Portugal. Soutenez les producteurs portugais. Savourez chaque bouteille.",
     cta: "Voir la Trilogia 2160",
   },
   ru: {
     title: "О нас",
-    lead: "Wine Portugal — португальский винный магазин из Лиссабона. Мы выбираем португальские вина с понятным происхождением и собираем их в подарочные коробки, чтобы подарить хорошее вино было просто.",
-    winesH: "Вина",
+    lead: "Wine Portugal напрямую связывает любителей вина с португальскими производителями.",
+    whyH: "Зачем мы это делаем",
+    why: [
+      "В Португалии много независимых виноделен, которые делают прекрасные вина. Но у них не всегда есть дистрибуция и известность, чтобы выйти на зарубежные рынки.",
+      "Здесь появляемся мы. Мы работаем напрямую с производителями и доставляем их вина вам — просто и прозрачно.",
+    ],
+    howH: "Короткий путь от виноградника до вашего стола",
+    how: "В обычной цепочке продаж участвуют экспортёры, импортёры, дистрибьюторы, склады, агенты, супермаркеты и винные магазины. Каждый шаг может добавлять стоимость и отдалять производителя от покупателя.",
+    tradLabel: "Обычный путь",
+    trad: ["Производитель", "Экспортёр", "Импортёр", "Дистрибьютор", "Склад", "Магазин", "Вы"],
+    oursLabel: "С нами",
+    ours: ["Производитель", "Wine Portugal", "Ваша дверь"],
+    value: "Убирая лишних посредников, мы предлагаем настоящие португальские вина по более выгодной цене и ближе к людям, которые их делают.",
+    logistics: "Мы работаем с профессиональными логистическими и транспортными партнёрами, чтобы вина приезжали к вам в целости и без задержек.",
+    winesH: "Вина в нашей рождественской коробке",
     wines: "Trilogia 2160 — это три вина 2160 Onde Tudo Nasce от Martin Boutique Wines, все Douro DOC: белое, розовое и красное. По бутылке каждого стиля, чтобы было подходящее вино к рыбе, закускам и жаркому.",
     winesAlt: "Три вина 2160 с португальскими блюдами",
     boxH: "Коробка",
@@ -150,6 +244,7 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
     companyH: "Компания",
     company: "Реквизиты и контакты:",
     vat: "NIF",
+    closing: "Откройте для себя вина Португалии. Поддержите португальских производителей. Наслаждайтесь каждой бутылкой.",
     cta: "Посмотреть Trilogia 2160",
   },
 };

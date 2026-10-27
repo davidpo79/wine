@@ -4,6 +4,35 @@ import { LOCALE_INFO, type Locale } from "@/lib/markets";
 import { ABOUT_COPY } from "./copy";
 import { SITE } from "@/lib/site";
 
+/** One row of the "usual path vs with us" comparison. */
+function Path({ label, steps, ours = false }: { label: string; steps: string[]; ours?: boolean }) {
+  return (
+    <div>
+      <p className={`!mt-0 text-xs font-bold uppercase tracking-wider ${ours ? "text-[#184b36]" : "text-muted"}`}>{label}</p>
+      <ol className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-2">
+        {steps.map((s, i) => (
+          <li key={s} className="flex items-center gap-1.5">
+            <span
+              className={
+                ours
+                  ? "rounded-full bg-[#184b36] px-3 py-1.5 text-sm font-bold text-white"
+                  : "rounded-full border border-paper-2 px-2.5 py-1 text-xs text-muted"
+              }
+            >
+              {s}
+            </span>
+            {i < steps.length - 1 && (
+              <span aria-hidden="true" className={ours ? "font-bold text-[#184b36]" : "text-muted"}>
+                →
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export function AboutPage({ locale }: { locale: Locale }) {
   const c = ABOUT_COPY[locale];
   return (
@@ -12,7 +41,21 @@ export function AboutPage({ locale }: { locale: Locale }) {
       <main className="paper-grain" lang={LOCALE_INFO[locale].htmlLang}>
         <article className="mx-auto max-w-3xl px-4 py-12 text-[15px] leading-relaxed text-ink [&_h2]:mt-10 [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-night [&_p]:mt-3">
           <h1 className="font-serif text-4xl font-semibold text-night">{c.title}</h1>
-          <p className="text-lg">{c.lead}</p>
+          <p className="text-lg font-semibold text-night">{c.lead}</p>
+
+          <h2>{c.whyH}</h2>
+          {c.why.map((x) => (
+            <p key={x}>{x}</p>
+          ))}
+
+          <h2>{c.howH}</h2>
+          <p>{c.how}</p>
+          <div className="mt-5 space-y-4 rounded-lg border border-paper-2 bg-white p-4">
+            <Path label={c.tradLabel} steps={c.trad} />
+            <Path label={c.oursLabel} steps={c.ours} ours />
+          </div>
+          <p>{c.value}</p>
+          <p>{c.logistics}</p>
 
           <h2>{c.winesH}</h2>
           <img src="/lp/table-768.webp" alt={c.winesAlt} width={768} height={658} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
@@ -54,7 +97,8 @@ export function AboutPage({ locale }: { locale: Locale }) {
             <a href={SITE.instagram} target="_blank" rel="noopener" className="underline underline-offset-2">Instagram @wineportugalofficial</a>
           </p>
 
-          <p className="mt-10">
+          <p className="mt-10 font-serif text-xl font-semibold text-night">{c.closing}</p>
+          <p className="mt-5">
             <a href={homeHref(locale)} className="inline-block rounded bg-[#a72d39] px-6 py-3 font-bold text-white no-underline">{c.cta}</a>
           </p>
         </article>
