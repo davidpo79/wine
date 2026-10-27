@@ -26,3 +26,9 @@ export function legalKindFromSlug(locale: Locale, slug: string): LegalKind | nul
 }
 
 export const LOCALE_COOKIE = "wp_locale";
+
+export const ABOUT_SLUGS: Record<Locale, string> = { pt: "sobre-nos", de: "ueber-uns", nl: "over-ons", fr: "a-propos", ru: "o-nas", en: "about-us" };
+
+export function aboutHref(locale: Locale) {
+  return locale === "pt" ? `/${ABOUT_SLUGS.pt}` : `/${locale}/${ABOUT_SLUGS[locale]}`;
+}

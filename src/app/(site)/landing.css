@@ -103,3 +103,10 @@ button.cta[disabled]{opacity:.7;cursor:progress}
 .benefitbar .benefitphone{color:#fff;font-weight:bold;white-space:nowrap;text-decoration:underline;text-underline-offset:2px}
 .quickbuy{display:none}@media(max-width:760px){.quickbuy{display:block;margin:12px 0 6px;text-align:center}.quickbuy p{font-size:13px;color:var(--muted)}.quickbuy p b{color:var(--ink);font-size:15px}.quickbuy .cta{max-width:none;margin-top:8px}}
 .madein{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0 0;font-size:14px;font-weight:800;color:var(--green);letter-spacing:.2px}.madein svg{border-radius:2px;flex:none}.madein span{color:var(--red)}
+
+/* Payment method logos (official marks, /public/pay) and the WhatsApp mark on the support line. */
+.payrow span{display:inline-flex;align-items:center;justify-content:center;height:32px;min-width:50px;padding:5px 8px;background:#fff;border-radius:5px}
+.payrow img{height:20px;width:auto;max-width:64px;display:block}
+.payrow .pay-visa img{height:13px}.payrow .pay-mastercard img{height:22px}.payrow .pay-multibanco img{height:22px}.payrow .pay-ideal img{height:22px}.payrow .pay-bancontact img{height:14px;max-width:90px}
+.supportline .wa-icon{width:15px;height:15px;color:#25d366;display:inline-block;vertical-align:-3px;margin-right:5px}
+@media(max-width:760px){.payrow{gap:6px}.payrow span{height:30px;min-width:0;padding:4px 6px}.payrow img{height:17px}.payrow .pay-visa img{height:11px}.payrow .pay-mastercard img,.payrow .pay-multibanco img,.payrow .pay-ideal img{height:19px}.payrow .pay-bancontact img{height:12px}}

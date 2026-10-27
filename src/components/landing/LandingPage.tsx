@@ -16,12 +16,15 @@ import { OpenConsentLink } from "@/components/tracking/Consent";
 import { DeadlineCountdown } from "./Countdown";
 import { ExitIntent } from "./ExitIntent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { WhatsAppIcon } from "./WhatsAppIcon";
 import { dealOf, dealText, type Deal } from "@/lib/offers";
 import { useI18n } from "@/lib/i18n/client";
 import { fmt, Rich } from "@/lib/i18n/rich";
-import { legalHref } from "@/lib/i18n/paths";
+import { aboutHref, legalHref } from "@/lib/i18n/paths";
+import { ABOUT_COPY } from "@/components/about/copy";
 
 const WA = "351910348577";
+const PAY_NAMES: Record<string, string> = { mbway: "MB WAY", multibanco: "Multibanco", ideal: "iDEAL", bancontact: "Bancontact", visa: "Visa", mastercard: "Mastercard", "apple-pay": "Apple Pay", "google-pay": "Google Pay" };
 
 type Offer = {
   b: PublicBundle;
@@ -404,11 +407,14 @@ export function LandingPage({
             </p>
             <p className="fine">{fmt(t.securePayment, { delivery: buy.mode === "after_christmas" ? fmt(t.afterChristmasDelivery, { country: m.area }) : deliveryText })}</p>
             <div className="payrow">
-              {(country === "PT" ? ["MB WAY", "Multibanco"] : country === "NL" ? ["iDEAL"] : country === "BE" ? ["Bancontact"] : []).concat(["Visa", "Mastercard", "Apple Pay", "Google Pay"]).map((x) => (
-                <span key={x}>{x}</span>
+              {(country === "PT" ? ["mbway", "multibanco"] : country === "NL" ? ["ideal"] : country === "BE" ? ["bancontact"] : []).concat(["visa", "mastercard", "apple-pay", "google-pay"]).map((x) => (
+                <span key={x} className={`pay-${x}`}>
+                  <img src={`/pay/${x}.${x === "bancontact" ? "png" : "svg"}`} alt={PAY_NAMES[x]} title={PAY_NAMES[x]} loading="lazy" />
+                </span>
               ))}
             </div>
             <p className="supportline">
+              <WhatsAppIcon className="wa-icon" />
               {t.supportPrefer}{" "}
               <a href={waHref} target="_blank" rel="noopener">
                 {t.supportWhatsapp}
@@ -813,6 +819,7 @@ export function LandingPage({
           </div>
         </div>
         <div className="wrap footlegal">
+          <a href={aboutHref(locale)}>{ABOUT_COPY[locale].title}</a>
           <a href={legalHref("terms", locale)}>{d.common.legal.terms}</a>
           <a href={legalHref("privacy", locale)}>{d.common.legal.privacy}</a>
           <a href={legalHref("shipping", locale)}>{d.common.legal.shipping}</a>
