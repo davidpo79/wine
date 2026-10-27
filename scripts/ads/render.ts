@@ -81,6 +81,22 @@ const trust = (color: string) => `<div style="margin-top:26px;font-weight:650;fo
 const sticker = (pos: string, [top, price, bottom] = T.sticker) =>
   `<div class="sticker" style="${pos}"><div class="s1">${top}</div><div class="s2">${price}</div><div class="s3">${bottom}</div></div>`;
 
+// Festive frame + gold logo + kicker/headline, shared by the Christmas layouts.
+function xmasHead(c: Concept, f: Format, size: { feed: number; story: number }) {
+  const story = f === "story";
+  const logoY = story ? 300 : 180;
+  return `
+      <div class="bgimg" style="background-image:url(${xmasBg(f)})"></div>
+      <div style="position:absolute;left:0;right:0;top:${logoY}px;display:flex;justify-content:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5))">${logo(story ? 84 : 66)}</div>
+      <div style="position:absolute;left:0;right:0;top:${logoY + (story ? 110 : 84)}px;text-align:center;color:#fff;padding:0 130px;text-shadow:0 3px 14px rgba(0,0,0,.45)">
+        <div class="kicker" style="color:var(--gold2);font-size:${story ? 36 : 31}px">${c.kicker}</div>
+        <div class="h1" style="font-size:${story ? size.story : size.feed}px;margin-top:8px">${c.headline}</div>
+      </div>`;
+}
+// Long copy (German deadline line) gets a smaller size so the pill stays on one line.
+const xmasPill = (f: Format, html: string) =>
+  `<div class="strip" style="white-space:nowrap;bottom:${f === "story" ? SAFE_BOTTOM + 10 : 36}px;left:${f === "story" ? 90 : 130}px;right:${f === "story" ? 90 : 130}px;border-radius:999px;height:${f === "story" ? 100 : 84}px;font-size:${(f === "story" ? 36 : 32) - (html.replace(/<[^>]+>/g, "").length > 44 ? 6 : 0)}px;background:rgba(16,45,33,.92);border:2px solid var(--gold)">${html}</div>`;
+
 function layout(c: Concept, f: Format) {
   const story = f === "story";
   // Story: keep key content out of the top ~250px and the bottom ~400px (Instagram UI).
@@ -95,21 +111,14 @@ function layout(c: Concept, f: Format) {
 
   switch (c.layout) {
     case "photo": {
-      // Lifestyle photo on top, cream panel with the message below.
-      const photoH = story ? 860 : 640;
-      return `
-      <div class="bgimg" style="height:${photoH}px;background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"}"></div>
-      <div class="shade" style="height:${photoH}px;background:linear-gradient(180deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,0) 70%,rgba(251,247,238,1) 100%)"></div>
-      ${c.logoRight && story ? "" /* the box logo fills the narrow story photo; a second one would sit next to it */ : `<div style="position:absolute;${c.logoRight ? "right" : "left"}:56px;top:${logoTop}px;filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))">${logo(story ? 92 : 78)}</div>`}
-      ${sticker(`right:50px;top:${photoH - 300}px`)}
-      <div style="position:absolute;left:60px;right:60px;top:${photoH + (story ? 30 : 10)}px">
-        <div class="kicker" style="color:var(--red)">${c.kicker}</div>
-        <div class="h1" style="font-size:${story ? 90 : 78}px;margin-top:12px;color:var(--deep)">${c.headline}</div>
-        <div class="sub" style="font-size:${story ? 38 : 33}px;margin-top:14px;color:#3d463f">${c.sub}</div>
-        <div style="margin-top:${story ? 30 : 22}px" class="${story ? "" : "small"}">${ticks(c.ticks)}</div>
-        ${story ? trust("#5f6a60") : ""}
-      </div>
-      ${stripHtml}`;
+      // The lifestyle photo as a framed picture inside the Christmas scene, message and ticks below.
+      const pw = story ? 760 : 620, ph = story ? 540 : 370;
+      const py = story ? 760 : 480;
+      return `${xmasHead(c, f, { feed: 70, story: 82 })}
+      <div style="position:absolute;left:50%;top:${py}px;transform:translateX(-50%) rotate(-2deg);width:${pw}px;height:${ph}px;border:8px solid #fffdf7;outline:3px solid var(--gold);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.55);background:url(${img(c.photo!)}) ${c.photoPos ?? "center"}/cover"></div>
+      ${sticker(story ? "right:70px;top:1160px;width:250px;height:250px" : "right:80px;top:770px;width:220px;height:220px")}
+      <div style="position:absolute;left:${story ? 110 : 130}px;right:${story ? 330 : 300}px;top:${story ? 1330 : 900}px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.6)">${ticks(c.ticks).replace('class="ticks"', `class="ticks" style="gap:12px;--tick:${story ? 40 : 34}px"`)}</div>
+      ${xmasPill(f, T.deadlineStrip)}`;
     }
     case "cutout": {
       // The box inside a full Christmas frame: garland and bow on top, trees on the sides, gifts along the bottom.
@@ -129,56 +138,42 @@ function layout(c: Concept, f: Format) {
       <div class="strip" style="bottom:${story ? SAFE_BOTTOM + 10 : 36}px;left:${story ? 90 : 130}px;right:${story ? 90 : 130}px;border-radius:999px;height:${story ? 100 : 84}px;font-size:${story ? 36 : 32}px;background:rgba(16,45,33,.92);border:2px solid var(--gold)">${T.deadlineStrip}</div>`;
     }
     case "card": {
-      // A mock of the printed card with a handwritten message, on a warm photo.
-      return `
-      <div class="bgimg" style="background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"};filter:blur(2px) brightness(.55)"></div>${centeredLogo}
-      <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
-        <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
-        <div class="h1" style="font-size:${story ? 88 : 76}px;margin-top:12px">${c.headline}</div>
-      </div>
-      <div class="card" style="left:${story ? 130 : 150}px;right:${story ? 130 : 150}px;top:${story ? 690 : 410}px;transform:rotate(-3deg)">
+      // The printed Christmas card with a handwritten message, standing in the Christmas scene.
+      return `${xmasHead(c, f, { feed: 64, story: 78 })}
+      <div class="card" style="left:${story ? 150 : 190}px;right:${story ? 150 : 190}px;top:${story ? 800 : 470}px;transform:rotate(-3deg)">
         <div class="t">${T.cardTitle}</div><div class="t2">${T.cardSubtitle}</div>
         <div class="msg">${c.cardMessage}</div>
       </div>
-      <div style="position:absolute;left:60px;right:60px;top:${story ? 1260 : 1010}px;text-align:center;color:#fff">
-        <div class="sub" style="font-size:${story ? 40 : 36}px">${c.sub}</div>
-        <div class="chip" style="margin-top:22px">${c.chip}</div>
+      <div style="position:absolute;left:120px;right:120px;top:${story ? 1310 : 1000}px;text-align:center;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.6)">
+        <div class="sub" style="font-size:${story ? 40 : 34}px">${c.sub}</div>
+        <div class="chip" style="margin-top:18px;text-shadow:none">${c.chip}</div>
       </div>
-      ${stripHtml}`;
+      ${xmasPill(f, T.deadlineStrip)}`;
     }
     case "trio": {
-      // Four boxes: four gifts in one order, one of them offered.
-      const w = story ? 330 : 300;
-      const y = story ? 800 : 490;
-      const step = (1040 - w) / 3;
-      return `
-      <div class="shade redbg"></div><div class="sparkles"></div>${centeredLogo}
-      <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
-        <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
-        <div class="h1" style="font-size:${story ? 96 : 84}px;margin-top:12px">${c.headline}</div>
+      // Four boxes standing on the table in the Christmas scene: four gifts in one order, one of them offered.
+      const w = story ? 320 : 270;
+      const y = story ? 820 : 520;
+      const x0 = story ? 70 : 110;
+      const step = ((story ? 940 : 860) - w) / 3;
+      return `${xmasHead(c, f, { feed: 80, story: 100 })}
+      ${[0, 1, 2, 3].map((i) => `<img src="${img("box-cutout.webp")}" style="position:absolute;top:${y + (i === 1 || i === 2 ? 0 : 40)}px;left:${x0 + i * step}px;width:${w}px;z-index:${i === 1 || i === 2 ? 2 : 1};filter:drop-shadow(0 24px 30px rgba(0,0,0,.5))">`).join("")}
+      <div style="position:absolute;left:100px;right:100px;top:${story ? 1230 : 850}px;text-align:center;color:#fff;z-index:3;text-shadow:0 3px 14px rgba(0,0,0,.55)">
+        <div style="font-weight:900;font-size:${story ? 124 : 108}px;letter-spacing:-.03em;line-height:1">149,70 € <span style="font-size:.45em;font-weight:750">${T.forFour}</span></div>
+        <div class="sub" style="font-size:${story ? 42 : 38}px;margin-top:14px"><span class="strike">199,60 €</span> &nbsp;·&nbsp; ${c.sub}</div>
       </div>
-      ${[0, 1, 2, 3].map((i) => `<img src="${img("box-cutout.webp")}" style="position:absolute;top:${y + (i === 1 || i === 2 ? 0 : 50)}px;left:${20 + i * step}px;width:${w}px;z-index:${i === 1 || i === 2 ? 2 : 1};filter:drop-shadow(0 24px 30px rgba(0,0,0,.45))">`).join("")}
-      <div style="position:absolute;left:60px;right:60px;top:${story ? 1230 : 860}px;text-align:center;color:#fff;z-index:3">
-        <div style="font-weight:900;font-size:${story ? 120 : 104}px;letter-spacing:-.03em;line-height:1">149,70 € <span style="font-size:.45em;font-weight:750">${T.forFour}</span></div>
-        <div class="sub" style="font-size:${story ? 40 : 36}px;margin-top:14px"><span class="strike">199,60 €</span> &nbsp;·&nbsp; ${c.sub}</div>
-      </div>
-      ${stripHtml}`;
+      ${xmasPill(f, T.deadlineStrip)}`;
     }
     case "deadline": {
-      return `
-      <div class="bgimg" style="background-image:url(${img(c.photo!)});background-position:${c.photoPos ?? "center"};filter:brightness(.5)"></div>${centeredLogo}
-      <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
-        <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
-        <div class="h1" style="font-size:${story ? 100 : 90}px;margin-top:12px">${c.headline}</div>
+      // A calendar page "30 NOV" in the Christmas scene.
+      return `${xmasHead(c, f, { feed: 84, story: 104 })}
+      <div style="position:absolute;left:50%;top:${story ? 700 : 470}px;transform:translateX(-50%) rotate(-3deg);width:${story ? 470 : 400}px;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.55);text-align:center;border:6px solid var(--gold)">
+        <div style="background:var(--red);color:#fff;font-weight:850;font-size:40px;padding:16px 0;letter-spacing:.1em">${T.month}</div>
+        <div style="font-weight:900;font-size:${story ? 210 : 180}px;line-height:1.05;color:var(--deep);letter-spacing:-.04em">30</div>
+        <div style="font-weight:700;font-size:32px;color:#555;padding-bottom:20px">${T.lastDay}</div>
       </div>
-      <div style="position:absolute;left:50%;top:${story ? 720 : 400}px;transform:translateX(-50%);width:${story ? 520 : 460}px;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5);text-align:center">
-        <div style="background:var(--red);color:#fff;font-weight:850;font-size:40px;padding:18px 0;letter-spacing:.1em">${T.month}</div>
-        <div style="font-weight:900;font-size:${story ? 230 : 200}px;line-height:1.05;color:var(--deep);letter-spacing:-.04em">30</div>
-        <div style="font-weight:700;font-size:32px;color:#555;padding-bottom:22px">${T.lastDay}</div>
-      </div>
-      <div style="position:absolute;left:60px;right:60px;top:${story ? 1270 : 890}px;color:#fff;display:flex;justify-content:center">${ticks(c.ticks)}</div>
-      ${story ? "" : `<div class="strip" style="bottom:0;height:${stripH}px">${T.deadlineFeedStrip}</div>`}
-      ${story ? `<div class="strip" style="bottom:${SAFE_BOTTOM}px;left:60px;right:60px;border-radius:18px;height:96px">${T.deadlineStoryStrip}</div>` : ""}`;
+      <div style="position:absolute;left:120px;right:120px;top:${story ? 1200 : 900}px;color:#fff;display:flex;justify-content:center;text-shadow:0 2px 10px rgba(0,0,0,.6)">${ticks(c.ticks).replace('class="ticks"', `class="ticks" style="gap:12px;--tick:${story ? 40 : 36}px"`)}</div>
+      ${xmasPill(f, story ? T.deadlineStoryStrip : T.deadlineFeedStrip)}`;
     }
   }
 }
