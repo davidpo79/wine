@@ -13,6 +13,8 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const out = resolve(process.argv[2] ?? "ads-out");
 const only = process.argv.slice(3);
 const img = (n: string) => `file://${ROOT}/public/lp/${n}`;
+// Festive Christmas frame (garland, bow, trees, gifts) with an empty red centre, per format.
+const xmasBg = (f: "feed" | "story") => `file://${ROOT}/scripts/ads/assets/xmas_${f}.jpg`;
 const font = (n: string) => `file://${ROOT}/src/fonts/${n}`;
 const LOCALE = (process.env.ADS_LOCALE ?? "pt") as AdLocale;
 if (!AD_LOCALES.includes(LOCALE)) throw new Error(`ADS_LOCALE must be one of ${AD_LOCALES.join(", ")}`);
@@ -110,21 +112,22 @@ function layout(c: Concept, f: Format) {
       ${stripHtml}`;
     }
     case "cutout": {
-      // The box on a red Christmas background.
-      const boxW = story ? 680 : 560;
-      const boxTop = story ? 730 : 340;
+      // The box inside a full Christmas frame: garland and bow on top, trees on the sides, gifts along the bottom.
+      const boxW = story ? 580 : 540;
+      const boxTop = story ? 760 : 500;
+      const logoY = story ? 330 : 190;
       return `
-      <div class="shade redbg"></div><div class="sparkles"></div>${centeredLogo}
-      <div style="position:absolute;left:0;right:0;top:${top}px;text-align:center;color:#fff;padding:0 60px">
-        <div class="kicker" style="color:var(--gold2)">${c.kicker}</div>
-        <div class="h1" style="font-size:${story ? 96 : 82}px;margin-top:12px">${c.headline}</div>
-        ${story ? `<div class="sub" style="font-size:40px;margin-top:18px;color:#f6e9e9">${c.sub}</div>` : ""}
+      <div class="bgimg" style="background-image:url(${xmasBg(f)})"></div>
+      <div style="position:absolute;left:0;right:0;top:${logoY}px;display:flex;justify-content:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5))">${logo(story ? 84 : 66)}</div>
+      <div style="position:absolute;left:0;right:0;top:${logoY + (story ? 110 : 84)}px;text-align:center;color:#fff;padding:0 130px;text-shadow:0 3px 14px rgba(0,0,0,.45)">
+        <div class="kicker" style="color:var(--gold2);font-size:${story ? 32 : 26}px">${c.kicker}</div>
+        <div class="h1" style="font-size:${story ? 92 : 72}px;margin-top:8px">${c.headline}</div>
+        ${story ? `<div class="sub" style="font-size:38px;margin-top:16px;color:#f6e9e9">${c.sub}</div>` : ""}
       </div>
-      <img src="${img("box-cutout.webp")}" style="position:absolute;left:${story ? 70 : 40}px;top:${boxTop}px;width:${boxW}px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.45))">
-      ${sticker(story ? "right:50px;top:840px" : "right:46px;top:370px")}
-      <div style="position:absolute;right:60px;left:${story ? 600 : 610}px;top:${story ? 1160 : 710}px;color:#fff">${ticks(c.ticks).replace('class="ticks"', 'class="ticks" style="gap:18px"')}</div>
-      ${story ? `<div style="position:absolute;left:60px;right:60px;top:1458px;text-align:center">${trust("#f3dede")}</div>` : ""}
-      ${stripHtml}`;
+      <img src="${img("box-cutout.webp")}" style="position:absolute;left:${story ? 90 : 120}px;top:${boxTop}px;width:${boxW}px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55))">
+      ${sticker(story ? "right:90px;top:820px;width:280px;height:280px" : "right:120px;top:480px;width:250px;height:250px")}
+      <div style="position:absolute;right:${story ? 150 : 110}px;left:${story ? 600 : 590}px;top:${story ? 1120 : 800}px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)" class="small">${ticks(c.ticks)}</div>
+      <div class="strip" style="bottom:${story ? SAFE_BOTTOM + 10 : 36}px;left:${story ? 90 : 130}px;right:${story ? 90 : 130}px;border-radius:999px;height:${story ? 92 : 76}px;font-size:${story ? 32 : 28}px;background:rgba(16,45,33,.92);border:2px solid var(--gold)">${T.deadlineStrip}</div>`;
     }
     case "card": {
       // A mock of the printed card with a handwritten message, on a warm photo.
