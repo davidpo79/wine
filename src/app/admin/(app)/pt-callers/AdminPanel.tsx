@@ -407,6 +407,11 @@ export function AdminPanel(p: {
                               ✉ {l.emailedAt ? "Email again" : "Email offer"}
                             </button>
                           )}
+                          {l.phone && !blockedLead(l) && (
+                            <Link href={`/admin/whatsapp/${l.id}`} className="inline-flex min-h-8 items-center rounded border border-[#1f9d55] px-3 text-xs font-semibold text-[#1f7a45] hover:bg-[#1f9d55] hover:text-white">
+                              WhatsApp
+                            </Link>
+                          )}
                           {l.phone && (!l.email || !l.hasSurname || !l.linkedinUrl) && !blockedLead(l) && !l.demo && !l.manual && (
                             <button type="button" disabled={busy} onClick={() => run("details", { ids: [l.id] }, (r) => (r.found ? "Details added." : "Apollo has no more details for this person."))} className="text-[11px] text-azulejo underline disabled:opacity-50" title="Apollo, 1 credit">
                               get full name, e-mail &amp; LinkedIn (1 credit)

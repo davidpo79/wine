@@ -19,6 +19,11 @@ const RULES: { method: "GET" | "POST"; path: string | RegExp }[] = [
   { method: "GET", path: /^\/admin\/inbox\/[^/]+$/ }, // one conversation (or "new")
   { method: "POST", path: /^\/admin\/inbox\/[^/]+$/ },
   { method: "GET", path: "/admin/inbox-attachment" },
+  // WhatsApp with her own leads (the service refuses anyone else's lead). POST = the send action.
+  { method: "GET", path: "/admin/whatsapp" },
+  { method: "POST", path: "/admin/whatsapp" },
+  { method: "GET", path: /^\/admin\/whatsapp\/\d{1,10}$/ },
+  { method: "POST", path: /^\/admin\/whatsapp\/\d{1,10}$/ },
   { method: "POST", path: "/admin/calls/webrtc-token" }, // #4's browser phone
   { method: "POST", path: "/admin/calls/state" },
   { method: "POST", path: "/admin/calls/dtmf" }, // keypad during the rep's own connected call

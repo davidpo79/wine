@@ -621,10 +621,11 @@ export async function whatsappTemplateCreateAction(_: FormState, _fd: FormData):
   await requireAdmin({ role: "admin" });
   const { loadOutboundSettings } = await import("@/lib/outbound-settings");
   await loadOutboundSettings(true);
-  const { createRecoveryTemplate } = await import("@/lib/whatsapp");
+  const { createProspectTemplate, createRecoveryTemplate } = await import("@/lib/whatsapp");
   try {
-    const r = await createRecoveryTemplate();
-    return r.ok ? { ok: r.message } : { error: r.message };
+    const [r, p] = [await createRecoveryTemplate(), await createProspectTemplate()];
+    const message = `${r.message} ${p.message}`;
+    return r.ok && p.ok ? { ok: message } : { error: message };
   } catch (e) {
     return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -634,10 +635,11 @@ export async function whatsappTemplateStatusAction(_: FormState, _fd: FormData):
   await requireAdmin({ role: "admin" });
   const { loadOutboundSettings } = await import("@/lib/outbound-settings");
   await loadOutboundSettings(true);
-  const { recoveryTemplateStatus } = await import("@/lib/whatsapp");
+  const { prospectTemplateStatus, recoveryTemplateStatus } = await import("@/lib/whatsapp");
   try {
     const r = await recoveryTemplateStatus();
-    return r.ok ? { ok: r.message } : { error: r.message };
+    const prospects = r.ok ? ` Sales prospects: ${await prospectTemplateStatus()}` : "";
+    return r.ok ? { ok: r.message + prospects } : { error: r.message };
   } catch (e) {
     return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
   }

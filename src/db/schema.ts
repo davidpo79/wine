@@ -660,3 +660,25 @@ export type ReviewRow = typeof reviews.$inferSelect;
 export type Shipment = typeof shipments.$inferSelect;
 export type HumanCall = typeof humanCalls.$inferSelect;
 export type PtLead = typeof ptLeads.$inferSelect;
+
+// WhatsApp with sales prospects (Portugal HR leads): what we sent (approved template first, then free text inside
+// Meta's 24 h window after the person replies) and what they answered. One thread per lead.
+export const waMessages = pgTable(
+  "wa_messages",
+  {
+    id: serial("id").primaryKey(),
+    direction: text("direction").notNull(), // in | out
+    phone: text("phone").notNull(), // the prospect's number, E.164
+    ptLeadId: integer("pt_lead_id").references(() => ptLeads.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(), // out: template | text · in: text | media | stop
+    body: text("body").notNull().default(""),
+    providerId: text("provider_id"),
+    sentBy: text("sent_by"), // the rep or admin e-mail
+    status: text("status").notNull().default("ok"), // ok | error (out) ; delivery updates: sent | delivered | read | failed
+    error: text("error"),
+    raw: jsonb("raw"), // the provider's inbound payload, kept to diagnose format changes
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("wa_lead_idx").on(t.ptLeadId, t.createdAt), index("wa_phone_idx").on(t.phone, t.createdAt), uniqueIndex("wa_provider_id_idx").on(t.providerId)],
+);

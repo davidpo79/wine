@@ -169,14 +169,14 @@ async function telnyx(method: "GET" | "POST", path: string, body?: unknown): Pro
 type TemplateRow = { name?: string; language?: string; status?: string; rejected_reason?: string };
 
 /** Every language of our template that Telnyx/Meta already has (any status). */
-async function existingTemplates(): Promise<{ ok: true; list: TemplateRow[] } | { ok: false; message: string }> {
+async function existingTemplates(name = RECOVERY_TEMPLATE_NAME): Promise<{ ok: true; list: TemplateRow[] } | { ok: false; message: string }> {
   const env = E();
-  const q = new URLSearchParams({ "filter[search]": RECOVERY_TEMPLATE_NAME });
+  const q = new URLSearchParams({ "filter[search]": name });
   if (env.WHATSAPP_WABA_ID) q.set("filter[waba_id]", env.WHATSAPP_WABA_ID);
   const r = await telnyx("GET", `/whatsapp/message_templates?${q}`);
   if (!r.ok) return { ok: false, message: `Telnyx answered HTTP ${r.status}: ${JSON.stringify(r.body).slice(0, 600)}` };
   const data = (r.body as { data?: unknown } | null)?.data;
-  return { ok: true, list: (Array.isArray(data) ? (data as TemplateRow[]) : []).filter((t) => t.name === RECOVERY_TEMPLATE_NAME) };
+  return { ok: true, list: (Array.isArray(data) ? (data as TemplateRow[]) : []).filter((t) => t.name === name) };
 }
 
 /**
@@ -234,4 +234,102 @@ export async function recoveryTemplateStatus(): Promise<{ ok: boolean; message: 
       .filter(Boolean)
       .join(" "),
   };
+}
+
+// --- Sales prospects (Portugal HR leads) ---------------------------------------------------------------------------
+// A rep may write first only with this approved template, and only to someone who asked for WhatsApp on the call.
+// Once the person replies, Meta opens a 24 h window in which free text is allowed (each reply opens it again).
+
+export const PROSPECT_TEMPLATE_NAME = "contacto_empresas";
+export const PROSPECT_TEMPLATE_LANG = "pt_PT";
+export const WINDOW_MS = 24 * 3600_000;
+
+/** {{1}} the prospect's first name, {{2}} the rep's first name. */
+export function prospectTemplateDefinition() {
+  return {
+    name: PROSPECT_TEMPLATE_NAME,
+    category: "MARKETING" as const,
+    language: PROSPECT_TEMPLATE_LANG,
+    components: [
+      {
+        type: "BODY",
+        text: "Olá {{1}}, fala {{2}}, da Wine Portugal. Como combinámos ao telefone, deixo-lhe aqui o nosso contacto para os presentes de Natal da sua equipa. Responda a esta mensagem quando quiser e envio-lhe a proposta. Para não receber mais mensagens, responda PARAR.",
+        example: { body_text: [["Ana", "Soraya"]] },
+      },
+    ],
+  };
+}
+
+/** What is still missing to write to prospects (empty = ready). The template name is filled in once Meta approved it. */
+export function prospectWhatsappMissing(): string[] {
+  const env = E();
+  const missing: string[] = [];
+  if (!env.WHATSAPP_TEMPLATE_PROSPECT) missing.push("WHATSAPP_TEMPLATE_PROSPECT");
+  if (viaTelnyx()) {
+    if (!env.TELNYX_API_KEY) missing.push("TELNYX_API_KEY");
+    if (!env.TELNYX_WHATSAPP_FROM) missing.push("TELNYX_WHATSAPP_FROM");
+  } else {
+    if (!env.WHATSAPP_TOKEN) missing.push("WHATSAPP_TOKEN");
+    if (!env.WHATSAPP_PHONE_NUMBER_ID) missing.push("WHATSAPP_PHONE_NUMBER_ID");
+  }
+  return missing;
+}
+
+type WaOut = { kind: "template"; params: string[] } | { kind: "text"; text: string };
+
+/** Sends one WhatsApp message (the prospect template or free text). Returns the provider's message id, or the error. */
+export async function sendWhatsapp(toE164: string, m: WaOut): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
+  const env = E();
+  const template = m.kind === "template" ? { name: env.WHATSAPP_TEMPLATE_PROSPECT, components: [{ type: "body", parameters: m.params.map((text) => ({ type: "text", text })) }] } : null;
+  try {
+    const r = viaTelnyx()
+      ? await fetch("https://api.telnyx.com/v2/messages/whatsapp", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${env.TELNYX_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: env.TELNYX_WHATSAPP_FROM,
+            to: toE164,
+            whatsapp_message: template
+              ? { type: "template", template: { ...template, language: { policy: "deterministic", code: PROSPECT_TEMPLATE_LANG } } }
+              : { type: "text", text: { body: (m as { text: string }).text } },
+          }),
+          signal: AbortSignal.timeout(15000),
+        })
+      : await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: toE164.replace("+", ""),
+            ...(template ? { type: "template", template: { ...template, language: { code: PROSPECT_TEMPLATE_LANG } } } : { type: "text", text: { body: (m as { text: string }).text } }),
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+    const json = (await r.json().catch(() => ({}))) as { data?: { id?: string }; messages?: { id?: string }[] };
+    if (!r.ok) return { ok: false, error: `${viaTelnyx() ? "Telnyx" : "WhatsApp"} ${r.status}: ${JSON.stringify(json).slice(0, 300)}` };
+    return { ok: true, id: json.data?.id ?? json.messages?.[0]?.id ?? null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Submits the prospect template to Meta through Telnyx, unless it is already there (any status). */
+export async function createProspectTemplate(): Promise<{ ok: boolean; message: string }> {
+  const env = E();
+  if (!env.TELNYX_API_KEY) return { ok: false, message: "TELNYX_API_KEY is not set in Railway." };
+  if (!env.WHATSAPP_WABA_ID) return { ok: false, message: "Save the WhatsApp Business Account id (WABA) first." };
+  const existing = await existingTemplates(PROSPECT_TEMPLATE_NAME);
+  if (!existing.ok) return { ok: false, message: `Could not list the existing templates, nothing was submitted. ${existing.message}` };
+  const have = existing.list.find((t) => t.language === PROSPECT_TEMPLATE_LANG);
+  if (have) return { ok: true, message: `Template ${PROSPECT_TEMPLATE_NAME}: already there (${have.status ?? "?"}), not submitted.` };
+  const r = await telnyx("POST", "/whatsapp/message_templates", { waba_id: env.WHATSAPP_WABA_ID, ...prospectTemplateDefinition() });
+  if (!r.ok) return { ok: false, message: `Template ${PROSPECT_TEMPLATE_NAME}: Telnyx answered HTTP ${r.status}: ${JSON.stringify(r.body).slice(0, 400)}` };
+  return { ok: true, message: `Template ${PROSPECT_TEMPLATE_NAME}: submitted to Meta. Once it shows APPROVED, enter ${PROSPECT_TEMPLATE_NAME} as "Sales prospects template name".` };
+}
+
+export async function prospectTemplateStatus(): Promise<string> {
+  const existing = await existingTemplates(PROSPECT_TEMPLATE_NAME);
+  if (!existing.ok) return existing.message;
+  if (!existing.list.length) return `No template named ${PROSPECT_TEMPLATE_NAME} yet.`;
+  return existing.list.map((t) => `${t.name} (${t.language}): ${t.status}${t.rejected_reason ? `, reason: ${t.rejected_reason}` : ""}`).join(" · ") + ".";
 }

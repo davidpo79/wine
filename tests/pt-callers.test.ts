@@ -167,6 +167,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "GET /admin/password",
     "GET /admin/pt-callers",
     "GET /admin/pt-callers/mine",
+    "GET /admin/whatsapp",
     "POST /admin/calls/dtmf",
     "POST /admin/calls/state",
     "POST /admin/calls/webrtc-token",
@@ -181,14 +182,17 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "POST /admin/pt-callers/api/rep/opt-out",
     "POST /admin/pt-callers/api/rep/outcome",
     "POST /admin/pt-callers/mine",
+    "POST /admin/whatsapp",
   ]);
+  assert.equal(access.ptCallerAllowed("GET", "/admin/whatsapp/42"), true);
+  assert.equal(access.ptCallerAllowed("POST", "/admin/whatsapp/42"), true);
   // Her own leads' work actions ([action] route): allowed by name, POST only; the service checks she owns each lead.
   for (const a of ["approve", "approve-enrich", "claim", "classify", "details", "email", "enrich", "opt-out"]) {
     assert.equal(access.ptCallerAllowed("POST", `/admin/pt-callers/api/admin/${a}`), true, a);
     assert.equal(access.ptCallerAllowed("GET", `/admin/pt-callers/api/admin/${a}`), false, a);
   }
   // Prefix tricks are refused.
-  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/admin/delete", "/admin/pt-callers/api/admin/assign", "/admin/pt-callers/api/admin/distribute", "/admin/pt-callers/api/admin/dial-number", "/admin/inbox/a@b.pt/x", "/admin/inboxes", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
+  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/admin/delete", "/admin/pt-callers/api/admin/assign", "/admin/pt-callers/api/admin/distribute", "/admin/pt-callers/api/admin/dial-number", "/admin/inbox/a@b.pt/x", "/admin/inboxes", "/admin/whatsapp/abc", "/admin/whatsapp/1/x", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
     assert.equal(access.ptCallerAllowed("POST", p), false, p);
     assert.equal(access.ptCallerAllowed("GET", p), false, p);
   }
@@ -208,10 +212,13 @@ test("server actions and routes: only the listed files let a sales rep in", () =
     "src/app/admin/(app)/layout.tsx",
     "src/app/admin/(app)/pt-callers/mine/page.tsx",
     "src/app/admin/(app)/pt-callers/page.tsx",
+    "src/app/admin/(app)/whatsapp/[lead]/page.tsx",
+    "src/app/admin/(app)/whatsapp/page.tsx",
     "src/app/admin/calls/guard.ts",
     "src/app/admin/inbox-actions.ts",
     "src/app/admin/inbox-attachment/route.ts",
     "src/app/admin/pt-callers/api/guard.ts",
+    "src/app/admin/whatsapp-actions.ts",
     "src/lib/auth.ts",
   ]);
   // The calls guard only lets reps reach the token, state and keypad endpoints, never /start or /recording.
@@ -974,4 +981,53 @@ dbTest("inbox: a sales rep sees and writes only her own leads' e-mails; staff se
   assert.equal(await inbox.unreadCount([]), 0);
   assert.equal(inbox.contactHref("a.b+c@x.pt"), "/admin/inbox/a.b+c@x.pt");
   assert.equal(access.ptCallerAllowed("GET", inbox.contactHref(mine)), true);
+});
+
+test("whatsapp webhook parsing: Telnyx (from as string or object) and Meta shapes; delivery statuses; PARAR", async () => {
+  const wa = await import("../src/lib/pt-callers/whatsapp");
+  const t1 = wa.parseWaWebhook({ data: { event_type: "message.received", id: "e1", payload: { id: "m1", from: { phone_number: "+351912345678" }, text: "Sim, envie" } } });
+  assert.deepEqual(t1.messages, [{ from: "+351912345678", text: "Sim, envie", id: "m1", media: false }]);
+  const t2 = wa.parseWaWebhook({ data: { event_type: "message.received", payload: { id: "m2", from: "+351912345678", whatsapp_message: { type: "text", text: { body: "Olá" } } } } });
+  assert.equal(t2.messages[0].text, "Olá");
+  const t3 = wa.parseWaWebhook({ data: { event_type: "message.finalized", payload: { id: "o1", to: [{ status: "delivered" }] } } });
+  assert.deepEqual(t3, { messages: [], statuses: [{ id: "o1", status: "delivered" }] });
+  const m = wa.parseWaWebhook({ entry: [{ changes: [{ value: { messages: [{ from: "351912345678", id: "w1", type: "text", text: { body: "PARAR" } }], statuses: [{ id: "o2", status: "read" }] } }] }] });
+  assert.deepEqual(m.messages, [{ from: "+351912345678", text: "PARAR", id: "w1", media: false }]);
+  assert.deepEqual(m.statuses, [{ id: "o2", status: "read" }]);
+  assert.equal(wa.parseWaWebhook(null).messages.length, 0);
+  for (const s of ["PARAR", " parar. ", "Stop", "STOP!"]) assert.equal(wa.isStop(s), true, s);
+  for (const s of ["Não pare de me enviar ofertas", "parar o carro amanhã"]) assert.equal(wa.isStop(s), false, s);
+  assert.equal(wa.repFirstName("soraya.torrens@wine.pt"), "Soraya");
+});
+
+test("whatsapp 24 h window: closed until they reply, open for 24 h after each reply, PARAR ends it", async () => {
+  const wa = await import("../src/lib/pt-callers/whatsapp");
+  const now = Date.now(), h = 3600_000;
+  const out = { direction: "out", kind: "template", createdAt: new Date(now - 30 * h) };
+  assert.equal(wa.threadState([out], now).windowOpen, false);
+  assert.equal(wa.threadState([out], now).templateSent, true);
+  assert.equal(wa.threadState([out, { direction: "in", kind: "text", createdAt: new Date(now - 23 * h) }], now).windowOpen, true);
+  assert.equal(wa.threadState([out, { direction: "in", kind: "text", createdAt: new Date(now - 25 * h) }], now).windowOpen, false);
+  assert.equal(wa.threadState([out, { direction: "in", kind: "stop", createdAt: new Date(now - h) }], now).stopped, true);
+});
+
+dbTest("whatsapp: a rep writes only to her own leads; demo and opted-out refused; replies land on the lead by number", async () => {
+  const wa = await import("../src/lib/pt-callers/whatsapp");
+  const phoneNo = `+3519${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  const [l] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `wa-${RUN}-${Math.random()}`, firstName: "Ana", phone: phoneNo, assignedTo: rep.id, status: "ready", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  assert.match(why(await wa.waSend(rep2, l.id, { mode: "template", optIn: true })), /own leads/);
+  assert.match(why(await wa.waSend(rep, l.id, { mode: "template", optIn: true })), /Demo/);
+  assert.equal(await wa.waThread(rep2, l.id), null);
+  const r = await wa.receiveWa({ data: { event_type: "message.received", payload: { id: `in-${RUN}-${l.id}`, from: { phone_number: phoneNo }, text: "Sim, pode enviar" } } });
+  assert.equal(r.stored, 1);
+  // The same webhook twice is stored once.
+  assert.equal((await wa.receiveWa({ data: { event_type: "message.received", payload: { id: `in-${RUN}-${l.id}`, from: phoneNo, text: "Sim, pode enviar" } } })).stored, 0);
+  assert.ok((await wa.waUnread(rep)) >= 1);
+  assert.equal((await wa.waThreads(rep2)).some((t) => t.leadId === l.id), false);
+  const t = await wa.waThread(rep, l.id);
+  assert.ok(t && t.windowOpen && !t.stopped);
+  assert.match(String(t!.lead.phone), /•/); // masked for a rep
+  assert.deepEqual(t!.messages.map((m) => m.body), ["Sim, pode enviar"]);
+  await D!.sql`update pt_leads set status = 'opt_out' where id = ${l.id}`;
+  assert.match(why(await wa.waSend(rep, l.id, { mode: "text", text: "Olá" })), /not to be contacted/);
 });

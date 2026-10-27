@@ -4,6 +4,7 @@ import { ifthenpayMode } from "@/lib/ifthenpay";
 import { stripeConfigured, stripeMode } from "@/lib/stripe";
 import { logoutAction } from "../actions";
 import { inboxScope, unreadCount } from "@/lib/inbox";
+import { waUnread } from "@/lib/pt-callers/whatsapp";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { Icon, Sidebar, type NavGroup } from "./_nav/Sidebar";
@@ -30,6 +31,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/reviews", label: "Reviews", icon: "star" },
       { href: "/admin/leads", label: "Leads", icon: "leads" },
       { href: "/admin/pt-callers", label: "Portugal HR callers", icon: "leads" },
+      { href: "/admin/whatsapp", label: "WhatsApp", icon: "chat" },
       { href: "/admin/creatives", label: "Ads", icon: "ads" },
     ],
   },
@@ -70,6 +72,7 @@ const PT_CALLER_NAV: NavGroup[] = [
       { href: "/admin/pt-callers", label: "Contactos RH", icon: "leads" },
       { href: "/admin/pt-callers/mine", label: "Os meus leads", icon: "leads" },
       { href: "/admin/inbox", label: "Inbox", icon: "mail" },
+      { href: "/admin/whatsapp", label: "WhatsApp", icon: "chat" },
     ],
   },
 ];
@@ -79,8 +82,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const admin = await requireAdmin({ allowPtCaller: true });
   const rep = admin.role === "pt_caller";
   const nav = rep
-    ? withUnread(PT_CALLER_NAV, { "/admin/inbox": await unreadCount(await inboxScope(admin)).catch(() => 0) })
-    : withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, { "/admin/inbox": await unreadCount().catch(() => 0), "/admin/reviews": await pendingReviews().catch(() => 0) });
+    ? withUnread(PT_CALLER_NAV, { "/admin/inbox": await unreadCount(await inboxScope(admin)).catch(() => 0), "/admin/whatsapp": await waUnread(admin).catch(() => 0) })
+    : withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, {
+        "/admin/inbox": await unreadCount().catch(() => 0),
+        "/admin/reviews": await pendingReviews().catch(() => 0),
+        ...(admin.role === "admin" ? { "/admin/whatsapp": await waUnread(admin).catch(() => 0) } : {}),
+      });
   const mode = ifthenpayMode();
   const stripe = stripeConfigured() ? (stripeMode() === "live" ? "live" : "test") : null;
   const footer = (

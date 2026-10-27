@@ -97,6 +97,11 @@ export async function OutboundCallsSection() {
           never touched). Needs the WABA id saved above. Fill in the template name and sender only once Portuguese is APPROVED; list Russian and German in &quot;Approved template languages&quot; only once each
           one is APPROVED. Until then, Russian and German orders get the reminder by SMS in their language.
         </p>
+        <p className="text-xs text-muted">
+          The same button also submits <b>contacto_empresas</b> (Marketing, pt_PT), the first message a sales rep may send on WhatsApp to an HR lead who asked for it on the call: &quot;Olá {"{{1}}"}, fala {"{{2}}"}, da Wine
+          Portugal…&quot;. Once it is APPROVED, enter it as &quot;Sales prospects template name&quot;. For the replies to reach the admin, set the WhatsApp webhook in Telnyx (Messaging → WhatsApp → your account) to{" "}
+          <b>https://vinho.prendadenatal.com/api/whatsapp/webhook</b>.
+        </p>
         <div className="flex flex-wrap gap-3">
           <ActionForm action={whatsappTemplateCreateAction} className="flex items-center gap-3">
             <Submit>Create missing WhatsApp templates (pt_PT, ru, de)</Submit>
