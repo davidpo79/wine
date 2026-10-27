@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { ifthenpayMode } from "@/lib/ifthenpay";
 import { stripeConfigured, stripeMode } from "@/lib/stripe";
 import { logoutAction } from "../actions";
-import { unreadCount } from "@/lib/inbox";
+import { inboxScope, unreadCount } from "@/lib/inbox";
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { Icon, Sidebar, type NavGroup } from "./_nav/Sidebar";
@@ -69,6 +69,7 @@ const PT_CALLER_NAV: NavGroup[] = [
     items: [
       { href: "/admin/pt-callers", label: "Contactos RH", icon: "leads" },
       { href: "/admin/pt-callers/mine", label: "Os meus leads", icon: "leads" },
+      { href: "/admin/inbox", label: "Inbox", icon: "mail" },
     ],
   },
 ];
@@ -78,7 +79,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const admin = await requireAdmin({ allowPtCaller: true });
   const rep = admin.role === "pt_caller";
   const nav = rep
-    ? PT_CALLER_NAV
+    ? withUnread(PT_CALLER_NAV, { "/admin/inbox": await unreadCount(await inboxScope(admin)).catch(() => 0) })
     : withUnread(admin.role === "admin" ? ADMIN_NAV : FULFILMENT_NAV, { "/admin/inbox": await unreadCount().catch(() => 0), "/admin/reviews": await pendingReviews().catch(() => 0) });
   const mode = ifthenpayMode();
   const stripe = stripeConfigured() ? (stripeMode() === "live" ? "live" : "test") : null;

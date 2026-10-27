@@ -313,7 +313,7 @@ export function AdminPanel(p: {
       {/* Leads */}
       <section className="rounded-xl border bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b p-3">
-          {FILTERS.map((f) => (
+          {FILTERS.filter((f) => !lim || f.key !== "unassigned").map((f) => (
             <button
               key={f.key}
               type="button"

@@ -9,6 +9,7 @@ import { db, schema } from "@/db";
 import { eur } from "@/lib/money";
 import { ctTrackingUrl, getOrder } from "@/lib/orders";
 import { lisbonDateTime } from "@/lib/time";
+import { contactHref } from "@/lib/inbox";
 import { orderAction } from "../../../actions";
 import { ActionForm, Submit } from "../../../ui";
 import { StatusPill } from "../../../status-pill";
@@ -90,7 +91,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </dl>
           {o.email && (
             <p className="mt-2 text-sm">
-              <Link className="text-azulejo underline" href={`/admin/inbox/${encodeURIComponent(o.email.toLowerCase())}`}>Emails with this customer</Link>
+              <Link className="text-azulejo underline" href={contactHref(o.email.toLowerCase())}>Emails with this customer</Link>
               {" · "}
               <Link className="text-azulejo underline" href={`/admin/inbox/new?to=${encodeURIComponent(o.email)}&subject=${encodeURIComponent(`Encomenda ${o.id}`)}`}>Write an email</Link>
             </p>

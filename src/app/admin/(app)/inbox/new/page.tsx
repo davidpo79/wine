@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
-import { inboxConfigured, shopAddress } from "@/lib/inbox";
-import { inboxSendAction } from "../../../actions";
+import { inboxConfigured, inboxScope, shopAddress } from "@/lib/inbox";
+import { inboxSendAction } from "../../../inbox-actions";
 import { ActionForm, Submit } from "../../../ui";
 
 export default async function NewEmailPage({ searchParams }: { searchParams: Promise<{ to?: string; subject?: string }> }) {
-  await requireAdmin();
+  const me = await requireAdmin({ allowPtCaller: true });
   const sp = await searchParams;
+  const scope = await inboxScope(me); // a sales rep writes only to her own leads
   return (
     <div className="max-w-2xl space-y-5">
       <Link href="/admin/inbox" className="text-sm text-muted underline">← Inbox</Link>
@@ -17,7 +18,17 @@ export default async function NewEmailPage({ searchParams }: { searchParams: Pro
         <p className="text-xs text-muted">From: {shopAddress().from || "(EMAIL_FROM not set)"}</p>
         <label className="block">
           <span className="text-xs font-semibold">To</span>
-          <input name="to" type="email" required defaultValue={sp.to ?? ""} className="mt-1 w-full rounded border p-2" placeholder="cliente@exemplo.pt" />
+          <input name="to" type="email" required defaultValue={sp.to ?? ""} list={scope ? "my-leads" : undefined} className="mt-1 w-full rounded border p-2" placeholder="cliente@exemplo.pt" />
+          {scope && (
+            <>
+              <datalist id="my-leads">
+                {scope.map((e) => (
+                  <option key={e} value={e} />
+                ))}
+              </datalist>
+              <span className="mt-1 block text-xs text-muted">{scope.length ? "Only your own leads (start typing to pick one)." : "None of your leads has an e-mail yet."}</span>
+            </>
+          )}
         </label>
         <label className="block">
           <span className="text-xs font-semibold">Subject</span>

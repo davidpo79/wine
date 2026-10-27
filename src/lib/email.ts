@@ -10,7 +10,7 @@ import { fmt } from "./i18n/rich";
 import { homeHref } from "./i18n/paths";
 import { defaultCountry, isCountry, isLocale, LOCALE_INFO, type Locale } from "./markets";
 import type { Settings } from "./settings-defaults";
-import { logOutbound, shopAddress } from "./inbox";
+import { contactHref, logOutbound, shopAddress } from "./inbox";
 import { reviewUrl } from "./reviews";
 import { ebookFileName, ebookKey, ebookTitle, guideFor } from "./ebook";
 import { getSettings } from "./settings";
@@ -272,7 +272,7 @@ export async function sendInboxAlert(resendId: string) {
     "Nova mensagem",
     `<p>Nova mensagem de <strong>${esc(m.fromAddr)}</strong>${m.orderId ? ` (encomenda ${esc(m.orderId)})` : ""}.</p>
 <p><strong>${esc(m.subject)}</strong></p><p style="white-space:pre-wrap">${esc(preview)}${(m.text ?? "").length > 400 ? "…" : ""}</p>
-${button(`${SITE.url}/admin/inbox/${encodeURIComponent(m.contact)}`, "Responder no admin")}`,
+${button(`${SITE.url}${contactHref(m.contact)}`, "Responder no admin")}`,
   );
   return send(null, to, `[Mensagem] ${m.subject || m.fromAddr}`, html, "admin_alert");
 }

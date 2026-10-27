@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { conversation, markRead } from "@/lib/inbox";
+import { conversation, inboxScope, inScope, markRead } from "@/lib/inbox";
 import { lisbonDateTime } from "@/lib/time";
-import { inboxSendAction } from "../../../actions";
+import { inboxSendAction } from "../../../inbox-actions";
 import { ActionForm, Submit } from "../../../ui";
 
 // Received HTML is shown in a sandboxed frame: no scripts, no remote loads (tracking pixels), inline images only.
@@ -13,10 +13,11 @@ const kb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024)
 const reSubject = (s: string) => (/^re:/i.test(s.trim()) ? s.trim() : `Re: ${s.trim()}`);
 
 export default async function ConversationPage({ params }: { params: Promise<{ contact: string }> }) {
-  await requireAdmin();
+  const me = await requireAdmin({ allowPtCaller: true });
   const contact = decodeURIComponent((await params).contact).toLowerCase();
-  const messages = await conversation(contact);
   if (!/^[^\s@<>]+@[^\s@<>]+$/.test(contact)) notFound();
+  if (!inScope(await inboxScope(me), contact)) notFound(); // a sales rep: only her own leads
+  const messages = await conversation(contact);
   await markRead(contact);
   const lastIn = [...messages].reverse().find((m) => m.direction === "in");
   const last = messages.at(-1);
@@ -42,7 +43,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ c
             <li key={m.id} className={`rounded-lg border p-4 ${m.direction === "in" ? "bg-white" : auto ? "bg-paper/60" : "border-azulejo/30 bg-[#f1f6fb]"}`}>
               <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted">
                 <span>
-                  {m.direction === "in" ? <strong className="text-ink">{m.fromAddr}</strong> : <strong className="text-ink">{auto ? `Automatic email · ${m.kind}` : `You${m.sentBy ? ` (${m.sentBy})` : ""}`}</strong>}
+                  {m.direction === "in" ? <strong className="text-ink">{m.fromAddr}</strong> : <strong className="text-ink">{auto ? `Automatic email · ${m.kind}` : m.sentBy ?? "You"}</strong>}
                   {m.status === "error" && <span className="ml-2 text-xmas">not sent: {m.error}</span>}
                 </span>
                 <span>{lisbonDateTime(m.createdAt)}</span>

@@ -1,7 +1,7 @@
 // Admin → Inbox: the shop address receives through Resend Receiving; every email sent from the shop is kept too,
 // so each customer has one conversation (automatic emails, their replies, our answers).
 import { Resend } from "resend";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 
 const MAX_HTML = 2_000_000;
@@ -16,6 +16,24 @@ export function shopAddress() {
   const from = process.env.EMAIL_FROM ?? "";
   return { from, address: addrOf(from), replyTo: process.env.EMAIL_REPLY_TO || addrOf(from) || undefined };
 }
+
+/** The link to one customer's conversation. "@" and "+" stay readable (a sales rep's access list refuses "%" in paths). */
+export const contactHref = (contact: string) => `/admin/inbox/${encodeURIComponent(contact).replace(/%40/g, "@").replace(/%2B/gi, "+")}`;
+
+/**
+ * The addresses a user may see in the inbox: null = every one (admin, fulfilment); a sales rep only the e-mails of
+ * the leads assigned to her, so two reps never read each other's prospects.
+ */
+export async function inboxScope(me: { id: number; role: string }): Promise<string[] | null> {
+  if (me.role !== "pt_caller") return null;
+  const L = schema.ptLeads;
+  const rows = await db.select({ e: L.email }).from(L).where(and(eq(L.assignedTo, me.id), isNotNull(L.email)));
+  return [...new Set(rows.map((r) => addrOf(r.e)).filter(Boolean))];
+}
+
+export const inScope = (scope: string[] | null, contact: string) => scope === null || scope.includes(addrOf(contact));
+
+const scoped = (scope: string[] | null) => (scope === null ? sql`true` : inArray(schema.inboxMessages.contact, scope));
 
 export function inboxConfigured() {
   return !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM && process.env.EMAIL_PROVIDER !== "telnyx";
@@ -134,7 +152,8 @@ export async function sendManual(m: { to: string; subject: string; text: string;
 export type Conversation = { contact: string; subject: string; lastAt: Date; lastDirection: string; lastKind: string; unread: number; messages: number; received: number; orderId: string | null };
 
 /** One row per customer, newest first. view: received = conversations with at least one email from the customer. */
-export async function conversations(view: "received" | "all" = "received", limit = 200): Promise<Conversation[]> {
+export async function conversations(view: "received" | "all" = "received", limit = 200, scope: string[] | null = null): Promise<Conversation[]> {
+  if (scope && !scope.length) return [];
   const rows = (await db.execute(sql`
     select contact,
       (array_agg(subject order by created_at desc))[1] as subject,
@@ -146,6 +165,7 @@ export async function conversations(view: "received" | "all" = "received", limit
       count(*) filter (where direction = 'in')::int as received,
       (array_agg(order_id order by created_at desc) filter (where order_id is not null))[1] as order_id
     from inbox_messages
+    where ${scope === null ? sql`true` : sql`contact in ${scope}`}
     group by contact
     ${view === "received" ? sql`having count(*) filter (where direction = 'in') > 0` : sql``}
     order by max(created_at) desc
@@ -164,9 +184,22 @@ export async function conversations(view: "received" | "all" = "received", limit
   }));
 }
 
-export async function unreadCount() {
-  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.inboxMessages).where(and(eq(schema.inboxMessages.direction, "in"), isNull(schema.inboxMessages.readAt)));
+export async function unreadCount(scope: string[] | null = null) {
+  if (scope && !scope.length) return 0;
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.inboxMessages).where(and(eq(schema.inboxMessages.direction, "in"), isNull(schema.inboxMessages.readAt), scoped(scope)));
   return r?.n ?? 0;
+}
+
+/** Single emails, newest first: "in" = what customers wrote to us, "out" = everything the shop sent (automatic or written). */
+export async function messageList(direction: "in" | "out", limit = 200, scope: string[] | null = null) {
+  if (scope && !scope.length) return [];
+  const M = schema.inboxMessages;
+  return db
+    .select({ id: M.id, contact: M.contact, subject: M.subject, kind: M.kind, createdAt: M.createdAt, readAt: M.readAt, status: M.status, sentBy: M.sentBy })
+    .from(M)
+    .where(and(eq(M.direction, direction), scoped(scope)))
+    .orderBy(desc(M.createdAt), desc(M.id))
+    .limit(limit);
 }
 
 export async function conversation(contact: string) {

@@ -159,6 +159,10 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
   const allowed = new Set<string>();
   for (const p of paths) for (const m of ["GET", "POST"]) if (access.ptCallerAllowed(m, p)) allowed.add(`${m} ${p}`);
   assert.deepEqual([...allowed].sort(), [
+    "GET /admin/inbox",
+    "GET /admin/inbox-attachment",
+    "GET /admin/inbox/new",
+    "GET /admin/inbox/x",
     "GET /admin/login",
     "GET /admin/password",
     "GET /admin/pt-callers",
@@ -166,6 +170,9 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "POST /admin/calls/dtmf",
     "POST /admin/calls/state",
     "POST /admin/calls/webrtc-token",
+    "POST /admin/inbox",
+    "POST /admin/inbox/new",
+    "POST /admin/inbox/x",
     "POST /admin/login",
     "POST /admin/password",
     "POST /admin/pt-callers",
@@ -181,7 +188,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     assert.equal(access.ptCallerAllowed("GET", `/admin/pt-callers/api/admin/${a}`), false, a);
   }
   // Prefix tricks are refused.
-  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/admin/delete", "/admin/pt-callers/api/admin/assign", "/admin/pt-callers/api/admin/distribute", "/admin/pt-callers/api/admin/dial-number", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
+  for (const p of ["/admin/pt-callers-x", "/admin/pt-callers/api/admin/import", "/admin/pt-callers/api/admin/delete", "/admin/pt-callers/api/admin/assign", "/admin/pt-callers/api/admin/distribute", "/admin/pt-callers/api/admin/dial-number", "/admin/inbox/a@b.pt/x", "/admin/inboxes", "/admin/pt-callers/api/rep/../admin/import", "/admin/calls/start", "/admin/orders", "/api/apollo/webhook/a/b", "/admin/calls/recording"]) {
     assert.equal(access.ptCallerAllowed("POST", p), false, p);
     assert.equal(access.ptCallerAllowed("GET", p), false, p);
   }
@@ -195,10 +202,15 @@ test("server actions and routes: only the listed files let a sales rep in", () =
   walk(join(process.cwd(), "src"));
   const optIn = files.filter((f) => /allowPtCaller:\s*true/.test(readFileSync(f, "utf8"))).map((f) => f.slice(process.cwd().length + 1)).sort();
   assert.deepEqual(optIn, [
+    "src/app/admin/(app)/inbox/[contact]/page.tsx",
+    "src/app/admin/(app)/inbox/new/page.tsx",
+    "src/app/admin/(app)/inbox/page.tsx",
     "src/app/admin/(app)/layout.tsx",
     "src/app/admin/(app)/pt-callers/mine/page.tsx",
     "src/app/admin/(app)/pt-callers/page.tsx",
     "src/app/admin/calls/guard.ts",
+    "src/app/admin/inbox-actions.ts",
+    "src/app/admin/inbox-attachment/route.ts",
     "src/app/admin/pt-callers/api/guard.ts",
     "src/lib/auth.ts",
   ]);
@@ -932,4 +944,34 @@ dbTest("lead split: reps taking leads at the same time never get the same one; a
   } finally {
     if (parked.length) await D!.sql`update pt_leads set assigned_to = null where id = any(${parked})`;
   }
+});
+
+dbTest("inbox: a sales rep sees and writes only her own leads' e-mails; staff see everything; incoming and sent lists", async () => {
+  const inbox = await import("../src/lib/inbox");
+  const mine = `mine-${RUN}@empresa.pt`, theirs = `theirs-${RUN}@empresa.pt`;
+  const mk = (email: string, assignedTo: number) => D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `ib-${RUN}-${Math.random()}`, firstName: "Ana", email, assignedTo, status: "new", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) });
+  await mk(mine.toUpperCase(), rep.id);
+  await mk(theirs, rep2.id);
+  const M = D!.schema.inboxMessages;
+  await D!.db.insert(M).values([
+    { direction: "in", kind: "received", contact: mine, fromAddr: mine, toAddrs: ["shop@x.pt"], subject: "Olá", status: "ok" },
+    { direction: "out", kind: "pt_offer", contact: mine, fromAddr: "shop@x.pt", toAddrs: [mine], subject: "Oferta", status: "ok", readAt: new Date() },
+    { direction: "in", kind: "received", contact: theirs, fromAddr: theirs, toAddrs: ["shop@x.pt"], subject: "Bom dia", status: "ok" },
+  ]);
+  const scope = await inbox.inboxScope(rep);
+  assert.deepEqual(scope, [mine]); // lower-cased
+  assert.equal(await inbox.inboxScope(admin), null);
+  assert.ok(inbox.inScope(scope, mine.toUpperCase()));
+  assert.equal(inbox.inScope(scope, theirs), false);
+  assert.equal(inbox.inScope(null, theirs), true);
+  const conv = await inbox.conversations("all", 200, scope);
+  assert.deepEqual(conv.map((c) => c.contact), [mine]);
+  assert.ok((await inbox.conversations("all", 500, null)).some((c) => c.contact === theirs));
+  assert.equal(await inbox.unreadCount(scope), 1);
+  assert.deepEqual((await inbox.messageList("in", 200, scope)).map((m) => m.subject), ["Olá"]);
+  assert.deepEqual((await inbox.messageList("out", 200, scope)).map((m) => m.subject), ["Oferta"]);
+  assert.deepEqual(await inbox.conversations("all", 200, []), []);
+  assert.equal(await inbox.unreadCount([]), 0);
+  assert.equal(inbox.contactHref("a.b+c@x.pt"), "/admin/inbox/a.b+c@x.pt");
+  assert.equal(access.ptCallerAllowed("GET", inbox.contactHref(mine)), true);
 });
