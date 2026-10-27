@@ -113,9 +113,9 @@ function layout(c: Concept, f: Format) {
     }
     case "cutout": {
       // The box inside a full Christmas frame: garland and bow on top, trees on the sides, gifts along the bottom.
-      const boxW = story ? 580 : 540;
-      const boxTop = story ? 760 : 500;
-      const logoY = story ? 330 : 190;
+      const boxW = story ? 640 : 600;
+      const boxTop = story ? 860 : 480;
+      const logoY = story ? 300 : 180;
       return `
       <div class="bgimg" style="background-image:url(${xmasBg(f)})"></div>
       <div style="position:absolute;left:0;right:0;top:${logoY}px;display:flex;justify-content:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5))">${logo(story ? 84 : 66)}</div>
@@ -125,8 +125,8 @@ function layout(c: Concept, f: Format) {
         ${story ? `<div class="sub" style="font-size:38px;margin-top:16px;color:#f6e9e9">${c.sub}</div>` : ""}
       </div>
       <img src="${img("box-cutout.webp")}" style="position:absolute;left:${story ? 90 : 120}px;top:${boxTop}px;width:${boxW}px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55))">
-      ${sticker(story ? "right:90px;top:820px;width:280px;height:280px" : "right:120px;top:480px;width:250px;height:250px")}
-      <div style="position:absolute;right:${story ? 150 : 110}px;left:${story ? 600 : 590}px;top:${story ? 1120 : 800}px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)" class="small">${ticks(c.ticks)}</div>
+      ${sticker(story ? "right:80px;top:880px;width:290px;height:290px" : "right:90px;top:500px;width:260px;height:260px")}
+      <div style="position:absolute;right:${story ? 110 : 100}px;left:${story ? 650 : 640}px;top:${story ? 1180 : 800}px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)" class="small">${ticks(c.ticks)}</div>
       <div class="strip" style="bottom:${story ? SAFE_BOTTOM + 10 : 36}px;left:${story ? 90 : 130}px;right:${story ? 90 : 130}px;border-radius:999px;height:${story ? 92 : 76}px;font-size:${story ? 32 : 28}px;background:rgba(16,45,33,.92);border:2px solid var(--gold)">${T.deadlineStrip}</div>`;
     }
     case "card": {
