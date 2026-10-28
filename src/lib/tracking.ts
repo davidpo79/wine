@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Order } from "@/db/schema";
+import { isBotUa } from "./bots";
 
 export const GRAPH_VERSION = "v21.0";
 
@@ -98,6 +99,11 @@ export async function sendCapi(ev: CapiEvent) {
   const token = process.env.META_CAPI_ACCESS_TOKEN;
   if (!pixel || !token) {
     await logTracking({ eventName: ev.eventName, eventId: ev.eventId, orderId: ev.orderId ?? null, sentTo: "capi", status: "skipped", response: { reason: "not_configured" } });
+    return;
+  }
+  // Ad-review browsers and crawlers would teach Meta that our buyers are data centres.
+  if (isBotUa(ev.user.userAgent)) {
+    await logTracking({ eventName: ev.eventName, eventId: ev.eventId, orderId: ev.orderId ?? null, sentTo: "capi", status: "skipped", response: { reason: "bot" } });
     return;
   }
   const body: Record<string, unknown> = {

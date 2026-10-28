@@ -5,6 +5,7 @@ import { useRouteLocale } from "@/lib/i18n/route-locale";
 import { CONSENT_COPY, privacyHref } from "@/lib/i18n/consent";
 import type { Locale } from "@/lib/markets";
 import { newEventId, pixelEvent, track, visit } from "@/lib/track-client";
+import { isBotUa } from "@/lib/bots";
 
 const COOKIE = "wp_consent";
 const MAX_AGE = 60 * 60 * 24 * 180;
@@ -50,7 +51,8 @@ function setFbcFromClickId() {
 }
 
 function loadPixel(pixelId: string) {
-  if (window.fbq) return;
+  // No pixel for bots and automated browsers: their visits must not reach Meta's optimisation.
+  if (window.fbq || navigator.webdriver || isBotUa(navigator.userAgent)) return;
   /* Meta Pixel base code */
   const n = function (...args: unknown[]) {
     const self = n as unknown as { callMethod?: (...a: unknown[]) => void; queue: unknown[] };
