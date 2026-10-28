@@ -622,6 +622,7 @@ Obtivemos o seu contacto profissional através da plataforma Apollo.io. Se não 
 function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => void; onSent: (ok: boolean, m: string) => void }) {
   const [subject, setSubject] = useState(offerSubject());
   const [body, setBody] = useState(offerBody(lead.firstName));
+  const [attachCatalog, setAttachCatalog] = useState(true);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   return (
@@ -637,6 +638,10 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
           Message
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={14} className="mt-1 w-full rounded-lg border p-2 text-sm font-normal" />
         </label>
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input id="offer-attach-catalog" type="checkbox" checked={attachCatalog} onChange={(e) => setAttachCatalog(e.target.checked)} />
+          📎 Attach the B2B catalogue (Catálogo B2B Natal 2026, PDF, 2.4 MB)
+        </label>
         {err && <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-800">⚠ {err}</p>}
         <div className="mt-3 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm underline">Cancel</button>
@@ -645,8 +650,8 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
             disabled={sending}
             onClick={async () => {
               setSending(true);
-              const r = await post("email", { id: lead.id, subject, body }).finally(() => setSending(false));
-              if (r.ok) onSent(true, `Offer sent to ${lead.email}.`);
+              const r = await post("email", { id: lead.id, subject, body, attachCatalog }).finally(() => setSending(false));
+              if (r.ok) onSent(true, `Offer sent to ${lead.email}${attachCatalog ? " with the B2B catalogue" : ""}.`);
               else setErr(String(r.reason ?? r.error ?? "The e-mail was not sent."));
             }}
             className="rounded-lg bg-[#0F2340] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"

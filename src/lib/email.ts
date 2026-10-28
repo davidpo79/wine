@@ -71,7 +71,9 @@ function orderSummary(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents
 }
 
 // Provider: Telnyx Email when EMAIL_PROVIDER=telnyx (same TELNYX_API_KEY as voice/SMS/WhatsApp), otherwise Resend.
-async function send(o: Order | null, to: string, subject: string, html: string, kind: string) {
+type Attachment = { filename: string; content: Buffer };
+
+async function send(o: Order | null, to: string, subject: string, html: string, kind: string, attachments: Attachment[] = []) {
   const from = process.env.EMAIL_FROM;
   const telnyx = process.env.EMAIL_PROVIDER === "telnyx";
   const key = telnyx ? process.env.TELNYX_API_KEY : process.env.RESEND_API_KEY;
@@ -87,7 +89,15 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
       const r = await fetch("https://api.telnyx.com/v2/email_messages", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ from, to: [to], reply_to: shopAddress().replyTo ?? SITE.email, subject, html_body: html, tags: [kind] }),
+        body: JSON.stringify({
+          from,
+          to: [to],
+          reply_to: shopAddress().replyTo ?? SITE.email,
+          subject,
+          html_body: html,
+          tags: [kind],
+          ...(attachments.length ? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content.toString("base64"), content_type: "application/pdf" })) } : {}),
+        }),
         signal: AbortSignal.timeout(15000),
       });
       const j = await r.json().catch(() => ({}));
@@ -102,7 +112,7 @@ async function send(o: Order | null, to: string, subject: string, html: string, 
   }
   const resend = new Resend(key);
   // Replies come back to the shop address, into Admin → Inbox (EMAIL_REPLY_TO overrides it).
-  const r = await resend.emails.send({ from, to, subject, html, replyTo: shopAddress().replyTo ?? SITE.email });
+  const r = await resend.emails.send({ from, to, subject, html, replyTo: shopAddress().replyTo ?? SITE.email, ...(attachments.length ? { attachments } : {}) });
   if (o) await logOrderEvent(o.id, r.error ? "email_error" : "email_sent", { kind, id: r.data?.id, error: r.error?.message });
   if (!["admin_alert", "payment_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: r.data?.id, orderId: o?.id, error: r.error?.message });
   return r;
@@ -399,6 +409,6 @@ export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
 }
 
 /** Portugal HR callers: one offer e-mail written on the admin screen. Replies come back to the shop inbox. */
-export async function sendOfferEmail(to: string, subject: string, html: string) {
-  return send(null, to, subject, html, "pt_offer");
+export async function sendOfferEmail(to: string, subject: string, html: string, attachments: Attachment[] = []) {
+  return send(null, to, subject, html, "pt_offer", attachments);
 }

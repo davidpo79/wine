@@ -3,6 +3,8 @@
 // Sales rep: sees only assigned leads (numbers masked), dials one at a time through #4's browser phone, records the
 // outcome, can always mark "Não contactar". Opt-out is permanent (hashed phone + Apollo id), re-import never undoes it.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { PtLead } from "@/db/schema";
@@ -694,8 +696,11 @@ export async function fetchDetails(me: Me, ids: number[]): Promise<{ ok: boolean
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/** The B2B Christmas catalogue attached to offer e-mails (compressed for e-mail, about 2.4 MB). */
+const B2B_CATALOG = { file: "catalogo-b2b-natal-2026.pdf" };
+
 /** One offer e-mail to one lead's work address, written (and editable) on the admin screen. */
-export async function sendOffer(me: Me, id: number, o: { subject: string; body: string }): Promise<{ ok: boolean; reason?: string }> {
+export async function sendOffer(me: Me, id: number, o: { subject: string; body: string; attachCatalog?: boolean }): Promise<{ ok: boolean; reason?: string }> {
   const notMine = await ownLeadsOnly(me, [id]);
   if (notMine) return notMine;
   const lead = await leadById(id);
@@ -710,12 +715,18 @@ export async function sendOffer(me: Me, id: number, o: { subject: string; body: 
     .split(/\n{2,}/)
     .map((para) => `<p>${para.replace(/\n/g, "<br>").replace(/(https:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</p>`)
     .join("")}</div>`;
-  const r = await sendOfferEmail(lead.email, subject, html);
+  let attachments: { filename: string; content: Buffer }[] = [];
+  if (o.attachCatalog) {
+    const content = await readFile(path.join(process.cwd(), "assets", B2B_CATALOG.file)).catch(() => null);
+    if (!content) return { ok: false, reason: "The B2B catalogue file is missing on the server. Untick it or ask for it to be uploaded." };
+    attachments = [{ filename: B2B_CATALOG.file, content }];
+  }
+  const r = await sendOfferEmail(lead.email, subject, html, attachments);
   if ("skipped" in r && r.skipped) return { ok: false, reason: "E-mail is not set up on this shop (EMAIL_FROM and a provider key)." };
   const err = "error" in r ? r.error : undefined;
   if (err) return { ok: false, reason: `The e-mail was not sent: ${typeof err === "string" ? err : (err as { message?: string }).message ?? "error"}` };
   await db.update(LEADS).set({ emailedAt: new Date(), updatedAt: new Date() }).where(eq(LEADS.id, id));
-  await logAccess(me.id, id, "email", { subjectLength: subject.length });
+  await logAccess(me.id, id, "email", { subjectLength: subject.length, catalog: attachments.length > 0 });
   return { ok: true };
 }
 
