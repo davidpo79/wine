@@ -72,7 +72,7 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     winesTitle: "Lo que hay en la caja",
     wines: [
       { type: "Tinto", count: "× 3", name: "Galhofa Tinto 2024 · Douro DOC", text: "Touriga Nacional, Tinta Roriz y castas tradicionales de altura. Fruta roja fresca, equilibrado y aromático. Para asados, guisos y la comida de cada día. Servir a 16 °C.", img: "/lp/bf/red.webp" },
-      { type: "Blanco", count: "× 2", name: "D. Graça Blanco 2025 · Douro DOC", text: "Fresco, afrutado y fácil de beber. Para pescados, mariscos y aperitivos. Servir a 8 a 10 °C.", img: null },
+      { type: "Blanco", count: "× 2", name: "D. Graça Blanco 2025 · Douro DOC", text: "Rabigato, Viosinho, Gouveio y otras castas del Douro. Aroma intenso y fresco a fruta tropical y pomelo; equilibrado, con buena acidez y un final largo y cremoso. Para mariscos, pescados, pasta, pizza o sushi. Servir a 8 a 10 °C.", img: "/lp/bf/white.webp" },
       { type: "Rosado", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Color cereza y aroma delicado a frambuesa. Buena acidez y textura: perfecto con sushi, pizza y ensaladas. Servir a 10 °C.", img: "/lp/bf/rose.webp" },
     ],
     whyTitle: "Por qué este precio",
@@ -137,7 +137,7 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     winesTitle: "Das ist in der Box",
     wines: [
       { type: "Rotwein", count: "× 3", name: "Galhofa Tinto 2024 · Douro DOC", text: "Touriga Nacional, Tinta Roriz und traditionelle Rebsorten aus Höhenlagen. Frische rote Früchte, ausgewogen und duftig. Zu Braten, Schmorgerichten und für jeden Tag. Bei 16 °C servieren.", img: "/lp/bf/red.webp" },
-      { type: "Weißwein", count: "× 2", name: "D. Graça Branco 2025 · Douro DOC", text: "Frisch, fruchtig und leicht zu trinken. Zu Fisch, Meeresfrüchten und als Aperitif. Bei 8 bis 10 °C servieren.", img: null },
+      { type: "Weißwein", count: "× 2", name: "D. Graça Branco 2025 · Douro DOC", text: "Rabigato, Viosinho, Gouveio und weitere Douro-Rebsorten. Intensiver, frischer Duft nach tropischen Früchten und Grapefruit; ausgewogen, mit guter Säure und langem, cremigem Abgang. Zu Meeresfrüchten, Fisch, Pasta, Pizza oder Sushi. Bei 8 bis 10 °C servieren.", img: "/lp/bf/white.webp" },
       { type: "Rosé", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Kirschrote Farbe, zarter Himbeerduft. Gute Säure und Textur: ideal zu Sushi, Pizza und Salaten. Bei 10 °C servieren.", img: "/lp/bf/rose.webp" },
     ],
     whyTitle: "Warum dieser Preis",
