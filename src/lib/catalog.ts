@@ -1,15 +1,17 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Bundle, Product } from "@/db/schema";
 import type { Settings } from "./settings-defaults";
+import { BF_PRODUCT_SLUG, isBfBundle } from "./black-friday";
 
 export type Catalog = { product: Product; bundles: Bundle[] };
 
-export async function getCatalog(): Promise<Catalog | null> {
+/** The Christmas Trilogia (the main shop), or with `slug` another product (the Black Friday box). */
+export async function getCatalog(slug?: string): Promise<Catalog | null> {
   const [product] = await db
     .select()
     .from(schema.products)
-    .where(eq(schema.products.active, true))
+    .where(and(eq(schema.products.active, true), slug ? eq(schema.products.slug, slug) : ne(schema.products.slug, BF_PRODUCT_SLUG)))
     .orderBy(asc(schema.products.id))
     .limit(1);
   if (!product) return null;
@@ -20,6 +22,11 @@ export async function getCatalog(): Promise<Catalog | null> {
     .orderBy(asc(schema.bundles.sort));
   return { product, bundles };
 }
+
+export const getBfCatalog = () => getCatalog(BF_PRODUCT_SLUG);
+
+/** The catalog an order or a bundle key belongs to (Black Friday keys are bf1, bf2, bf3). */
+export const catalogForBundle = (bundleKey: string | null | undefined) => (isBfBundle(bundleKey) ? getBfCatalog() : getCatalog());
 
 /** Boxes in orders that are paid or further along (used for the optional stock cap). */
 export async function paidBoxes(): Promise<number> {

@@ -29,6 +29,20 @@ export type Settings = {
   gift_card: GiftCardSettings; // order bump in the checkout: printed Christmas card with the customer's message
   profit_split: ProfitSplit; // partnership split of the net profit (Admin → Finance); empty until agreed
   markets: Record<Country, MarketSettings>; // Portugal + Belgian-warehouse countries; cutoff_at null = the global cutoff
+  black_friday: BlackFridaySettings; // 6-bottle Douro box for Germany and Spain (lib/black-friday.ts)
+};
+
+/**
+ * Black Friday 2026: a box of 6 Douro wines (3 red, 2 white, 1 rosé) shipped from the Belgian warehouse. It takes orders
+ * in its own countries while enabled and before its cutoff, whether or not those markets sell the Christmas Trilogia.
+ */
+export type BlackFridaySettings = {
+  enabled: boolean;
+  countries: Country[];
+  cutoff_at: string; // ISO instant; the countdown runs to it (2 days before Black Friday, so the boxes arrive in time)
+  delivery_days: string; // working days shown to customers ("2")
+  vat_percent: Partial<Record<Country, number>>; // VAT included in the price, by delivery country (still wine, standard rate)
+  costs: { wine_cents: number; shipping_box_cents: number; transport_cents: number; handling_cents: number; delivery_cents: number }; // per box, without recoverable VAT
 };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
@@ -107,6 +121,17 @@ export const DEFAULT_SETTINGS: Settings = {
     NL: { enabled: false, delivery_days: "", cutoff_at: null },
     BE: { enabled: false, delivery_days: "", cutoff_at: null },
     LU: { enabled: false, delivery_days: "", cutoff_at: null },
+    ES: { enabled: false, delivery_days: "2", cutoff_at: null },
+  },
+  // David's numbers (29/10/2026): 15 + 3 + 2,50 + 2 + 6,50 = 29 € per box. Black Friday is Friday 27/11/2026; orders
+  // close on Wednesday 25/11 at 23:59 in Berlin and Madrid (CET, UTC+1).
+  black_friday: {
+    enabled: true,
+    countries: ["DE", "ES"],
+    cutoff_at: "2026-11-25T22:59:00Z",
+    delivery_days: "2",
+    vat_percent: { DE: 19, ES: 21 },
+    costs: { wine_cents: 1500, shipping_box_cents: 300, transport_cents: 250, handling_cents: 200, delivery_cents: 650 },
   },
   cost_model: {
     vat_percent: 13,

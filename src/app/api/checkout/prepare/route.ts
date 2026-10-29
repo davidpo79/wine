@@ -9,7 +9,8 @@ import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
 import { orderAddons, stripeSavesCard } from "@/lib/payments";
 import { isCountry, isLocale } from "@/lib/markets";
-import { enabledCountries } from "@/lib/visitor";
+import { countriesForOrder } from "@/lib/visitor";
+import { contentIdFor } from "@/lib/black-friday";
 import { getDict } from "@/lib/i18n";
 import { boxesOffer, productOffers } from "@/lib/upsell";
 import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || order.status !== "pending_payment") return Response.json({ error: apiErrorsFor(order).orderUnavailable }, { status: 409 });
-  const errors = validateForPayment(order, await enabledCountries(await getSettings()));
+  const errors = validateForPayment(order, await countriesForOrder(order, await getSettings()));
   const pendingAddons = await orderAddons(order.id, ["pending"]);
   if (pendingAddons.some((x) => x.sku === GIFT_CARD_SKU) && !(order.giftMessage ?? "").trim()) errors.giftMessage = getDict(isLocale(order.locale) ? order.locale : "pt").checkout.errors.giftMessage;
   if (Object.keys(errors).length) return Response.json({ errors }, { status: 422 });
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
       sourceUrl: `${SITE.url}/checkout`,
       orderId: order.id,
       user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: a.city, zip: a.postal_code, country: order.country, ip: clientIp(h), userAgent: h.get("user-agent"), fbp: order.fbp, fbc: order.fbc },
-      customData: { value: order.totalCents / 100, currency: "EUR", num_items: order.qtyBoxes, content_ids: ["trilogia-2160"], content_type: "product" },
+      customData: { value: order.totalCents / 100, currency: "EUR", num_items: order.qtyBoxes, content_ids: [contentIdFor(order.bundleKey)], content_type: "product" },
     });
   }
   if (consent.marketing && !order.consentTracking) await db.update(schema.orders).set({ consentTracking: true }).where(eq(schema.orders.id, order.id));

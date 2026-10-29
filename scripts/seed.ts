@@ -3,11 +3,12 @@
 import "./load-env";
 import { sql as pg, db, schema } from "../src/db";
 import { DEFAULT_SETTINGS } from "../src/lib/settings-defaults";
+import { BF_BUNDLES, BF_PRODUCT_SLUG } from "../src/lib/black-friday";
 import { hash } from "@node-rs/argon2";
 import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 
-const [existing] = await db.select().from(schema.products).limit(1);
+const [existing] = await db.select().from(schema.products).where(sql`${schema.products.slug} <> ${BF_PRODUCT_SLUG}`).limit(1);
 let productId = existing?.id;
 if (!productId) {
   const [p] = await db
@@ -38,6 +39,30 @@ const bundles = [
 await db
   .insert(schema.bundles)
   .values(bundles.map((b) => ({ ...b, productId: productId! })))
+  .onConflictDoNothing();
+
+// Black Friday 2026 box for Germany and Spain (29/10/2026): own product and bundles, added once.
+let [bf] = await db.select().from(schema.products).where(eq(schema.products.slug, BF_PRODUCT_SLUG)).limit(1);
+if (!bf) {
+  [bf] = await db
+    .insert(schema.products)
+    .values({
+      slug: BF_PRODUCT_SLUG,
+      name: "Black Friday · 6 vinhos do Douro",
+      shortDescription: "Caixa de 6 vinhos do Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha e Espanha, envio do armazém na Bélgica.",
+      wines: [
+        { name: "Galhofa Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
+        { name: "D. Graça Branco", vintage: "2025", type: "branco", producer: "Douro" },
+        { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
+      ],
+      images: [],
+    })
+    .returning();
+  console.log("black friday product created");
+}
+await db
+  .insert(schema.bundles)
+  .values(BF_BUNDLES.map((b) => ({ ...b, productId: bf.id })))
   .onConflictDoNothing();
 
 await db

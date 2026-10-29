@@ -3,7 +3,7 @@ import { apiErrorsFor } from "@/lib/i18n";
 import { loadDraft, validateForPayment } from "@/lib/draft";
 import { startPayment } from "@/lib/payments";
 import { getSettings } from "@/lib/settings";
-import { enabledCountries } from "@/lib/visitor";
+import { countriesForOrder } from "@/lib/visitor";
 
 // Starts the payment for the amount due (bundle + accepted one-time offer) with the chosen method.
 export async function POST(req: Request) {
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || order.status !== "pending_payment") return Response.json({ error: apiErrorsFor(order).orderUnavailable }, { status: 409 });
-  const errors = validateForPayment(order, await enabledCountries(await getSettings()));
+  const errors = validateForPayment(order, await countriesForOrder(order, await getSettings()));
   if (Object.keys(errors).length) return Response.json({ errors }, { status: 422 });
   const r = await startPayment(order, parsed.data.method, { phone: parsed.data.phone, token: parsed.data.t });
   if (!r.ok) return Response.json({ error: r.error }, { status: r.status });

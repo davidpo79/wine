@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { lisbonDate } from "@/lib/time";
+import { lisbonDate, zonedDate } from "@/lib/time";
+import { bfBoxCost } from "@/lib/black-friday";
 import { settingsAction, ga4TestAction, cttTestAction, ebookAction } from "../../actions";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
@@ -13,6 +14,10 @@ export default async function SettingsPage() {
   const s = await getSettings();
   const cutoff = new Date(s.cutoff_at);
   const time = cutoff.toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit", hour12: false });
+  const bf = s.black_friday;
+  const bfCut = new Date(bf.cutoff_at);
+  const bfTime = bfCut.toLocaleTimeString("pt-PT", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hour12: false });
+  const eur = (c: number) => (c / 100).toFixed(2).replace(".", ",");
   return (
     <div className="max-w-2xl">
       <h1 className="font-serif text-3xl font-semibold">Settings</h1>
@@ -76,6 +81,36 @@ export default async function SettingsPage() {
             </tbody>
           </table>
           <p className="mt-1 text-xs text-muted">Delivery days are inserted in the copy of that country&apos;s language (&quot;Delivery in 2-4 working days&quot;). Empty: no delivery time is shown. Own cutoff: 23:59 Lisbon time that day; empty = the cutoff above.</p>
+        </fieldset>
+        <fieldset className="rounded border p-3">
+          <legend className="px-1 font-semibold">Black Friday · 6-bottle box (Germany, Spain)</legend>
+          <p className="text-xs text-muted">
+            Pages /de/black-friday and /es/black-friday (one link for ads: /black-friday, it picks the language). Separate from the Christmas markets above: it sells in its
+            countries while switched on and until its cutoff (the countdown runs to it). Prices of the 1, 2 and 3 box options: Admin → Products (bf1, bf2, bf3).
+          </p>
+          <label className="mt-2 flex items-center gap-2"><input type="checkbox" name="bf_enabled" defaultChecked={bf.enabled} className="h-4 w-4" /> Black Friday orders open</label>
+          <div className="mt-2 flex flex-wrap items-end gap-3">
+            <label>Cutoff (Berlin / Madrid time)
+              <span className="mt-1 flex gap-2">
+                <input type="date" name="bf_cutoff_date" defaultValue={zonedDate(bfCut, "Europe/Madrid")} className="rounded border p-2" />
+                <input type="time" name="bf_cutoff_time" defaultValue={bfTime} className="rounded border p-2" />
+              </span>
+            </label>
+            <label>Delivery days (shown)<input name="bf_days" defaultValue={bf.delivery_days} className="mt-1 block w-20 rounded border p-2" /></label>
+            <label className="flex items-center gap-1"><input type="checkbox" name="bf_DE" defaultChecked={bf.countries.includes("DE")} /> DE</label>
+            <label className="flex items-center gap-1"><input type="checkbox" name="bf_ES" defaultChecked={bf.countries.includes("ES")} /> ES</label>
+            <label>VAT DE %<input name="bf_vat_DE" defaultValue={bf.vat_percent.DE ?? 19} className="mt-1 block w-16 rounded border p-2" /></label>
+            <label>VAT ES %<input name="bf_vat_ES" defaultValue={bf.vat_percent.ES ?? 21} className="mt-1 block w-16 rounded border p-2" /></label>
+          </div>
+          <p className="mt-3 text-xs font-semibold">Costs per box (€, without recoverable VAT), for Admin → Finance</p>
+          <div className="mt-1 flex flex-wrap gap-3 text-xs">
+            <label>Wine<input name="bf_c_wine" defaultValue={eur(bf.costs.wine_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+            <label>Shipping box<input name="bf_c_box" defaultValue={eur(bf.costs.shipping_box_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+            <label>Transport to Belgium<input name="bf_c_transport" defaultValue={eur(bf.costs.transport_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+            <label>Handling<input name="bf_c_handling" defaultValue={eur(bf.costs.handling_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+            <label>Delivery<input name="bf_c_delivery" defaultValue={eur(bf.costs.delivery_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+            <span className="self-end pb-2 font-semibold">= €{eur(bfBoxCost(bf))} / box</span>
+          </div>
         </fieldset>
         <label className="block font-semibold">Stock cap in boxes (optional)
           <input name="stock_cap" type="number" min={0} defaultValue={s.stock_cap_boxes ?? ""} placeholder="no limit" className="mt-1 w-40 rounded border p-2 font-normal" />

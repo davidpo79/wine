@@ -4,7 +4,8 @@
 import { and, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Expense, Order, OrderAddon } from "@/db/schema";
-import type { CostModel, PaymentFeeKey, ProfitSplit, Settings } from "./settings-defaults";
+import type { BlackFridaySettings, CostModel, PaymentFeeKey, ProfitSplit, Settings } from "./settings-defaults";
+import { isBfBundle } from "./black-friday";
 
 export type OrderCosts = {
   paid: number; // what the customer paid (order + paid add-ons)
@@ -67,12 +68,13 @@ export function feeKey(paymentMethodType: string | null | undefined): PaymentFee
  * so the fixed part of the payment fee is counted per charge.
  */
 export function computeOrderCosts(
-  order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType">,
+  order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType"> & Partial<Pick<Order, "bundleKey" | "country">>,
   addons: Pick<OrderAddon, "amountCents" | "boxes" | "kind" | "sku">[],
-  settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card">>,
+  settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card" | "black_friday">>,
   payments = 1,
 ): OrderCosts {
   const m = settings.cost_model;
+  if (isBfBundle(order.bundleKey) && settings.black_friday) return bfOrderCosts(order, settings.black_friday, m, payments);
   const paid = order.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   // The printed card is not wine: its VAT rate is its own (23% by default).
   const card = addons.filter((a) => a.kind === "card").reduce((n, a) => n + a.amountCents, 0);
@@ -99,10 +101,34 @@ export function computeOrderCosts(
   return { paid, vat, net: paid - vat, ...parts, payment_fees: Math.round(parts.payment_fees), costs: Math.round(costs), profit: Math.round(paid - vatExact - costs), boxes, parcels };
 }
 
+/**
+ * Black Friday box (6 bottles, Belgian warehouse): VAT of the delivery country, then per box wine, carton, transport to
+ * Belgium + delivery (counted as delivery) and handling (counted as other). Payment fees as for any order.
+ */
+function bfOrderCosts(order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType"> & Partial<Pick<Order, "country">>, bf: BlackFridaySettings, m: CostModel, payments: number): OrderCosts {
+  const paid = order.totalCents;
+  const rate = bf.vat_percent[(order.country ?? "") as keyof BlackFridaySettings["vat_percent"]] ?? 21;
+  const vatExact = paid - paid / (1 + rate / 100);
+  const boxes = order.qtyBoxes;
+  const fee = m.payment_fees[feeKey(order.paymentMethodType)] ?? m.payment_fees.other;
+  const c = bf.costs;
+  const parts = {
+    wine: boxes * c.wine_cents,
+    gift_boxes: 0,
+    shipping_boxes: boxes * c.shipping_box_cents,
+    delivery: boxes * (c.transport_cents + c.delivery_cents),
+    payment_fees: (paid * fee.percent) / 100 + fee.fixed_cents * payments,
+    products: 0,
+    other: boxes * c.handling_cents,
+  };
+  const costs = Object.values(parts).reduce((n, v) => n + v, 0);
+  return { paid, vat: Math.round(vatExact), net: Math.round(paid - vatExact), ...parts, payment_fees: Math.round(parts.payment_fees), costs: Math.round(costs), profit: Math.round(paid - vatExact - costs), boxes, parcels: boxes };
+}
+
 const PAID = ["paid", "preparing", "shipped", "delivered"] as const;
 
 /** Recomputes and stores the cost snapshot of one order (called when it is paid and when an add-on is paid). */
-export async function snapshotCosts(orderId: string, settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card">>) {
+export async function snapshotCosts(orderId: string, settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card" | "black_friday">>) {
   const [o] = await db.select().from(schema.orders).where(sql`${schema.orders.id} = ${orderId}`).limit(1);
   if (!o) return null;
   const addons = await db.select().from(schema.orderAddons).where(and(sql`${schema.orderAddons.orderId} = ${orderId}`, sql`${schema.orderAddons.status} = 'paid'`));
@@ -116,7 +142,7 @@ export async function snapshotCosts(orderId: string, settings: Pick<Settings, "c
   return c;
 }
 
-export async function resnapshotAll(settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card">>) {
+export async function resnapshotAll(settings: Pick<Settings, "cost_model" | "upsell_products"> & Partial<Pick<Settings, "gift_card" | "black_friday">>) {
   const rows = await db.select({ id: schema.orders.id }).from(schema.orders).where(inArray(schema.orders.status, [...PAID]));
   for (const r of rows) await snapshotCosts(r.id, settings);
   return rows.length;

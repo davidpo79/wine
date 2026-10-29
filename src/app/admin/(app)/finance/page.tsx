@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { eur } from "@/lib/money";
-import { getCatalog } from "@/lib/catalog";
+import { getBfCatalog, getCatalog } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { computeOrderCosts, dailyPnl, isAdCategory, lisbonDay, splitProfit } from "@/lib/profit";
 import { costModelAction, expenseAction, profitSplitAction } from "../../actions";
@@ -53,6 +53,10 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const ps = settings.profit_split;
   const split = splitProfit(total.profit, total.boxes, ps);
   const examples = (catalog?.bundles ?? []).map((b) => ({ b, c: computeOrderCosts({ totalCents: b.priceCents + b.shippingCents, qtyBoxes: b.qty, paymentMethodType: "card" }, [], settings) }));
+  // Black Friday box (6 bottles), by delivery country (VAT differs: Germany 19%, Spain 21%).
+  const bfExamples = ((await getBfCatalog())?.bundles ?? []).flatMap((b) =>
+    settings.black_friday.countries.map((country) => ({ b, country, c: computeOrderCosts({ totalCents: b.priceCents + b.shippingCents, qtyBoxes: b.qty, paymentMethodType: "card", bundleKey: b.key, country }, [], settings) })),
+  );
 
   return (
     <div className="space-y-6">
@@ -266,6 +270,12 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
                 {examples.map(({ b, c }) => (
                   <tr key={b.key} className="border-t">
                     <td className="py-1 text-left">{b.qty} box{b.qty > 1 ? "es" : ""} ({b.qty * 3} bottles)</td>
+                    <td>{eur(c.paid)}</td><td>{eur(c.vat)}</td><td>{eur(c.costs)}</td><td className="font-semibold text-green-800">{eur(c.profit)}</td>
+                  </tr>
+                ))}
+                {bfExamples.map(({ b, country, c }) => (
+                  <tr key={`${b.key}-${country}`} className="border-t">
+                    <td className="py-1 text-left">Black Friday {country} · {b.qty} box{b.qty > 1 ? "es" : ""} ({b.qty * 6} bottles)</td>
                     <td>{eur(c.paid)}</td><td>{eur(c.vat)}</td><td>{eur(c.costs)}</td><td className="font-semibold text-green-800">{eur(c.profit)}</td>
                   </tr>
                 ))}

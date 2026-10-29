@@ -1,6 +1,7 @@
 "use client";
 
 import { BOT_SOURCE } from "./bots";
+import { contentIdFor, contentNameFor } from "./black-friday";
 
 type Fbq = ((...args: unknown[]) => void) & { loaded?: boolean };
 type Gtag = (...args: unknown[]) => void;
@@ -53,7 +54,7 @@ export function ga4Event(name: TrackName, data: TrackData) {
   window.gtag("event", ga, {
     currency: "EUR",
     value: data.value,
-    items: [{ item_id: "trilogia-2160", item_name: "Trilogia 2160", item_variant: data.bundle_key, quantity: 1 }],
+    items: [{ item_id: contentIdFor(data.bundle_key), item_name: contentNameFor(data.bundle_key), item_variant: data.bundle_key, quantity: 1 }],
   });
 }
 

@@ -30,7 +30,7 @@ export async function middleware(req: NextRequest) {
 
   // First-touch UTM attribution: stored for 30 days, never overwritten by later visits.
   const res = NextResponse.next();
-  if (path === "/" && !req.cookies.get(UTM_COOKIE)) {
+  if ((path === "/" || path.endsWith("/black-friday")) && !req.cookies.get(UTM_COOKIE)) {
     const utm = utmFromSearch(req.nextUrl.searchParams);
     if (utm) {
       res.cookies.set(UTM_COOKIE, encodeURIComponent(JSON.stringify(utm)), {
@@ -44,5 +44,5 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-// Node runtime: the role is read from the database. Only the home page (UTM) and admin / API paths run it.
-export const config = { matcher: ["/", "/admin/:path*", "/api/:path*"], runtime: "nodejs" };
+// Node runtime: the role is read from the database. Only the home and Black Friday pages (UTM) and admin / API paths run it.
+export const config = { matcher: ["/", "/black-friday", "/:locale/black-friday", "/admin/:path*", "/api/:path*"], runtime: "nodejs" };

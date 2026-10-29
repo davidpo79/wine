@@ -17,7 +17,7 @@ import { PER_BOX_FLOOR_CENTS, type PostCutoffMode, type Settings } from "@/lib/s
 import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
-import { lisbonToUtc } from "@/lib/time";
+import { lisbonToUtc, zonedToUtc } from "@/lib/time";
 import { COUNTRIES, isLocale } from "@/lib/markets";
 import { ebookKey, guideFor } from "@/lib/ebook";
 
@@ -279,6 +279,32 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
     if (!Object.values(markets).some((m) => m.enabled)) return { error: "At least one country must stay open." };
     await setSetting("markets", markets);
   }
+  if (fd.get("bf_days") !== null) {
+    const prevBf = (await getSettings()).black_friday;
+    const date = String(fd.get("bf_cutoff_date") ?? "");
+    const time = String(fd.get("bf_cutoff_time") ?? "23:59") || "23:59";
+    const cut = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time) ? zonedToUtc(date, time, "Europe/Madrid") : null;
+    if (!cut || Number.isNaN(cut.getTime())) return { error: "Invalid Black Friday cutoff." };
+    const cost = (k: string, old: number) => parseEuroToCents(String(fd.get(k) ?? "")) ?? old;
+    const vat = (k: string, old: number) => {
+      const n = Number(String(fd.get(k) ?? "").replace(",", "."));
+      return Number.isFinite(n) && n >= 0 && n <= 30 ? n : old;
+    };
+    await setSetting("black_friday", {
+      enabled: fd.get("bf_enabled") === "on",
+      countries: (["DE", "ES"] as const).filter((c) => fd.get(`bf_${c}`) === "on"),
+      cutoff_at: cut.toISOString(),
+      delivery_days: String(fd.get("bf_days") ?? "").trim().slice(0, 20),
+      vat_percent: { DE: vat("bf_vat_DE", prevBf.vat_percent.DE ?? 19), ES: vat("bf_vat_ES", prevBf.vat_percent.ES ?? 21) },
+      costs: {
+        wine_cents: cost("bf_c_wine", prevBf.costs.wine_cents),
+        shipping_box_cents: cost("bf_c_box", prevBf.costs.shipping_box_cents),
+        transport_cents: cost("bf_c_transport", prevBf.costs.transport_cents),
+        handling_cents: cost("bf_c_handling", prevBf.costs.handling_cents),
+        delivery_cents: cost("bf_c_delivery", prevBf.costs.delivery_cents),
+      },
+    });
+  }
   revalidatePath("/admin/settings");
   return { ok: "Settings saved." };
 }
@@ -352,7 +378,7 @@ export async function costModelAction(_: FormState, fd: FormData): Promise<FormS
   await setSetting("upsell_products", products);
   let msg = "Costs saved. New orders use them.";
   if (fd.get("apply_past") === "on") {
-    const n = await resnapshotAll({ cost_model: model, upsell_products: products, gift_card: settings.gift_card });
+    const n = await resnapshotAll({ cost_model: model, upsell_products: products, gift_card: settings.gift_card, black_friday: settings.black_friday });
     msg = `Costs saved and applied to ${n} past paid orders.`;
   }
   revalidatePath("/admin/finance");

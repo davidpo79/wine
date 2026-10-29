@@ -16,6 +16,8 @@ import { ebookFileName, ebookKey, ebookTitle, guideFor } from "./ebook";
 import { getSettings } from "./settings";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { bfProductName, bottlesPerBox, isBfBundle, isBfLocale } from "./black-friday";
+import { BF_COPY } from "@/components/black-friday/copy";
 
 const localeOf = (o: Pick<Order, "locale"> | null): Locale => (o && isLocale(o.locale) ? o.locale : "pt");
 /** Dictionary strings use <b>/<em>; email HTML keeps them as they are. */
@@ -47,7 +49,7 @@ function button(href: string, label: string) {
 function addonLabel(o: Order, a: Pick<OrderAddon, "label"> & Partial<Pick<OrderAddon, "kind" | "boxes">>, locale: Locale = localeOf(o)) {
   if (a.kind !== "boxes" || !a.boxes) return a.label;
   const u = getDict(locale).upsell;
-  return fmt(u.boxesLabel, { what: a.boxes === 1 ? u.whatOne : fmt(u.whatMany, { n: a.boxes }), bottles: a.boxes * 3 });
+  return fmt(u.boxesLabel, { what: a.boxes === 1 ? u.whatOne : fmt(u.whatMany, { n: a.boxes }), bottles: a.boxes * bottlesPerBox(o.bundleKey) });
 }
 
 function orderSummary(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents"> & Partial<Pick<OrderAddon, "kind" | "boxes">>)[] = [], locale: Locale = localeOf(o)) {
@@ -58,7 +60,7 @@ function orderSummary(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents
   const total = o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   const lines = [
     `<strong>${fmt(t.order, { id: esc(o.id) })}</strong>`,
-    fmt(t.product, { boxes: o.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: o.qtyBoxes }), bottles: o.qtyBoxes * 3 }),
+    fmt(t.product, { boxes: o.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: o.qtyBoxes }), bottles: o.qtyBoxes * bottlesPerBox(o.bundleKey) }).replace("Trilogia 2160", isBfBundle(o.bundleKey) ? bfProductName(locale) : "Trilogia 2160"),
     ...addons.map((a) => `+ ${esc(addonLabel(o, a, locale))}: ${eur(a.amountCents)}`),
     fmt(t.subtotalLine, { subtotal: eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0)), shipping: o.shippingCents ? eur(o.shippingCents) : t.shippingIncluded }),
     html_(fmt(t.totalLine, { total: eur(total) })),
@@ -73,7 +75,12 @@ function orderSummary(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents
 // Provider: Telnyx Email when EMAIL_PROVIDER=telnyx (same TELNYX_API_KEY as voice/SMS/WhatsApp), otherwise Resend.
 type Attachment = { filename: string; content: Buffer };
 
-async function send(o: Order | null, to: string, subject: string, html: string, kind: string, attachments: Attachment[] = []) {
+async function send(o: Order | null, to: string, subject0: string, html0: string, kind: string, attachments: Attachment[] = []) {
+  // Black Friday orders: the header names the offer instead of the Christmas Trilogia.
+  let subject = subject0;
+  const bfOrder = !!o && isBfBundle(o.bundleKey);
+  const html = bfOrder ? html0.replace("Trilogia 2160</td>", "Black Friday</td>").replaceAll("Trilogia 2160", bfProductName(localeOf(o!))) : html0;
+  if (bfOrder) subject = subject.replaceAll("Trilogia 2160", "Black Friday");
   const from = process.env.EMAIL_FROM;
   const telnyx = process.env.EMAIL_PROVIDER === "telnyx";
   const key = telnyx ? process.env.TELNYX_API_KEY : process.env.RESEND_API_KEY;
@@ -130,7 +137,7 @@ export async function sendConfirmation(o: Order, addons: (Pick<OrderAddon, "labe
   const locale = localeOf(o);
   const t = getDict(locale).email;
   // The recipe guide goes out in the customer's language once that edition is uploaded (Admin → Settings).
-  const guide = guideFor(await getSettings(), locale);
+  const guide = guideFor(await getSettings(), locale) && !isBfBundle(o.bundleKey); // the guide comes with the Trilogia only
   const link = guide ? await ebookLink(locale) : null;
   const first = (o.customerName ?? "").split(" ")[0];
   const html = layout(
@@ -287,6 +294,18 @@ ${button(`${SITE.url}${contactHref(m.contact)}`, "Responder no admin")}`,
   return send(null, to, `[Mensagem] ${m.subject || m.fromAddr}`, html, "admin_alert");
 }
 
+/** Cutoff an order's reminders speak of: Black Friday's for its boxes, else the Christmas one of its country. */
+export function orderCutoffIso(settings: Pick<Settings, "cutoff_at" | "markets" | "black_friday">, o: Pick<Order, "country" | "bundleKey">): string {
+  return isBfBundle(o.bundleKey) ? settings.black_friday.cutoff_at : marketCutoffIso(settings, o.country);
+}
+
+/** Reminder texts of an order: the dictionary's, with the Black Friday wording for its boxes (German and Spanish). */
+export function recoveryCopy(o: Pick<Order, "bundleKey" | "locale">) {
+  const locale = localeOf(o as Order);
+  const t = getDict(locale).messages.recovery;
+  return isBfBundle(o.bundleKey) && isBfLocale(locale) ? { ...t, ...BF_COPY[locale].recovery } : t;
+}
+
 /** Christmas cutoff of the country a customer buys for (Admin → Settings → markets, else the global cutoff). */
 export function marketCutoffIso(settings: Pick<Settings, "cutoff_at" | "markets">, country: string): string {
   return (isCountry(country) ? settings.markets?.[country]?.cutoff_at : null) ?? settings.cutoff_at;
@@ -353,7 +372,7 @@ export async function sendLeadReminder(lead: Lead, code: string, percent: number
 /** Subject and HTML of an abandoned-checkout email, in the order's language. cutoff: "30/11" style (dayMonthFor). */
 export function recoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string, cutoff: string) {
   const locale = localeOf(o);
-  const t = getDict(locale).messages.recovery;
+  const t = recoveryCopy(o);
   const first = (o.customerName ?? "").split(" ")[0];
   const html = layout(
     kind === "first" ? t.titleFirst : t.titleFinal,
@@ -370,7 +389,7 @@ ${button(link, t.button)}
 
 export async function sendRecoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string) {
   if (!o.email) return;
-  const cutoff = dayMonthFor(localeOf(o), marketCutoffIso(await getSettings(), o.country));
+  const cutoff = dayMonthFor(localeOf(o), orderCutoffIso(await getSettings(), o));
   const { subject, html } = recoveryEmail(o, kind, link, stopLink, cutoff);
   return send(o, o.email, subject, html, `recovery_${kind}`);
 }

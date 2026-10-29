@@ -1,6 +1,6 @@
 import type { Locale } from "../markets";
 
-// Portuguese keeps the original URLs; other languages live under /de, /nl, /fr, /ru, /en with their own legal slugs.
+// Portuguese keeps the original URLs; other languages live under /de, /nl, /fr, /ru, /en, /es with their own legal slugs.
 export type LegalKind = "terms" | "privacy" | "shipping";
 
 export const LEGAL_SLUGS: Record<Locale, Record<LegalKind, string>> = {
@@ -10,6 +10,7 @@ export const LEGAL_SLUGS: Record<Locale, Record<LegalKind, string>> = {
   fr: { terms: "conditions", privacy: "confidentialite", shipping: "livraison-retours" },
   ru: { terms: "usloviya", privacy: "konfidentsialnost", shipping: "dostavka-i-vozvrat" },
   en: { terms: "terms", privacy: "privacy", shipping: "delivery-returns" },
+  es: { terms: "condiciones", privacy: "privacidad", shipping: "envios-devoluciones" },
 };
 
 export function homeHref(locale: Locale) {
@@ -27,7 +28,7 @@ export function legalKindFromSlug(locale: Locale, slug: string): LegalKind | nul
 
 export const LOCALE_COOKIE = "wp_locale";
 
-export const ABOUT_SLUGS: Record<Locale, string> = { pt: "sobre-nos", de: "ueber-uns", nl: "over-ons", fr: "a-propos", ru: "o-nas", en: "about-us" };
+export const ABOUT_SLUGS: Record<Locale, string> = { pt: "sobre-nos", de: "ueber-uns", nl: "over-ons", fr: "a-propos", ru: "o-nas", en: "about-us", es: "sobre-nosotros" };
 
 export function aboutHref(locale: Locale) {
   return locale === "pt" ? `/${ABOUT_SLUGS.pt}` : `/${locale}/${ABOUT_SLUGS[locale]}`;

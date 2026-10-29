@@ -5,12 +5,20 @@ import { COUNTRIES, COUNTRIES_FOR_LOCALE, defaultCountry, isCountry, isLocale, l
 import { clientIp } from "./request";
 import type { Settings } from "./settings-defaults";
 import { LOCALE_COOKIE } from "./i18n/paths";
+import { bfOpenCountries, isBfBundle } from "./black-friday";
 
 /** Markets taking orders. Logged-in admins see every market as open (to preview and test before launch). */
 export async function enabledCountries(settings: Settings): Promise<Country[]> {
   const on = (Object.keys(settings.markets) as Country[]).filter((c) => isCountry(c) && settings.markets[c]?.enabled);
   if (await getAdmin().catch(() => null)) return [...COUNTRIES];
   return on.length ? on : ["PT"];
+}
+
+/** Countries an order may be delivered to: the Black Friday countries for its boxes, else the open markets. */
+export async function countriesForOrder(order: { bundleKey: string }, settings: Settings): Promise<Country[]> {
+  if (!isBfBundle(order.bundleKey)) return enabledCountries(settings);
+  if (await getAdmin().catch(() => null)) return [...settings.black_friday.countries];
+  return bfOpenCountries(settings.black_friday);
 }
 
 export function languagesOf(countries: Country[]): Locale[] {
