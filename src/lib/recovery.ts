@@ -127,7 +127,10 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
   const channels: string[] = [];
 
   if (step.step === "reminder_20m" || step.step === "final_email") {
-    if (!order.consentMessages) return { status: "skipped", result: { reason: "no_message_consent" }, channels };
+    // The e-mail reminder is about the order the customer started (no promotions) and goes to anyone who left an
+    // e-mail: the checkout says so under the e-mail field, and every reminder has a stop link. WhatsApp and SMS go
+    // only to customers who ticked the consent box.
+    if (!order.consentMessages && !order.email) return { status: "skipped", result: { reason: "no_message_consent" }, channels };
     if (order.email) {
       channels.push("email");
       result.email = await sendRecoveryEmail(order, step.step === "final_email" ? "final" : "first", link, stopUrl(order.id)).then(
@@ -135,7 +138,7 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
         (e) => `error: ${e}`,
       );
     }
-    if (step.step === "reminder_20m" && order.phone) {
+    if (step.step === "reminder_20m" && order.phone && order.consentMessages) {
       let whatsappSent = false;
       if (whatsappConfigured() && !recoveryTemplateLanguage(locale)) {
         // No approved template in this language: never the Portuguese one, the SMS below goes out instead.

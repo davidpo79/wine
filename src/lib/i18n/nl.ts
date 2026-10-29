@@ -351,6 +351,7 @@ export const nl: Dict = {
     saved: "✓ Opgeslagen",
     offline: "Geen verbinding, we proberen het opnieuw",
     email: "E-mail",
+    emailReminderNote: "Als u uw bestelling niet afrondt, kunnen we u een herinnering per e-mail sturen. U kunt dit in de e-mail zelf stoppen.",
     phone: "Mobiel nummer",
     phonePlaceholder: "912 345 678",
     consentTitle: "Verlies uw bestelling niet",

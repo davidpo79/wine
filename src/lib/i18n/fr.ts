@@ -351,6 +351,7 @@ export const fr: Dict = {
     saved: "✓ Enregistré",
     offline: "Pas de connexion, nouvelle tentative",
     email: "E-mail",
+    emailReminderNote: "Si vous ne finalisez pas votre commande, nous pouvons vous envoyer un rappel par e-mail. Vous pouvez l'arrêter depuis l'e-mail.",
     phone: "Téléphone mobile",
     phonePlaceholder: "912 345 678",
     consentTitle: "Ne perdez pas votre commande",

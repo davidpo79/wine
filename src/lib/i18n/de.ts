@@ -351,6 +351,7 @@ export const de: Dict = {
     saved: "✓ Gespeichert",
     offline: "Keine Verbindung, neuer Versuch läuft",
     email: "E-Mail",
+    emailReminderNote: "Wenn Sie Ihre Bestellung nicht abschließen, senden wir Ihnen eventuell eine Erinnerung per E-Mail. Sie können sie direkt in der E-Mail abbestellen.",
     phone: "Mobilnummer",
     phonePlaceholder: "+49 151 23456789",
     consentTitle: "Verlieren Sie Ihre Bestellung nicht",

@@ -1033,6 +1033,7 @@ export function CheckoutPage({
               inputMode: "email",
               required: true,
             })}
+            <p className="-mt-2 text-xs text-muted">{t.emailReminderNote}</p>
             {input("phone", t.phone, {
               type: "tel",
               autoComplete: "tel",

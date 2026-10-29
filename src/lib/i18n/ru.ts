@@ -352,6 +352,7 @@ export const ru: Dict = {
     saved: "✓ Сохранено",
     offline: "Нет соединения, пробуем снова",
     email: "Email",
+    emailReminderNote: "Если Вы не завершите заказ, мы можем отправить Вам напоминание по email. Отказаться можно прямо в письме.",
     phone: "Мобильный телефон",
     phonePlaceholder: "912 345 678",
     consentTitle: "Не потеряйте свой заказ",

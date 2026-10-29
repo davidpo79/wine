@@ -351,6 +351,7 @@ export const pt = {
     saved: "✓ Guardado",
     offline: "Sem ligação, a tentar de novo",
     email: "Email",
+    emailReminderNote: "Se não concluir a encomenda, podemos enviar-lhe um lembrete por email. Pode cancelar no próprio email.",
     phone: "Telemóvel",
     phonePlaceholder: "912 345 678",
     consentTitle: "Não perca a sua encomenda",
