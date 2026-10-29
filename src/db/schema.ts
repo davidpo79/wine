@@ -682,3 +682,56 @@ export const waMessages = pgTable(
   },
   (t) => [index("wa_lead_idx").on(t.ptLeadId, t.createdAt), index("wa_phone_idx").on(t.phone, t.createdAt), uniqueIndex("wa_provider_id_idx").on(t.providerId)],
 );
+
+// Newsletter: the shop's own mailing list (imported customer lists, site buyers, leads with marketing consent),
+// campaigns designed in Admin → Newsletter from a holiday template, and one row per recipient per campaign.
+export const newsletterContacts = pgTable(
+  "newsletter_contacts",
+  {
+    id: serial("id").primaryKey(),
+    email: text("email").notNull().unique(), // always lower case
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]), // e.g. "clientes-woo", "site-buyers", "leads"
+    source: text("source").notNull().default("import"), // import | site_orders | leads | manual
+    status: text("status").notNull().default("subscribed"), // subscribed | unsubscribed | bounced | complained
+    statusAt: timestamp("status_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("nl_contacts_status_idx").on(t.status)],
+);
+
+export const newsletterCampaigns = pgTable("newsletter_campaigns", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  template: text("template").notNull(), // key of a template in src/lib/newsletter/templates.ts
+  content: jsonb("content").$type<Record<string, unknown>>().notNull(), // NewsletterContent
+  audience: jsonb("audience").$type<{ tags: string[]; excludeBuyersSince: string | null }>().notNull().default({ tags: [], excludeBuyersSince: null }),
+  status: text("status").notNull().default("draft"), // draft | scheduled | sending | sent | cancelled
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  createdBy: text("created_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const newsletterSends = pgTable(
+  "newsletter_sends",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id").notNull().references(() => newsletterCampaigns.id, { onDelete: "cascade" }),
+    contactId: integer("contact_id").notNull().references(() => newsletterContacts.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    status: text("status").notNull().default("queued"), // queued | sending | sent | failed | skipped
+    resendId: text("resend_id"),
+    error: text("error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    clickedAt: timestamp("clicked_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("nl_sends_unique").on(t.campaignId, t.contactId), index("nl_sends_status_idx").on(t.campaignId, t.status), index("nl_sends_resend_idx").on(t.resendId)],
+);
+
+export type NewsletterContact = typeof newsletterContacts.$inferSelect;
+export type NewsletterCampaign = typeof newsletterCampaigns.$inferSelect;

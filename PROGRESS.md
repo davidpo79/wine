@@ -2,6 +2,8 @@
 
 Last updated: 10/10/2026 (session 1)
 
+## 29/10: Admin → Newsletter. Own mailing list (import CSV/.xlsx with tags, add site buyers and leads with consent), campaigns from 6 holiday templates (Natal, Ano Novo, São Valentim, Dia do Pai, Dia da Mãe, Clássico) with editable texts/images and live preview, upcoming-occasions calendar, audience by tag minus recent buyers, test send, schedule or send now (worker: Resend batches of 100, 500/min, one-click unsubscribe headers), stats from Resend webhooks (opened/clicked/bounced/complained). Optional env NEWSLETTER_FROM (defaults to EMAIL_FROM).
+
 ## 10/10 (session 1, later): landing page rebuilt from David's reference (trilogia-2160-claude-code-spec.html): exact markup/CSS/interactions, real photos, prices 45,90 / 82,62 / 117,05, Stripe as main CTA + WhatsApp secondary. Admin in English.
 
 ## 10/10 (later): exit popup (5% code NATAL5, step 2 mobile → NATALMAIS free shipping), countdown, sticky checkout, smart checkout (details step before Stripe) with abandoned-checkout follow-up: 20 min message (WhatsApp/SMS + email), AI call via Telnyx at 2 h in call hours, final email next day. Setup: docs/RECOVERY-SETUP.md. Waiting for Telnyx + WhatsApp credentials.

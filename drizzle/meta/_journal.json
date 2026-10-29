@@ -169,6 +169,13 @@
       "when": 1793115563558,
       "tag": "0023_wa_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793258977759,
+      "tag": "0024_newsletter",
+      "breakpoints": true
     }
   ]
 }

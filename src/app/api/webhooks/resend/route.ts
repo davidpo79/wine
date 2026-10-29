@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { inboxConfigured, saveReceived } from "@/lib/inbox";
 import { sendInboxAlert } from "@/lib/email";
+import { recordEmailEvent } from "@/lib/newsletter";
 
 // Resend webhook (event email.received). The email itself is always fetched from the Resend API by id, so a forged
 // call can at most make us re-check Resend. With RESEND_WEBHOOK_SECRET set, the Svix signature is verified too.
@@ -27,6 +28,11 @@ export async function POST(req: Request) {
     ev = JSON.parse(body);
   } catch {
     return new Response("bad json", { status: 400 });
+  }
+  // Newsletter delivery events (opens, clicks, bounces, spam complaints): stats and list hygiene.
+  if (ev.type && ["email.opened", "email.clicked", "email.bounced", "email.complained"].includes(ev.type) && ev.data?.email_id) {
+    await recordEmailEvent(ev.type, ev.data.email_id).catch((e) => console.error("[newsletter] webhook", e));
+    return new Response(null, { status: 204 });
   }
   if (ev.type !== "email.received" || !ev.data?.email_id || !inboxConfigured()) return new Response(null, { status: 204 });
   try {
