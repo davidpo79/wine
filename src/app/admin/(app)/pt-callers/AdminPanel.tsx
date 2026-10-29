@@ -603,6 +603,15 @@ function Classify({ lead, needBasis, needLine, onDone }: { lead: Lead; needBasis
 
 const blockedLead = (l: Lead) => l.status === "opt_out" || l.status === "blocked";
 
+// Shown in the offer only while the B2B catalogue is attached (the tick box adds or removes it).
+const CATALOG_LINE = "Em anexo envio o nosso catálogo de Natal para empresas, com preços por quantidade.";
+const withCatalogLine = (body: string, on: boolean) => {
+  const without = body.replace(`${CATALOG_LINE}\n\n`, "").replace(CATALOG_LINE, "");
+  if (!on) return without;
+  const at = without.indexOf("Se fizer sentido");
+  return at >= 0 ? `${without.slice(0, at)}${CATALOG_LINE}\n\n${without.slice(at)}` : without;
+};
+
 const offerSubject = () => "Prendas de Natal para a sua equipa: Trilogia 2160";
 const offerBody = (first: string | null) => `Bom dia${first ? ` ${first}` : ""},
 
@@ -611,6 +620,8 @@ Somos a Wine Portugal (W.O.P Wines of Portugal, Unipessoal Lda.). Preparamos a T
 Para empresas, preparamos uma proposta à medida do número de colaboradores, com entrega no escritório ou em cada morada.
 
 Pode ver a caixa aqui: https://vinho.prendadenatal.com
+
+${CATALOG_LINE}
 
 Se fizer sentido, diga-me quantas pessoas pretende presentear e envio-lhe a proposta.
 
@@ -639,7 +650,10 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={14} className="mt-1 w-full rounded-lg border p-2 text-sm font-normal" />
         </label>
         <label className="mt-2 flex items-center gap-2 text-sm">
-          <input id="offer-attach-catalog" type="checkbox" checked={attachCatalog} onChange={(e) => setAttachCatalog(e.target.checked)} />
+          <input id="offer-attach-catalog" type="checkbox" checked={attachCatalog} onChange={(e) => {
+              setAttachCatalog(e.target.checked);
+              setBody((b) => withCatalogLine(b, e.target.checked));
+            }} />
           📎 Attach the B2B catalogue (Catálogo B2B Natal 2026, PDF, 2.4 MB)
         </label>
         {err && <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-800">⚠ {err}</p>}
