@@ -108,6 +108,10 @@ export function AdminPanel(p: {
   reps: { id: number; email: string }[];
   leads: Lead[];
   requests: Req[];
+  /** Team members holding leads (admin view): a holder who is not a Sales rep sees everyone's leads. */
+  holders?: { id: number; email: string; role: string; disabled: boolean; lastLogin: string | null; leads: number }[];
+  /** Leads more than one sales rep worked on in the last 30 days. */
+  sharedLeads?: number;
   /** Leads nobody has taken yet (the rep's "take new leads" pool). */
   unclaimed?: number;
   /** A sales rep's view: only her own leads, no import, delete, assignment or setup. */
@@ -302,6 +306,8 @@ export function AdminPanel(p: {
       </section>
       </>
       )}
+
+      {!lim && p.holders && p.holders.length > 0 && <RepSplit holders={p.holders} shared={p.sharedLeads ?? 0} />}
 
       {msg && (
         <div className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-sm ${msg.ok ? "border-green-300 bg-green-50 text-green-900" : "border-red-300 bg-red-50 text-red-900"}`}>
@@ -716,6 +722,44 @@ function AddLead({ busy, onAdd }: { busy: boolean; onAdd: (v: Record<string, str
 
 
 /** Floating phone button: opens the dialer window (keypad + number). Hidden while the dialer or a call is open. */
+function RepSplit({ holders, shared }: { holders: NonNullable<Parameters<typeof AdminPanel>[0]["holders"]>; shared: number }) {
+  const wrong = holders.filter((h) => h.role !== "pt_caller" && h.leads > 0);
+  const bad = wrong.length > 0 || shared > 0;
+  return (
+    <details className={`rounded-xl border p-5 text-sm ${bad ? "border-red-300 bg-red-50" : "bg-white"}`} open={bad}>
+      <summary className="cursor-pointer font-semibold">
+        Who has which leads{bad ? " ⚠ check this" : ""}
+      </summary>
+      <p className="mt-1 text-xs text-muted">Each sales rep sees only her own leads, but only when she logs in with her own account and her role is <b>Sales rep</b>. An Admin sees every lead.</p>
+      <table className="mt-3 w-full text-left text-xs">
+        <thead className="text-muted">
+          <tr><th className="py-1">Account</th><th>Role</th><th>Leads</th><th>Last login</th></tr>
+        </thead>
+        <tbody>
+          {holders.map((h) => (
+            <tr key={h.id} className="border-t">
+              <td className="py-1.5">{h.email}{h.disabled && <span className="ml-1 text-muted">(disabled)</span>}</td>
+              <td className={h.role === "pt_caller" ? "" : "font-semibold text-red-700"}>{h.role === "pt_caller" ? "Sales rep" : `${h.role} (sees all leads)`}</td>
+              <td>{h.leads}</td>
+              <td>{h.lastLogin ? new Date(h.lastLogin).toLocaleString("en-GB", { timeZone: "Europe/Lisbon", dateStyle: "short", timeStyle: "short" }) : "never"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {wrong.length > 0 && (
+        <p className="mt-3 font-semibold text-red-800">
+          {wrong.map((w) => w.email).join(", ")} {wrong.length === 1 ? "holds" : "hold"} leads but {wrong.length === 1 ? "is not a Sales rep" : "are not Sales reps"}: change the role in <Link href="/admin/team" className="underline">Team</Link>.
+        </p>
+      )}
+      {shared > 0 && (
+        <p className="mt-2 font-semibold text-red-800">
+          {shared} lead{shared === 1 ? " was" : "s were"} opened by more than one sales rep in the last 30 days. Usually two reps share one login (give each her own account in Team), or leads were moved from one rep to another.
+        </p>
+      )}
+    </details>
+  );
+}
+
 function ClaimBox({ busy, unclaimed, onClaim }: { busy: boolean; unclaimed: number; onClaim: (n: number) => void }) {
   return (
     <section className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 text-sm">
