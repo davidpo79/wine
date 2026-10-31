@@ -1031,3 +1031,27 @@ dbTest("whatsapp: a rep writes only to her own leads; demo and opted-out refused
   await D!.sql`update pt_leads set status = 'opt_out' where id = ${l.id}`;
   assert.match(why(await wa.waSend(rep, l.id, { mode: "text", text: "Olá" })), /not to be contacted/);
 });
+
+dbTest("notes stay with the rep who wrote them: a lead moved to another rep shows her neither the note nor the earlier calls; split never moves a taken lead", async () => {
+  setEnv(offEnv);
+  const [l] = await D!.db.insert(D!.schema.ptLeads).values({ apolloPersonId: `note-${RUN}-${Math.random()}`, firstName: "Rui", phone: "+351912340000", assignedTo: rep.id, status: "ready", demo: true, retentionUntil: new Date(Date.now() + 90 * 86400_000) }).returning();
+  assert.equal((await svc!.setOutcome(rep, l.id, { status: "callback", note: "Ligar à tarde, fala com a Joana" })).ok, true);
+  const hcId = `hc_note_${RUN}_${l.id}`;
+  await D!.db.insert(D!.schema.humanCalls).values({ id: hcId, toNumber: "+351912340000", initiatedBy: rep.id, status: "completed" });
+  await D!.db.insert(D!.schema.ptCalls).values({ humanCallId: hcId, leadId: l.id, repId: rep.id, note: "Nota privada da primeira" });
+  assert.equal((await svc!.listForRep(rep)).find((x) => x.id === l.id)?.note, "Ligar à tarde, fala com a Joana");
+  // "Split evenly" with this lead selected keeps it with its rep.
+  const s = await svc!.distributeLeads(admin, [l.id]);
+  assert.equal(s.ok, false);
+  assert.equal((await leadRow(l.id)).assigned_to, rep.id);
+  // Moved on purpose by the admin: the new rep sees neither the old note nor the old calls; the admin sees both.
+  await svc!.assignLeads(admin, [l.id], rep2.id);
+  assert.equal((await svc!.listForRep(rep2)).find((x) => x.id === l.id)?.note, null);
+  const h2 = await svc!.callHistory(rep2, l.id);
+  assert.equal(h2.ok, true);
+  assert.equal(h2.calls!.some((c) => c.note === "Nota privada da primeira"), false);
+  assert.ok((await svc!.callHistory(admin, l.id)).calls!.some((c) => c.note === "Nota privada da primeira"));
+  // Her own note is hers.
+  await svc!.setOutcome(rep2, l.id, { status: "callback", note: "A minha nota" });
+  assert.equal((await svc!.listForRep(rep2)).find((x) => x.id === l.id)?.note, "A minha nota");
+});

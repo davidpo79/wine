@@ -45,7 +45,7 @@ export const panelLead = (l: Row, maskForRep = false) => ({
   assignedTo: l.assignedTo,
   demo: l.demo,
   attempts: l.attempts,
-  note: l.note,
+  note: maskForRep ? null : l.note, // the rep's screen shows only her own notes (set by the page)
   failReason: l.failReason,
   fetchedAt: l.fetchedAt.toISOString(),
   retentionUntil: l.retentionUntil.toISOString(),

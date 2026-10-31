@@ -32,7 +32,7 @@ export default async function MyLeads() {
       config={panelConfig()}
       credits={{ real: NO_CREDITS, demo: NO_CREDITS }}
       reps={[{ id: me.id, email: me.email }]}
-      leads={leads.map((l) => panelLead(l, true))}
+      leads={leads.map((l) => ({ ...panelLead(l, true), note: l.noteBy === me.id ? l.note : null }))}
       requests={[]}
     />
   );

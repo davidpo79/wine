@@ -531,7 +531,9 @@ export const ptLeads = pgTable(
     attempts: integer("attempts").notNull().default(0),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
     callbackAt: timestamp("callback_at", { withTimezone: true }),
-    note: text("note"), // short business note only, no personal remarks
+    note: text("note"),
+    noteBy: integer("note_by"), // who wrote the note: a sales rep sees only her own notes
+// short business note only, no personal remarks
     failReason: text("fail_reason"),
     source: text("source").notNull().default("apollo"),
     demo: boolean("demo").notNull().default(false), // created by the mock while the flags are off: never dialable

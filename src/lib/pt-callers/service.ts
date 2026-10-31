@@ -411,9 +411,10 @@ export async function distributeLeads(me: Me, ids: number[]) {
   const pool = await db
     .select({ id: LEADS.id })
     .from(LEADS)
-    .where(and(ids.length ? inArray(LEADS.id, ids) : isNull(LEADS.assignedTo), sql`${LEADS.status} not in ('opt_out','blocked','calling')`))
+    // Only leads nobody has: a rep keeps the leads she already works on (use Assign to move one on purpose).
+    .where(and(isNull(LEADS.assignedTo), ...(ids.length ? [inArray(LEADS.id, ids)] : []), sql`${LEADS.status} not in ('opt_out','blocked','calling')`))
     .orderBy(sql`${LEADS.phone} is null`, LEADS.id);
-  if (!pool.length) return { ok: false, reason: "No leads to distribute." };
+  if (!pool.length) return { ok: false, reason: ids.length ? "All the chosen leads already have a sales rep. Use Assign to move a lead on purpose." : "No leads to distribute." };
   const per: Record<number, number[]> = {};
   pool.forEach((l, i) => (per[reps[i % reps.length].id] ??= []).push(l.id));
   for (const [repId, list] of Object.entries(per)) {
@@ -478,7 +479,7 @@ export async function listForRep(me: Me): Promise<RepLead[]> {
     status: l.status,
     lastAttemptAt: l.lastAttemptAt?.toISOString() ?? null,
     callbackAt: l.callbackAt?.toISOString() ?? null,
-    note: l.note,
+    note: l.noteBy === me.id ? l.note : null, // another rep's (or the admin's) note stays private
     source: l.source === "demo" ? "Demonstração (fictício)" : "Apollo.io",
     fetchedAt: l.fetchedAt.toISOString(),
     demo: l.demo,
@@ -519,6 +520,7 @@ export async function setOutcome(me: Me, leadId: number, o: { status: string; no
     .set({
       status: o.status,
       note: o.note !== undefined ? o.note.slice(0, 280) || null : l.note,
+      noteBy: o.note !== undefined ? me.id : l.noteBy,
       callbackAt: cb && !Number.isNaN(cb.getTime()) ? cb : null,
       lockedBy: null,
       lockUntil: null,
@@ -548,7 +550,8 @@ export async function callHistory(me: Me, leadId: number): Promise<{ ok: boolean
     .from(schema.ptCalls)
     .leftJoin(H, eq(H.id, schema.ptCalls.humanCallId))
     .leftJoin(schema.adminUsers, eq(schema.adminUsers.id, schema.ptCalls.repId))
-    .where(eq(schema.ptCalls.leadId, leadId))
+    // A sales rep sees only her own calls on the lead (a lead moved to her keeps the previous rep's notes private).
+    .where(and(eq(schema.ptCalls.leadId, leadId), ...(me.role === "admin" ? [] : [eq(schema.ptCalls.repId, me.id)])))
     .orderBy(sql`${schema.ptCalls.createdAt} desc`)
     .limit(30);
   await logAccess(me.id, leadId, "view", { history: true });
