@@ -213,12 +213,11 @@ export function BlackFridayPage({
               <article key={w.name} className="bf-wine">
                 <div className="bf-wineimg">
                   {w.img ? (
-                    // The pack shot is lit flat: a cylinder shade cut to the bottle's own outline makes the label sit on
-                    // a round bottle, and a contact shadow and soft reflection ground it.
+                    // The pack shots carry a baked cylinder shade and bowed label edges; a contact shadow and soft
+                    // reflection ground them.
                     <span className="bf-bottle" style={{ ["--src" as string]: `url(${w.img})` }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={w.img} alt={w.name} loading="lazy" />
-                      <span className="bf-bottle-shade" aria-hidden="true" />
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img className="bf-bottle-refl" src={w.img} alt="" aria-hidden="true" loading="lazy" />
                     </span>

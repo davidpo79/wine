@@ -61,7 +61,6 @@
 .bf-wineimg{background:radial-gradient(60% 55% at 50% 45%,#2a0809,transparent 75%)}
 .bf-bottle{position:relative;display:inline-block;line-height:0;padding-bottom:14px}
 .bf-bottle>img:first-child{position:relative;filter:drop-shadow(0 10px 14px #000b)}
-.bf-bottle-shade{position:absolute;inset:0 0 14px;-webkit-mask:var(--src) center/contain no-repeat;mask:var(--src) center/contain no-repeat;background:linear-gradient(90deg,#000b 0%,#0006 14%,#0000 30%,#fff3 38%,#fff1 44%,#0000 56%,#0004 76%,#000c 100%);pointer-events:none}
 .bf-bottle:after{content:"";position:absolute;left:12%;right:12%;bottom:8px;height:14px;border-radius:50%;background:radial-gradient(closest-side,#000e,#0000);z-index:-1}
 .bf-bottle-refl{position:absolute;left:0;top:100%;margin-top:-14px;max-height:240px;transform:scaleY(-1);opacity:.18;-webkit-mask-image:linear-gradient(to top,#000 0,#0000 22%);mask-image:linear-gradient(to top,#000 0,#0000 22%);pointer-events:none}
 @media(max-width:720px){.bf-bottle-refl{max-height:210px}}

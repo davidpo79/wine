@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: c.metaTitle,
     description,
     alternates: { canonical: bfHref(locale), languages: Object.fromEntries(BF_LOCALES.map((l) => [LOCALE_INFO[l].htmlLang, bfHref(l)])) },
-    openGraph: { locale: LOCALE_INFO[locale].og, title: c.metaTitle, description, images: [{ url: `${SITE.url}/lp/bf/bottles.webp`, width: 1200, height: 749 }] },
+    openGraph: { locale: LOCALE_INFO[locale].og, title: c.metaTitle, description, images: [{ url: `${SITE.url}/lp/bf/bottles.webp`, width: 1200, height: 712 }] },
   };
 }
 
