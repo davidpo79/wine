@@ -240,7 +240,7 @@ export async function recoveryTemplateStatus(): Promise<{ ok: boolean; message: 
 // A rep may write first only with this approved template, and only to someone who asked for WhatsApp on the call.
 // Once the person replies, Meta opens a 24 h window in which free text is allowed (each reply opens it again).
 
-export const PROSPECT_TEMPLATE_NAME = "contacto_empresas";
+export const PROSPECT_TEMPLATE_NAME = "contacto_natal_equipa";
 export const PROSPECT_TEMPLATE_LANG = "pt_PT";
 export const WINDOW_MS = 24 * 3600_000;
 
