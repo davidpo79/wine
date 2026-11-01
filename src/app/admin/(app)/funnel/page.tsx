@@ -24,7 +24,7 @@ const FIELD_LABEL: Record<string, string> = {
   nif: "NIF",
   country: "Country",
 };
-type Sp = { p?: string; src?: string; dev?: string; cc?: string; ads?: string; v?: string };
+type Sp = { p?: string; src?: string; dev?: string; cc?: string; ads?: string; v?: string; fn?: string };
 const VIEWS = { all: "All visits", checkout: "Reached checkout, no purchase", purchased: "Purchased", problems: "Errors or rage clicks" } as const;
 
 function furthest(s: SessionRow) {
@@ -36,7 +36,7 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const period: Period = sp.p && sp.p in PERIODS ? (sp.p as Period) : "7d";
   const since = period === "today" ? startOfLisbonDay(0) : period === "7d" ? startOfLisbonDay(6) : period === "30d" ? startOfLisbonDay(29) : null;
-  const filter = { since, source: sp.src, device: sp.dev, country: sp.cc, adsOnly: sp.ads === "1" };
+  const filter = { since, source: sp.src, device: sp.dev, country: sp.cc, adsOnly: sp.ads === "1", funnel: sp.fn };
   const sessions = await journeySessions(filter);
   const [fields, top] = await Promise.all([fieldStats(sessions, since), topEvents(sessions, since)]);
   const steps = funnelOf(sessions);
@@ -81,6 +81,17 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
         <div className="flex overflow-hidden rounded-lg border bg-white">
           <Link href={href({ ads: undefined })} className={`px-3 py-1.5 ${sp.ads !== "1" ? "bg-night text-paper" : "hover:bg-paper"}`}>All traffic</Link>
           <Link href={href({ ads: "1" })} className={`px-3 py-1.5 ${sp.ads === "1" ? "bg-night text-paper" : "hover:bg-paper"}`}>From ads</Link>
+        </div>
+        <div className="flex overflow-hidden rounded-lg border bg-white">
+          {[
+            ["", "All funnels"],
+            ["xmas", "Christmas · Trilogia"],
+            ["bf", "Black Friday"],
+          ].map(([k, label]) => (
+            <Link key={k} href={href({ fn: k || undefined })} className={`px-3 py-1.5 ${(sp.fn ?? "") === k ? (k === "bf" ? "bg-[#e11d2a] text-white" : "bg-night text-paper") : "hover:bg-paper"}`}>
+              {label}
+            </Link>
+          ))}
         </div>
         {active.length > 0 && (
           <span className="rounded-full bg-paper px-3 py-1 text-xs">

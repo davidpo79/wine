@@ -6,7 +6,8 @@ import { db, schema } from "@/db";
 import { PAID_STATUSES } from "./stats";
 import { IN_APP_NOISE_PATTERN } from "./journey";
 
-export type JourneyFilter = { since: Date | null; source?: string; device?: string; country?: string; adsOnly?: boolean };
+/** funnel: "bf" = visits to the Black Friday page (or with a Black Friday order), "xmas" = every other visit. */
+export type JourneyFilter = { since: Date | null; source?: string; device?: string; country?: string; adsOnly?: boolean; funnel?: string };
 
 export type SessionRow = {
   sessionId: string;
@@ -35,6 +36,7 @@ export type SessionRow = {
   lastField: string | null;
   rage: number;
   jsErrors: number;
+  blackFriday: boolean;
 };
 
 const CONTACT_FIELDS = ["email", "tel"];
@@ -42,7 +44,7 @@ const ADDRESS_FIELDS = ["address-line1", "postal-code", "city"];
 
 export const FUNNEL_STEPS = [
   { key: "visit", label: "Visited", hint: "Opened any page" },
-  { key: "sawOffers", label: "Saw the offers", hint: "Scrolled to the bundles (1, 2 or 4 boxes)" },
+  { key: "sawOffers", label: "Saw the offers", hint: "Scrolled to the bundles (Black Friday: opened its page)" },
   { key: "clickedBuy", label: "Clicked to buy", hint: "Clicked “Encomendar” on the landing page" },
   { key: "checkout", label: "Checkout opened", hint: "Checkout page loaded" },
   { key: "started", label: "Started the form", hint: "Clicked into the first checkout field" },
@@ -74,7 +76,9 @@ export async function journeySessions(f: JourneyFilter): Promise<SessionRow[]> {
         count(*)::int as events,
         coalesce(max((props->>'pct')::int) filter (where name = 'scroll'), 0) as max_scroll,
         coalesce(sum((props->>'active')::int) filter (where name = 'page_leave'), 0)::bigint as active_ms,
-        bool_or(name = 'section' and props->>'id' = 'escolher') as saw_offers,
+        -- The Black Friday page shows its 1/2/3-box picker on load: opening it counts as seeing the offers.
+        bool_or((name = 'section' and props->>'id' = 'escolher') or (name = 'page_view' and path like '%/black-friday%')) as saw_offers,
+        bool_or(path like '%/black-friday%') as bf_page,
         bool_or(name = 'click' and props->>'label' = 'checkout_cta') as clicked_buy,
         bool_or(name = 'checkout_view') as checkout,
         bool_or(name = 'field_focus' and path like '%checkout%') as started,
@@ -91,7 +95,8 @@ export async function journeySessions(f: JourneyFilter): Promise<SessionRow[]> {
       where created_at >= ${since.toISOString()}::timestamptz
       group by session_id
     )
-    select s.*, coalesce(o.status::text in (${list([...PAID_STATUSES])}), false) as purchased
+    select s.*, coalesce(o.status::text in (${list([...PAID_STATUSES])}), false) as purchased,
+      (s.bf_page or coalesce(o.bundle_key like 'bf%', false)) as black_friday
     from s left join orders o on o.id = s.order_id
     order by s.first_at desc
   `)) as unknown as Record<string, unknown>[];
@@ -124,6 +129,7 @@ export async function journeySessions(f: JourneyFilter): Promise<SessionRow[]> {
       lastField: (r.last_field as string) ?? null,
       rage: Number(r.rage),
       jsErrors: Number(r.js_errors),
+      blackFriday: !!r.black_friday,
     }),
   );
   return out.filter(
@@ -131,6 +137,8 @@ export async function journeySessions(f: JourneyFilter): Promise<SessionRow[]> {
       // Bots and tests only when asked for by name (Admin → Funnel → source "Bots & tests").
       (s.source !== BOT_SOURCE || f.source === BOT_SOURCE) &&
       (!f.adsOnly || s.source.endsWith(" ads")) &&
+      (f.funnel !== "bf" || s.blackFriday) &&
+      (f.funnel !== "xmas" || !s.blackFriday) &&
       (!f.source || s.source === f.source) &&
       (!f.device || s.device === f.device) &&
       (!f.country || s.country === f.country),
