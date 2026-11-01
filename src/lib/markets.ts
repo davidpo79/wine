@@ -1,12 +1,13 @@
 // Countries we can sell to and the languages the site speaks. Portugal ships from the Douro (CTT, MB WAY,
 // Multibanco); Germany, the Netherlands, Belgium and Luxembourg ship from the Belgian warehouse (pricing of 17/10/2026).
+// Spain (es) ships from the Belgian warehouse too (Black Friday box of 2026).
 // Russian is a language of the Portugal market (the Russian-speaking community living in Portugal), not a country:
 // same products, prices, CTT delivery and payment methods as Portuguese. English is the same: English speakers living in Portugal.
 // A market only takes orders once it is enabled in Admin → Settings (excise and VAT must be sorted first).
 
-export const LOCALES = ["pt", "de", "nl", "fr", "ru", "en"] as const;
+export const LOCALES = ["pt", "de", "nl", "fr", "ru", "en", "es"] as const;
 export type Locale = (typeof LOCALES)[number];
-export const COUNTRIES = ["PT", "DE", "NL", "BE", "LU"] as const;
+export const COUNTRIES = ["PT", "DE", "NL", "BE", "LU", "ES"] as const;
 export type Country = (typeof COUNTRIES)[number];
 
 export const isLocale = (x: unknown): x is Locale => typeof x === "string" && (LOCALES as readonly string[]).includes(x);
@@ -19,6 +20,7 @@ export const LOCALE_INFO: Record<Locale, { intl: string; htmlLang: string; og: s
   fr: { intl: "fr-BE", htmlLang: "fr", og: "fr_BE", name: "Français" },
   ru: { intl: "ru-RU", htmlLang: "ru", og: "ru_RU", name: "Русский" },
   en: { intl: "en-IE", htmlLang: "en", og: "en_GB", name: "English" },
+  es: { intl: "es-ES", htmlLang: "es", og: "es_ES", name: "Español" },
 };
 
 export type Market = {
@@ -42,10 +44,12 @@ export const MARKETS: Record<Country, Market> = {
   NL: { country: "NL", locales: ["nl"], callingCode: "+31", postal: /^\d{4} ?[A-Za-z]{2}$/, postalExample: "1012 AB", localMethods: [], stripeRedirectMethods: ["ideal"], warehouse: "belgium" },
   BE: { country: "BE", locales: ["nl", "fr"], callingCode: "+32", postal: /^\d{4}$/, postalExample: "1000", localMethods: [], stripeRedirectMethods: ["bancontact"], warehouse: "belgium" },
   LU: { country: "LU", locales: ["fr", "de"], callingCode: "+352", postal: /^(L-?)?\d{4}$/i, postalExample: "L-1009", localMethods: [], stripeRedirectMethods: [], warehouse: "belgium" },
+  // Mainland Spain and the Balearic Islands; the Canary Islands (35, 38), Ceuta (51) and Melilla (52) are outside the EU VAT area.
+  ES: { country: "ES", locales: ["es"], callingCode: "+34", postal: /^\d{5}$/, postalExample: "28001", postalExcluded: /^(35|38|51|52)/, localMethods: [], stripeRedirectMethods: [], warehouse: "belgium" },
 };
 
 /** Countries whose shop speaks this language (the order matters: first = the one we preselect). */
-export const COUNTRIES_FOR_LOCALE: Record<Locale, Country[]> = { pt: ["PT"], de: ["DE", "LU"], nl: ["NL", "BE"], fr: ["BE", "LU"], ru: ["PT"], en: ["PT"] };
+export const COUNTRIES_FOR_LOCALE: Record<Locale, Country[]> = { pt: ["PT"], de: ["DE", "LU"], nl: ["NL", "BE"], fr: ["BE", "LU"], ru: ["PT"], en: ["PT"], es: ["ES"] };
 
 export function defaultCountry(locale: Locale): Country {
   return COUNTRIES_FOR_LOCALE[locale][0];

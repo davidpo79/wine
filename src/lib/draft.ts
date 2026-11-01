@@ -3,7 +3,8 @@
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Bundle, Order, OrderAddon, Utm } from "@/db/schema";
-import { getCatalog, paidBoxes, salesState, canBuy } from "./catalog";
+import { catalogForBundle, paidBoxes, salesState, canBuy } from "./catalog";
+import { bfOpen, bottlesPerBox, isBfBundle } from "./black-friday";
 import { getSettings } from "./settings";
 import type { Settings } from "./settings-defaults";
 import { checkoutMethods } from "./payments";
@@ -23,6 +24,8 @@ export const draftToken = resumeToken;
 export type Amounts = { subtotal: number; discount: number; shipping: number; total: number; promoCode: string | null };
 
 export function computeAmounts(bundle: Bundle, settings: Settings, promo: string | null | undefined): Amounts {
+  // Black Friday prices are final: the Christmas codes (exit popup, lead emails) do not apply to them.
+  if (isBfBundle(bundle.key)) return { subtotal: bundle.priceCents, discount: 0, shipping: bundle.shippingCents, total: bundle.priceCents + bundle.shippingCents, promoCode: null };
   const cfg = { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty, plusCode: settings.lead_plus_code };
   const discount = promoDiscountCents(bundle, cfg, promo);
   const shipping = promoShippingCents(bundle, cfg, promo);
@@ -34,11 +37,14 @@ export function computeAmounts(bundle: Bundle, settings: Settings, promo: string
 export type DraftCtx = { utm: Utm | null; fbp: string | null; fbc: string | null; gaClientId: string | null; ip: string | null; ua: string | null; consentTracking: boolean };
 
 export async function createDraft(input: { bundleKey: string; promo?: string; isGift?: boolean; giftMessage?: string; eventId?: string; locale?: Locale; country?: Country }, ctx: DraftCtx) {
-  const [catalog, settings, sold] = await Promise.all([getCatalog(), getSettings(), paidBoxes()]);
+  const bf = isBfBundle(input.bundleKey);
+  const [catalog, settings, sold] = await Promise.all([catalogForBundle(input.bundleKey), getSettings(), paidBoxes()]);
   const locale = input.locale ?? "pt";
   const country = input.country ?? "PT";
   const cutoff = settings.markets?.[country]?.cutoff_at ?? settings.cutoff_at;
-  if (!catalog || !canBuy(salesState({ ...settings, cutoff_at: cutoff }, sold))) return { ok: false as const, status: 409, error: getDict(locale).checkout.errors.salesClosed };
+  // Black Friday has its own switch and cutoff (Settings → Black Friday), not the Christmas ones.
+  const open = bf ? bfOpen(settings.black_friday) : canBuy(salesState({ ...settings, cutoff_at: cutoff }, sold));
+  if (!catalog || !catalog.bundles.length || !open) return { ok: false as const, status: 409, error: getDict(locale).checkout.errors.salesClosed };
   const bundle = catalog.bundles.find((b) => b.key === input.bundleKey && b.active) ?? catalog.bundles.find((b) => b.qty === 2) ?? catalog.bundles[0];
   const a = computeAmounts(bundle, settings, input.promo);
   const id = await nextOrderId();
@@ -152,7 +158,8 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
 
   // Bundle / promo change: recompute amounts on the server.
   if (patch.bundleKey !== undefined || patch.promo !== undefined) {
-    const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
+    // Only within the order's product: a Trilogia order cannot become a Black Friday one, and the other way round.
+    const [catalog, settings] = await Promise.all([catalogForBundle(order.bundleKey), getSettings()]);
     const bundle = catalog?.bundles.find((b) => b.key === (patch.bundleKey ?? order.bundleKey) && b.active);
     if (bundle) {
       const a = computeAmounts(bundle, settings, patch.promo !== undefined ? patch.promo : order.promoCode);
@@ -213,7 +220,7 @@ export const PAID_STATUSES = ["paid", "preparing", "shipped", "delivered", "refu
 
 function boxesLabel(o: Order, n: number) {
   const t = getDict(orderLocale(o)).upsell;
-  return fmt(t.boxesLabel, { what: n === 1 ? t.whatOne : fmt(t.whatMany, { n }), bottles: n * 3 });
+  return fmt(t.boxesLabel, { what: n === 1 ? t.whatOne : fmt(t.whatMany, { n }), bottles: n * bottlesPerBox(o.bundleKey) });
 }
 
 export function publicAmounts(o: Order, addons: OrderAddon[]) {

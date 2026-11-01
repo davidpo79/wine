@@ -7,6 +7,7 @@ import { formatMbReference } from "@/lib/ifthenpay";
 import { AutoRefresh } from "@/components/checkout/AutoRefresh";
 import { ebookLink } from "@/lib/email";
 import { ebookTitle, guideFor } from "@/lib/ebook";
+import { bfProductName, bottlesPerBox, isBfBundle } from "@/lib/black-friday";
 import { SITE } from "@/lib/site";
 import { purchaseEventId } from "@/lib/tracking";
 import { Footer, Header, WhatsAppIcon } from "@/components/landing/Chrome";
@@ -55,27 +56,27 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
   const addons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, paid ? "paid" : "pending")));
   const addonsTotal = addons.reduce((n, a) => n + a.amountCents, 0);
   const due = mb ? mb.amountCents : order.totalCents + addonsTotal;
-  const guide = guideFor(settings, locale);
+  const guide = guideFor(settings, locale) && !isBfBundle(order.bundleKey); // the guide comes with the Trilogia only
   const link = paid && guide ? await ebookLink(locale).catch(() => null) : null;
   const exp = mb?.expiresAt ? mb.expiresAt.toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" }) : null;
   const boxes = order.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: order.qtyBoxes });
 
   return (
     <Shell locale={locale}>
-      {paid && <PurchasePixel eventId={purchaseEventId(order.id)} value={due / 100} numItems={order.qtyBoxes} orderId={order.id} />}
+      {paid && <PurchasePixel eventId={purchaseEventId(order.id)} value={due / 100} numItems={order.qtyBoxes} orderId={order.id} bundleKey={order.bundleKey} />}
       {processing && <AutoRefresh seconds={5} />}
       <p className="font-hand text-2xl text-terracotta-ink">{paid ? tx.thanks : tx.almost}</p>
       <h1 className="font-serif text-4xl font-semibold leading-tight text-night sm:text-5xl">
         {paid ? tx.confirmed : processing ? (p?.method === "mbway" ? tx.confirmMbway : tx.confirming) : tx.pending}
       </h1>
       <p className="mt-2 text-lg text-ink">
-        <Rich s={tx.orderLine} vars={{ id: order.id, boxes, total: eur(order.totalCents) }} />
+        <Rich s={isBfBundle(order.bundleKey) ? tx.orderLine.replace("Trilogia 2160", bfProductName(locale)) : tx.orderLine} vars={{ id: order.id, boxes, total: eur(order.totalCents) }} />
       </p>
       {addons.length > 0 && (
         <ul className="mt-2 space-y-1 text-sm text-ink">
           {addons.map((a) => (
             <li key={a.id}>
-              + {a.kind === "boxes" ? fmt(d.upsell.boxesLabel, { what: a.boxes === 1 ? d.upsell.whatOne : fmt(d.upsell.whatMany, { n: a.boxes }), bottles: a.boxes * 3 }) : a.label} · {eur(a.amountCents)}
+              + {a.kind === "boxes" ? fmt(d.upsell.boxesLabel, { what: a.boxes === 1 ? d.upsell.whatOne : fmt(d.upsell.whatMany, { n: a.boxes }), bottles: a.boxes * bottlesPerBox(order.bundleKey) }) : a.label} · {eur(a.amountCents)}
             </li>
           ))}
           <li className="font-semibold">{paid ? tx.totalPaid : tx.total}: {eur(order.totalCents + addonsTotal)}</li>

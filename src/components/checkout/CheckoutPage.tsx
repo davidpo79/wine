@@ -51,6 +51,16 @@ type Fields = {
   giftCard: boolean;
 };
 type Review = { name: string; city?: string; text: string; source?: string };
+/** What is being bought: the Trilogia (default) or the Black Friday box (own name, photo, 6 bottles, trust lines). */
+export type CheckoutProduct = {
+  bf: boolean;
+  name: string;
+  image: string;
+  bottlesPerBox: number;
+  defaultKey: string;
+  backHref: string;
+  trust: string[] | null; // replaces the default trust list
+};
 
 const EMPTY: Fields = {
   email: "",
@@ -103,6 +113,7 @@ export function CheckoutPage({
   countries,
   publishableKey,
   giftCardPrice: giftCardSetting,
+  product,
 }: {
   bundles: BundleOpt[];
   reviews: Review[];
@@ -111,6 +122,7 @@ export function CheckoutPage({
   countries: Country[]; // delivery countries offered (open markets)
   publishableKey: string | null;
   giftCardPrice: number | null; // null = order bump disabled in admin
+  product?: CheckoutProduct;
 }) {
   const {
     d,
@@ -118,10 +130,14 @@ export function CheckoutPage({
     money,
     moneyShort,
     country: initialCountry,
-    guide,
+    guide: guideSetting,
   } = useI18n();
   const t = d.checkout;
-  const DRAFT_KEY = draftKey(locale);
+  const bf = !!product?.bf;
+  const guide = guideSetting && !bf; // the recipe guide comes with the Christmas Trilogia only
+  const contentId = bf ? "black-friday-douro-6" : "trilogia-2160";
+  // A Black Friday checkout is saved apart from a Trilogia one (they are different orders).
+  const DRAFT_KEY = draftKey(locale) + (bf ? "_bf" : "");
   const [country, setCountry] = useState<Country>(initialCountry);
   const market = MARKETS[country];
   // The printed card is made in Portugal: offered for parcels from the Douro only.
@@ -289,7 +305,7 @@ export function CheckoutPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bundle_key: wantedBundle ?? "x2",
+          bundle_key: wantedBundle ?? product?.defaultKey ?? "x2",
           promo,
           is_gift: !!gift.isGift,
           gift_message: gift.msg ?? "",
@@ -549,7 +565,7 @@ export function CheckoutPage({
             value: data.value,
             currency: "EUR",
             num_items: data.num_items,
-            content_ids: ["trilogia-2160"],
+            content_ids: [contentId],
             content_type: "product",
           },
           data.initiate_event_id,
@@ -596,7 +612,7 @@ export function CheckoutPage({
         value: data.value,
         currency: "EUR",
         num_items: data.num_items,
-        content_ids: ["trilogia-2160"],
+        content_ids: [contentId],
         content_type: "product",
       },
       data.initiate_event_id,
@@ -759,7 +775,7 @@ export function CheckoutPage({
     return (
       <div className="mx-auto max-w-md p-10 text-center">
         <p className="font-semibold">{loadError}</p>
-        <a href={homeHref(locale)} className="mt-4 inline-block underline">
+        <a href={product?.backHref ?? homeHref(locale)} className="mt-4 inline-block underline">
           {t.backToShop}
         </a>
       </div>
@@ -771,20 +787,20 @@ export function CheckoutPage({
         <div className="relative h-16 w-16 shrink-0 rounded-lg border border-paper-2 bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/lp/giftbox-thumb.webp"
+            src={product?.image ?? "/lp/giftbox-thumb.webp"}
             alt=""
-            className="h-full w-full rounded-lg object-cover"
+            className={`h-full w-full rounded-lg ${bf ? "object-contain p-0.5" : "object-cover"}`}
           />
           <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-muted px-1 text-[11px] font-bold text-white">
             {selected?.qty}
           </span>
         </div>
         <div className="min-w-0 flex-1 text-sm">
-          <p className="font-semibold">{t.productName}</p>
+          <p className="font-semibold">{product?.name ?? t.productName}</p>
           <p className="text-muted">
             {fmt(guide ? t.productLine : t.productLineNoGuide, {
               boxes: boxesText(selected?.qty ?? 1),
-              bottles: fmt(d.common.bottles, { n: (selected?.qty ?? 0) * 3 }),
+              bottles: fmt(d.common.bottles, { n: (selected?.qty ?? 0) * (product?.bottlesPerBox ?? 3) }),
             })}
           </p>
         </div>
@@ -901,6 +917,10 @@ export function CheckoutPage({
       </dl>
 
       <ul className="space-y-2 rounded-lg border border-paper-2 bg-white p-4 text-sm">
+        {product?.trust ? (
+          product.trust.map((line) => <li key={line}>{line}</li>)
+        ) : (
+        <>
         <li>{guide ? t.trust.gift : t.trust.giftNoGuide}</li>
         <li>
           {fmt(country === "PT" ? t.trust.deliveryPT : t.trust.delivery, {
@@ -913,6 +933,8 @@ export function CheckoutPage({
         <li>{country === "PT" ? t.trust.payPT : t.trust.pay}</li>
         <li>{t.trust.damaged}</li>
         <li>{t.trust.help}</li>
+        </>
+        )}
       </ul>
 
       {reviews.length > 0 && (
@@ -971,7 +993,7 @@ export function CheckoutPage({
     <div className="min-h-screen bg-white text-ink">
       <header className="border-b border-paper-2">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <a href={homeHref(locale)} className="leading-none text-azulejo">
+          <a href={product?.backHref ?? homeHref(locale)} className="leading-none text-azulejo">
             <img
               src="/brand/logo.svg"
               alt="Wine Portugal"

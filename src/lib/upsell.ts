@@ -4,6 +4,7 @@ import { dealOf } from "./offers";
 import { getDict, moneyShortFor } from "./i18n";
 import { fmt } from "./i18n/rich";
 import { isCountry, isLocale, MARKETS } from "./markets";
+import { isBfBundle } from "./black-friday";
 
 export type Offer = {
   key: string; // "boxes" or an upsell product key
@@ -25,6 +26,8 @@ export type Offer = {
  * At the top bundle: one more box at its per-box price.
  */
 export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
+  // Black Friday boxes: the 1 / 2 / 3 box choice is the offer, nothing is added on top.
+  if (isBfBundle(order.bundleKey)) return null;
   const byQty = [...bundles].sort((a, b) => a.qty - b.qty);
   const current = byQty.find((b) => b.qty === order.qtyBoxes) ?? byQty.find((b) => b.key === order.bundleKey);
   if (!current) return null;

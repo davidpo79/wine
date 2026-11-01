@@ -5,7 +5,8 @@ import type { Order } from "@/db/schema";
 import { logOrderEvent } from "./orders";
 import { SITE } from "./site";
 import { zonedDate, zonedToUtc } from "./time";
-import { marketCutoffIso, sendRecoveryEmail } from "./email";
+import { orderCutoffIso, recoveryCopy, sendRecoveryEmail } from "./email";
+import { isBfBundle } from "./black-friday";
 import { assistantFor, dialCall, sendSms, telnyxConfigured } from "./telnyx";
 import { recoveryTemplateLanguage, sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
 import { loadOutboundSettings } from "./outbound-settings";
@@ -45,7 +46,7 @@ export const resumeUrl = (orderId: string) => `${SITE.url}/${resumePath(orderId)
 export const stopUrl = (orderId: string) => `${SITE.url}/api/recovery/stop?t=${encodeURIComponent(resumeToken(orderId))}`;
 
 /** The customer's time zone for the call hours, by the order's country. */
-export const CALL_TZ: Record<Country, string> = { PT: "Europe/Lisbon", DE: "Europe/Berlin", NL: "Europe/Amsterdam", BE: "Europe/Brussels", LU: "Europe/Luxembourg" };
+export const CALL_TZ: Record<Country, string> = { PT: "Europe/Lisbon", DE: "Europe/Berlin", NL: "Europe/Amsterdam", BE: "Europe/Brussels", LU: "Europe/Luxembourg", ES: "Europe/Madrid" };
 
 /** Calls only Mon-Sat 09:00-20:00 in the customer's time zone. Returns the given time if allowed, else the next 10:00 slot. */
 export function nextCallSlot(at: Date, timeZone = "Europe/Lisbon"): Date {
@@ -113,7 +114,7 @@ export function bundleLabel(o: Pick<Order, "qtyBoxes" | "locale">) {
 
 /** The reminder SMS in the order's language. cutoff: "30/11" style (dayMonthFor). */
 export function recoverySmsText(order: Order, link: string, stop: string, cutoff: string) {
-  const t = getDict(orderLocale(order)).messages.recovery;
+  const t = recoveryCopy(order);
   const first = (order.customerName ?? "").trim().split(/\s+/)[0] ?? "";
   return fmt(first ? t.smsNamed : t.smsAnon, { name: first, boxes: bundleLabel(order), link, cutoff, stop });
 }
@@ -140,7 +141,10 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
     }
     if (step.step === "reminder_20m" && order.phone && order.consentMessages) {
       let whatsappSent = false;
-      if (whatsappConfigured() && !recoveryTemplateLanguage(locale)) {
+      if (whatsappConfigured() && isBfBundle(order.bundleKey)) {
+        // The approved templates speak of the Christmas Trilogia: Black Friday reminders go by SMS.
+        result.whatsapp = "skipped: black friday order";
+      } else if (whatsappConfigured() && !recoveryTemplateLanguage(locale)) {
         // No approved template in this language: never the Portuguese one, the SMS below goes out instead.
         result.whatsapp = `skipped: no approved ${locale} template`;
       } else if (whatsappConfigured()) {
@@ -154,7 +158,7 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
       // No WhatsApp, or WhatsApp refused (no WhatsApp on that number, template paused...): the reminder still goes by SMS.
       if (!whatsappSent && telnyxConfigured("sms")) {
         channels.push("sms");
-        const cutoff = dayMonthFor(locale, marketCutoffIso(await getSettings(), order.country));
+        const cutoff = dayMonthFor(locale, orderCutoffIso(await getSettings(), order));
         const text = recoverySmsText(order, link, stopUrl(order.id), cutoff);
         result.sms = await sendSms(order.phone, text).then(
           () => "sent",
@@ -291,7 +295,7 @@ Rules: never ask for card details or take a payment by phone. Never invent infor
   };
 }
 
-const LANGUAGE_NAMES: Record<Locale, string> = { pt: "Portuguese", ru: "Russian", en: "English", de: "German", nl: "Dutch", fr: "French" };
+const LANGUAGE_NAMES: Record<Locale, string> = { pt: "Portuguese", ru: "Russian", en: "English", de: "German", nl: "Dutch", fr: "French", es: "Spanish" };
 
 /** The same call in English, for customers of the Portugal market who chose English on the site (CTT, MB WAY...). */
 function callScriptEn(order: Order, first: string, total: string, cutoffLabel: string, guide: boolean, linkBy: "sms" | "email", deliveryDays: string) {

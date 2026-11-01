@@ -3,6 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Order } from "@/db/schema";
 import { isBotUa } from "./bots";
+import { contentIdFor, contentNameFor } from "./black-friday";
 
 export const GRAPH_VERSION = "v21.0";
 
@@ -206,7 +207,7 @@ export async function reportPurchase(o: Order, valueCents = o.totalCents) {
       customData: {
         value,
         currency: "EUR",
-        content_ids: ["trilogia-2160"],
+        content_ids: [contentIdFor(o.bundleKey)],
         content_type: "product",
         num_items: o.qtyBoxes,
         order_id: o.id,
@@ -225,7 +226,7 @@ export async function reportPurchase(o: Order, valueCents = o.totalCents) {
           value,
           currency: "EUR",
           shipping: o.shippingCents / 100,
-          items: [{ item_id: "trilogia-2160", item_name: "Trilogia 2160", item_variant: o.bundleKey, price: o.subtotalCents / 100, quantity: 1 }],
+          items: [{ item_id: contentIdFor(o.bundleKey), item_name: contentNameFor(o.bundleKey), item_variant: o.bundleKey, price: o.subtotalCents / 100, quantity: 1 }],
         },
       },
     ],

@@ -51,6 +51,12 @@ const FLAGS: Record<Locale, React.ReactNode> = {
       <text x="9" y="9" textAnchor="middle" fontSize="7" fontWeight="700" fontFamily="Arial, sans-serif" fill="#fff">EN</text>
     </>
   ),
+  es: (
+    <>
+      <rect width="18" height="12" fill="#aa151b" />
+      <rect y="3" width="18" height="6" fill="#f1bf00" />
+    </>
+  ),
 };
 
 function Flag({ l }: { l: Locale }) {
@@ -61,8 +67,8 @@ function Flag({ l }: { l: Locale }) {
   );
 }
 
-/** Dropdown of the shop's languages (only those of markets that take orders). Remembers the choice for a year. */
-export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+/** Dropdown of the shop's languages (only those of markets that take orders). Remembers the choice for a year. `hrefFor`: the same page in another language (default: the home page). */
+export function LanguageSwitcher({ compact = false, hrefFor = homeHref }: { compact?: boolean; hrefFor?: (l: Locale) => string }) {
   const { locale, languages, d } = useI18n();
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -94,7 +100,7 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
               </span>
             ) : (
               <a
-                href={homeHref(l)}
+                href={hrefFor(l)}
                 hrefLang={l}
                 lang={l}
                 onClick={() => {

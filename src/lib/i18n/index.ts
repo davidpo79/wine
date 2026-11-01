@@ -4,12 +4,13 @@ import { nl } from "./nl";
 import { fr } from "./fr";
 import { ru } from "./ru";
 import { en } from "./en";
+import { es } from "./es";
 import type { Locale } from "../markets";
 
 export type { Dict } from "./pt";
 export { fmt, rich, Rich } from "./rich";
 
-const DICTS: Record<Locale, Dict> = { pt, de, nl, fr, ru, en };
+const DICTS: Record<Locale, Dict> = { pt, de, nl, fr, ru, en, es };
 
 export function getDict(locale: Locale): Dict {
   return DICTS[locale] ?? pt;
