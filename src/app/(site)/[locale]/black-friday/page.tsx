@@ -49,7 +49,7 @@ export default async function BlackFriday({ params, searchParams }: { params: Pa
   const bf = settings.black_friday;
   // Delivery country: the visitor's (IP) when it is a Black Friday country, else the one of the language.
   const country = v.ipCountry && bf.countries.includes(v.ipCountry as never) ? (v.ipCountry as (typeof bf.countries)[number]) : bfCountryFor(locale);
-  const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, qty: b.qty, priceCents: b.priceCents, compareAtCents: b.compareAtCents }));
+  const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, qty: b.qty, priceCents: b.priceCents, compareAtCents: null })); // never a reference price (see BF_BUNDLES)
   const cutoffLabel = dateFor(locale, bf.cutoff_at).slice(0, 5);
   const open = (bfOpen(bf) || (!!admin && new Date() <= new Date(bf.cutoff_at))) && bundles.length > 0;
   const jsonLd = {

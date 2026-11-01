@@ -38,7 +38,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
   const countries: Country[] = bf
     ? [...new Set([wanted, ...open])].filter((c) => open.includes(c) || c === wanted)
     : [...new Set([wanted, ...COUNTRIES_FOR_LOCALE[locale], ...open])].filter((c) => open.includes(c) || c === wanted);
-  const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, label: b.label, qty: b.qty, priceCents: b.priceCents, compareAtCents: b.compareAtCents, shippingCents: b.shippingCents }));
+  const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, label: b.label, qty: b.qty, priceCents: b.priceCents, compareAtCents: bf ? null : b.compareAtCents, shippingCents: b.shippingCents })); // Black Friday: no reference price
   const cutoffIso = bf ? settings.black_friday.cutoff_at : (settings.markets?.[wanted]?.cutoff_at ?? settings.cutoff_at);
   const cutoffLabel = dateFor(locale, cutoffIso).slice(0, 5);
   const deliveryDays = deliveryDaysFor(locale, bf ? settings.black_friday.delivery_days : (settings.markets?.[wanted]?.delivery_days ?? ""));

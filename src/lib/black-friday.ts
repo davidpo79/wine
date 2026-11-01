@@ -16,11 +16,15 @@ export const isBfBundle = (key: string | null | undefined) => !!key && /^bf\d+$/
 /** Bottles in one box of the order's product. */
 export const bottlesPerBox = (bundleKey: string | null | undefined) => (isBfBundle(bundleKey) ? BF_BOTTLES_PER_BOX : 3);
 
-/** Pricing of 29/10/2026: 68,50 € per box; 2 boxes 129 € (64,50 €/box), 3 boxes 185 € (61,67 €/box). Delivery included. */
+/**
+ * Pricing of 29/10/2026: 68,50 € per box; 2 boxes 129 € (64,50 €/box), 3 boxes 185 € (61,67 €/box). Delivery included.
+ * No reference ("usual") price: the box was never sold at one, and a struck-through price in a sale must be the lowest
+ * price of the last 30 days (PAngV §11 / EU Omnibus). The page only compares 2 and 3 boxes with buying single boxes.
+ */
 export const BF_BUNDLES = [
-  { key: "bf1", label: "Black Friday · 1 caixa · 6 garrafas", qty: 1, priceCents: 6850, compareAtCents: 14000, shippingCents: 0, badge: null, sort: 11 },
-  { key: "bf2", label: "Black Friday · 2 caixas · 12 garrafas", qty: 2, priceCents: 12900, compareAtCents: 28000, shippingCents: 0, badge: "Mais escolhido", sort: 12 },
-  { key: "bf3", label: "Black Friday · 3 caixas · 18 garrafas", qty: 3, priceCents: 18500, compareAtCents: 42000, shippingCents: 0, badge: "Melhor preço", sort: 13 },
+  { key: "bf1", label: "Black Friday · 1 caixa · 6 garrafas", qty: 1, priceCents: 6850, compareAtCents: null, shippingCents: 0, badge: null, sort: 11 },
+  { key: "bf2", label: "Black Friday · 2 caixas · 12 garrafas", qty: 2, priceCents: 12900, compareAtCents: null, shippingCents: 0, badge: "Mais escolhido", sort: 12 },
+  { key: "bf3", label: "Black Friday · 3 caixas · 18 garrafas", qty: 3, priceCents: 18500, compareAtCents: null, shippingCents: 0, badge: "Melhor preço", sort: 13 },
 ];
 
 /** Product id for Meta / GA4 events. */
