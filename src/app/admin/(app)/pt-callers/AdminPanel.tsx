@@ -124,6 +124,8 @@ export function AdminPanel(p: {
   const [rep, setRep] = useState<string>("");
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
+  const [repView, setRepView] = useState(""); // "" every lead · "none" nobody's · a rep's id
+  const ofRep = (l: Lead) => repView === "" || (repView === "none" ? !l.assignedTo : l.assignedTo === Number(repView));
   const [busy, setBusy] = useState(false);
 
   const run = async (action: string, body: unknown, ok?: (r: Record<string, unknown>) => string) => {
@@ -135,12 +137,12 @@ export function AdminPanel(p: {
     router.refresh();
   };
 
-  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, p.leads.filter(f.test).length])), [p.leads]);
+  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, p.leads.filter((l) => f.test(l) && ofRep(l)).length])), [p.leads, repView]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(() => {
     const f = FILTERS.find((x) => x.key === filter) ?? FILTERS[0];
     const s = q.trim().toLowerCase();
-    return p.leads.filter((l) => f.test(l) && (!s || `${l.name} ${l.company ?? ""} ${l.title ?? ""} ${l.location ?? ""}`.toLowerCase().includes(s)));
-  }, [p.leads, filter, q]);
+    return p.leads.filter((l) => f.test(l) && ofRep(l) && (!s || `${l.name} ${l.company ?? ""} ${l.title ?? ""} ${l.location ?? ""}`.toLowerCase().includes(s)));
+  }, [p.leads, filter, q, repView]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = (id: number) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   // Shift+click a row's box: every row between it and the last box clicked takes that box's new state.
   const lastClicked = useRef<number | null>(null);
@@ -307,7 +309,7 @@ export function AdminPanel(p: {
       </>
       )}
 
-      {!lim && p.holders && p.holders.length > 0 && <RepSplit holders={p.holders} shared={p.sharedLeads ?? 0} />}
+      {!lim && p.holders && p.holders.length > 0 && <RepSplit holders={p.holders} shared={p.sharedLeads ?? 0} onPick={(id) => { setRepView(String(id)); setFilter("all"); setSel([]); document.getElementById("leads-table")?.scrollIntoView({ behavior: "smooth" }); }} />}
 
       {msg && (
         <div className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-sm ${msg.ok ? "border-green-300 bg-green-50 text-green-900" : "border-red-300 bg-red-50 text-red-900"}`}>
@@ -317,7 +319,7 @@ export function AdminPanel(p: {
       )}
 
       {/* Leads */}
-      <section className="rounded-xl border bg-white">
+      <section id="leads-table" className="scroll-mt-4 rounded-xl border bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b p-3">
           {FILTERS.filter((f) => !lim || f.key !== "unassigned").map((f) => (
             <button
@@ -338,6 +340,15 @@ export function AdminPanel(p: {
                 </button>
               ))}
             </span>
+          )}
+          {!lim && p.reps.length > 0 && (
+            <select value={repView} onChange={(e) => { setRepView(e.target.value); setSel([]); }} className={`rounded-lg border p-1.5 text-sm ${repView ? "border-[#0F2340] font-semibold" : ""}`} aria-label="Sales rep">
+              <option value="">Every sales rep</option>
+              {p.reps.map((r) => (
+                <option key={r.id} value={r.id}>{r.email} ({p.leads.filter((l) => l.assignedTo === r.id).length})</option>
+              ))}
+              <option value="none">Not assigned ({p.leads.filter((l) => !l.assignedTo).length})</option>
+            </select>
           )}
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, company, city…" className={`${shown.length > 1 ? "" : "ml-auto "}w-full rounded-lg border p-1.5 text-sm sm:w-64`} />
         </div>
@@ -722,11 +733,11 @@ function AddLead({ busy, onAdd }: { busy: boolean; onAdd: (v: Record<string, str
 
 
 /** Floating phone button: opens the dialer window (keypad + number). Hidden while the dialer or a call is open. */
-function RepSplit({ holders, shared }: { holders: NonNullable<Parameters<typeof AdminPanel>[0]["holders"]>; shared: number }) {
+function RepSplit({ holders, shared, onPick }: { holders: NonNullable<Parameters<typeof AdminPanel>[0]["holders"]>; shared: number; onPick: (id: number) => void }) {
   const wrong = holders.filter((h) => h.role !== "pt_caller" && h.leads > 0);
   const bad = wrong.length > 0 || shared > 0;
   return (
-    <details className={`rounded-xl border p-5 text-sm ${bad ? "border-red-300 bg-red-50" : "bg-white"}`} open={bad}>
+    <details className={`rounded-xl border p-5 text-sm ${bad ? "border-red-300 bg-red-50" : "bg-white"}`} open>
       <summary className="cursor-pointer font-semibold">
         Who has which leads{bad ? " ⚠ check this" : ""}
       </summary>
@@ -738,7 +749,10 @@ function RepSplit({ holders, shared }: { holders: NonNullable<Parameters<typeof 
         <tbody>
           {holders.map((h) => (
             <tr key={h.id} className="border-t">
-              <td className="py-1.5">{h.email}{h.disabled && <span className="ml-1 text-muted">(disabled)</span>}</td>
+              <td className="py-1.5">
+                {h.leads > 0 ? <button type="button" onClick={() => onPick(h.id)} className="text-azulejo underline" title="Show this person's leads in the table below">{h.email}</button> : h.email}
+                {h.disabled && <span className="ml-1 text-muted">(disabled)</span>}
+              </td>
               <td className={h.role === "pt_caller" ? "" : "font-semibold text-red-700"}>{h.role === "pt_caller" ? "Sales rep" : `${h.role} (sees all leads)`}</td>
               <td>{h.leads}</td>
               <td>{h.lastLogin ? new Date(h.lastLogin).toLocaleString("en-GB", { timeZone: "Europe/Lisbon", dateStyle: "short", timeStyle: "short" }) : "never"}</td>
