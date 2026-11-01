@@ -102,6 +102,12 @@ export function BlackFridayPage({
         return (
           <button key={b.key} type="button" role="radio" aria-checked={b.key === key} className="bf-bundle" data-qty={b.qty} onClick={() => choose(b.key)}>
             {info.badge ? <span className="bf-badge">{info.badge}</span> : <span className="bf-badge bf-badge-empty" aria-hidden="true" />}
+            <span className="bf-bimg" data-qty={Math.min(b.qty, 3)} aria-hidden="true">
+              {Array.from({ length: Math.min(b.qty, 3) }, (_, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src="/lp/bf/bottles-cut.webp" alt="" loading="lazy" />
+              ))}
+            </span>
             <span className="bf-btitle">{info.title}</span>
             <span className="bf-bbottles">{info.bottles}</span>
             {b.compareAtCents && b.compareAtCents > b.priceCents ? (
@@ -207,8 +213,15 @@ export function BlackFridayPage({
               <article key={w.name} className="bf-wine">
                 <div className="bf-wineimg">
                   {w.img ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={w.img} alt={w.name} loading="lazy" />
+                    // The pack shot is lit flat: a cylinder shade cut to the bottle's own outline makes the label sit on
+                    // a round bottle, and a contact shadow and soft reflection ground it.
+                    <span className="bf-bottle" style={{ ["--src" as string]: `url(${w.img})` }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={w.img} alt={w.name} loading="lazy" />
+                      <span className="bf-bottle-shade" aria-hidden="true" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="bf-bottle-refl" src={w.img} alt="" aria-hidden="true" loading="lazy" />
+                    </span>
                   ) : (
                     <span className="bf-wineph" aria-hidden="true" />
                   )}

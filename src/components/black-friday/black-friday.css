@@ -35,6 +35,13 @@
 .bf-bundle[aria-checked=true]{border-color:var(--bf-red);background:#fff;box-shadow:0 0 0 2px var(--bf-red);transform:translateY(-2px)}
 .bf-badge{align-self:stretch;display:flex;align-items:center;justify-content:center;background:var(--bf-black);color:#fff;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:4px 2px;min-height:40px;line-height:1.25}
 .bf-bundle[data-qty="3"] .bf-badge{background:var(--bf-red)}.bf-badge-empty{background:transparent!important}
+.bf-bimg{position:relative;display:block;width:92%;max-width:150px;aspect-ratio:1200/712;margin:8px auto 0}
+.bf-bimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 6px #0005)}
+.bf-bimg[data-qty="2"] img:nth-child(1){transform:translate(7%,-8%) scale(.86);opacity:.75}
+.bf-bimg[data-qty="2"] img:nth-child(2){transform:translate(-4%,4%) scale(.92)}
+.bf-bimg[data-qty="3"] img:nth-child(1){transform:translate(12%,-12%) scale(.8);opacity:.6}
+.bf-bimg[data-qty="3"] img:nth-child(2){transform:translate(4%,-4%) scale(.86);opacity:.8}
+.bf-bimg[data-qty="3"] img:nth-child(3){transform:translate(-6%,5%) scale(.92)}
 .bf-btitle{font-size:22px;font-weight:900;margin-top:8px}.bf-bbottles{font-size:12px;color:#666}
 .bf-was{font-size:12px;color:#777;min-height:18px;margin-top:4px}.bf-was s{text-decoration-color:var(--bf-red)}
 .bf-price{font-size:clamp(20px,5.5vw,28px);font-weight:900;color:var(--bf-red);letter-spacing:-.02em}
@@ -50,7 +57,14 @@
 .bf-winegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .bf-wine{background:#141416;border:1px solid var(--bf-line);border-radius:16px;padding:18px;text-align:center}
 .bf-wineimg{position:relative;height:250px;display:flex;align-items:flex-end;justify-content:center;background:radial-gradient(ellipse at 50% 80%,#3a0a0b,transparent 70%);border-radius:12px;margin-bottom:14px}
-.bf-wineimg img{max-height:240px;width:auto;filter:drop-shadow(0 12px 18px #000)}
+.bf-wineimg img{max-height:240px;width:auto}
+.bf-wineimg{background:radial-gradient(60% 55% at 50% 45%,#2a0809,transparent 75%)}
+.bf-bottle{position:relative;display:inline-block;line-height:0;padding-bottom:14px}
+.bf-bottle>img:first-child{position:relative;filter:drop-shadow(0 10px 14px #000b)}
+.bf-bottle-shade{position:absolute;inset:0 0 14px;-webkit-mask:var(--src) center/contain no-repeat;mask:var(--src) center/contain no-repeat;background:linear-gradient(90deg,#000b 0%,#0006 14%,#0000 30%,#fff3 38%,#fff1 44%,#0000 56%,#0004 76%,#000c 100%);pointer-events:none}
+.bf-bottle:after{content:"";position:absolute;left:12%;right:12%;bottom:8px;height:14px;border-radius:50%;background:radial-gradient(closest-side,#000e,#0000);z-index:-1}
+.bf-bottle-refl{position:absolute;left:0;top:100%;margin-top:-14px;max-height:240px;transform:scaleY(-1);opacity:.18;-webkit-mask-image:linear-gradient(to top,#000 0,#0000 22%);mask-image:linear-gradient(to top,#000 0,#0000 22%);pointer-events:none}
+@media(max-width:720px){.bf-bottle-refl{max-height:210px}}
 .bf-wineph{width:70px;height:230px;border-radius:28px 28px 10px 10px;background:linear-gradient(90deg,#1e2a12,#4b5a2a 45%,#1e2a12);box-shadow:inset 0 70px 0 #111;position:relative}
 .bf-wineph:after{content:"";position:absolute;left:8px;right:8px;top:110px;height:70px;background:#d9dfa8;border-radius:3px}
 .bf-winecount{position:absolute;top:10px;right:10px;background:var(--bf-red);color:#fff;font-weight:900;font-size:18px;border-radius:999px;padding:6px 12px}
