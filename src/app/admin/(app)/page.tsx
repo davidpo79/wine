@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { eur } from "@/lib/money";
 import { getSettings } from "@/lib/settings";
-import { pendingMultibanco, periodStats, trackingHealth } from "@/lib/stats";
+import { leftBeforePaying, pendingMultibanco, periodStats, trackingHealth } from "@/lib/stats";
 import { conversionFunnel, customerStats, PERIODS, upsellBreakdown, type Period } from "@/lib/analytics";
 import { startOfLisbonDay } from "@/lib/time";
 
@@ -14,9 +14,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const period: Period = sp.p && sp.p in PERIODS ? (sp.p as Period) : "7d";
   const adsOnly = sp.src === "ads";
   const since = period === "today" ? startOfLisbonDay(0) : period === "7d" ? startOfLisbonDay(6) : period === "30d" ? startOfLisbonDay(29) : null;
-  const [stats, pending, settings, health, f, ups, cust] = await Promise.all([
+  const [stats, pending, left, settings, health, f, ups, cust] = await Promise.all([
     periodStats(since),
     pendingMultibanco(),
+    leftBeforePaying(30),
     getSettings(),
     trackingHealth(startOfLisbonDay(6)),
     conversionFunnel(since, adsOnly),
@@ -147,10 +148,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      <section className="rounded-lg border bg-white p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Pending Multibanco</h2>
-        <p className="mt-1 text-2xl font-semibold">{pending.count} orders · {eur(pending.valueCents)}</p>
-        <p className="mt-2 text-xs text-muted">Tracking sends, 7 days: {health.map((h) => `${h.sentTo}/${h.status}: ${h.n}`).join(" · ") || "none"}</p>
+      <section className="grid gap-4 rounded-lg border bg-white p-4 sm:grid-cols-2">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Pending Multibanco</h2>
+          <p className="mt-1 text-2xl font-semibold">{pending.count} orders · {eur(pending.valueCents)}</p>
+          <p className="text-xs text-muted">A Multibanco reference was generated and is still open (not paid, not expired).</p>
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Left before paying (30 days)</h2>
+          <p className="mt-1 text-2xl font-semibold">{left.count} · {eur(left.valueCents)}</p>
+          <p className="text-xs text-muted">Left their e-mail at checkout but never started a payment. Not money owed.</p>
+        </div>
+        <p className="text-xs text-muted sm:col-span-2">Tracking sends, 7 days: {health.map((h) => `${h.sentTo}/${h.status}: ${h.n}`).join(" · ") || "none"}</p>
       </section>
     </div>
   );

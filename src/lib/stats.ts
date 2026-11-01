@@ -26,11 +26,34 @@ export async function periodStats(since: Date | null): Promise<PeriodStats> {
 }
 
 /** Orders whose checkout completed but are still waiting for the Multibanco payment. */
+/** Unpaid orders that really have a Multibanco reference still open (generated, not paid, not expired). */
 export async function pendingMultibanco() {
   const [r] = await db
     .select({ n: sql<number>`count(*)::int`, v: sql<number>`coalesce(sum(${schema.orders.totalCents}),0)::int` })
     .from(schema.orders)
-    .where(and(eq(schema.orders.status, "pending_payment"), isNotNull(schema.orders.email)));
+    .where(
+      and(
+        eq(schema.orders.status, "pending_payment"),
+        sql`exists (select 1 from ${schema.payments} p where p.order_id = ${schema.orders.id} and p.method = 'multibanco' and p.status = 'pending' and (p.expires_at is null or p.expires_at > now()))`,
+      ),
+    );
+  return { count: r?.n ?? 0, valueCents: r?.v ?? 0 };
+}
+
+/** People who left their e-mail at checkout (last `days` days) and have no payment open or paid (none started, failed or expired). */
+export async function leftBeforePaying(days = 30) {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int`, v: sql<number>`coalesce(sum(${schema.orders.totalCents}),0)::int` })
+    .from(schema.orders)
+    .where(
+      and(
+        eq(schema.orders.status, "pending_payment"),
+        isNotNull(schema.orders.email),
+        gte(schema.orders.createdAt, sql`now() - make_interval(days => ${days})`),
+        // No payment still open (a pending one that has not expired) or paid.
+        sql`not exists (select 1 from ${schema.payments} p where p.order_id = ${schema.orders.id} and (p.status = 'paid' or (p.status = 'pending' and (p.expires_at is null or p.expires_at > now()))))`,
+      ),
+    );
   return { count: r?.n ?? 0, valueCents: r?.v ?? 0 };
 }
 
