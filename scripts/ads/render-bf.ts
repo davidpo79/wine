@@ -11,11 +11,11 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const out = resolve(process.argv[2] ?? "public/ads");
 const file = (p: string) => `file://${ROOT}/${p}`;
 
-type Copy = { kicker: string; title: string; sub: string; price: string; per: string; ticks: string[]; deadline: string; cta: string; two: string; perBig: string; perSmall: string; direct: string; foot: string };
+type Copy = { kicker: string; title: string; sub: string; price: string; per: string; ticks: string[]; deadline: string; cta: string; two: string; perBig: string; perSmall: string; six: string; direct: string; foot: string };
 const COPY: Record<"de" | "es", Copy> = {
   de: {
     kicker: "Black Friday",
-    title: "6 Douro-Weine",
+    title: "6 Flaschen Douro-Wein",
     sub: "3 Rotweine · 2 Weißweine · 1 Rosé",
     price: "68,50 €",
     per: "11,42 € pro Flasche · inkl. MwSt.",
@@ -25,12 +25,13 @@ const COPY: Record<"de" | "es", Copy> = {
     two: "2 Boxen 129 € · 3 Boxen 185 €",
     perBig: "11,42 €",
     perSmall: "pro Flasche",
+    six: "6 Flaschen",
     direct: "Vom Douro zu Ihnen",
     foot: "Lieferung in 2 Werktagen · inkl. MwSt.",
   },
   es: {
     kicker: "Black Friday",
-    title: "6 vinos del Douro",
+    title: "6 botellas del Douro",
     sub: "3 tintos · 2 blancos · 1 rosado",
     price: "68,50 €",
     per: "11,42 € por botella · IVA incluido",
@@ -40,6 +41,7 @@ const COPY: Record<"de" | "es", Copy> = {
     two: "2 cajas 129 € · 3 cajas 185 €",
     perBig: "11,42 €",
     perSmall: "por botella",
+    six: "6 botellas",
     direct: "Del Douro a tu casa",
     foot: "Entrega en 2 días laborables · IVA incluido",
   },
@@ -128,7 +130,7 @@ const frame = (c: Copy, f: keyof typeof FORMATS) => {
          <div class="bf" style="font-size:96px"><span>BLACK</span> FRIDAY</div>
          <div class="t" style="font-size:56px;margin-top:12px">${c.title} · ${c.price}</div>
          <div class="s" style="margin-top:8px">${c.sub} · ${c.ticks[0]}</div></div>
-       <div class="bottles" style="position:absolute;right:30px;top:${win.y + win.h - 330}px;width:420px;height:300px"></div>
+       <div class="bottles" style="position:absolute;right:24px;top:${win.y + 24}px;width:400px;height:280px"></div>
        <div style="position:absolute;left:0;right:0;top:${win.y + win.h + 34}px;text-align:center">
          <div class="s" style="font-size:34px;color:#fff;font-weight:800">${c.per}</div>
          <div class="pill" style="display:inline-block;margin-top:16px">${c.deadline}</div></div>`
@@ -156,7 +158,9 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
 .kick{display:inline-block;border:2px solid #e11d2a;border-radius:999px;padding:8px 18px;font-weight:800;font-size:24px;letter-spacing:.08em;text-transform:uppercase;color:#ffd6d9}
 .bottles{background:url(${file("public/lp/bf/bottles.webp")}) center/contain no-repeat;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7))}
 .pill{background:#e11d2a;border-radius:999px;padding:14px 30px;font-weight:900;font-size:32px}
-</style></head><body><div class="win"></div>${side}</body></html>`;
+.banner{position:absolute;left:${win.x}px;width:${win.w}px;top:${win.y + win.h - (story ? 150 : 120)}px;text-align:center}
+.banner span{display:inline-block;background:#e11d2a;color:#fff;font-weight:900;font-size:${story ? 58 : 48}px;padding:12px 26px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);letter-spacing:-.01em}
+</style></head><body><div class="win"></div>${side}<div class="banner"><span>${c.six} · ${c.price}</span></div></body></html>`;
 };
 
 mkdirSync(out, { recursive: true });
