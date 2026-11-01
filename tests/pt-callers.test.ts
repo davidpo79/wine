@@ -1078,12 +1078,14 @@ test("offer e-mail: [NOME] and [REP] filled in; the opt-out line is added when t
   assert.equal(s.withOptOutLine("Responda PARAR para não receber mais."), "Responda PARAR para não receber mais.");
 });
 
-dbTest("offer e-mail templates: each person sees, edits and deletes only her own", async () => {
+dbTest("offer e-mail templates: everyone can see and use the team's; only the owner edits or deletes", async () => {
   const a = await svc!.saveTemplate(rep, { name: "Follow-up", subject: "Olá [NOME]", body: "Texto da [REP]" });
   assert.equal(a.ok, true);
   const id = a.ok ? a.template.id : 0;
-  assert.ok((await svc!.listTemplates(rep)).some((t) => t.id === id));
-  assert.equal((await svc!.listTemplates(rep2)).some((t) => t.id === id), false);
+  assert.equal((await svc!.listTemplates(rep)).find((t) => t.id === id)?.mine, true);
+  const seen = (await svc!.listTemplates(rep2)).find((t) => t.id === id);
+  assert.ok(seen, "the other rep sees it");
+  assert.equal(seen!.mine, false);
   assert.equal((await svc!.saveTemplate(rep2, { id, name: "x", subject: "y", body: "z" })).ok, false);
   assert.equal((await svc!.deleteTemplate(rep2, id)).ok, false);
   assert.equal(why(await svc!.saveTemplate(rep, { name: " ", subject: "a", body: "b" })), "Give the template a name.");

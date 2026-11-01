@@ -17,6 +17,7 @@ export type Card = {
   attempts: number;
   lastAt: string;
   hasPhone: boolean;
+  emailed: boolean;
   demo: boolean;
 };
 
@@ -154,6 +155,9 @@ export function Board({ cards, reps, isRep }: { cards: Card[]; reps: { id: numbe
                         {c.attempts > 0 && <span>{c.attempts} call{c.attempts === 1 ? "" : "s"}</span>}
                         {!isRep && <span>{repOf(c.repId) ?? "not assigned"}</span>}
                       </p>
+                      {c.status === "no_answer" && c.attempts >= 3 && !c.emailed && (
+                        <p className="mt-1 rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-900">{c.attempts} calls, no answer: send the e-mail</p>
+                      )}
                       {c.note && <p className="mt-1 line-clamp-3 italic text-ink/80">“{c.note}”</p>}
                       <div className="mt-2 flex items-center gap-2">
                         {!locked && (

@@ -6,7 +6,7 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { AdminSession } from "@/lib/auth";
-import { prospectWhatsappMissing, sendWhatsapp, WINDOW_MS } from "../whatsapp";
+import { prospectTemplateText, prospectWhatsappMissing, sendWhatsapp, WINDOW_MS } from "../whatsapp";
 import { ptFlags } from "./flags";
 import { maskPhone, normalizePtPhone } from "./phone";
 import { logAccess } from "./rules";
@@ -120,7 +120,7 @@ export async function waSend(me: Me, leadId: number, m: WaSend): Promise<{ ok: t
   if (m.mode === "template") {
     if (!m.optIn) return { ok: false, reason: "Tick that the person asked to receive WhatsApp first." };
     const params = [l.firstName || "", repFirstName(me.email)];
-    body = `Olá ${params[0]}, fala ${params[1]}, da Wine Portugal. Como combinámos ao telefone, deixo-lhe aqui o nosso contacto para os presentes de Natal da sua equipa. Responda a esta mensagem quando quiser e envio-lhe a proposta. Para não receber mais mensagens, responda PARAR.`;
+    body = prospectTemplateText(params[0], params[1]);
     r = await sendWhatsapp(l.phone, { kind: "template", params });
   } else {
     const text = m.text.trim();

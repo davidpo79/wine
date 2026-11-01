@@ -715,14 +715,23 @@ export const fillPlaceholders = (text: string, leadFirst: string | null, senderE
 
 export type EmailTemplate = { id: number; name: string; subject: string; body: string };
 
-export async function listTemplates(me: Me): Promise<EmailTemplate[]> {
+/** Her own templates first, then the other reps' (and admins'), which she can use but not change. */
+export async function listTemplates(me: Me): Promise<(EmailTemplate & { mine: boolean; owner: string })[]> {
   if (me.role !== "admin" && me.role !== "pt_caller") throw new Error("forbidden");
   const T = schema.emailTemplates;
-  return db.select({ id: T.id, name: T.name, subject: T.subject, body: T.body }).from(T).where(eq(T.ownerId, me.id)).orderBy(T.name);
+  const rows = await db
+    .select({ id: T.id, name: T.name, subject: T.subject, body: T.body, ownerId: T.ownerId, owner: schema.adminUsers.email })
+    .from(T)
+    .innerJoin(schema.adminUsers, eq(schema.adminUsers.id, T.ownerId))
+    .where(isNull(schema.adminUsers.disabledAt))
+    .orderBy(T.name);
+  return rows
+    .map(({ ownerId, owner, ...t }) => ({ ...t, mine: ownerId === me.id, owner: repFirstName(owner) }))
+    .sort((a, b) => Number(b.mine) - Number(a.mine));
 }
 
 /** Creates (no id) or updates one of her own templates. */
-export async function saveTemplate(me: Me, t: { id?: number; name: string; subject: string; body: string }): Promise<{ ok: true; template: EmailTemplate } | { ok: false; reason: string }> {
+export async function saveTemplate(me: Me, t: { id?: number; name: string; subject: string; body: string }): Promise<{ ok: true; template: EmailTemplate & { mine: true } } | { ok: false; reason: string }> {
   if (me.role !== "admin" && me.role !== "pt_caller") throw new Error("forbidden");
   const name = t.name.trim().slice(0, 80);
   const subject = t.subject.trim().slice(0, 200);
@@ -733,12 +742,12 @@ export async function saveTemplate(me: Me, t: { id?: number; name: string; subje
   const cols = { id: T.id, name: T.name, subject: T.subject, body: T.body };
   if (t.id) {
     const [row] = await db.update(T).set({ name, subject, body, updatedAt: new Date() }).where(and(eq(T.id, t.id), eq(T.ownerId, me.id))).returning(cols);
-    return row ? { ok: true, template: row } : { ok: false, reason: "Template not found." };
+    return row ? { ok: true, template: { ...row, mine: true } } : { ok: false, reason: "Template not found." };
   }
   const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(T).where(eq(T.ownerId, me.id));
   if (n >= 30) return { ok: false, reason: "30 templates at most. Delete one first." };
   const [row] = await db.insert(T).values({ ownerId: me.id, name, subject, body }).returning(cols);
-  return { ok: true, template: row };
+  return { ok: true, template: { ...row, mine: true } };
 }
 
 export async function deleteTemplate(me: Me, id: number) {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
-import { prospectWhatsappMissing } from "@/lib/whatsapp";
+import { prospectTemplateText, prospectWhatsappMissing } from "@/lib/whatsapp";
 import { repFirstName, waThread } from "@/lib/pt-callers/whatsapp";
 import { lisbonDateTime } from "@/lib/time";
 import { waSendAction } from "../../../whatsapp-actions";
@@ -67,10 +67,7 @@ export default async function WhatsappThread({ params }: { params: Promise<{ lea
           <input type="hidden" name="lead" value={t.lead.id} />
           <input type="hidden" name="mode" value="template" />
           <p className="font-semibold">{t.templateSent ? "Send the first message again" : "First message"}</p>
-          <p className="rounded bg-[#d9fdd3] p-3">
-            Olá {t.lead.firstName || "…"}, fala {repFirstName(me.email)}, da Wine Portugal. Como combinámos ao telefone, deixo-lhe aqui o nosso contacto para os presentes de Natal da sua equipa. Responda a esta mensagem
-            quando quiser e envio-lhe a proposta. Para não receber mais mensagens, responda PARAR.
-          </p>
+          <p className="rounded bg-[#d9fdd3] p-3">{prospectTemplateText(t.lead.firstName || "…", repFirstName(me.email))}</p>
           <p className="text-xs text-muted">
             {t.templateSent ? "They have not answered within the last 24 hours, so only this approved text can be sent. " : "WhatsApp allows only this approved text until the person answers. "}
             After they reply you can write freely for 24 hours.

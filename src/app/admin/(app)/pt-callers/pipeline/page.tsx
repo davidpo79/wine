@@ -36,6 +36,7 @@ export default async function Pipeline() {
     attempts: l.attempts,
     lastAt: (l.lastAttemptAt ?? l.updatedAt).toISOString(),
     hasPhone: !!l.phone,
+    emailed: !!l.emailedAt,
     demo: l.demo,
   }));
   return <Board cards={cards} reps={reps} isRep={rep} />;

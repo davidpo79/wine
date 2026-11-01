@@ -98,8 +98,8 @@ export async function OutboundCallsSection() {
           one is APPROVED. Until then, Russian and German orders get the reminder by SMS in their language.
         </p>
         <p className="text-xs text-muted">
-          The same button also submits <b>contacto_empresas</b> (Marketing, pt_PT), the first message a sales rep may send on WhatsApp to an HR lead who asked for it on the call: &quot;Olá {"{{1}}"}, fala {"{{2}}"}, da Wine
-          Portugal…&quot;. Once it is APPROVED, enter it as &quot;Sales prospects template name&quot;. For the replies to reach the admin, set the WhatsApp webhook in Telnyx (Messaging → WhatsApp → your account) to{" "}
+          The same button also submits <b>contacto_empresas</b> (Marketing, pt_PT), the first message a sales rep may send on WhatsApp to an HR lead who asked for it on the call: &quot;Olá {"{{1}}"}! Daqui fala {"{{2}}"}, da
+          Wine Portugal…&quot;. Once it is APPROVED, enter it as &quot;Sales prospects template name&quot;. For the replies to reach the admin, set the WhatsApp webhook in Telnyx (Messaging → WhatsApp → your account) to{" "}
           <b>https://vinho.prendadenatal.com/api/whatsapp/webhook</b>.
         </p>
         <div className="flex flex-wrap gap-3">

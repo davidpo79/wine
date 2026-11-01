@@ -58,6 +58,9 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   won: { label: "Deal closed", cls: "bg-[#184b36] text-white" },
 };
 
+/** Team rule: after 3 calls without an answer, send the presentation by e-mail instead of calling again. */
+const tryEmail = (l: Lead) => l.status === "no_answer" && l.attempts >= 3 && !l.emailedAt;
+
 const FILTERS: { key: string; label: string; test: (l: Lead) => boolean }[] = [
   { key: "all", label: "All", test: () => true },
   { key: "approve", label: "To approve", test: (l) => !l.approved && !["opt_out", "blocked"].includes(l.status) },
@@ -408,6 +411,11 @@ export function AdminPanel(p: {
                         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>{st.label}</span>
                         {!l.approved && !["opt_out", "blocked"].includes(l.status) && <span className="mt-1 block text-[11px] text-muted">not approved</span>}
                         {l.attempts > 0 && <span className="mt-1 block text-[11px] text-muted">{l.attempts} call{l.attempts === 1 ? "" : "s"}</span>}
+                        {tryEmail(l) && (
+                          <span className="mt-1 block max-w-[12rem] rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-900">
+                            {l.attempts} calls, no answer: {l.email ? "send the e-mail" : "get the e-mail and send it"}
+                          </span>
+                        )}
                         {l.note && <span className="mt-1 block max-w-[14rem] text-[11px] italic text-muted" title={l.note}>“{l.note.length > 80 ? `${l.note.slice(0, 80)}…` : l.note}”</span>}
                       </td>
                       {!lim && <td className="py-3 text-xs">{p.reps.find((r) => r.id === l.assignedTo)?.email ?? <span className="text-muted">—</span>}</td>}
@@ -648,10 +656,9 @@ Equipa Wine Portugal
 
 Obtivemos o seu contacto profissional através da plataforma Apollo.io. Se não pretender receber mais contactos nossos, responda a este e-mail com «PARAR» e não voltaremos a contactá-lo/a.`;
 
-type Tpl = { id: number; name: string; subject: string; body: string };
+type Tpl = { id: number; name: string; subject: string; body: string; mine: boolean; owner?: string };
 // Built-in templates (not editable). [NOME] and [REP] are filled in when the e-mail is sent.
 const BUILT_IN: { key: string; name: string; subject: string; body: (first: string | null) => string }[] = [
-  { key: "standard", name: "Standard offer", subject: offerSubject(), body: offerBody },
   {
     key: "presentation",
     name: "Presentation with catalogue",
@@ -670,22 +677,25 @@ Com os melhores cumprimentos,
 [REP]
 Wine Portugal`,
   },
+  { key: "standard", name: "Standard offer", subject: offerSubject(), body: offerBody },
 ];
 
 function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => void; onSent: (ok: boolean, m: string) => void }) {
-  const [subject, setSubject] = useState(offerSubject());
-  const [body, setBody] = useState(offerBody(lead.firstName));
+  // The presentation (signed by whoever sends it) opens by default.
+  const [subject, setSubject] = useState(BUILT_IN[0].subject);
+  const [body, setBody] = useState(BUILT_IN[0].body(lead.firstName));
   const [attachCatalog, setAttachCatalog] = useState(true);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [mine, setMine] = useState<Tpl[]>([]);
-  const [chosen, setChosen] = useState("b:standard"); // "b:<key>" built-in, "t:<id>" her own
+  const [chosen, setChosen] = useState(`b:${BUILT_IN[0].key}`); // "b:<key>" built-in, "t:<id>" a saved one
   const [naming, setNaming] = useState<string | null>(null); // the name being typed for a new template
   const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
     void post("templates", {}).then((r) => r.ok && setMine(r.templates as Tpl[]));
   }, []);
-  const own = chosen.startsWith("t:") ? mine.find((t) => `t:${t.id}` === chosen) ?? null : null;
+  const picked = chosen.startsWith("t:") ? mine.find((t) => `t:${t.id}` === chosen) ?? null : null;
+  const own = picked?.mine ? picked : null;
   const pick = (v: string) => {
     setChosen(v);
     setNote(null);
@@ -717,10 +727,17 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
               {BUILT_IN.map((b) => (
                 <option key={b.key} value={`b:${b.key}`}>{b.name}</option>
               ))}
-              {mine.length > 0 && (
+              {mine.some((t) => t.mine) && (
                 <optgroup label="My templates">
-                  {mine.map((t) => (
+                  {mine.filter((t) => t.mine).map((t) => (
                     <option key={t.id} value={`t:${t.id}`}>{t.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              {mine.some((t) => !t.mine) && (
+                <optgroup label="From the team (use, or save a copy as yours)">
+                  {mine.filter((t) => !t.mine).map((t) => (
+                    <option key={t.id} value={`t:${t.id}`}>{t.name} · {t.owner}</option>
                   ))}
                 </optgroup>
               )}
@@ -739,7 +756,7 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
                   const r = await post("template-delete", { id: own.id });
                   if (!r.ok) return setErr(String(r.reason ?? "Not deleted."));
                   setMine((m) => m.filter((x) => x.id !== own.id));
-                  pick("b:standard");
+                  pick(`b:${BUILT_IN[0].key}`);
                   setNote("Template deleted.");
                 }}
                 className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700"
@@ -757,6 +774,7 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
             <span className="w-full text-[11px] text-muted">Saves the subject and message below. Write [NOME] for the person&apos;s first name and [REP] for yours.</span>
           </div>
         )}
+        {picked && !picked.mine && <p className="mt-2 text-xs text-muted">{picked.owner}&apos;s template: you can use it as it is, or change it and click “+ New template” to keep your own copy.</p>}
         {note && <p className="mt-2 text-xs font-semibold text-green-800">✓ {note}</p>}
         <label className="mt-3 block text-xs font-semibold">
           Subject

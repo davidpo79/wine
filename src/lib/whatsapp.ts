@@ -244,7 +244,10 @@ export const PROSPECT_TEMPLATE_NAME = "contacto_empresas";
 export const PROSPECT_TEMPLATE_LANG = "pt_PT";
 export const WINDOW_MS = 24 * 3600_000;
 
-/** {{1}} the prospect's first name, {{2}} the rep's first name. */
+/** The first message, Soraya's wording (European Portuguese): {{1}} the prospect's first name, {{2}} the rep's. */
+export const prospectTemplateText = (first = "{{1}}", rep = "{{2}}") =>
+  `Olá ${first}! Daqui fala ${rep}, da Wine Portugal. Como combinámos ao telefone, deixo aqui o meu contacto para acertarmos os detalhes dos presentes de Natal. Quando puder, responda a esta mensagem e envio-lhe a apresentação completa. 🍷 Se não pretender receber mais mensagens, responda PARAR.`;
+
 export function prospectTemplateDefinition() {
   return {
     name: PROSPECT_TEMPLATE_NAME,
@@ -253,7 +256,7 @@ export function prospectTemplateDefinition() {
     components: [
       {
         type: "BODY",
-        text: "Olá {{1}}, fala {{2}}, da Wine Portugal. Como combinámos ao telefone, deixo-lhe aqui o nosso contacto para os presentes de Natal da sua equipa. Responda a esta mensagem quando quiser e envio-lhe a proposta. Para não receber mais mensagens, responda PARAR.",
+        text: prospectTemplateText(),
         example: { body_text: [["Ana", "Soraya"]] },
       },
     ],
