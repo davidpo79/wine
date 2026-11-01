@@ -109,7 +109,7 @@ export function AdminPanel(p: {
   flags: { enabled: boolean; legalApproved: boolean; live: boolean };
   config: { apolloKey: boolean; webhookBase: string | null; resultMode: string; caps: { daily: number | null; monthly: number | null }; callCap: number; callHours: string | null; pilot: string[] | null; telnyxMissing: string[]; dncRequired: boolean; legalBasisRequired: boolean; businessLineRequired: boolean };
   credits: { real: Bucket; demo: Bucket };
-  reps: { id: number; email: string }[];
+  reps: { id: number; email: string; ready?: boolean }[];
   leads: Lead[];
   requests: Req[];
   /** Team members holding leads (admin view): a holder who is not a Sales rep sees everyone's leads. */
@@ -131,6 +131,9 @@ export function AdminPanel(p: {
   const [repView, setRepView] = useState(""); // "" every lead · "none" nobody's · a rep's id
   const ofRep = (l: Lead) => repView === "" || (repView === "none" ? !l.assignedTo : l.assignedTo === Number(repView));
   const [busy, setBusy] = useState(false);
+  const [split, setSplit] = useState<number[] | null>(null); // the split dialog: [] every lead nobody has, else the chosen leads
+  const [splitDone, setSplitDone] = useState<SplitResult | null>(null);
+  const readyReps = p.reps.filter((r) => r.ready !== false);
 
   const run = async (action: string, body: unknown, ok?: (r: Record<string, unknown>) => string) => {
     setBusy(true);
@@ -301,10 +304,10 @@ export function AdminPanel(p: {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => window.confirm(`Split all unassigned leads evenly between ${p.reps.length} sales rep${p.reps.length === 1 ? "" : "s"}?`) && run("distribute", {}, (r) => `Gave ${r.count} leads to ${r.reps} sales rep${r.reps === 1 ? "" : "s"}.`)}
+                onClick={() => setSplit([])}
                 className="mt-2 w-full rounded-lg border border-[#0F2340] px-3 py-2 text-sm font-semibold text-[#0F2340] disabled:opacity-50"
               >
-                Split unassigned leads between reps
+                Split unassigned leads between reps…
               </button>
             </div>
           )}
@@ -313,6 +316,21 @@ export function AdminPanel(p: {
       </>
       )}
 
+      {split && (
+        <SplitDialog
+          ids={split}
+          leads={p.leads}
+          holders={(p.holders ?? []).filter((h) => h.role === "pt_caller")}
+          onClose={() => setSplit(null)}
+          onDone={(r) => {
+            setSplit(null);
+            setSel([]);
+            setSplitDone(r);
+            router.refresh();
+          }}
+        />
+      )}
+      {splitDone && <SplitResultDialog r={splitDone} onClose={() => setSplitDone(null)} />}
       {!lim && p.holders && p.holders.length > 0 && <RepSplit holders={p.holders} shared={p.sharedLeads ?? 0} onPick={(id) => { setRepView(String(id)); setFilter("all"); setSel([]); document.getElementById("leads-table")?.scrollIntoView({ behavior: "smooth" }); }} />}
 
       {msg && (
@@ -546,7 +564,7 @@ export function AdminPanel(p: {
           <span className="mx-1 h-5 w-px bg-white/30" />
           <select value={rep} onChange={(e) => setRep(e.target.value)} className="rounded-lg p-1.5 text-xs text-ink">
             <option value="">{p.reps.length ? "Choose a sales rep…" : "No sales reps yet"}</option>
-            {p.reps.map((r) => (
+            {readyReps.map((r) => (
               <option key={r.id} value={r.id}>{r.email}</option>
             ))}
             <option value="none">Remove assignment</option>
@@ -555,9 +573,9 @@ export function AdminPanel(p: {
             Assign
           </button>
           {!p.reps.length && <Link href="/admin/team" className="text-xs underline opacity-90">Add a sales rep in Team →</Link>}
-          {p.reps.length > 1 && (
-            <button type="button" disabled={busy} onClick={() => run("distribute", { ids: sel }, (r) => `Split ${r.count} between ${r.reps} sales reps.`)} className="rounded-lg border border-white/60 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
-              Split evenly
+          {readyReps.length > 1 && (
+            <button type="button" disabled={busy} onClick={() => setSplit(sel)} className="rounded-lg border border-white/60 px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
+              Split evenly…
             </button>
           )}
           <span className="mx-1 h-5 w-px bg-white/30" />
@@ -932,5 +950,120 @@ function DialerButton({ disabled, onLead }: { disabled: boolean; onLead: () => v
     >
       📞
     </button>
+  );
+}
+
+type SplitResult = { count: number; reclaimed: number; result: { id: number; email: string; count: number }[] };
+type Holder = NonNullable<Parameters<typeof AdminPanel>[0]["holders"]>[number];
+
+/** Asks how to split before anything moves: which reps, which leads, how many each; shows the expected outcome. */
+function SplitDialog({ ids, leads, holders, onClose, onDone }: { ids: number[]; leads: Lead[]; holders: Holder[]; onClose: () => void; onDone: (r: SplitResult) => void }) {
+  const ready = holders.filter((h) => !h.disabled && h.lastLogin);
+  const blocked = holders.filter((h) => h.disabled || !h.lastLogin);
+  const stuck = blocked.reduce((t, h) => t + h.leads, 0);
+  const [reps, setReps] = useState<number[]>(ready.map((h) => h.id));
+  const [phoneOnly, setPhoneOnly] = useState(false);
+  const [reclaim, setReclaim] = useState(stuck > 0 && ids.length === 0);
+  const [cap, setCap] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const usable = (l: Lead) => !["opt_out", "blocked", "calling"].includes(l.status) && (!phoneOnly || !!l.phone);
+  // The page lists up to 500 leads, so the numbers here are a close estimate; the result shows the exact split.
+  const free = leads.filter((l) => !l.assignedTo && (!ids.length || ids.includes(l.id)) && usable(l)).length;
+  const back = reclaim ? leads.filter((l) => blocked.some((h) => h.id === l.assignedTo) && usable(l)).length : 0;
+  const perCap = Number(cap) > 0 ? Math.floor(Number(cap)) : null;
+  const total = Math.min(free + back, perCap ? perCap * reps.length : Infinity);
+  const each = reps.length ? Math.floor(total / reps.length) : 0;
+  const extra = reps.length ? total % reps.length : 0;
+  const go = async () => {
+    setBusy(true);
+    setErr("");
+    const r = await post("distribute", { ids, repIds: reps, phoneOnly, reclaim, perRep: perCap }).finally(() => setBusy(false));
+    if (r.ok === false || r.error) return setErr(String(r.reason ?? r.error));
+    onDone(r as unknown as SplitResult);
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-label="Split leads between sales reps">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
+        <h3 className="font-semibold">Split {ids.length ? `${ids.length} chosen lead${ids.length === 1 ? "" : "s"}` : "leads nobody has"} between sales reps</h3>
+        <p className="mt-1 text-xs text-muted">Leads a rep already has stay with her. Only reps who accepted the invitation can get leads.</p>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Who gets leads</p>
+        {ready.length === 0 && <p className="mt-1 text-sm text-red-700">No sales rep has logged in yet.</p>}
+        {ready.map((h) => (
+          <label key={h.id} className="mt-1 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={reps.includes(h.id)} onChange={(e) => setReps((s) => (e.target.checked ? [...s, h.id] : s.filter((x) => x !== h.id)))} />
+            <span className="flex-1">{h.email}</span>
+            <span className="text-xs text-muted">has {h.leads}</span>
+          </label>
+        ))}
+        {blocked.filter((h) => h.leads > 0 || blocked.length <= 3).map((h) => (
+          <div key={h.id} className="mt-1 flex items-center gap-2 text-sm text-muted">
+            <input type="checkbox" disabled checked={false} readOnly />
+            <span className="flex-1 line-through">{h.email}</span>
+            <span className="text-xs">{h.disabled ? "disabled" : "never logged in"} · has {h.leads}</span>
+          </div>
+        ))}
+        {blocked.length > 3 && blocked.some((h) => !h.leads) && (
+          <p className="mt-1 text-xs text-muted">+ {blocked.filter((h) => !h.leads).length} more who never logged in or are disabled, with no leads.</p>
+        )}
+        {stuck > 0 && (
+          <label className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-sm">
+            <input type="checkbox" className="mt-1" checked={reclaim} onChange={(e) => setReclaim(e.target.checked)} />
+            <span>
+              Take back the {stuck} lead{stuck === 1 ? "" : "s"} held by {blocked.filter((h) => h.leads > 0).map((h) => h.email).join(", ")} and split them too
+            </span>
+          </label>
+        )}
+        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Which leads</p>
+        <label className="mt-1 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={phoneOnly} onChange={(e) => setPhoneOnly(e.target.checked)} /> Only leads with a phone number
+        </label>
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          At most
+          <input value={cap} onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="all" className="w-16 rounded border p-1 text-center" />
+          leads per rep
+        </label>
+        <div className="mt-4 rounded-lg bg-paper p-3 text-sm">
+          {reps.length === 0
+            ? "Choose at least one sales rep."
+            : total === 0
+              ? "No lead to split with these choices."
+              : `About ${total} lead${total === 1 ? "" : "s"}: ${each}${extra ? `–${each + 1}` : ""} for each of ${reps.length} rep${reps.length === 1 ? "" : "s"}.`}
+        </div>
+        {err && <p className="mt-2 text-sm text-red-700">{err}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg border px-3 py-2 text-sm">Cancel</button>
+          <button type="button" disabled={busy || reps.length === 0 || (total === 0 && !reclaim)} onClick={go} className="rounded-lg bg-[#0F2340] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            {busy ? "Splitting…" : "Split now"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** What the split did, rep by rep. */
+function SplitResultDialog({ r, onClose }: { r: SplitResult; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-label="Split done">
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+        <h3 className="font-semibold">Split done ✓</h3>
+        {r.reclaimed > 0 && <p className="mt-2 text-sm">Took back {r.reclaimed} lead{r.reclaimed === 1 ? "" : "s"} from reps who cannot work them.</p>}
+        <p className="mt-2 text-sm">Gave {r.count} lead{r.count === 1 ? "" : "s"}:</p>
+        <table className="mt-2 w-full text-sm">
+          <tbody>
+            {r.result.map((x) => (
+              <tr key={x.id} className="border-t">
+                <td className="py-1.5">{x.email}</td>
+                <td className="py-1.5 text-right font-semibold">+{x.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="mt-4 flex justify-end">
+          <button type="button" onClick={onClose} className="rounded-lg bg-[#0F2340] px-3 py-2 text-sm font-semibold text-white">OK</button>
+        </div>
+      </div>
+    </div>
   );
 }

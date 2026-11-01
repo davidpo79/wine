@@ -51,7 +51,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
       case "claim":
         return Response.json(await svc.claimLeads(me, Number(b.count) || 10));
       case "distribute":
-        return Response.json(await svc.distributeLeads(me, ids(b.ids)));
+        return Response.json(
+          await svc.distributeLeads(me, ids(b.ids), {
+            repIds: Array.isArray(b.repIds) ? ids(b.repIds) : undefined,
+            perRep: Number(b.perRep) > 0 ? Number(b.perRep) : null,
+            phoneOnly: b.phoneOnly === true,
+            reclaim: b.reclaim === true,
+          }),
+        );
       case "assign":
         return Response.json(await svc.assignLeads(me, ids(b.ids), b.repId === null || b.repId === "" ? null : Number(b.repId)));
       case "classify":

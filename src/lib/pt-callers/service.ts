@@ -5,7 +5,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { and, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { PtLead } from "@/db/schema";
 import type { AdminSession } from "@/lib/auth";
@@ -365,6 +365,7 @@ export async function assignLeads(me: Me, ids: number[], repId: number | null) {
   if (repId !== null) {
     const [u] = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.id, repId)).limit(1);
     if (!u || u.role !== "pt_caller" || u.disabledAt) return { ok: false, reason: "Assign only to an active Sales rep (Portugal callers)." };
+    if (!u.lastLoginAt) return { ok: false, reason: `${u.email} has not accepted the invitation yet (never logged in). Assign leads once she has.` };
   }
   const r = await db
     .update(LEADS)
@@ -400,29 +401,73 @@ export async function claimLeads(me: Me, n: number) {
   return { ok: true, count: ids.length };
 }
 
-/** Admin: splits leads evenly between the active sales reps (round robin), the chosen ones or every unassigned lead. */
-export async function distributeLeads(me: Me, ids: number[]) {
+/** A Sales rep who can receive leads: enabled and has accepted the invitation (logged in at least once). */
+const READY_REP = and(eq(schema.adminUsers.role, "pt_caller"), isNull(schema.adminUsers.disabledAt), isNotNull(schema.adminUsers.lastLoginAt));
+
+/**
+ * Admin: splits leads nobody has between the chosen sales reps, round robin. Only reps who are enabled and have
+ * accepted the invitation can receive leads (any other id is refused, not skipped). Options: only the given lead ids,
+ * only leads with a phone, at most perRep leads each, and reclaim: first take back the leads held by sales reps who
+ * cannot work them (never logged in, or disabled). Returns what each rep received.
+ */
+export async function distributeLeads(me: Me, ids: number[], o: { repIds?: number[]; perRep?: number | null; phoneOnly?: boolean; reclaim?: boolean } = {}) {
   adminOnly(me);
-  const reps = await db
-    .select({ id: schema.adminUsers.id })
-    .from(schema.adminUsers)
-    .where(and(eq(schema.adminUsers.role, "pt_caller"), isNull(schema.adminUsers.disabledAt)))
-    .orderBy(schema.adminUsers.id);
-  if (!reps.length) return { ok: false, reason: "No active sales rep. Add one in Team first." };
+  const U = schema.adminUsers;
+  const ready = await db.select({ id: U.id, email: U.email }).from(U).where(READY_REP).orderBy(U.id);
+  const wanted = o.repIds?.length ? [...new Set(o.repIds)] : ready.map((r) => r.id);
+  if (wanted.some((id) => !ready.some((r) => r.id === id)))
+    return { ok: false, reason: "Leads go only to sales reps who accepted the invitation and are not disabled. Refresh the page and choose again." };
+  const reps = ready.filter((r) => wanted.includes(r.id));
+  if (!reps.length) return { ok: false, reason: o.repIds ? "Choose at least one sales rep." : "No sales rep has accepted the invitation yet." };
+  let reclaimed = 0;
+  if (o.reclaim) {
+    const back = await db
+      .update(LEADS)
+      .set({ assignedTo: null, updatedAt: new Date() })
+      .where(
+        and(
+          sql`${LEADS.assignedTo} in (select id from admin_users where role = 'pt_caller' and (disabled_at is not null or last_login_at is null))`,
+          sql`${LEADS.status} <> 'calling'`,
+        ),
+      )
+      .returning({ id: LEADS.id });
+    for (const x of back) await logAccess(me.id, x.id, "assign", { repId: null, reclaimed: true });
+    reclaimed = back.length;
+  }
+  const perRep = o.perRep && o.perRep > 0 ? Math.min(Math.floor(o.perRep), 1000) : null;
   const pool = await db
     .select({ id: LEADS.id })
     .from(LEADS)
     // Only leads nobody has: a rep keeps the leads she already works on (use Assign to move one on purpose).
-    .where(and(isNull(LEADS.assignedTo), ...(ids.length ? [inArray(LEADS.id, ids)] : []), sql`${LEADS.status} not in ('opt_out','blocked','calling')`))
-    .orderBy(sql`${LEADS.phone} is null`, LEADS.id);
-  if (!pool.length) return { ok: false, reason: ids.length ? "All the chosen leads already have a sales rep. Use Assign to move a lead on purpose." : "No leads to distribute." };
+    .where(
+      and(
+        isNull(LEADS.assignedTo),
+        ...(ids.length ? [inArray(LEADS.id, ids)] : []),
+        ...(o.phoneOnly ? [sql`${LEADS.phone} is not null`] : []),
+        sql`${LEADS.status} not in ('opt_out','blocked','calling')`,
+      ),
+    )
+    .orderBy(sql`${LEADS.phone} is null`, LEADS.id)
+    .limit(perRep ? perRep * reps.length : 100000);
+  if (!pool.length)
+    return reclaimed
+      ? { ok: true, count: 0, reps: reps.length, reclaimed, result: reps.map((r) => ({ id: r.id, email: r.email, count: 0 })) }
+      : { ok: false, reason: ids.length ? "All the chosen leads already have a sales rep. Use Assign to move a lead on purpose." : "No leads to distribute." };
   const per: Record<number, number[]> = {};
   pool.forEach((l, i) => (per[reps[i % reps.length].id] ??= []).push(l.id));
+  const given: Record<number, number> = {};
   for (const [repId, list] of Object.entries(per)) {
-    await db.update(LEADS).set({ assignedTo: Number(repId), updatedAt: new Date() }).where(inArray(LEADS.id, list));
-    for (const id of list) await logAccess(me.id, id, "assign", { repId: Number(repId), distributed: true });
+    // "and assigned_to is null": a lead a rep took a moment ago stays hers.
+    const r = await db
+      .update(LEADS)
+      .set({ assignedTo: Number(repId), updatedAt: new Date() })
+      .where(and(inArray(LEADS.id, list), isNull(LEADS.assignedTo)))
+      .returning({ id: LEADS.id });
+    given[Number(repId)] = r.length;
+    for (const x of r) await logAccess(me.id, x.id, "assign", { repId: Number(repId), distributed: true });
   }
-  return { ok: true, count: pool.length, reps: reps.length };
+  const result = reps.map((r) => ({ id: r.id, email: r.email, count: given[r.id] ?? 0 }));
+  return { ok: true, count: result.reduce((t, r) => t + r.count, 0), reps: reps.length, reclaimed, result };
 }
 
 /** The number's class (business line or not) and the legal basis, both recorded by an admin before any dial. */

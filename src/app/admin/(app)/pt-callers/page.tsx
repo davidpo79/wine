@@ -27,7 +27,11 @@ export default async function PtCallers() {
   const [leads, reps, requests, credits] = await Promise.all([
     // Leads with a phone first (the ones that can be called), newest first inside each group.
     db.select().from(schema.ptLeads).orderBy(sql`${schema.ptLeads.phone} is null`, desc(schema.ptLeads.id)).limit(500),
-    db.select({ id: schema.adminUsers.id, email: schema.adminUsers.email }).from(schema.adminUsers).where(eq(schema.adminUsers.role, "pt_caller")),
+    // ready: can receive leads (enabled, and accepted the invitation by logging in at least once).
+    db
+      .select({ id: schema.adminUsers.id, email: schema.adminUsers.email, ready: sql<boolean>`${schema.adminUsers.disabledAt} is null and ${schema.adminUsers.lastLoginAt} is not null` })
+      .from(schema.adminUsers)
+      .where(eq(schema.adminUsers.role, "pt_caller")),
     db.select().from(schema.ptEnrichmentRequests).orderBy(desc(schema.ptEnrichmentRequests.sentAt)).limit(50),
     creditSummary(me),
   ]);
@@ -49,7 +53,7 @@ export default async function PtCallers() {
       flags={flags}
       config={panelConfig()}
       credits={credits}
-      reps={reps}
+      reps={reps.map((r) => ({ ...r, ready: !!r.ready }))}
       holders={[...holders].map((h) => ({ id: Number(h.id), email: String(h.email), role: String(h.role), disabled: !!h.disabled, lastLogin: h.last_login_at ? new Date(h.last_login_at as string).toISOString() : null, leads: Number(h.leads) }))}
       sharedLeads={shared?.n ?? 0}
       leads={leads.map((l) => panelLead(l))}

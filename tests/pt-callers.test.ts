@@ -371,7 +371,7 @@ before(async () => {
     APOLLO_WEBHOOK_BASE_URL: "https://wine.test",
   });
   const mk = async (me: Me, role: string) => {
-    const [u] = await D.db.insert(D.schema.adminUsers).values({ email: `${role}-${RUN}-${Math.random()}@wine.test`, passwordHash: "x", role }).returning();
+    const [u] = await D.db.insert(D.schema.adminUsers).values({ email: `${role}-${RUN}-${Math.random()}@wine.test`, passwordHash: "x", role, lastLoginAt: new Date() }).returning();
     Object.assign(me, { id: u.id, email: u.email });
     // A phone device for the rep (normally created by /admin/calls/webrtc-token).
     await D.db.insert(D.schema.humanCallRepEndpoints).values({ adminId: u.id, sipUsername: `sip${RUN}${u.id}`, credentialId: `cred${RUN}${u.id}`, connectionId: "cred-conn" });
@@ -951,6 +951,19 @@ dbTest("lead split: reps taking leads at the same time never get the same one; a
     assert.ok(per.every((r) => r.assigned_to !== null));
     const counts = per.map((r) => r.n as number);
     assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, JSON.stringify(per));
+    // A rep who never logged in (invitation not accepted) gets nothing, can't be chosen or assigned; her leads can be taken back.
+    const [invited] = await D!.db.insert(D!.schema.adminUsers).values({ email: `invited-${RUN}@wine.test`, passwordHash: "x", role: "pt_caller" }).returning();
+    assert.ok(!per.some((r) => r.assigned_to === invited.id));
+    assert.match(why(await svc!.distributeLeads(admin, ids, { repIds: [rep.id, invited.id] })), /accepted the invitation/);
+    assert.match(why(await svc!.assignLeads(admin, [ids[0]], invited.id)), /not accepted the invitation/);
+    await D!.sql`update pt_leads set assigned_to = ${invited.id} where id = any(${ids.slice(0, 4)})`;
+    const back = await svc!.distributeLeads(admin, ids.slice(0, 4), { repIds: [rep2.id], reclaim: true, perRep: 3 });
+    assert.equal(back.ok, true);
+    assert.ok((back.reclaimed ?? 0) >= 4);
+    assert.deepEqual(back.result, [{ id: rep2.id, email: rep2.email, count: 3 }]);
+    const left = await D!.sql`select assigned_to from pt_leads where id = any(${ids.slice(0, 4)})`;
+    assert.equal(left.filter((r) => r.assigned_to === rep2.id).length, 3);
+    assert.equal(left.filter((r) => r.assigned_to === invited.id).length, 0);
   } finally {
     if (parked.length) await D!.sql`update pt_leads set assigned_to = null where id = any(${parked})`;
   }
