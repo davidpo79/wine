@@ -55,6 +55,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   opt_out: { label: "Do not contact", cls: "bg-red-100 text-red-800" },
   blocked: { label: "Blocked", cls: "bg-red-100 text-red-800" },
   failed: { label: "No phone found", cls: "bg-slate-100 text-slate-600" },
+  won: { label: "Deal closed", cls: "bg-[#184b36] text-white" },
 };
 
 const FILTERS: { key: string; label: string; test: (l: Lead) => boolean }[] = [
@@ -65,7 +66,7 @@ const FILTERS: { key: string; label: string; test: (l: Lead) => boolean }[] = [
   { key: "classify", label: "To prepare", test: (l) => !!l.phone && l.status === "new" },
   { key: "ready", label: "Ready", test: (l) => l.status === "ready" },
   { key: "unassigned", label: "Not assigned", test: (l) => l.status === "ready" && !l.assignedTo },
-  { key: "worked", label: "Called", test: (l) => ["no_answer", "callback", "interested", "not_interested", "wrong_number"].includes(l.status) },
+  { key: "worked", label: "Called", test: (l) => ["no_answer", "callback", "interested", "not_interested", "wrong_number", "won"].includes(l.status) },
   { key: "blocked", label: "Blocked", test: (l) => ["opt_out", "blocked"].includes(l.status) },
 ];
 

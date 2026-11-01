@@ -257,8 +257,9 @@ const EN_OUTCOME: Record<string, string> = {
   no_answer: "No answer",
   voicemail: "Voicemail",
   wrong_number: "Wrong number",
+  won: "Deal closed",
 };
-const OUTCOMES = ["interested", "not_interested", "callback", "no_answer", "voicemail", "wrong_number"];
+const OUTCOMES = ["interested", "not_interested", "callback", "no_answer", "voicemail", "wrong_number", "won"];
 type Summary = { at: string; by: string | null; outcome: string | null; note: string | null; talkedSecs: number | null; result: string | null };
 
 function DialerPanel({ leadId, callId, pt }: { leadId: number; callId: string | null; pt: boolean }) {

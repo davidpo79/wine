@@ -520,7 +520,7 @@ export const ptLeads = pgTable(
     emailedAt: timestamp("emailed_at", { withTimezone: true }), // last offer e-mail sent from the admin screen
     numberClass: text("number_class").notNull().default("unknown"), // business | personal | unknown (set by an admin)
     legalBasis: text("legal_basis"), // recorded by an admin before the lead can be dialed
-    // new | ready | calling | no_answer | callback | interested | not_interested | wrong_number | opt_out | blocked | enrichment_pending | failed
+    // new | ready | calling | no_answer | callback | interested | not_interested | wrong_number | opt_out | blocked | enrichment_pending | failed | won
     status: text("status").notNull().default("new"),
     statusBeforeCall: text("status_before_call"),
     approvedAt: timestamp("approved_at", { withTimezone: true }),

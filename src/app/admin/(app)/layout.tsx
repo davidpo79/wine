@@ -32,6 +32,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/newsletter", label: "Newsletter", icon: "mail" },
       { href: "/admin/leads", label: "Leads", icon: "leads" },
       { href: "/admin/pt-callers", label: "Portugal HR callers", icon: "leads" },
+      { href: "/admin/pt-callers/pipeline", label: "Sales pipeline", icon: "funnel" },
       { href: "/admin/whatsapp", label: "WhatsApp", icon: "chat" },
       { href: "/admin/creatives", label: "Ads", icon: "ads" },
     ],
@@ -72,6 +73,7 @@ const PT_CALLER_NAV: NavGroup[] = [
     items: [
       { href: "/admin/pt-callers", label: "Contactos RH", icon: "leads" },
       { href: "/admin/pt-callers/mine", label: "Os meus leads", icon: "leads" },
+      { href: "/admin/pt-callers/pipeline", label: "Pipeline", icon: "funnel" },
       { href: "/admin/inbox", label: "Inbox", icon: "mail" },
       { href: "/admin/whatsapp", label: "WhatsApp", icon: "chat" },
     ],

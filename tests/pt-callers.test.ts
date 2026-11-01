@@ -167,6 +167,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "GET /admin/password",
     "GET /admin/pt-callers",
     "GET /admin/pt-callers/mine",
+    "GET /admin/pt-callers/pipeline",
     "GET /admin/whatsapp",
     "POST /admin/calls/dtmf",
     "POST /admin/calls/state",
@@ -182,6 +183,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
     "POST /admin/pt-callers/api/rep/opt-out",
     "POST /admin/pt-callers/api/rep/outcome",
     "POST /admin/pt-callers/mine",
+    "POST /admin/pt-callers/pipeline",
     "POST /admin/whatsapp",
   ]);
   assert.equal(access.ptCallerAllowed("GET", "/admin/whatsapp/42"), true);
@@ -212,6 +214,7 @@ test("server actions and routes: only the listed files let a sales rep in", () =
     "src/app/admin/(app)/layout.tsx",
     "src/app/admin/(app)/pt-callers/mine/page.tsx",
     "src/app/admin/(app)/pt-callers/page.tsx",
+    "src/app/admin/(app)/pt-callers/pipeline/page.tsx",
     "src/app/admin/(app)/whatsapp/[lead]/page.tsx",
     "src/app/admin/(app)/whatsapp/page.tsx",
     "src/app/admin/calls/guard.ts",
@@ -1054,4 +1057,15 @@ dbTest("notes stay with the rep who wrote them: a lead moved to another rep show
   // Her own note is hers.
   await svc!.setOutcome(rep2, l.id, { status: "callback", note: "A minha nota" });
   assert.equal((await svc!.listForRep(rep2)).find((x) => x.id === l.id)?.note, "A minha nota");
+});
+
+test("pipeline: every status has exactly one column; dropping records the column's outcome; closed is a rep outcome", async () => {
+  const st = await import("../src/lib/pt-callers/statuses");
+  for (const s of st.STATUSES) assert.equal(st.PIPELINE.filter((c) => (c.statuses as readonly string[]).includes(s)).length, 1, s);
+  assert.equal(st.pipelineColumn("ready"), "new");
+  assert.equal(st.pipelineColumn("interested"), "follow_up");
+  assert.equal(st.pipelineColumn("opt_out"), "lost");
+  assert.equal(st.pipelineColumn("won"), "won");
+  for (const c of st.PIPELINE) if (c.drop) assert.ok(st.REP_OUTCOMES.includes(c.drop), c.key);
+  assert.ok(st.REP_OUTCOMES.includes("won"));
 });

@@ -12,6 +12,8 @@ const RULES: { method: "GET" | "POST"; path: string | RegExp }[] = [
   // "Os meus leads": the rep's own leads, worked start to finish (the service refuses anyone else's lead).
   { method: "GET", path: "/admin/pt-callers/mine" },
   { method: "POST", path: "/admin/pt-callers/mine" }, // logout action
+  { method: "GET", path: "/admin/pt-callers/pipeline" },
+  { method: "POST", path: "/admin/pt-callers/pipeline" }, // logout action
   ...["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out"].map((a) => ({ method: "POST" as const, path: `/admin/pt-callers/api/admin/${a}` })),
   // Inbox, scoped to her own leads' e-mails by every page, action and the attachment route. POST = server actions.
   { method: "GET", path: "/admin/inbox" },

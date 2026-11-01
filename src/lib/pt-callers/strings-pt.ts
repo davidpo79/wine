@@ -15,6 +15,7 @@ const status: Record<LeadStatus, string> = {
   blocked: "Bloqueado",
   enrichment_pending: "A aguardar contacto",
   failed: "Falhou",
+  won: "Negócio fechado",
 };
 
 export const PT = {
