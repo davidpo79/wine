@@ -17,6 +17,7 @@ import { CreditRefused, reserve, settleOnce, summary } from "./ledger";
 import { blockHash, maskPhone, normalizePtPhone } from "./phone";
 import { outboundEnv } from "../outbound-settings";
 import { isBlocked, leadById, leadRefusal, logAccess, releaseAfterCall, type Refusal } from "./rules";
+import { repFirstName } from "./whatsapp";
 
 const LEADS = schema.ptLeads;
 const REQ = schema.ptEnrichmentRequests;
@@ -702,6 +703,51 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 /** The B2B Christmas catalogue attached to offer e-mails (compressed for e-mail, about 2.4 MB). */
 const B2B_CATALOG = { file: "catalogo-b2b-natal-2026.pdf" };
 
+/** The line every offer e-mail ends with (GDPR art. 14: where we got the contact, how to stop). Added when missing. */
+export const OPT_OUT_LINE = "Obtivemos o seu contacto profissional através da plataforma Apollo.io. Se não pretender receber mais contactos nossos, responda a este e-mail com «PARAR» e não voltaremos a contactá-lo/a.";
+export const withOptOutLine = (body: string) => (/PARAR/i.test(body) ? body : `${body}\n\n${OPT_OUT_LINE}`);
+
+/** [NOME] = the lead's first name, [REP] = the sender's first name (from her e-mail). */
+export const fillPlaceholders = (text: string, leadFirst: string | null, senderEmail: string) =>
+  text.replace(/\[NOME\]/gi, leadFirst?.trim() || "").replace(/\[REP\]/gi, repFirstName(senderEmail)).replace(/ +([,!?.])/g, "$1");
+
+// --- Offer e-mail templates (each person keeps her own) ---------------------------------------------------------------
+
+export type EmailTemplate = { id: number; name: string; subject: string; body: string };
+
+export async function listTemplates(me: Me): Promise<EmailTemplate[]> {
+  if (me.role !== "admin" && me.role !== "pt_caller") throw new Error("forbidden");
+  const T = schema.emailTemplates;
+  return db.select({ id: T.id, name: T.name, subject: T.subject, body: T.body }).from(T).where(eq(T.ownerId, me.id)).orderBy(T.name);
+}
+
+/** Creates (no id) or updates one of her own templates. */
+export async function saveTemplate(me: Me, t: { id?: number; name: string; subject: string; body: string }): Promise<{ ok: true; template: EmailTemplate } | { ok: false; reason: string }> {
+  if (me.role !== "admin" && me.role !== "pt_caller") throw new Error("forbidden");
+  const name = t.name.trim().slice(0, 80);
+  const subject = t.subject.trim().slice(0, 200);
+  const body = t.body.trim().slice(0, 5000);
+  if (!name) return { ok: false, reason: "Give the template a name." };
+  if (!subject || !body) return { ok: false, reason: "Write a subject and a message first." };
+  const T = schema.emailTemplates;
+  const cols = { id: T.id, name: T.name, subject: T.subject, body: T.body };
+  if (t.id) {
+    const [row] = await db.update(T).set({ name, subject, body, updatedAt: new Date() }).where(and(eq(T.id, t.id), eq(T.ownerId, me.id))).returning(cols);
+    return row ? { ok: true, template: row } : { ok: false, reason: "Template not found." };
+  }
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(T).where(eq(T.ownerId, me.id));
+  if (n >= 30) return { ok: false, reason: "30 templates at most. Delete one first." };
+  const [row] = await db.insert(T).values({ ownerId: me.id, name, subject, body }).returning(cols);
+  return { ok: true, template: row };
+}
+
+export async function deleteTemplate(me: Me, id: number) {
+  if (me.role !== "admin" && me.role !== "pt_caller") throw new Error("forbidden");
+  const T = schema.emailTemplates;
+  const r = await db.delete(T).where(and(eq(T.id, id), eq(T.ownerId, me.id))).returning({ id: T.id });
+  return r.length ? { ok: true } : { ok: false, reason: "Template not found." };
+}
+
 /** One offer e-mail to one lead's work address, written (and editable) on the admin screen. */
 export async function sendOffer(me: Me, id: number, o: { subject: string; body: string; attachCatalog?: boolean }): Promise<{ ok: boolean; reason?: string }> {
   const notMine = await ownLeadsOnly(me, [id]);
@@ -711,9 +757,9 @@ export async function sendOffer(me: Me, id: number, o: { subject: string; body: 
   if (lead.demo) return { ok: false, reason: "Demo lead: no e-mail is sent." };
   if (await isBlocked(lead)) return { ok: false, reason: "This person asked not to be contacted." };
   if (!lead.email) return { ok: false, reason: "No work e-mail for this lead yet." };
-  const subject = o.subject.trim().slice(0, 200);
-  const body = o.body.trim().slice(0, 5000);
-  if (!subject || !body) return { ok: false, reason: "Write a subject and a message." };
+  const subject = fillPlaceholders(o.subject, lead.firstName, me.email).trim().slice(0, 200);
+  const body = withOptOutLine(fillPlaceholders(o.body, lead.firstName, me.email).trim()).slice(0, 5200);
+  if (!subject || !o.body.trim()) return { ok: false, reason: "Write a subject and a message." };
   const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d1d1d">${esc(body)
     .split(/\n{2,}/)
     .map((para) => `<p>${para.replace(/\n/g, "<br>").replace(/(https:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</p>`)

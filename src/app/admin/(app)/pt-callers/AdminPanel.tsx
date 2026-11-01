@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CallButton } from "../../calls/CallUI";
@@ -648,17 +648,116 @@ Equipa Wine Portugal
 
 Obtivemos o seu contacto profissional através da plataforma Apollo.io. Se não pretender receber mais contactos nossos, responda a este e-mail com «PARAR» e não voltaremos a contactá-lo/a.`;
 
+type Tpl = { id: number; name: string; subject: string; body: string };
+// Built-in templates (not editable). [NOME] and [REP] are filled in when the e-mail is sent.
+const BUILT_IN: { key: string; name: string; subject: string; body: (first: string | null) => string }[] = [
+  { key: "standard", name: "Standard offer", subject: offerSubject(), body: offerBody },
+  {
+    key: "presentation",
+    name: "Presentation with catalogue",
+    subject: "Presentes de Natal para a vossa equipa e clientes",
+    body: () => `Olá [NOME], bom dia!
+
+Fala a [REP], da Wine Portugal. Entro em contacto para lhe apresentar uma sugestão de presentes de Natal para a vossa equipa e clientes: a Trilogia 2160, três vinhos do Douro DOC numa caixa pronta a oferecer.
+
+${CATALOG_LINE}
+
+Para encomendas de empresas, ajustamos a proposta ao número de pessoas e ao vosso orçamento.
+
+Diga-me o que acha ou, se tiver alguma dúvida, estou ao dispor.
+
+Com os melhores cumprimentos,
+[REP]
+Wine Portugal`,
+  },
+];
+
 function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => void; onSent: (ok: boolean, m: string) => void }) {
   const [subject, setSubject] = useState(offerSubject());
   const [body, setBody] = useState(offerBody(lead.firstName));
   const [attachCatalog, setAttachCatalog] = useState(true);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [mine, setMine] = useState<Tpl[]>([]);
+  const [chosen, setChosen] = useState("b:standard"); // "b:<key>" built-in, "t:<id>" her own
+  const [naming, setNaming] = useState<string | null>(null); // the name being typed for a new template
+  const [note, setNote] = useState<string | null>(null);
+  useEffect(() => {
+    void post("templates", {}).then((r) => r.ok && setMine(r.templates as Tpl[]));
+  }, []);
+  const own = chosen.startsWith("t:") ? mine.find((t) => `t:${t.id}` === chosen) ?? null : null;
+  const pick = (v: string) => {
+    setChosen(v);
+    setNote(null);
+    setNaming(null);
+    const b = BUILT_IN.find((x) => `b:${x.key}` === v);
+    const t = mine.find((x) => `t:${x.id}` === v);
+    if (b) { setSubject(b.subject); setBody(withCatalogLine(b.body(lead.firstName), attachCatalog)); }
+    else if (t) { setSubject(t.subject); setBody(t.body); }
+  };
+  const saveTpl = async (name: string, id?: number) => {
+    const r = await post("template-save", { id, name, subject, body });
+    if (!r.ok) return setErr(String(r.reason ?? "Not saved."));
+    const t = r.template as Tpl;
+    setMine((m) => [...m.filter((x) => x.id !== t.id), t].sort((a, b) => a.name.localeCompare(b.name)));
+    setChosen(`t:${t.id}`);
+    setNaming(null);
+    setErr(null);
+    setNote(id ? "Template updated." : `Saved as “${t.name}”.`);
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-label="E-mail the offer">
       <div className="w-full max-w-xl rounded-xl bg-white p-5 shadow-2xl">
         <h2 className="font-semibold">E-mail the offer to {lead.name}</h2>
         <p className="mt-0.5 text-xs text-muted">To {lead.email} · replies arrive in Admin → Inbox. Edit anything before sending.</p>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="min-w-0 flex-1 text-xs font-semibold">
+            Template
+            <select value={chosen} onChange={(e) => pick(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm font-normal">
+              {BUILT_IN.map((b) => (
+                <option key={b.key} value={`b:${b.key}`}>{b.name}</option>
+              ))}
+              {mine.length > 0 && (
+                <optgroup label="My templates">
+                  {mine.map((t) => (
+                    <option key={t.id} value={`t:${t.id}`}>{t.name}</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </label>
+          <button type="button" onClick={() => { setNaming(""); setNote(null); }} className="rounded-lg border border-[#0F2340] px-3 py-2 text-sm font-semibold text-[#0F2340]" title="Save the subject and message below as a new template">
+            + New template
+          </button>
+          {own && (
+            <>
+              <button type="button" onClick={() => void saveTpl(own.name, own.id)} className="rounded-lg border px-3 py-2 text-sm font-semibold">Save changes</button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!window.confirm(`Delete the template “${own.name}”?`)) return;
+                  const r = await post("template-delete", { id: own.id });
+                  if (!r.ok) return setErr(String(r.reason ?? "Not deleted."));
+                  setMine((m) => m.filter((x) => x.id !== own.id));
+                  pick("b:standard");
+                  setNote("Template deleted.");
+                }}
+                className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700"
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </div>
+        {naming !== null && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-paper p-2 text-sm">
+            <input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => e.key === "Enter" && naming.trim() && void saveTpl(naming)} maxLength={80} placeholder="Template name, e.g. Follow-up after call" className="min-w-0 flex-1 rounded-lg border p-1.5" />
+            <button type="button" disabled={!naming.trim()} onClick={() => void saveTpl(naming)} className="rounded-lg bg-[#0F2340] px-3 py-1.5 font-semibold text-white disabled:opacity-50">Save</button>
+            <button type="button" onClick={() => setNaming(null)} className="text-xs underline">Cancel</button>
+            <span className="w-full text-[11px] text-muted">Saves the subject and message below. Write [NOME] for the person&apos;s first name and [REP] for yours.</span>
+          </div>
+        )}
+        {note && <p className="mt-2 text-xs font-semibold text-green-800">✓ {note}</p>}
         <label className="mt-3 block text-xs font-semibold">
           Subject
           <input value={subject} onChange={(e) => setSubject(e.target.value)} className="mt-1 w-full rounded-lg border p-2 text-sm font-normal" />
@@ -674,6 +773,7 @@ function OfferDialog({ lead, onClose, onSent }: { lead: Lead; onClose: () => voi
             }} />
           📎 Attach the B2B catalogue (Catálogo B2B Natal 2026, PDF, 2.4 MB)
         </label>
+        <p className="mt-1 text-[11px] text-muted">[NOME] and [REP] are filled in when sending. The line on where we got the contact and how to stop (PARAR) is added automatically if missing.</p>
         {err && <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-800">⚠ {err}</p>}
         <div className="mt-3 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm underline">Cancel</button>

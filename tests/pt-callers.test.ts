@@ -189,7 +189,7 @@ test("allow-list: a sales rep gets 403 on every admin and API path except their 
   assert.equal(access.ptCallerAllowed("GET", "/admin/whatsapp/42"), true);
   assert.equal(access.ptCallerAllowed("POST", "/admin/whatsapp/42"), true);
   // Her own leads' work actions ([action] route): allowed by name, POST only; the service checks she owns each lead.
-  for (const a of ["approve", "approve-enrich", "claim", "classify", "details", "email", "enrich", "opt-out"]) {
+  for (const a of ["approve", "approve-enrich", "claim", "classify", "details", "email", "enrich", "opt-out", "templates", "template-save", "template-delete"]) {
     assert.equal(access.ptCallerAllowed("POST", `/admin/pt-callers/api/admin/${a}`), true, a);
     assert.equal(access.ptCallerAllowed("GET", `/admin/pt-callers/api/admin/${a}`), false, a);
   }
@@ -1068,4 +1068,27 @@ test("pipeline: every status has exactly one column; dropping records the column
   assert.equal(st.pipelineColumn("won"), "won");
   for (const c of st.PIPELINE) if (c.drop) assert.ok(st.REP_OUTCOMES.includes(c.drop), c.key);
   assert.ok(st.REP_OUTCOMES.includes("won"));
+});
+
+test("offer e-mail: [NOME] and [REP] filled in; the opt-out line is added when the text has none", async () => {
+  const s = await import("../src/lib/pt-callers/service");
+  assert.equal(s.fillPlaceholders("Olá [NOME], fala a [REP].", "Ana", "soraya.torrens@wine.pt"), "Olá Ana, fala a Soraya.");
+  assert.equal(s.fillPlaceholders("Olá [nome]!", null, "x@y.pt"), "Olá!");
+  assert.match(s.withOptOutLine("Bom dia"), /Apollo\.io.*PARAR/s);
+  assert.equal(s.withOptOutLine("Responda PARAR para não receber mais."), "Responda PARAR para não receber mais.");
+});
+
+dbTest("offer e-mail templates: each person sees, edits and deletes only her own", async () => {
+  const a = await svc!.saveTemplate(rep, { name: "Follow-up", subject: "Olá [NOME]", body: "Texto da [REP]" });
+  assert.equal(a.ok, true);
+  const id = a.ok ? a.template.id : 0;
+  assert.ok((await svc!.listTemplates(rep)).some((t) => t.id === id));
+  assert.equal((await svc!.listTemplates(rep2)).some((t) => t.id === id), false);
+  assert.equal((await svc!.saveTemplate(rep2, { id, name: "x", subject: "y", body: "z" })).ok, false);
+  assert.equal((await svc!.deleteTemplate(rep2, id)).ok, false);
+  assert.equal(why(await svc!.saveTemplate(rep, { name: " ", subject: "a", body: "b" })), "Give the template a name.");
+  const u = await svc!.saveTemplate(rep, { id, name: "Follow-up 2", subject: "S", body: "B" });
+  assert.equal(u.ok && u.template.name, "Follow-up 2");
+  assert.equal((await svc!.deleteTemplate(rep, id)).ok, true);
+  await assert.rejects(svc!.listTemplates({ ...rep, role: "fulfilment" } as never), /forbidden/);
 });

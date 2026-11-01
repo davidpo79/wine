@@ -5,7 +5,7 @@ const ids = (v: unknown) => (Array.isArray(v) ? v.map(Number).filter((n) => Numb
 
 // Actions a sales rep may also run, on her own leads only (the service enforces ownership): she works each lead from
 // getting its phone to the call or e-mail. Everything else (import, delete, assigning to others...) stays admin only.
-const REP_ACTIONS = new Set(["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out"]);
+const REP_ACTIONS = new Set(["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out", "templates", "template-save", "template-delete"]);
 
 // Admin actions of the Portugal-callers screen. Every credit-consuming step goes through the ledger in the service.
 export async function POST(req: Request, ctx: { params: Promise<{ action: string }> }) {
@@ -62,6 +62,12 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
         return Response.json(await svc.fetchDetails(me, ids(b.ids)));
       case "email":
         return Response.json(await svc.sendOffer(me, Number(b.id), { subject: String(b.subject ?? ""), body: String(b.body ?? ""), attachCatalog: b.attachCatalog === true }));
+      case "templates":
+        return Response.json({ ok: true, templates: await svc.listTemplates(me) });
+      case "template-save":
+        return Response.json(await svc.saveTemplate(me, { id: Number(b.id) || undefined, name: String(b.name ?? ""), subject: String(b.subject ?? ""), body: String(b.body ?? "") }));
+      case "template-delete":
+        return Response.json(await svc.deleteTemplate(me, Number(b.id)));
       case "delete":
         return Response.json(await svc.deleteLeads(me, ids(b.ids)));
       case "opt-out":

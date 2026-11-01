@@ -737,3 +737,21 @@ export const newsletterSends = pgTable(
 
 export type NewsletterContact = typeof newsletterContacts.$inferSelect;
 export type NewsletterCampaign = typeof newsletterCampaigns.$inferSelect;
+
+// Offer e-mail templates a sales rep (or admin) saves for herself, chosen in the "Email offer" window.
+// [NOME] and [REP] are filled in when the e-mail is sent (the lead's and the sender's first name).
+export const emailTemplates = pgTable(
+  "email_templates",
+  {
+    id: serial("id").primaryKey(),
+    ownerId: integer("owner_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("email_templates_owner_idx").on(t.ownerId)],
+);

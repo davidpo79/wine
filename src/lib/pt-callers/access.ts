@@ -14,7 +14,7 @@ const RULES: { method: "GET" | "POST"; path: string | RegExp }[] = [
   { method: "POST", path: "/admin/pt-callers/mine" }, // logout action
   { method: "GET", path: "/admin/pt-callers/pipeline" },
   { method: "POST", path: "/admin/pt-callers/pipeline" }, // logout action
-  ...["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out"].map((a) => ({ method: "POST" as const, path: `/admin/pt-callers/api/admin/${a}` })),
+  ...["claim", "approve", "enrich", "approve-enrich", "details", "classify", "email", "opt-out", "templates", "template-save", "template-delete"].map((a) => ({ method: "POST" as const, path: `/admin/pt-callers/api/admin/${a}` })),
   // Inbox, scoped to her own leads' e-mails by every page, action and the attachment route. POST = server actions.
   { method: "GET", path: "/admin/inbox" },
   { method: "POST", path: "/admin/inbox" },

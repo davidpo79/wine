@@ -183,6 +183,13 @@
       "when": 1793474630032,
       "tag": "0025_pt_leads_note_by",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793512023879,
+      "tag": "0026_email_templates",
+      "breakpoints": true
     }
   ]
 }
