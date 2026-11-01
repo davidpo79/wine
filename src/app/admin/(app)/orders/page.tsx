@@ -16,7 +16,12 @@ function dayLabel(day: string) {
   return day === today ? `Today · ${label}` : day === yesterday ? `Yesterday · ${label}` : label;
 }
 
-type SP = { status?: string; from?: string; to?: string; q?: string };
+type SP = { status?: string; from?: string; to?: string; q?: string; funnel?: string };
+const FUNNELS = [
+  { key: "", label: "All" },
+  { key: "xmas", label: "Christmas · Trilogia" },
+  { key: "bf", label: "Black Friday" },
+] as const;
 
 export default async function Orders({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
@@ -24,7 +29,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<S
   const isAdmin = me.role === "admin";
   const rows = await queryOrders(sp, undefined, 500);
   // Grouped by Lisbon day (newest first); each day opens with "+". Searching or filtering opens them all.
-  const open = !!(sp.q || sp.status || sp.from || sp.to);
+  const open = !!(sp.q || sp.status || sp.from || sp.to || sp.funnel);
   const byDay = new Map<string, typeof rows>();
   for (const o of rows) {
     const k = lisbonDay(o.createdAt);
@@ -52,7 +57,19 @@ export default async function Orders({ searchParams }: { searchParams: Promise<S
           {isAdmin && <a href={`/admin/export/accounting?${qs}`} className="rounded border bg-white px-3 py-2 font-medium hover:bg-paper">Export accounting (CSV)</a>}
         </div>
       </div>
-      <form className="mt-4 flex flex-wrap items-end gap-3 rounded-lg border bg-white p-3 text-sm">
+      <div className="mt-4 flex flex-wrap gap-1.5 text-sm">
+        {FUNNELS.map((f) => {
+          const p = new URLSearchParams(Object.entries({ ...sp, funnel: f.key }).filter(([, v]) => v) as [string, string][]).toString();
+          const on = (sp.funnel ?? "") === f.key;
+          return (
+            <Link key={f.key} href={`/admin/orders${p ? `?${p}` : ""}`} className={`rounded-full border px-3 py-1 font-semibold ${on ? (f.key === "bf" ? "border-[#e11d2a] bg-[#e11d2a] text-white" : "bg-night text-white") : "bg-white hover:bg-paper"}`}>
+              {f.label}
+            </Link>
+          );
+        })}
+      </div>
+      <form className="mt-2 flex flex-wrap items-end gap-3 rounded-lg border bg-white p-3 text-sm">
+        {sp.funnel && <input type="hidden" name="funnel" value={sp.funnel} />}
         <label>Status<br />
           <select name="status" defaultValue={sp.status ?? ""} className="rounded border p-1.5">
             <option value="">All</option>
@@ -90,7 +107,10 @@ export default async function Orders({ searchParams }: { searchParams: Promise<S
                       <td className="p-2 font-semibold"><Link href={`/admin/orders/${o.id}`} className="text-azulejo underline">{o.id}</Link></td>
                       <td>{lisbonTime(o.createdAt)}</td>
                       <td>{o.customerName ?? "·"}<br /><span className="text-xs text-muted">{o.email}</span></td>
-                      <td>{o.bundleKey} · {o.qtyBoxes} box{o.qtyBoxes === 1 ? "" : "es"}{o.isGift ? " 🎁" : ""}</td>
+                      <td>
+                        {o.bundleKey.startsWith("bf") && <span className="mr-1 rounded bg-[#e11d2a] px-1.5 py-0.5 text-[10px] font-bold text-white">BF</span>}
+                        {o.bundleKey} · {o.qtyBoxes} box{o.qtyBoxes === 1 ? "" : "es"}{o.isGift ? " 🎁" : ""}
+                      </td>
                       <td>{eur(o.costs?.paid ?? o.totalCents)}</td>
                       {isAdmin && (
                         <>
