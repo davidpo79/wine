@@ -45,7 +45,9 @@ test("black friday prices ignore the Christmas discount codes", () => {
 });
 
 test("black friday opens and closes with its own switch and cutoff", () => {
-  const bf = DEFAULT_SETTINGS.black_friday;
+  assert.equal(DEFAULT_SETTINGS.black_friday.enabled, false); // off until switched on in Settings → Black Friday
+  assert.equal(bfOpen(DEFAULT_SETTINGS.black_friday, new Date("2026-11-20T12:00:00Z")), false);
+  const bf = { ...DEFAULT_SETTINGS.black_friday, enabled: true };
   assert.equal(bf.cutoff_at, "2026-11-25T22:59:00Z"); // Wednesday 25/11 23:59 in Madrid and Berlin, Black Friday is 27/11
   assert.equal(bfOpen(bf, new Date("2026-11-25T22:58:00Z")), true);
   assert.equal(bfOpen(bf, new Date("2026-11-25T23:00:00Z")), false);

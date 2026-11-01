@@ -126,7 +126,8 @@ export const DEFAULT_SETTINGS: Settings = {
   // David's numbers (29/10/2026): 15 + 3 + 2,50 + 2 + 6,50 = 29 € per box. Black Friday is Friday 27/11/2026; orders
   // close on Wednesday 25/11 at 23:59 in Berlin and Madrid (CET, UTC+1).
   black_friday: {
-    enabled: true,
+    // Off until David switches it on in Settings → Black Friday (pages stay previewable for admins).
+    enabled: false,
     countries: ["DE", "ES"],
     cutoff_at: "2026-11-25T22:59:00Z",
     delivery_days: "2",
