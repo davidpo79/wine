@@ -198,6 +198,13 @@ export const es: Dict = {
       ],
       imageAlt: "Las tres botellas 2160 con platos portugueses",
     },
+    producer: {
+      eyebrow: "EL PRODUCTOR",
+      h2: "Un minuto en el Duero<br><em>con quien hace el vino.</em>",
+      p: "Pedro, de Martin Boutique Wines, explica por qué el vino se llama 2160 y de dónde vienen las uvas de las tres botellas de su Trilogia.",
+      videoLabel: "Vídeo: Pedro, de Martin Boutique Wines, habla de los vinos 2160",
+      note: "Con subtítulos · 1 minuto",
+    },
     guide: {
       imageAlt: "Guía digital Sabores de Portugal",
       badgeTitle: "DE REGALO",

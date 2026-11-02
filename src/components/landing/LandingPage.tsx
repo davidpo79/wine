@@ -6,6 +6,7 @@
 // All copy comes from the dictionary of the page's language (lib/i18n); the digital recipe
 // guide is Portuguese only, so other languages leave it out.
 
+import { ProducerVideo } from "./ProducerVideo";
 import { Reviews, type ReviewsData } from "./Reviews";
 import { guideImage } from "@/lib/ebook";
 import { SITE } from "@/lib/site";
@@ -578,6 +579,20 @@ export function LandingPage({
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img alt={t.wines.imageAlt} className="wineimage" loading="lazy" src={img("table")} srcSet="/lp/table-768.webp 768w, /lp/table.webp 1190w" sizes="(max-width: 760px) 100vw, 560px" />
+          </div>
+        </section>
+
+        <section className="section producer" id="produtor" data-j-section="produtor">
+          <div className="wrap">
+            <div className="sectionhead">
+              <div className="eyebrow">{t.producer.eyebrow}</div>
+              <h2>
+                <Rich s={t.producer.h2} />
+              </h2>
+              <p>{t.producer.p}</p>
+            </div>
+            <ProducerVideo locale={locale} label={t.producer.videoLabel} />
+            <p className="pv-note">{t.producer.note}</p>
           </div>
         </section>
 

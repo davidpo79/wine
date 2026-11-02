@@ -197,6 +197,13 @@ export const nl: Dict = {
       ],
       imageAlt: "De drie 2160-flessen met Portugese gerechten",
     },
+    producer: {
+      eyebrow: "DE WIJNMAKER",
+      h2: "Eén minuut in de Douro<br><em>met de man die de wijn maakt.</em>",
+      p: "Pedro van Martin Boutique Wines vertelt waarom de wijn 2160 heet en waar de druiven voor de drie flessen van uw Trilogia vandaan komen.",
+      videoLabel: "Video: Pedro van Martin Boutique Wines over de 2160-wijnen",
+      note: "Met ondertiteling · 1 minuut",
+    },
     guide: {
       imageAlt: "Digitale gids Sabores de Portugal",
       badgeTitle: "CADEAU",

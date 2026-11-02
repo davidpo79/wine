@@ -198,6 +198,13 @@ export const ru: Dict = {
       ],
       imageAlt: "Три бутылки 2160 и блюда португальской кухни",
     },
+    producer: {
+      eyebrow: "ПРОИЗВОДИТЕЛЬ",
+      h2: "Одна минута в долине Дору<br><em>с тем, кто делает это вино.</em>",
+      p: "Педру из Martin Boutique Wines рассказывает, почему вино называется 2160 и откуда виноград для трёх бутылок вашей Trilogia.",
+      videoLabel: "Видео: Педру из Martin Boutique Wines о винах 2160",
+      note: "С субтитрами · 1 минута",
+    },
     guide: {
       imageAlt: "Цифровой гид Sabores de Portugal",
       badgeTitle: "В ПОДАРОК",

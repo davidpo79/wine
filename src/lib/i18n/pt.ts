@@ -197,6 +197,13 @@ export const pt = {
       ],
       imageAlt: "As três garrafas 2160 com pratos portugueses",
     },
+    producer: {
+      eyebrow: "O PRODUTOR",
+      h2: "Um minuto no Douro<br><em>com quem faz o vinho.</em>",
+      p: "Pedro, da Martin Boutique Wines, explica porque é que o vinho se chama 2160 e de onde vêm as uvas das três garrafas da sua Trilogia.",
+      videoLabel: "Vídeo: Pedro, da Martin Boutique Wines, fala sobre os vinhos 2160",
+      note: "Com legendas · 1 minuto",
+    },
     guide: {
       imageAlt: "Guia digital Sabores de Portugal",
       badgeTitle: "É OFERTA",

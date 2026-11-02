@@ -198,6 +198,13 @@ export const en: Dict = {
       ],
       imageAlt: "Three 2160 bottles with Portuguese dishes",
     },
+    producer: {
+      eyebrow: "THE PRODUCER",
+      h2: "One minute in the Douro<br><em>with the man who makes the wine.</em>",
+      p: "Pedro, from Martin Boutique Wines, explains why the wine is called 2160 and where the grapes for the three bottles in your Trilogia come from.",
+      videoLabel: "Video: Pedro from Martin Boutique Wines talks about the 2160 wines",
+      note: "With subtitles · 1 minute",
+    },
     guide: {
       imageAlt: "The Sabores de Portugal digital guide",
       badgeTitle: "FREE",
