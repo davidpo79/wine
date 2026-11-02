@@ -1,5 +1,6 @@
 "use client";
 
+import { ProducerVideo } from "@/components/landing/ProducerVideo";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { newEventId, track } from "@/lib/track-client";
 import { flushJourney, jlog } from "@/lib/journey-client";
@@ -232,6 +233,15 @@ export function BlackFridayPage({
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="bf-section bf-producer">
+        <div className="bf-wrap">
+          <h2>{copy.producer.title}</h2>
+          <p className="bf-producer-p">{copy.producer.p}</p>
+          <ProducerVideo locale={locale} label={copy.producer.label} base="/video/producer/pedro-douro" wideOnly />
+          <p className="bf-producer-note">{copy.producer.note}</p>
         </div>
       </section>
 

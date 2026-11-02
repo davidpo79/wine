@@ -27,6 +27,7 @@ export type BfCopy = {
   checks: [string, string, string, string];
   winesTitle: string;
   wines: { type: string; name: string; text: string; count: string; img: string | null }[];
+  producer: { title: string; p: string; label: string; note: string };
   whyTitle: string;
   why: { h: string; p: string }[];
   howTitle: string;
@@ -75,6 +76,12 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       { type: "Blanco", count: "× 2", name: "Galhofa Blanco 2025 · Douro DOC", text: "Rabigato, Viosinho, Gouveio y Fernão Pires. Aroma joven e intenso, con notas cítricas y florales de los blancos de altitud del Douro Superior; fresco, cremoso y equilibrado, con buena persistencia. De aperitivo o con mariscos, pescados, carnes ligeras, pasta, pizza o cocina asiática. Servir a 8 a 10 °C.", img: "/lp/bf/white.webp" },
       { type: "Rosado", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Color cereza y aroma delicado a frambuesa. Buena acidez y textura: perfecto con sushi, pizza y ensaladas. Servir a 10 °C.", img: "/lp/bf/rose.webp" },
     ],
+    producer: {
+      title: "Del productor",
+      p: "Pedro, de Martin Boutique Wines, nos lleva al Duero: de dónde viene el río, sus tres subregiones y lo que un vino equilibrado tiene que tener.",
+      label: "Vídeo: Pedro, de Martin Boutique Wines, en el Duero",
+      note: "Con subtítulos · 40 segundos",
+    },
     whyTitle: "Por qué este precio",
     why: [
       { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. Los vinos salen de la bodega del Douro y llegan a tu casa." },
@@ -140,6 +147,12 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       { type: "Weißwein", count: "× 2", name: "Galhofa Branco 2025 · Douro DOC", text: "Rabigato, Viosinho, Gouveio und Fernão Pires. Junger, intensiver Duft mit Zitrus- und Blütennoten, typisch für die Höhenlagen des Douro Superior; frisch, cremig und ausgewogen, mit guter Länge. Als Aperitif oder zu Meeresfrüchten, Fisch, hellem Fleisch, Pasta, Pizza oder asiatischer Küche. Bei 8 bis 10 °C servieren.", img: "/lp/bf/white.webp" },
       { type: "Rosé", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Kirschrote Farbe, zarter Himbeerduft. Gute Säure und Textur: ideal zu Sushi, Pizza und Salaten. Bei 10 °C servieren.", img: "/lp/bf/rose.webp" },
     ],
+    producer: {
+      title: "Vom Erzeuger",
+      p: "Pedro von Martin Boutique Wines nimmt Sie mit an den Douro: wo der Fluss entspringt, seine drei Subregionen und was ein ausgewogener Wein haben muss.",
+      label: "Video: Pedro von Martin Boutique Wines am Douro",
+      note: "Mit Untertiteln · 40 Sekunden",
+    },
     whyTitle: "Warum dieser Preis",
     why: [
       { h: "Direkt vom Erzeuger", p: "Kein Großhandel, kein Laden dazwischen. Die Weine kommen vom Weingut im Douro direkt zu Ihnen nach Hause." },
