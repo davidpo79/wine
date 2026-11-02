@@ -284,3 +284,26 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
     cta: "Ver la Trilogia 2160",
   },
 };
+
+/** "About us" opened from the Black Friday page: the Galhofa box instead of the Christmas Trilogia, and back to the offer. */
+export const ABOUT_BF: Partial<Record<Locale, { winesH: string; wines: string; winesAlt: string; boxH: string; box: string; boxAlt: string; cta: string }>> = {
+  de: {
+    winesH: "Die Weine in unserer Black-Friday-Box",
+    wines: "Die Box vereint sechs Weine der Linie Galhofa, alle Douro DOC: drei Rotweine, zwei Weißweine und einen Rosé. Für einen ganzen Abend, vom Aperitif bis zum Hauptgang.",
+    winesAlt: "Die sechs Galhofa-Weine der Black-Friday-Box",
+    boxH: "Versand",
+    box: "Wir packen Ihre Box in unserem Lager in Belgien, mit Schutz für jede Flasche, und sie kommt in 2 Werktagen mit Sendungsverfolgung bei Ihnen an.",
+    boxAlt: "Wein wird für den Versand verpackt",
+    cta: "Zum Black-Friday-Angebot",
+  },
+  es: {
+    winesH: "Los vinos de nuestra caja de Black Friday",
+    wines: "La caja reúne seis vinos de la línea Galhofa, todos Douro DOC: tres tintos, dos blancos y un rosado. Para toda una noche, del aperitivo al plato principal.",
+    winesAlt: "Los seis vinos Galhofa de la caja de Black Friday",
+    boxH: "Envío",
+    box: "Preparamos tu caja en nuestro almacén de Bélgica, con protección para cada botella, y la recibes en 2 días laborables, con seguimiento.",
+    boxAlt: "Vino preparándose para el envío",
+    cta: "Ver la oferta de Black Friday",
+  },
+};
+

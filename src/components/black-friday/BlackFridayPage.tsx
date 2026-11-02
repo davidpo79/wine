@@ -344,7 +344,7 @@ export function BlackFridayPage({
               <br />
               {SITE.email} · WhatsApp {SITE.whatsapp}
             </p>
-            <a className="bf-wholink" href={aboutHref(isBfLocale(locale) ? locale : "de")}>
+            <a className="bf-wholink" href={`${aboutHref(isBfLocale(locale) ? locale : "de")}?from=bf`}>
               {copy.who.about} →
             </a>
           </div>
@@ -366,7 +366,7 @@ export function BlackFridayPage({
       <footer className="bf-footer">
         <div className="bf-wrap">
           <p>
-            <a href={legalHref("terms", locale)}>{copy.legal.terms}</a> · <a href={legalHref("privacy", locale)}>{copy.legal.privacy}</a> · <a href={legalHref("shipping", locale)}>{copy.legal.shipping}</a> · <a href={aboutHref(locale)}>{copy.legal.about}</a>
+            <a href={legalHref("terms", locale)}>{copy.legal.terms}</a> · <a href={legalHref("privacy", locale)}>{copy.legal.privacy}</a> · <a href={legalHref("shipping", locale)}>{copy.legal.shipping}</a> · <a href={`${aboutHref(locale)}?from=bf`}>{copy.legal.about}</a>
           </p>
           <p className="bf-small">{copy.footer18}</p>
           <p className="bf-small">© Wine Portugal · wine-portugal.com</p>

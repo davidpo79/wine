@@ -1,7 +1,8 @@
 import { Footer, Header, WhatsAppIcon } from "@/components/landing/Chrome";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
 import { LOCALE_INFO, type Locale } from "@/lib/markets";
-import { ABOUT_COPY } from "./copy";
+import { ABOUT_BF, ABOUT_COPY } from "./copy";
+import { bfHref, isBfLocale } from "@/lib/black-friday";
 import { SITE } from "@/lib/site";
 
 /** One row of the "usual path vs with us" comparison. */
@@ -33,11 +34,14 @@ function Path({ label, steps, ours = false }: { label: string; steps: string[]; 
   );
 }
 
-export function AboutPage({ locale }: { locale: Locale }) {
-  const c = ABOUT_COPY[locale];
+/** from = "bf": opened from the Black Friday page, so the wines, the box and the button are the Black Friday ones. */
+export function AboutPage({ locale, from }: { locale: Locale; from?: string }) {
+  const bf = from === "bf" && isBfLocale(locale) ? ABOUT_BF[locale] : undefined;
+  const c = { ...ABOUT_COPY[locale], ...(bf ?? {}) };
+  const home = bf && isBfLocale(locale) ? bfHref(locale) : homeHref(locale);
   return (
     <>
-      <Header locale={locale} />
+      <Header locale={locale} home={home} />
       <main className="paper-grain" lang={LOCALE_INFO[locale].htmlLang}>
         <article className="mx-auto max-w-3xl px-4 py-12 text-[15px] leading-relaxed text-ink [&_h2]:mt-10 [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-night [&_p]:mt-3">
           <h1 className="font-serif text-4xl font-semibold text-night">{c.title}</h1>
@@ -58,11 +62,11 @@ export function AboutPage({ locale }: { locale: Locale }) {
           <p>{c.logistics}</p>
 
           <h2>{c.winesH}</h2>
-          <img src="/lp/table-768.webp" alt={c.winesAlt} width={768} height={658} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
+          <img src={bf ? "/lp/bf/bottles.webp" : "/lp/table-768.webp"} alt={c.winesAlt} width={768} height={658} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
           <p>{c.wines}</p>
 
           <h2>{c.boxH}</h2>
-          <img src="/lp/giftbox-768.webp" alt={c.boxAlt} width={767} height={638} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
+          <img src={bf ? "/lp/bf/who-warehouse.webp" : "/lp/giftbox-768.webp"} alt={c.boxAlt} width={767} height={638} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
           <p>{c.box}</p>
 
           <h2>{c.promiseH}</h2>
@@ -99,7 +103,7 @@ export function AboutPage({ locale }: { locale: Locale }) {
 
           <p className="mt-10 font-serif text-xl font-semibold text-night">{c.closing}</p>
           <p className="mt-5">
-            <a href={homeHref(locale)} className="inline-block rounded bg-[#a72d39] px-6 py-3 font-bold text-white no-underline">{c.cta}</a>
+            <a href={home} className="inline-block rounded bg-[#a72d39] px-6 py-3 font-bold text-white no-underline">{c.cta}</a>
           </p>
         </article>
       </main>

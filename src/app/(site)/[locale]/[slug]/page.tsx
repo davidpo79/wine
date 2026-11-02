@@ -20,10 +20,11 @@ export async function generateMetadata({ params }: { params: Params }) {
 }
 
 /** Legal pages in German, Dutch, French and Russian (Portuguese keeps /termos, /privacidade, /envios-devolucoes). */
-export default async function LocalizedLegal({ params }: { params: Params }) {
+export default async function LocalizedLegal({ params, searchParams }: { params: Params; searchParams: Promise<{ from?: string }> }) {
   const { locale, slug } = await params;
+  const { from } = await searchParams;
   if (!isLocale(locale) || locale === "pt") notFound();
-  if (slug === ABOUT_SLUGS[locale]) return <AboutPage locale={locale} />;
+  if (slug === ABOUT_SLUGS[locale]) return <AboutPage locale={locale} from={from} />;
   const kind = legalKindFromSlug(locale, slug);
   const content = kind ? LEGAL_CONTENT[locale]?.[kind] : null;
   if (!kind || !content) notFound();

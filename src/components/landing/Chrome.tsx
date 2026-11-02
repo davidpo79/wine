@@ -32,12 +32,12 @@ export function Marquee({ items }: { items: string[] }) {
   );
 }
 
-export function Header({ locale = "pt" }: { locale?: Locale }) {
+export function Header({ locale = "pt", home }: { locale?: Locale; home?: string }) {
   const t = getDict(locale).chrome;
   return (
     <header className="border-b border-paper-2 bg-paper">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <a href={homeHref(locale)} className="leading-none text-night" aria-label={t.homeLabel}>
+        <a href={home ?? homeHref(locale)} className="leading-none text-night" aria-label={t.homeLabel}>
           <img src="/brand/logo.svg" alt="Wine Portugal" width={961} height={390} className="h-9 w-auto" />
         </a>
         <div className="flex items-center gap-2">
