@@ -308,6 +308,20 @@ export function LandingPage({
               </svg>
               {t.madeIn} <span aria-hidden="true">♥</span>
             </p>
+            {/* The winery's (Martin Boutique Wines) customer count, given by the owner; the stars are this shop's own
+                review average when there are reviews, and link to them. */}
+            <p className="customersline">
+              {reviews && reviews.count > 0 ? (
+                <a href="#avaliacoes" className="starsmini" aria-label={`${reviews.average.toFixed(1)} / 5`}>
+                  <span style={{ width: `${(reviews.average / 5) * 100}%` }}>★★★★★</span>★★★★★
+                </a>
+              ) : (
+                <span className="starsmini" aria-hidden="true">
+                  <span style={{ width: "100%" }}>★★★★★</span>★★★★★
+                </span>
+              )}
+              {t.wineryCustomers}
+            </p>
             {/* Phones only: the price and the order button right under the photo (on a phone the bundle choice is two
                 screens further down, and most ad visitors never scrolled that far). */}
             {canBuy && buy.mode === "open" && (

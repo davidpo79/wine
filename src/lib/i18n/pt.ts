@@ -74,6 +74,7 @@ export const pt = {
     imageBadgeSub: "3 VINHOS + GUIA DE OFERTA",
     imageBadgeSubNoGuide: "3 VINHOS DO DOURO",
     madeIn: "Feito com amor em Portugal",
+    wineryCustomers: "Mais de 54.431 clientes satisfeitos da adega",
     giftWord: "OFERTA",
     facts: ["VINHOS DOURO DOC", "MARTIN BOUTIQUE WINES", "NATAL 2026"],
     eyebrow: "TRILOGIA 2160 · EDIÇÃO DE NATAL",

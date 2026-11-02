@@ -74,6 +74,7 @@ export const nl: Dict = {
     imageBadgeSub: "3 WIJNEN + GRATIS GIDS",
     imageBadgeSubNoGuide: "3 WIJNEN UIT DE DOURO",
     madeIn: "Met liefde gemaakt in Portugal",
+    wineryCustomers: "Meer dan 54.431 tevreden klanten van de wijnmakerij",
     giftWord: "GRATIS",
     facts: ["DOURO DOC-WIJNEN", "MARTIN BOUTIQUE WINES", "KERST 2026"],
     eyebrow: "TRILOGIA 2160 · KERSTEDITIE",

@@ -75,6 +75,7 @@ export const en: Dict = {
     imageBadgeSub: "3 WINES + FREE GUIDE",
     imageBadgeSubNoGuide: "3 DOURO WINES",
     madeIn: "Made with love in Portugal",
+    wineryCustomers: "Over 54,431 happy customers of the winery",
     giftWord: "GIFT",
     facts: ["DOURO DOC WINES", "MARTIN BOUTIQUE WINES", "CHRISTMAS 2026"],
     eyebrow: "TRILOGIA 2160 · CHRISTMAS EDITION",
