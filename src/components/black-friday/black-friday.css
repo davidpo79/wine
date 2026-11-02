@@ -51,7 +51,7 @@
 .bf-cta{display:flex;align-items:center;justify-content:center;width:100%;margin-top:16px;border:0;border-radius:12px;background:var(--bf-red);color:#fff;font:900 20px/1 Arial,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.02em;padding:20px 14px;cursor:pointer;box-shadow:0 5px 0 var(--bf-red-dark);text-decoration:none;animation:bf-pulse 2.2s ease-in-out infinite}
 .bf-cta:hover{background:#f12a2f}.bf-cta:disabled{opacity:.7;cursor:wait}
 @keyframes bf-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
-.bf-pay{font-size:12px;color:#777;margin-top:16px}
+.bf-pay{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}.bf-pay span{background:#fff;border-radius:6px;height:32px;padding:4px 8px;display:flex;align-items:center}.bf-pay img{height:22px;width:auto;display:block}
 .bf-section{padding:56px 0;border-top:1px solid var(--bf-line)}
 .bf-section h2{font:900 clamp(30px,7vw,48px)/1.05 Impact,"Arial Black",Arial,sans-serif;text-transform:uppercase;text-align:center;margin-bottom:26px}
 .bf-winegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -105,3 +105,4 @@
 }
 @media(min-width:900px){.bf-buybox .bf-bundles{margin-top:18px}}
 .bf-producer .bf-producer-p{text-align:center;max-width:640px;margin:-10px auto 22px;color:#d9d9d9}.bf-producer-note{text-align:center;font-size:12px;color:#a9a9a9;margin-top:12px}.producervideo{max-width:900px;margin:0 auto}.producervideo video{width:100%;display:block;border-radius:10px;background:#000;box-shadow:0 18px 40px #0008}.pv-tall{display:none!important}.producervideo video::cue{font:600 18px/1.35 Arial,Helvetica,sans-serif;background:#000a}.pv-wideonly .pv-wide{display:block!important}@media(max-width:760px){.producervideo:not(.pv-wideonly) .pv-wide{display:none!important}.pv-tall{display:block!important;max-width:420px;margin:auto}.producervideo video::cue{font-size:15px}}
+.bf-heroimg{position:relative}.bf-shipstamp{position:absolute;top:-16px;right:-12px;z-index:2;width:118px;height:118px;border-radius:50%;background:var(--bf-red);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;transform:rotate(8deg);box-shadow:0 10px 26px #0009;border:3px dashed #ffffffaa;padding:10px}.bf-shipstamp span{font-size:22px;line-height:1}.bf-shipstamp b{font:900 17px/1 Impact,"Arial Black",Arial,sans-serif;text-transform:uppercase;margin-top:4px}.bf-shipstamp small{font-size:10px;font-weight:700;line-height:1.15;margin-top:4px}@media(max-width:760px){.bf-shipstamp{width:92px;height:92px;top:-14px;right:-6px;padding:6px}.bf-shipstamp span{font-size:17px}.bf-shipstamp b{font-size:13px}.bf-shipstamp small{font-size:8px}}

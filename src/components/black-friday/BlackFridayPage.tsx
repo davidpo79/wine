@@ -11,6 +11,8 @@ import { BF_PRODUCT_SLUG, bfHref, isBfLocale } from "@/lib/black-friday";
 import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
 
+const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
+
 export type BfBundle = { key: string; qty: number; priceCents: number; compareAtCents: number | null };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -161,6 +163,11 @@ export function BlackFridayPage({
           <div className="bf-heroimg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="bf-bottles" src="/lp/bf/bottles.webp" alt={copy.productName} width={1200} height={712} fetchPriority="high" />
+            <div className="bf-shipstamp">
+              <span aria-hidden="true">🚚</span>
+              <b>{copy.freeShip.big}</b>
+              <small>{t(copy.freeShip.small)}</small>
+            </div>
             <ul className="bf-checks bf-checks-hero">
               {copy.checks.map((c) => (
                 <li key={c}>{t(c)}</li>
@@ -198,7 +205,14 @@ export function BlackFridayPage({
               <button type="button" className="bf-cta" onClick={buy} disabled={going}>
                 {fmt(copy.cta, { price: priceLabel })}
               </button>
-              <p className="bf-pay">Visa · Mastercard · Apple Pay · Google Pay</p>
+              <div className="bf-pay">
+                {(["visa", "mastercard", "apple-pay", "google-pay"] as const).map((x) => (
+                  <span key={x}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/pay/${x}.svg`} alt={PAY_NAMES[x]} title={PAY_NAMES[x]} loading="lazy" />
+                  </span>
+                ))}
+              </div>
             </div>
           )}
           </div>

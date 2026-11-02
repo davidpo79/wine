@@ -25,6 +25,8 @@ export type BfCopy = {
   cta: string;
   ctaSticky: string;
   checks: [string, string, string, string];
+  /** The big free-shipping stamp on the hero photo. */
+  freeShip: { big: string; small: string };
   winesTitle: string;
   wines: { type: string; name: string; text: string; count: string; img: string | null }[];
   producer: { title: string; p: string; label: string; note: string };
@@ -69,6 +71,7 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     },
     cta: "Comprar ahora · {price}",
     ctaSticky: "Comprar · {price}",
+    freeShip: { big: "Envío gratis", small: "Entrega en {days} días laborables" },
     checks: ["Todos los impuestos incluidos", "Envío gratis", "Entrega en {days} días laborables", "Pago seguro: tarjeta, Apple Pay, Google Pay"],
     winesTitle: "Lo que hay en la caja",
     wines: [
@@ -140,6 +143,7 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     },
     cta: "Jetzt kaufen · {price}",
     ctaSticky: "Kaufen · {price}",
+    freeShip: { big: "Gratis-versand", small: "Lieferung in {days} Werktagen" },
     checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in {days} Werktagen", "Sicher bezahlen: Karte, Apple Pay, Google Pay"],
     winesTitle: "Das ist in der Box",
     wines: [
