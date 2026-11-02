@@ -30,6 +30,12 @@ export type BfCopy = {
   winesTitle: string;
   wines: { type: string; name: string; text: string; count: string; img: string | null }[];
   producer: { title: string; p: string; label: string; note: string };
+  storyTitle: string;
+  story: { img: string; h: string; p: string }[];
+  eveningTitle: string;
+  evening: { when: string; wine: string; img: string; p: string }[];
+  whoTitle: string;
+  who: { p1: string; p2: string; company: string; about: string; alt: string };
   whyTitle: string;
   why: { h: string; p: string }[];
   howTitle: string;
@@ -85,6 +91,27 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       label: "Vídeo: Pedro, de Martin Boutique Wines, en el Duero",
       note: "Con subtítulos · 40 segundos",
     },
+    storyTitle: "Del Duero a tu casa",
+    story: [
+      { img: "/lp/bf/story-douro.webp", h: "El valle del Duero", p: "Terrazas empinadas, veranos calurosos e inviernos fríos: la región vinícola demarcada más antigua del mundo, en el noreste de Portugal." },
+      { img: "/lp/bf/story-harvest.webp", h: "La vendimia", p: "La uva se vendimia a finales del verano y llega a la bodega en cajas pequeñas." },
+      { img: "/lp/bf/story-harvest2.webp", h: "En la bodega", p: "Despalillado, selección y fermentación: así nacen el tinto, el blanco y el rosado, con variedades tradicionales del Duero." },
+      { img: "/lp/bf/bottles-cut.webp", h: "A tu casa", p: "Preparamos tu caja en nuestro almacén de Bélgica y la recibes en {days} días laborables, con seguimiento." },
+    ],
+    eveningTitle: "Una noche, seis vinos",
+    evening: [
+      { when: "De aperitivo", wine: "Rosado", img: "/lp/bf/rose.webp", p: "El Galhofa Rosé, bien frío, con aceitunas, queso y algo para picar." },
+      { when: "De entrante", wine: "Blanco", img: "/lp/bf/white.webp", p: "El Galhofa Branco con marisco, pescado o ensalada." },
+      { when: "De principal", wine: "Tinto", img: "/lp/bf/red.webp", p: "El Galhofa Tinto con asados, guisos y quesos curados." },
+    ],
+    whoTitle: "Quiénes somos",
+    who: {
+      p1: "Wine Portugal es una tienda online de Lisboa. Trabajamos directamente con bodegas portuguesas y llevamos sus vinos hasta ti sin intermediarios.",
+      p2: "Preparamos cada pedido con cuidado, con protección para cada botella. Respondemos personalmente por WhatsApp y por correo.",
+      company: "Empresa",
+      about: "Más sobre nosotros",
+      alt: "Vino preparándose para el envío",
+    },
     whyTitle: "Por qué este precio",
     why: [
       { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. Los vinos salen de la bodega del Douro y llegan a tu casa." },
@@ -101,6 +128,8 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       { q: "¿Cómo puedo pagar?", a: "Con tarjeta (Visa, Mastercard), Apple Pay o Google Pay, en la página segura de Stripe. No guardamos los datos de tu tarjeta." },
       { q: "¿Y si una botella llega rota?", a: "Envíanos una foto por WhatsApp o e-mail y la reponemos sin coste. Además tienes 14 días para desistir de la compra." },
       { q: "¿Tengo que ser mayor de edad?", a: "Sí. Solo vendemos a mayores de 18 años." },
+      { q: "¿Quién está detrás de Wine Portugal?", a: "W.O.P Wines of Portugal, Unipessoal Lda., empresa portuguesa con sede en Lisboa (NIF 519629914). Puedes escribirnos a INFO@wine-portugal.com o por WhatsApp al +351 910 348 577." },
+      { q: "¿Recibo factura?", a: "Sí. Te la enviamos por correo electrónico." },
     ],
     productName: "Black Friday · 6 vinos del Douro",
     trust: ["🍷 3 tintos, 2 blancos y 1 rosado · Douro DOC", "🚚 Envío gratis con seguimiento · {days} días laborables · pedidos hasta el {date}", "🔒 Pago seguro con Stripe · no guardamos los datos de tu tarjeta", "↩️ ¿Botella rota? La reponemos gratis · 14 días para desistir", "💬 ¿Dudas? WhatsApp +351 910 348 577"],
@@ -157,6 +186,27 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       label: "Video: Pedro von Martin Boutique Wines am Douro",
       note: "Mit Untertiteln · 40 Sekunden",
     },
+    storyTitle: "Vom Douro zu Ihnen nach Hause",
+    story: [
+      { img: "/lp/bf/story-douro.webp", h: "Das Douro-Tal", p: "Steile Terrassen, heiße Sommer, kalte Winter: das älteste abgegrenzte Weinbaugebiet der Welt, im Nordosten Portugals." },
+      { img: "/lp/bf/story-harvest.webp", h: "Die Lese", p: "Die Trauben werden im Spätsommer gelesen und in kleinen Kisten direkt in den Keller gebracht." },
+      { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Entrappen, sortieren, vergären: So entstehen Rotwein, Weißwein und Rosé aus traditionellen Douro-Rebsorten." },
+      { img: "/lp/bf/bottles-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
+    ],
+    eveningTitle: "Ein Abend, sechs Weine",
+    evening: [
+      { when: "Zum Aperitif", wine: "Rosé", img: "/lp/bf/rose.webp", p: "Der Galhofa Rosé, gut gekühlt, zu Oliven, Käse und kleinen Häppchen." },
+      { when: "Zur Vorspeise", wine: "Weißwein", img: "/lp/bf/white.webp", p: "Der Galhofa Branco zu Meeresfrüchten, Fisch oder Salat." },
+      { when: "Zum Hauptgang", wine: "Rotwein", img: "/lp/bf/red.webp", p: "Der Galhofa Tinto zu Braten, Schmorgerichten und gereiftem Käse." },
+    ],
+    whoTitle: "Wer wir sind",
+    who: {
+      p1: "Wine Portugal ist ein Online-Shop aus Lissabon. Wir arbeiten direkt mit Weingütern in Portugal zusammen und bringen ihre Weine ohne Zwischenhändler zu Ihnen.",
+      p2: "Jede Bestellung packen wir sorgfältig, mit Schutz für jede Flasche. Ihre Fragen beantworten wir persönlich per WhatsApp und E-Mail.",
+      company: "Unternehmen",
+      about: "Mehr über uns",
+      alt: "Wein wird für den Versand verpackt",
+    },
     whyTitle: "Warum dieser Preis",
     why: [
       { h: "Direkt vom Erzeuger", p: "Kein Großhandel, kein Laden dazwischen. Die Weine kommen vom Weingut im Douro direkt zu Ihnen nach Hause." },
@@ -173,6 +223,8 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       { q: "Wie kann ich bezahlen?", a: "Mit Kredit- oder Debitkarte, Apple Pay oder Google Pay auf der sicheren Seite von Stripe. Wir speichern Ihre Kartendaten nicht." },
       { q: "Und wenn eine Flasche kaputt ankommt?", a: "Schicken Sie uns ein Foto per WhatsApp oder E-Mail, wir ersetzen sie kostenlos. Außerdem haben Sie 14 Tage Widerrufsrecht." },
       { q: "Muss ich volljährig sein?", a: "Ja. Wir verkaufen nur an Personen ab 18 Jahren." },
+      { q: "Wer steckt hinter Wine Portugal?", a: "W.O.P Wines of Portugal, Unipessoal Lda., ein portugiesisches Unternehmen mit Sitz in Lissabon (NIF 519629914). Sie erreichen uns per E-Mail an INFO@wine-portugal.com oder per WhatsApp unter +351 910 348 577." },
+      { q: "Bekomme ich eine Rechnung?", a: "Ja. Die Rechnung kommt per E-Mail." },
     ],
     productName: "Black Friday · 6 Douro-Weine",
     trust: ["🍷 3 Rotweine, 2 Weißweine, 1 Rosé · Douro DOC", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],

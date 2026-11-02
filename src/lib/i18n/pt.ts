@@ -205,6 +205,15 @@ export const pt = {
       videoLabel: "Vídeo: Pedro, da Martin Boutique Wines, fala sobre os vinhos 2160",
       note: "Com legendas · 1 minuto",
     },
+    who: {
+      eyebrow: "QUEM SOMOS",
+      h2: "Uma loja de Lisboa,<br><em>com o vinho de quem o faz.</em>",
+      p1: "A Wine Portugal é uma loja online de Lisboa. Trabalhamos diretamente com produtores portugueses e levamos os vinhos deles até si, sem intermediários.",
+      p2: "Cada caixa de Natal é preparada à mão, com proteção para cada garrafa, e respondemos pessoalmente por WhatsApp e email.",
+      company: "Empresa",
+      about: "Mais sobre nós",
+      imageAlt: "Caixas de Natal Wine Portugal a ser preparadas para envio",
+    },
     guide: {
       imageAlt: "Guia digital Sabores de Portugal",
       badgeTitle: "É OFERTA",

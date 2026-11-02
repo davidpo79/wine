@@ -205,6 +205,15 @@ export const nl: Dict = {
       videoLabel: "Video: Pedro van Martin Boutique Wines over de 2160-wijnen",
       note: "Met ondertiteling · 1 minuut",
     },
+    who: {
+      eyebrow: "WIE WIJ ZIJN",
+      h2: "Een winkel uit Lissabon,<br><em>met wijn van de mensen die hem maken.</em>",
+      p1: "Wine Portugal is een webwinkel uit Lissabon. We werken rechtstreeks met Portugese wijnmakers en brengen hun wijnen naar u toe, zonder tussenhandel.",
+      p2: "Elke kerstbox wordt met de hand ingepakt, met bescherming voor elke fles, en we antwoorden persoonlijk via WhatsApp en e-mail.",
+      company: "Bedrijf",
+      about: "Meer over ons",
+      imageAlt: "Kerstboxen van Wine Portugal worden ingepakt voor verzending",
+    },
     guide: {
       imageAlt: "Digitale gids Sabores de Portugal",
       badgeTitle: "CADEAU",

@@ -206,6 +206,15 @@ export const es: Dict = {
       videoLabel: "Vídeo: Pedro, de Martin Boutique Wines, habla de los vinos 2160",
       note: "Con subtítulos · 1 minuto",
     },
+    who: {
+      eyebrow: "QUIÉNES SOMOS",
+      h2: "Una tienda de Lisboa,<br><em>con el vino de quien lo hace.</em>",
+      p1: "Wine Portugal es una tienda online de Lisboa. Trabajamos directamente con productores portugueses y le llevamos sus vinos sin intermediarios.",
+      p2: "Cada caja de Navidad se prepara a mano, con protección para cada botella, y respondemos personalmente por WhatsApp y correo.",
+      company: "Empresa",
+      about: "Más sobre nosotros",
+      imageAlt: "Cajas de Navidad de Wine Portugal preparándose para el envío",
+    },
     guide: {
       imageAlt: "Guía digital Sabores de Portugal",
       badgeTitle: "DE REGALO",

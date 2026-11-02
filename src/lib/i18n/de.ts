@@ -205,6 +205,15 @@ export const de: Dict = {
       videoLabel: "Video: Pedro von Martin Boutique Wines über die Weine 2160",
       note: "Mit Untertiteln · 1 Minute",
     },
+    who: {
+      eyebrow: "WER WIR SIND",
+      h2: "Ein Shop aus Lissabon,<br><em>mit Wein von denen, die ihn machen.</em>",
+      p1: "Wine Portugal ist ein Online-Shop aus Lissabon. Wir arbeiten direkt mit portugiesischen Erzeugern zusammen und bringen ihre Weine ohne Zwischenhändler zu Ihnen.",
+      p2: "Jede Weihnachtsbox wird von Hand gepackt, mit Schutz für jede Flasche, und wir antworten persönlich per WhatsApp und E-Mail.",
+      company: "Unternehmen",
+      about: "Mehr über uns",
+      imageAlt: "Weihnachtsboxen von Wine Portugal werden für den Versand gepackt",
+    },
     guide: {
       imageAlt: "Digitaler Guide Sabores de Portugal",
       badgeTitle: "GESCHENKT",

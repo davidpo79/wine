@@ -205,6 +205,15 @@ export const fr: Dict = {
       videoLabel: "Vidéo : Pedro, de Martin Boutique Wines, présente les vins 2160",
       note: "Sous-titrée · 1 minute",
     },
+    who: {
+      eyebrow: "QUI SOMMES-NOUS",
+      h2: "Une boutique de Lisbonne,<br><em>avec le vin de ceux qui le font.</em>",
+      p1: "Wine Portugal est une boutique en ligne de Lisbonne. Nous travaillons directement avec des producteurs portugais et vous apportons leurs vins, sans intermédiaires.",
+      p2: "Chaque coffret de Noël est préparé à la main, avec une protection pour chaque bouteille, et nous répondons personnellement par WhatsApp et e-mail.",
+      company: "Société",
+      about: "En savoir plus sur nous",
+      imageAlt: "Coffrets de Noël Wine Portugal en cours de préparation",
+    },
     guide: {
       imageAlt: "Guide numérique Sabores de Portugal",
       badgeTitle: "C’EST OFFERT",

@@ -10,6 +10,7 @@ import { aboutHref, legalHref } from "@/lib/i18n/paths";
 import { BF_PRODUCT_SLUG, bfHref, isBfLocale } from "@/lib/black-friday";
 import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
+import { SITE } from "@/lib/site";
 
 const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
 
@@ -220,6 +221,14 @@ export function BlackFridayPage({
         </div>
       </section>
 
+      <div className="bf-truststrip">
+        <div className="bf-wrap">
+          {copy.trust.map((x) => (
+            <span key={x}>{t(x)}</span>
+          ))}
+        </div>
+      </div>
+
       <section className="bf-section bf-wines">
         <div className="bf-wrap">
           <h2>{copy.winesTitle}</h2>
@@ -250,12 +259,50 @@ export function BlackFridayPage({
         </div>
       </section>
 
+      <section className="bf-section bf-evening">
+        <div className="bf-wrap">
+          <h2>{copy.eveningTitle}</h2>
+          <div className="bf-evegrid">
+            {copy.evening.map((e) => (
+              <div key={e.when} className="bf-eve">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={e.img} alt="" aria-hidden="true" loading="lazy" />
+                <div>
+                  <p className="bf-evewhen">{e.when}</p>
+                  <h3>{e.wine}</h3>
+                  <p>{e.p}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="bf-section bf-producer">
         <div className="bf-wrap">
           <h2>{copy.producer.title}</h2>
           <p className="bf-producer-p">{copy.producer.p}</p>
           <ProducerVideo locale={locale} label={copy.producer.label} base="/video/producer/pedro-douro" wideOnly />
           <p className="bf-producer-note">{copy.producer.note}</p>
+        </div>
+      </section>
+
+      <section className="bf-section bf-story">
+        <div className="bf-wrap">
+          <h2>{copy.storyTitle}</h2>
+          <ol className="bf-storygrid">
+            {copy.story.map((s, i) => (
+              <li key={s.h} className="bf-storystep">
+                <span className={`bf-storyimg${s.img.includes("bottles") ? " bf-storyimg-bottles" : ""}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={s.img} alt="" aria-hidden="true" loading="lazy" />
+                  <b>{i + 1}</b>
+                </span>
+                <h3>{s.h}</h3>
+                <p>{t(s.p)}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
@@ -281,6 +328,26 @@ export function BlackFridayPage({
               {fmt(copy.cta, { price: priceLabel })}
             </a>
           )}
+        </div>
+      </section>
+
+      <section className="bf-section bf-who">
+        <div className="bf-wrap bf-whogrid">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/lp/bf/who-warehouse.webp" alt={copy.who.alt} loading="lazy" />
+          <div>
+            <h2>{copy.whoTitle}</h2>
+            <p>{copy.who.p1}</p>
+            <p>{copy.who.p2}</p>
+            <p className="bf-whocompany">
+              <b>{copy.who.company}:</b> {SITE.legalName} · NIF {SITE.nif} · {SITE.address}
+              <br />
+              {SITE.email} · WhatsApp {SITE.whatsapp}
+            </p>
+            <a className="bf-wholink" href={aboutHref(isBfLocale(locale) ? locale : "de")}>
+              {copy.who.about} →
+            </a>
+          </div>
         </div>
       </section>
 

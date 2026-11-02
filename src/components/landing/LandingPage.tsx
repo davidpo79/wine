@@ -610,6 +610,29 @@ export function LandingPage({
           </div>
         </section>
 
+        <section className="section wrap" id="quem-somos" data-j-section="quem-somos">
+          <div className="split whosplit">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img alt={t.who.imageAlt} className="whoimage" loading="lazy" src="/lp/who-warehouse-xmas.webp" />
+            <div>
+              <div className="eyebrow">{t.who.eyebrow}</div>
+              <h2>
+                <Rich s={t.who.h2} />
+              </h2>
+              <p>{t.who.p1}</p>
+              <p>{t.who.p2}</p>
+              <p className="whocompany">
+                <b>{t.who.company}:</b> {SITE.legalName} · NIF {SITE.nif} · {SITE.address}
+                <br />
+                {SITE.email} · WhatsApp {SITE.whatsapp}
+              </p>
+              <a className="wholink" href={aboutHref(locale)}>
+                {t.who.about} →
+              </a>
+            </div>
+          </div>
+        </section>
+
         {guide && (
           <section className="section bonussection" id="guia">
             <div className="wrap split">
