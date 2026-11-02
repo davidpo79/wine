@@ -1,6 +1,7 @@
 // Black Friday Meta ads (Germany, Spain): feed 4:5 1080x1350 and story 9:16 1080x1920, same look as the page.
 // Usage: tsx scripts/ads/render-bf.ts [outDir]   -> bf_<concept>_<de|es>_<4x5|9x16>.jpg (box, bottle) and
-// bf_frame_<de|es>_<4x5|9x16>.png: the transparent-window frame laid over the harvest footage by scripts/ads/bf-video.sh.
+// bf_frame_<de|es>_<4x5|9x16>.png: the copy and the window's red border, transparent elsewhere, laid over the harvest
+// footage by scripts/ads/bf-video.sh; bf_balloon_<red|black>.png: the balloons it floats up behind them.
 // Only true claims: prices of 29/10/2026, delivery included, 6 Douro DOC wines (3 red, 2 white, 1 rosé), orders until
 // 25/11 (delivery in 2 working days, before Black Friday 27/11). No reference price: the box was never sold at one.
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -182,7 +183,7 @@ const frame = (c: Copy, f: keyof typeof FORMATS) => {
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:transparent}
 body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;color:#fff}
-.win{position:absolute;left:${win.x}px;top:${win.y}px;width:${win.w}px;height:${win.h}px;border:6px solid #e11d2a;border-radius:6px;box-shadow:0 0 0 4000px #0b0b0b}
+.win{position:absolute;left:${win.x}px;top:${win.y}px;width:${win.w}px;height:${win.h}px;border:6px solid #e11d2a;border-radius:6px}
 .bf{font-weight:900;letter-spacing:-.03em;line-height:.9}.bf span{color:#e11d2a}
 .t{font-weight:850;letter-spacing:-.01em}
 .price{font-weight:900;font-size:100px;letter-spacing:-.03em;margin-top:6px;line-height:1}
@@ -192,7 +193,7 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
 .pill{background:#e11d2a;border-radius:999px;padding:14px 30px;font-weight:900;font-size:32px}
 .banner{position:absolute;left:${win.x}px;width:${win.w}px;top:${win.y + win.h - (story ? 150 : 120)}px;text-align:center}
 .banner span{display:inline-block;background:#e11d2a;color:#fff;font-weight:900;font-size:${story ? 58 : 48}px;padding:12px 26px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);letter-spacing:-.01em}
-</style></head><body><div class="win"></div>${deco(story ? [[-30, 20, 140, "black", -10], [970, 20, 140, "red", 10], [-20, 520, 170, "red", -6], [30, 900, 140, "black", 6], [920, 820, 160, "black", 8], [950, 1150, 130, "red", -6]] : [[-30, -40, 130, "red", -10], [960, -30, 130, "black", 10], [960, 1120, 130, "red", 8]], story ? [[0, 380, 180, 1300], [900, 380, 180, 1300]] : [[0, 0, 1080, 150]], w, h)}${side}<div class="banner"><span>${c.six} · ${c.price}</span></div></body></html>`;
+</style></head><body><div class="win"></div>${deco([], story ? [[0, 380, 180, 1300], [900, 380, 180, 1300]] : [[0, 0, 1080, 150]], w, h)}${side}<div class="banner"><span>${c.six} · ${c.price}</span></div></body></html>`;
 };
 
 mkdirSync(out, { recursive: true });
@@ -215,5 +216,14 @@ for (const loc of ["de", "es"] as const) {
     await page.close();
     rmSync(tmp);
   }
+}
+// Balloon sprites for the video: bf-video.sh floats them up behind the copy and the footage.
+for (const color of ["red", "black"] as const) {
+  const bw = 160, bh = Math.round(bw * 2.52);
+  const page = await browser.newPage({ viewport: { width: bw + 40, height: bh + 40 } });
+  await page.setContent(`<html><body style="margin:0;background:transparent"><div style="position:relative;left:20px;top:10px">${balloon([0, 0, bw, color, 0], 0)}</div></body></html>`);
+  writeFileSync(resolve(out, `bf_balloon_${color}.png`), await page.screenshot({ type: "png", omitBackground: true }));
+  console.log(`bf_balloon_${color}.png`);
+  await page.close();
 }
 await browser.close();
