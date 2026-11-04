@@ -1,6 +1,6 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
-import { shipmentOf } from "@/lib/fulfilment";
-import { cttConfigured } from "@/lib/ctt";
+import { shipmentOf, shippingReady } from "@/lib/fulfilment";
+import { cttxConfigured, cttxMissing } from "@/lib/cttx";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -32,7 +32,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const events = await db.select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, id)).orderBy(asc(schema.orderEvents.createdAt));
   const visits = isAdmin ? await sessionsOfOrder(id) : [];
   const shipment = await shipmentOf(id);
-  const cttReady = cttConfigured();
+  const cttReady = shippingReady();
+  const cttx = cttxConfigured();
+  const cttxTodo = !cttx && process.env.CTTX_AUTH_ID ? cttxMissing() : []; // half-configured CTT Expresso
   const a = o.shippingAddress;
   const paid = ["paid", "preparing", "shipped", "delivered"].includes(o.status);
 
@@ -134,8 +136,10 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                   {shipment.trackingUrl && <> · <a className="underline" href={shipment.trackingUrl} target="_blank" rel="noreferrer">follow</a></>}
                   {shipment.simulated && <span className="ml-1 rounded bg-gold/30 px-1">simulated</span>}
                 </p>
-                {shipment.labelPdf && <p><a className="font-semibold text-azulejo underline" href={`/admin/ctt-label?o=${encodeURIComponent(o.id)}`} target="_blank" rel="noreferrer">Print label (PDF)</a></p>}
-                {shipment.lastText && <p>Last status: {shipment.lastCode} · {shipment.lastText}</p>}
+                {shipment.objects.length > 1 && <p>{shipment.objects.length} parcels: {shipment.objects.join(", ")}</p>}
+                {shipment.labelPdf && <p><a className="font-semibold text-azulejo underline" href={`/admin/ctt-label?o=${encodeURIComponent(o.id)}`} target="_blank" rel="noreferrer">{shipment.provider === "cttx" ? "Print transport guide (A4 PDF)" : "Print label (PDF)"}</a></p>}
+                {shipment.provider === "cttx" && <p>{shipment.closedAt ? `Handed over in the daily close of ${shipment.closedAt.toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" })}` : "Not closed yet: Orders → “Close today's CTT shipments”."}</p>}
+                {shipment.lastText && <p>Last status: {shipment.lastEvent ?? shipment.lastCode} · {shipment.lastText}</p>}
                 {shipment.error && <p className="text-xmas">{shipment.error}</p>}
                 {shipment.events.length > 0 && (
                   <details><summary className="cursor-pointer text-muted">History ({shipment.events.length})</summary>
@@ -150,10 +154,11 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               <ActionForm action={orderAction} className="mt-2">
                 <input type="hidden" name="id" value={o.id} />
                 <input type="hidden" name="action" value="ctt_label" />
-                <Submit>{shipment?.labelPdf ? "Create the label again" : "Create CTT shipment and label"}</Submit>
+                <Submit>{shipment?.labelPdf ? (cttx && shipment.provider === "cttx" ? "Show the transport guide again" : "Create the label again") : "Create CTT shipment and label"}</Submit>
               </ActionForm>
             )}
             {cttReady && <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email) when CTT picks the parcel up, and “delivered” on delivery: automatic.</p>}
+            {cttxTodo.length > 0 && <p className="mt-2 text-xs text-xmas">CTT Expresso: missing in Railway {cttxTodo.join(", ")}.</p>}
           </div>
           {(o.status === "paid" || o.status === "preparing") && (
             <ActionForm action={orderAction} className="rounded border p-3" confirm="Send the shipping email to the customer?">

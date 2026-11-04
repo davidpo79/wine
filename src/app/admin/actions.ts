@@ -561,9 +561,26 @@ export async function reviewsSettingsAction(_: FormState, fd: FormData): Promise
   return { ok: "Saved." };
 }
 
+/** Orders → "Close today's CTT shipments" (CTT Expresso CloseShipment for every open shipment). */
+export async function cttCloseAction(_: FormState, _fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const { closeCttxShipments } = await import("@/lib/fulfilment");
+  const r = await closeCttxShipments(admin.email);
+  if ("error" in r) return { error: r.error };
+  revalidatePath("/admin/orders");
+  return { ok: `Closed ${r.count} shipment${r.count > 1 ? "s" : ""}. Print the acceptance certificate from "Last closes".` };
+}
+
 /** Admin → Settings: checks the CTT API keys without creating anything. */
 export async function cttTestAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin({ role: "admin" });
+  // CTT Expresso web service when its variables are set (the integration in use), else the e-commerce API v3.
+  if (process.env.CTTX_AUTH_ID) {
+    const { cttxTestConnection } = await import("@/lib/cttx");
+    const x = await cttxTestConnection();
+    const text = `${x.ok ? "Connected." : "Not connected."}\n${x.steps.join("\n")}`;
+    return x.ok ? { ok: text } : { error: text };
+  }
   const { cttTestConnection } = await import("@/lib/ctt");
   const appId = String(fd.get("app_id") ?? "").trim().slice(0, 100) || undefined;
   const r = await cttTestConnection(appId);

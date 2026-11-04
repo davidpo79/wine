@@ -197,6 +197,13 @@
       "when": 1793513865969,
       "tag": "0027_black_friday_live",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793789925380,
+      "tag": "0028_ctt_expresso",
+      "breakpoints": true
     }
   ]
 }
