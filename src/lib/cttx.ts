@@ -26,8 +26,10 @@ export type CttxConfig = {
   boxesPerParcel: number;
 };
 
-export function cttxConfig(): CttxConfig {
+/** Keys from Railway; the collection address from Admin → Settings (`sender`, saved in the database), else Railway. */
+export function cttxConfig(sender?: Partial<CttxSender> | null): CttxConfig {
   const e = (k: string) => (process.env[k] ?? "").trim();
+  const s = (k: keyof CttxSender, env: string) => (sender?.[k] ?? "").trim() || e(env);
   return {
     base: (e("CTTX_BASE") || "https://cttexpressows.qa.ctt.pt/CTTEWSPoolHTTPS").replace(/\/$/, ""),
     authId: e("CTTX_AUTH_ID"),
@@ -36,13 +38,13 @@ export function cttxConfig(): CttxConfig {
     contractId: e("CTTX_CONTRACT_ID"),
     subProduct: e("CTTX_SUBPRODUCT") || CTTX_PRODUCTS.twoDays,
     sender: {
-      name: e("CTTX_SENDER_NAME") || "Wine Portugal",
-      contact: e("CTTX_SENDER_CONTACT"),
-      address: e("CTTX_SENDER_ADDRESS"),
-      postalCode: e("CTTX_SENDER_POSTAL"),
-      city: e("CTTX_SENDER_CITY"),
-      phone: e("CTTX_SENDER_PHONE"),
-      email: e("CTTX_SENDER_EMAIL"),
+      name: s("name", "CTTX_SENDER_NAME") || "Wine Portugal",
+      contact: s("contact", "CTTX_SENDER_CONTACT"),
+      address: s("address", "CTTX_SENDER_ADDRESS"),
+      postalCode: s("postalCode", "CTTX_SENDER_POSTAL"),
+      city: s("city", "CTTX_SENDER_CITY"),
+      phone: s("phone", "CTTX_SENDER_PHONE"),
+      email: s("email", "CTTX_SENDER_EMAIL"),
     },
     boxWeightG: Number(e("CTT_BOX_WEIGHT_G") || 4000),
     boxesPerParcel: Number(e("CTTX_BOXES_PER_PARCEL") || 2),
@@ -52,16 +54,20 @@ export function cttxConfig(): CttxConfig {
 /** What is still missing before shipments can be created (empty = ready). */
 export function cttxMissing(c = cttxConfig()) {
   const m: string[] = [];
-  if (!c.authId) m.push("CTTX_AUTH_ID");
-  if (!c.clientId) m.push("CTTX_CLIENT_ID");
-  if (!c.contractId) m.push("CTTX_CONTRACT_ID");
-  if (!c.sender.address) m.push("CTTX_SENDER_ADDRESS");
-  if (!splitPtPostal(c.sender.postalCode)) m.push("CTTX_SENDER_POSTAL");
-  if (!c.sender.city) m.push("CTTX_SENDER_CITY");
+  if (!c.authId) m.push("CTTX_AUTH_ID (Railway)");
+  if (!c.clientId) m.push("CTTX_CLIENT_ID (Railway)");
+  if (!c.contractId) m.push("CTTX_CONTRACT_ID (Railway)");
+  if (!c.sender.address) m.push("collection address (Settings → CTT)");
+  if (!splitPtPostal(c.sender.postalCode)) m.push("collection postal code 1234-567 (Settings → CTT)");
+  if (!c.sender.city) m.push("collection town (Settings → CTT)");
   return m;
 }
 
-export const cttxConfigured = () => cttxMissing().length === 0;
+/** CTT Expresso keys are set (the integration in use). The collection address is checked when a shipment is created. */
+export const cttxConfigured = () => {
+  const c = cttxConfig();
+  return !!(c.authId && c.clientId && c.contractId);
+};
 export const cttxSandbox = (c = cttxConfig()) => /\.qa\./.test(c.base);
 
 // ---- Pure helpers (unit-tested) ----------------------------------------------------------------------
@@ -313,11 +319,11 @@ export async function cttxEvents(objects: string[], c = cttxConfig()) {
 }
 
 /** Admin "Test CTT connection": a tracking query (creates nothing) plus the list of missing settings. Never shows keys. */
-export async function cttxTestConnection() {
-  const c = cttxConfig();
+export async function cttxTestConnection(c = cttxConfig()) {
   const steps = [`CTT Expresso ${cttxSandbox(c) ? "sandbox" : "production"}: ${c.base}`];
   const missing = cttxMissing(c);
-  if (missing.length) steps.push(`Missing in Railway: ${missing.join(", ")}`);
+  if (missing.length) steps.push(`Missing: ${missing.join(", ")}`);
+  else steps.push(`Collection address: ${c.sender.name}, ${c.sender.address}, ${c.sender.postalCode} ${c.sender.city}`);
   if (!c.authId) return { ok: false, steps };
   try {
     const r = await cttxEvents(["DB000000000PT"], c);

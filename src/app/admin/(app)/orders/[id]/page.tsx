@@ -1,5 +1,5 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
-import { shipmentOf, shippingReady } from "@/lib/fulfilment";
+import { loadCttxConfig, shipmentOf, shippingReady } from "@/lib/fulfilment";
 import { cttxConfigured, cttxMissing } from "@/lib/cttx";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
@@ -34,7 +34,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const shipment = await shipmentOf(id);
   const cttReady = shippingReady();
   const cttx = cttxConfigured();
-  const cttxTodo = !cttx && process.env.CTTX_AUTH_ID ? cttxMissing() : []; // half-configured CTT Expresso
+  const cttxTodo = cttx ? cttxMissing(await loadCttxConfig()) : []; // e.g. the collection address in Settings
   const a = o.shippingAddress;
   const paid = ["paid", "preparing", "shipped", "delivered"].includes(o.status);
 
@@ -158,7 +158,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               </ActionForm>
             )}
             {cttReady && <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email) when CTT picks the parcel up, and “delivered” on delivery: automatic.</p>}
-            {cttxTodo.length > 0 && <p className="mt-2 text-xs text-xmas">CTT Expresso: missing in Railway {cttxTodo.join(", ")}.</p>}
+            {cttxTodo.length > 0 && <p className="mt-2 text-xs text-xmas">CTT Expresso: missing {cttxTodo.join(", ")}.</p>}
           </div>
           {(o.status === "paid" || o.status === "preparing") && (
             <ActionForm action={orderAction} className="rounded border p-3" confirm="Send the shipping email to the customer?">

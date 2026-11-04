@@ -561,6 +561,28 @@ export async function reviewsSettingsAction(_: FormState, fd: FormData): Promise
   return { ok: "Saved." };
 }
 
+/** Admin → Settings → CTT: the address where CTT Expresso collects the parcels (printed on every transport guide). */
+export async function cttSenderAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const v = (k: string, n: number) => String(fd.get(k) ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const digits = v("postalCode", 10).replace(/\D/g, "");
+  const sender = {
+    name: v("name", 60),
+    contact: v("contact", 60),
+    address: v("address", 100),
+    postalCode: digits.length === 7 ? `${digits.slice(0, 4)}-${digits.slice(4)}` : v("postalCode", 10),
+    city: v("city", 50),
+    phone: v("phone", 20),
+    email: v("email", 200),
+  };
+  if (!sender.name || !sender.address || !sender.city) return { error: "Name, address and town are required." };
+  if (digits.length !== 7) return { error: "Postal code in the format 1234-567." };
+  if (sender.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender.email)) return { error: "Invalid e-mail." };
+  await setSetting("ctt_sender", sender);
+  revalidatePath("/admin/settings");
+  return { ok: "Collection address saved. It is used on the next CTT shipment (CTT checks the postal code)." };
+}
+
 /** Orders → "Close today's CTT shipments" (CTT Expresso CloseShipment for every open shipment). */
 export async function cttCloseAction(_: FormState, _fd: FormData): Promise<FormState> {
   const admin = await requireAdmin();
@@ -576,8 +598,8 @@ export async function cttTestAction(_: FormState, fd: FormData): Promise<FormSta
   await requireAdmin({ role: "admin" });
   // CTT Expresso web service when its variables are set (the integration in use), else the e-commerce API v3.
   if (process.env.CTTX_AUTH_ID) {
-    const { cttxTestConnection } = await import("@/lib/cttx");
-    const x = await cttxTestConnection();
+    const [{ cttxTestConnection }, { loadCttxConfig }] = await Promise.all([import("@/lib/cttx"), import("@/lib/fulfilment")]);
+    const x = await cttxTestConnection(await loadCttxConfig());
     const text = `${x.ok ? "Connected." : "Not connected."}\n${x.steps.join("\n")}`;
     return x.ok ? { ok: text } : { error: text };
   }

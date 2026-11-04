@@ -30,7 +30,10 @@ export type Settings = {
   profit_split: ProfitSplit; // partnership split of the net profit (Admin → Finance); empty until agreed
   markets: Record<Country, MarketSettings>; // Portugal + Belgian-warehouse countries; cutoff_at null = the global cutoff
   black_friday: BlackFridaySettings; // 6-bottle Douro box for Germany and Spain (lib/black-friday.ts)
+  ctt_sender: CttSender; // where CTT Expresso collects the parcels (Admin → Settings → CTT); empty fields = Railway CTTX_SENDER_*
 };
+
+export type CttSender = { name: string; contact: string; address: string; postalCode: string; city: string; phone: string; email: string };
 
 /**
  * Black Friday 2026: a box of 6 Douro wines (3 red, 2 white, 1 rosé) shipped from the Belgian warehouse. It takes orders
@@ -133,6 +136,7 @@ export const DEFAULT_SETTINGS: Settings = {
     vat_percent: { DE: 19, ES: 21 },
     costs: { wine_cents: 1500, shipping_box_cents: 300, transport_cents: 250, handling_cents: 200, delivery_cents: 650 },
   },
+  ctt_sender: { name: "Wine Portugal", contact: "", address: "", postalCode: "", city: "", phone: "", email: "" },
   cost_model: {
     vat_percent: 13,
     wine_per_box_cents: 1000,

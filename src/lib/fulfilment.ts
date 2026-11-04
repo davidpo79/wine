@@ -8,11 +8,17 @@ import { PDFDocument } from "pdf-lib";
 import { db, schema } from "@/db";
 import type { Order, Shipment } from "@/db/schema";
 import { CTT_DELIVERED, CTT_PICKED_UP, cttConfig, cttConfigured, cttCreateShipment, cttLabel, cttTrack, SHOP_STATUS, type TrackingStatus } from "./ctt";
-import { CTTX_ALERT, CTTX_DELIVERED, CTTX_SHIPPED, cttxCloseShipments, cttxConfig, cttxConfigured, cttxCreateShipment, cttxEvents, cttxSandbox, parcelsForBoxes, type CttxEvent } from "./cttx";
+import { CTTX_ALERT, CTTX_DELIVERED, CTTX_SHIPPED, cttxCloseShipments, cttxConfig, cttxConfigured, cttxMissing, cttxCreateShipment, cttxEvents, cttxSandbox, parcelsForBoxes, type CttxEvent } from "./cttx";
 import { cttTrackingUrl } from "./shipping/ctt";
 import { MARKETS, isCountry } from "./markets";
 import { logOrderEvent, setStatus } from "./orders";
 import { sendShipped, sendShippingAlert } from "./email";
+
+/** CTT Expresso settings: keys from Railway, collection address from Admin → Settings. */
+export async function loadCttxConfig() {
+  const { getSettings } = await import("./settings");
+  return cttxConfig((await getSettings()).ctt_sender);
+}
 
 /** Whether the admin can create CTT shipments (either integration). */
 export const shippingReady = () => cttxConfigured() || cttConfigured();
@@ -112,7 +118,9 @@ export async function createCttxLabel(o: Order, by: string) {
   const a = o.shippingAddress ?? {};
   const country = (a.country ?? o.country ?? "PT").toUpperCase();
   if (!isCountry(country) || MARKETS[country].warehouse !== "douro") return { error: "CTT ships the orders from the Douro (Portugal) only; this one goes from the Belgian warehouse." };
-  const c = cttxConfig();
+  const c = await loadCttxConfig();
+  const missing = cttxMissing(c);
+  if (missing.length) return { error: `CTT Expresso: missing ${missing.join(", ")}.` };
   const sandbox = cttxSandbox(c);
   let s = await shipmentOf(o.id);
   if (s?.provider === "cttx" && s.objects.length && s.labelPdf && s.simulated === sandbox) return { ok: true as const, trackingId: s.trackingId };

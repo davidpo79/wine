@@ -20,9 +20,10 @@ CTT's `Eventos_CTT.xlsx`). When `CTTX_AUTH_ID` is set it replaces the e-commerce
    order page.
 
 ## Setup (Railway → web → Variables)
-`CTTX_AUTH_ID`, `CTTX_USER_ID`, `CTTX_CLIENT_ID`, `CTTX_CONTRACT_ID` (sandbox PDF from CTT), and the sender
-(`CTTX_SENDER_NAME`, `CTTX_SENDER_ADDRESS`, `CTTX_SENDER_POSTAL`, `CTTX_SENDER_CITY`, `CTTX_SENDER_PHONE`,
-`CTTX_SENDER_EMAIL`): CTT rejects an invalid sender postal code. Admin → Settings → "Test CTT connection" checks them.
+`CTTX_AUTH_ID`, `CTTX_USER_ID`, `CTTX_CLIENT_ID`, `CTTX_CONTRACT_ID` (sandbox PDF from CTT). The collection address
+(the sender on every guide) is entered in **Admin → Settings → "CTT: collection address"** (saved in the database);
+the `CTTX_SENDER_*` variables are only a fallback for empty fields. CTT rejects an invalid sender postal code.
+Admin → Settings → "Test CTT connection" checks everything.
 `CTTX_BASE` empty = sandbox; production = the address CTT gives after validation.
 
 ## Notes from the integration
