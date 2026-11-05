@@ -17,7 +17,8 @@ import { sendShipped, sendShippingAlert } from "./email";
 /** CTT Expresso settings: keys from Railway, collection address from Admin → Settings. */
 export async function loadCttxConfig() {
   const { getSettings } = await import("./settings");
-  return cttxConfig((await getSettings()).ctt_sender);
+  const s = await getSettings();
+  return cttxConfig(s.ctt_sender, { fragile: s.ctt_fragile });
 }
 
 /** Whether the admin can create CTT shipments (either integration). */

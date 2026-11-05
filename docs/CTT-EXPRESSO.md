@@ -22,7 +22,10 @@ CTT's `Eventos_CTT.xlsx`). When `CTTX_AUTH_ID` is set it replaces the e-commerce
 ## Setup (Railway → web → Variables)
 `CTTX_AUTH_ID`, `CTTX_USER_ID`, `CTTX_CLIENT_ID`, `CTTX_CONTRACT_ID` (sandbox PDF from CTT). The collection address
 (the sender on every guide) is entered in **Admin → Settings → "CTT: collection address"** (saved in the database);
-the `CTTX_SENDER_*` variables are only a fallback for empty fields. CTT rejects an invalid sender postal code.
+the `CTTX_SENDER_*` variables are only a fallback for empty fields. CTT rejects an invalid sender postal code. With no
+address at all we send `HasSenderInformation = false` and CTT prints the sender address it has for the contract
+(confirmed by CTT, 05/11/2026). The same form switches the **Fragile** special service (CTT: handled by hand, not by the
+sorting machines; recommended for bottles, extra fee), on by default.
 Admin → Settings → "Test CTT connection" checks everything.
 `CTTX_BASE` empty = sandbox; production = the address CTT gives after validation.
 

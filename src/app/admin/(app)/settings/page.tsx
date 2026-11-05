@@ -190,18 +190,26 @@ export default async function SettingsPage() {
       <ActionForm action={cttSenderAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">CTT: collection address</h2>
         <p className="text-xs text-muted">
-          Where CTT collects the parcels (the sender on every transport guide). CTT checks that the postal code exists. Saved here, not in Railway.
+          Where CTT collects the parcels (the sender on every transport guide). Leave address, postal code and town empty to use the sender address CTT has for
+          our contract. CTT checks that the postal code exists. Saved here, not in Railway.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block">Sender name<input name="name" required defaultValue={s.ctt_sender.name} className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Sender name<input name="name" defaultValue={s.ctt_sender.name} className="mt-1 w-full rounded border p-2" /></label>
           <label className="block">Contact person<input name="contact" defaultValue={s.ctt_sender.contact} placeholder="optional" className="mt-1 w-full rounded border p-2" /></label>
-          <label className="block sm:col-span-2">Address (street, number, floor)<input name="address" required defaultValue={s.ctt_sender.address} className="mt-1 w-full rounded border p-2" /></label>
-          <label className="block">Postal code<input name="postalCode" required defaultValue={s.ctt_sender.postalCode} placeholder="5050-237" className="mt-1 w-full rounded border p-2" /></label>
-          <label className="block">Town<input name="city" required defaultValue={s.ctt_sender.city} className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block sm:col-span-2">Address (street, number, floor)<input name="address" defaultValue={s.ctt_sender.address} placeholder="empty = CTT's address for the contract" className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Postal code<input name="postalCode" defaultValue={s.ctt_sender.postalCode} placeholder="5050-237" className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Town<input name="city" defaultValue={s.ctt_sender.city} className="mt-1 w-full rounded border p-2" /></label>
           <label className="block">Phone<input name="phone" defaultValue={s.ctt_sender.phone} placeholder="+351 …" className="mt-1 w-full rounded border p-2" /></label>
           <label className="block">E-mail<input name="email" type="email" defaultValue={s.ctt_sender.email} className="mt-1 w-full rounded border p-2" /></label>
         </div>
-        <Submit>Save collection address</Submit>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="fragile" defaultChecked={s.ctt_fragile} className="mt-0.5 h-4 w-4" />
+          <span>
+            <strong>Fragile</strong> on every shipment: CTT handles the parcels by hand, not by the sorting machines. Recommended by CTT for bottles; it adds a fee
+            per their price list.
+          </span>
+        </label>
+        <Submit>Save CTT settings</Submit>
       </ActionForm>
       <ActionForm action={cttTestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">CTT: test the API connection</h2>

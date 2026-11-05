@@ -13,6 +13,7 @@ const cfg = {
   sender: { name: "Wine Portugal", contact: "", address: "Rua do Céu 3", postalCode: "2410-498", city: "Leiria", phone: "+351910348577", email: "info@wine-portugal.com" },
   boxWeightG: 4000,
   boxesPerParcel: 2,
+  fragile: true,
 };
 const input = {
   reference: "WP-2026-0042",
@@ -71,4 +72,16 @@ test("tracking: events with reasons and situations, dates in Lisbon time", () =>
   assert.equal(list[1].situation, "B");
   assert.equal(x.parseCttDate("15-07-2026 10:00:00"), "2026-07-15T09:00:00.000Z"); // summer time
   assert.ok(x.CTTX_SHIPPED.has("EMA") && x.CTTX_ALERT.has("EMH") && x.CTTX_DELIVERED === "EMI");
+});
+
+test("CreateShipment: Fragile service, and CTT's own sender address when ours is empty", () => {
+  const own = x.createShipmentXml(input, cfg, "r");
+  assert.match(own, /<ctt1:HasSenderInformation>true<\/ctt1:HasSenderInformation>/);
+  assert.match(own, /<ctt1:SpecialServiceType>Fragil<\/ctt1:SpecialServiceType>/);
+  assert.match(own, /<ctt1:PTZipCode4>2410<\/ctt1:PTZipCode4>/);
+  const contract = x.createShipmentXml(input, { ...cfg, fragile: false, sender: { ...cfg.sender, address: "", postalCode: "", city: "" } }, "r");
+  assert.match(contract, /<ctt1:HasSenderInformation>false<\/ctt1:HasSenderInformation>/);
+  assert.match(contract, /<ctt1:SenderData><ctt1:Address>-<\/ctt1:Address><ctt1:City>-<\/ctt1:City><ctt1:Country>PT<\/ctt1:Country><ctt1:Name>Wine Portugal<\/ctt1:Name><ctt1:Type>Sender<\/ctt1:Type><\/ctt1:SenderData>/);
+  assert.doesNotMatch(contract, /Fragil/);
+  assert.deepEqual(x.cttxMissing({ ...cfg, sender: { ...cfg.sender, address: "", postalCode: "", city: "" } }), []);
 });

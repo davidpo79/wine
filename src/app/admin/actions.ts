@@ -575,12 +575,15 @@ export async function cttSenderAction(_: FormState, fd: FormData): Promise<FormS
     phone: v("phone", 20),
     email: v("email", 200),
   };
-  if (!sender.name || !sender.address || !sender.city) return { error: "Name, address and town are required." };
-  if (digits.length !== 7) return { error: "Postal code in the format 1234-567." };
+  // All empty = CTT uses the sender address it has for the contract; otherwise the address must be complete.
+  const any = sender.address || sender.city || digits;
+  if (any && (!sender.address || !sender.city)) return { error: "Fill in address, postal code and town, or leave all three empty to use the address CTT has for the contract." };
+  if (any && digits.length !== 7) return { error: "Postal code in the format 1234-567." };
   if (sender.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender.email)) return { error: "Invalid e-mail." };
-  await setSetting("ctt_sender", sender);
+  await setSetting("ctt_sender", { ...sender, name: sender.name || "Wine Portugal" });
+  await setSetting("ctt_fragile", fd.get("fragile") === "on");
   revalidatePath("/admin/settings");
-  return { ok: "Collection address saved. It is used on the next CTT shipment (CTT checks the postal code)." };
+  return { ok: any ? "Saved. The address is used on the next CTT shipment (CTT checks the postal code)." : "Saved. CTT will use the sender address it has for the contract." };
 }
 
 /** Orders → "Close today's CTT shipments" (CTT Expresso CloseShipment for every open shipment). */

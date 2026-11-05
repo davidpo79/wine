@@ -24,10 +24,11 @@ export type CttxConfig = {
   sender: CttxSender;
   boxWeightG: number; // one Trilogia box
   boxesPerParcel: number;
+  fragile: boolean; // CTT special service "Fragil" (handled by hand, extra cost per CTT's price list)
 };
 
 /** Keys from Railway; the collection address from Admin → Settings (`sender`, saved in the database), else Railway. */
-export function cttxConfig(sender?: Partial<CttxSender> | null): CttxConfig {
+export function cttxConfig(sender?: Partial<CttxSender> | null, opts: { fragile?: boolean } = {}): CttxConfig {
   const e = (k: string) => (process.env[k] ?? "").trim();
   const s = (k: keyof CttxSender, env: string) => (sender?.[k] ?? "").trim() || e(env);
   return {
@@ -48,6 +49,7 @@ export function cttxConfig(sender?: Partial<CttxSender> | null): CttxConfig {
     },
     boxWeightG: Number(e("CTT_BOX_WEIGHT_G") || 4000),
     boxesPerParcel: Number(e("CTTX_BOXES_PER_PARCEL") || 2),
+    fragile: opts.fragile ?? e("CTTX_FRAGILE") !== "0",
   };
 }
 
@@ -57,11 +59,13 @@ export function cttxMissing(c = cttxConfig()) {
   if (!c.authId) m.push("CTTX_AUTH_ID (Railway)");
   if (!c.clientId) m.push("CTTX_CLIENT_ID (Railway)");
   if (!c.contractId) m.push("CTTX_CONTRACT_ID (Railway)");
-  if (!c.sender.address) m.push("collection address (Settings → CTT)");
-  if (!splitPtPostal(c.sender.postalCode)) m.push("collection postal code 1234-567 (Settings → CTT)");
-  if (!c.sender.city) m.push("collection town (Settings → CTT)");
+  // The collection address is optional: without one, CTT uses the sender address of the contract (HasSenderInformation false).
+  if (c.sender.postalCode && !splitPtPostal(c.sender.postalCode)) m.push("collection postal code 1234-567 (Settings → CTT)");
   return m;
 }
+
+/** Whether our own collection address goes on the guide (else CTT's address for the contract, confirmed by CTT 05/11/2026). */
+export const hasOwnSender = (c: CttxConfig) => !!(c.sender.address && splitPtPostal(c.sender.postalCode) && c.sender.city);
 
 /** CTT Expresso keys are set (the integration in use). The collection address is checked when a shipment is created. */
 export const cttxConfigured = () => {
@@ -157,11 +161,15 @@ function addressXml(type: "Sender" | "Receiver", a: { name: string; contact?: st
 }
 
 export function createShipmentXml(s: CttxShipmentInput, c: CttxConfig, requestId: string = randomUUID()) {
-  const sender = { ...c.sender, country: "PT" };
+  const own = hasOwnSender(c);
+  // SenderData is required by the schema even when CTT uses the contract's address: then only the mandatory fields.
+  const sender = own
+    ? addressXml("Sender", { ...c.sender, country: "PT" })
+    : `<ctt1:SenderData>${[el("ctt1", "Address", "-"), el("ctt1", "City", "-"), el("ctt1", "Country", "PT"), el("ctt1", "Name", clip(c.sender.name, 60)), el("ctt1", "Type", "Sender")].join("")}</ctt1:SenderData>`;
   const shipment = `<ctt1:ShipmentCTT><ctt1:ShipmentCTT>${[
-    el("ctt1", "HasSenderInformation", true),
+    el("ctt1", "HasSenderInformation", own),
     addressXml("Receiver", s.receiver),
-    addressXml("Sender", sender),
+    sender,
     `<ctt1:ShipmentData>${[
       el("ctt1", "ClientReference", clip(s.reference, 21)),
       el("ctt1", "IsDevolution", false),
@@ -170,7 +178,10 @@ export function createShipmentXml(s: CttxShipmentInput, c: CttxConfig, requestId
       el("ctt1", "Weight", Math.max(1, Math.round(s.weightG))),
     ].join("")}</ctt1:ShipmentData>`,
     // Required by CTT for these products: two delivery attempts, then the parcel waits at the CTT shop.
-    `<ctt1:SpecialServices><ctt1:SpecialService><ctt1:MultipleHomeDelivery><ctt2:AttemptsNumber>2</ctt2:AttemptsNumber><ctt2:InNonDeliveryCase>PostOfficeNotiffied</ctt2:InNonDeliveryCase></ctt1:MultipleHomeDelivery><ctt1:SpecialServiceType>MultipleHomeDelivery</ctt1:SpecialServiceType></ctt1:SpecialService></ctt1:SpecialServices>`,
+    `<ctt1:SpecialServices><ctt1:SpecialService><ctt1:MultipleHomeDelivery><ctt2:AttemptsNumber>2</ctt2:AttemptsNumber><ctt2:InNonDeliveryCase>PostOfficeNotiffied</ctt2:InNonDeliveryCase></ctt1:MultipleHomeDelivery><ctt1:SpecialServiceType>MultipleHomeDelivery</ctt1:SpecialServiceType></ctt1:SpecialService>${
+      // Bottles: handled by hand, not by the sorting machines (recommended by CTT; it adds a fee).
+      c.fragile ? `<ctt1:SpecialService><ctt1:SpecialServiceType>Fragil</ctt1:SpecialServiceType></ctt1:SpecialService>` : ""
+    }</ctt1:SpecialServices>`,
   ].join("")}</ctt1:ShipmentCTT></ctt1:ShipmentCTT>`;
   const body = `<tem:CreateShipment><tem:Input>${[
     el("ctt", "AuthenticationID", c.authId),
@@ -323,7 +334,8 @@ export async function cttxTestConnection(c = cttxConfig()) {
   const steps = [`CTT Expresso ${cttxSandbox(c) ? "sandbox" : "production"}: ${c.base}`];
   const missing = cttxMissing(c);
   if (missing.length) steps.push(`Missing: ${missing.join(", ")}`);
-  else steps.push(`Collection address: ${c.sender.name}, ${c.sender.address}, ${c.sender.postalCode} ${c.sender.city}`);
+  else steps.push(hasOwnSender(c) ? `Collection address: ${c.sender.name}, ${c.sender.address}, ${c.sender.postalCode} ${c.sender.city}` : "Collection address: the one CTT has for the contract");
+  steps.push(`Fragile service: ${c.fragile ? "on" : "off"}`);
   if (!c.authId) return { ok: false, steps };
   try {
     const r = await cttxEvents(["DB000000000PT"], c);
