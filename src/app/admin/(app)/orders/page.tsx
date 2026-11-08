@@ -6,6 +6,7 @@ import { StatusPill } from "../../status-pill";
 import { eur } from "@/lib/money";
 import { STATUS_LABEL } from "@/lib/orders";
 import { lisbonDay } from "@/lib/profit";
+import { CttCloseBox } from "./ctt-close";
 
 const PAID: string[] = ["paid", "preparing", "shipped", "delivered"];
 const lisbonTime = (d: Date) => d.toLocaleTimeString("pt-PT", { timeZone: "Europe/Lisbon", hour: "2-digit", minute: "2-digit" });
@@ -57,6 +58,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<S
           {isAdmin && <a href={`/admin/export/accounting?${qs}`} className="rounded border bg-white px-3 py-2 font-medium hover:bg-paper">Export accounting (CSV)</a>}
         </div>
       </div>
+      <CttCloseBox />
       <div className="mt-4 flex flex-wrap gap-1.5 text-sm">
         {FUNNELS.map((f) => {
           const p = new URLSearchParams(Object.entries({ ...sp, funnel: f.key }).filter(([, v]) => v) as [string, string][]).toString();

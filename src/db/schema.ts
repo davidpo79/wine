@@ -258,7 +258,15 @@ export const shipments = pgTable(
     labelPdf: text("label_pdf"), // base64 PDF from the carrier
     lastCode: integer("last_code"), // universal status code (99 / 94 = delivered)
     lastText: text("last_text"),
-    events: jsonb("events").$type<{ code: number; at: string; text: string }[]>().notNull().default([]),
+    // E-commerce API: numeric codes (99 = delivered). CTT Expresso web service: event codes ("EMI" = delivered) with the
+    // reason and situation of EMH / EDF.
+    events: jsonb("events").$type<{ code: number | string; at: string; text: string; reason?: string; situation?: string; place?: string }[]>().notNull().default([]),
+    objects: jsonb("objects").$type<string[]>().notNull().default([]), // CTT Expresso: one object code per parcel
+    subProduct: text("sub_product"), // CTT Expresso product (EMSF057.01 = Em Dois Dias)
+    closedAt: timestamp("closed_at", { withTimezone: true }), // included in a daily CloseShipment
+    closeId: integer("close_id"),
+    lastEvent: text("last_event"), // CTT Expresso code of the last event (EMZ, EMI, EMH...)
+    alertedEvents: jsonb("alerted_events").$type<string[]>().notNull().default([]), // events already reported to the team
     simulated: boolean("simulated").notNull().default(false), // created with X_SIMULATE (nothing stored at CTT)
     error: text("error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -266,6 +274,17 @@ export const shipments = pgTable(
   },
   (t) => [index("shipments_tracking_idx").on(t.trackingId)],
 );
+
+/** Daily CloseShipment at CTT Expresso: the objects handed over that day and CTT's acceptance certificate. */
+export const cttCloses = pgTable("ctt_closes", {
+  id: serial("id").primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  by: text("by"),
+  orders: jsonb("orders").$type<string[]>().notNull().default([]),
+  objects: jsonb("objects").$type<string[]>().notNull().default([]),
+  pdf: text("pdf"), // base64 PDF (all documents merged)
+  sandbox: boolean("sandbox").notNull().default(false),
+});
 
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
@@ -660,6 +679,7 @@ export type Expense = typeof expenses.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type ReviewRow = typeof reviews.$inferSelect;
 export type Shipment = typeof shipments.$inferSelect;
+export type CttClose = typeof cttCloses.$inferSelect;
 export type HumanCall = typeof humanCalls.$inferSelect;
 export type PtLead = typeof ptLeads.$inferSelect;
 

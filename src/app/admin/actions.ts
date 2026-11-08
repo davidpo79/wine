@@ -561,9 +561,51 @@ export async function reviewsSettingsAction(_: FormState, fd: FormData): Promise
   return { ok: "Saved." };
 }
 
+/** Admin → Settings → CTT: the address where CTT Expresso collects the parcels (printed on every transport guide). */
+export async function cttSenderAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const v = (k: string, n: number) => String(fd.get(k) ?? "").replace(/\s+/g, " ").trim().slice(0, n);
+  const digits = v("postalCode", 10).replace(/\D/g, "");
+  const sender = {
+    name: v("name", 60),
+    contact: v("contact", 60),
+    address: v("address", 100),
+    postalCode: digits.length === 7 ? `${digits.slice(0, 4)}-${digits.slice(4)}` : v("postalCode", 10),
+    city: v("city", 50),
+    phone: v("phone", 20),
+    email: v("email", 200),
+  };
+  // All empty = CTT uses the sender address it has for the contract; otherwise the address must be complete.
+  const any = sender.address || sender.city || digits;
+  if (any && (!sender.address || !sender.city)) return { error: "Fill in address, postal code and town, or leave all three empty to use the address CTT has for the contract." };
+  if (any && digits.length !== 7) return { error: "Postal code in the format 1234-567." };
+  if (sender.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender.email)) return { error: "Invalid e-mail." };
+  await setSetting("ctt_sender", { ...sender, name: sender.name || "Wine Portugal" });
+  await setSetting("ctt_fragile", fd.get("fragile") === "on");
+  revalidatePath("/admin/settings");
+  return { ok: any ? "Saved. The address is used on the next CTT shipment (CTT checks the postal code)." : "Saved. CTT will use the sender address it has for the contract." };
+}
+
+/** Orders → "Close today's CTT shipments" (CTT Expresso CloseShipment for every open shipment). */
+export async function cttCloseAction(_: FormState, _fd: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const { closeCttxShipments } = await import("@/lib/fulfilment");
+  const r = await closeCttxShipments(admin.email);
+  if ("error" in r) return { error: r.error };
+  revalidatePath("/admin/orders");
+  return { ok: `Closed ${r.count} shipment${r.count > 1 ? "s" : ""}. Print the acceptance certificate from "Last closes".` };
+}
+
 /** Admin → Settings: checks the CTT API keys without creating anything. */
 export async function cttTestAction(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin({ role: "admin" });
+  // CTT Expresso web service when its variables are set (the integration in use), else the e-commerce API v3.
+  if (process.env.CTTX_AUTH_ID) {
+    const [{ cttxTestConnection }, { loadCttxConfig }] = await Promise.all([import("@/lib/cttx"), import("@/lib/fulfilment")]);
+    const x = await cttxTestConnection(await loadCttxConfig());
+    const text = `${x.ok ? "Connected." : "Not connected."}\n${x.steps.join("\n")}`;
+    return x.ok ? { ok: text } : { error: text };
+  }
   const { cttTestConnection } = await import("@/lib/ctt");
   const appId = String(fd.get("app_id") ?? "").trim().slice(0, 100) || undefined;
   const r = await cttTestConnection(appId);

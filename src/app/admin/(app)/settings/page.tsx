@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate, zonedDate } from "@/lib/time";
 import { bfBoxCost } from "@/lib/black-friday";
-import { settingsAction, ga4TestAction, cttTestAction, ebookAction } from "../../actions";
+import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction } from "../../actions";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
 import { OutboundCallsSection } from "./outbound-calls";
@@ -187,10 +187,35 @@ export default async function SettingsPage() {
           <Submit name="action" value="off" className="!bg-white !text-night border">Turn off</Submit>
         </ActionForm>
       </section>
+      <ActionForm action={cttSenderAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <h2 className="font-semibold">CTT: collection address</h2>
+        <p className="text-xs text-muted">
+          Where CTT collects the parcels (the sender on every transport guide). Leave address, postal code and town empty to use the sender address CTT has for
+          our contract. CTT checks that the postal code exists. Saved here, not in Railway.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">Sender name<input name="name" defaultValue={s.ctt_sender.name} className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Contact person<input name="contact" defaultValue={s.ctt_sender.contact} placeholder="optional" className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block sm:col-span-2">Address (street, number, floor)<input name="address" defaultValue={s.ctt_sender.address} placeholder="empty = CTT's address for the contract" className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Postal code<input name="postalCode" defaultValue={s.ctt_sender.postalCode} placeholder="5050-237" className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Town<input name="city" defaultValue={s.ctt_sender.city} className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">Phone<input name="phone" defaultValue={s.ctt_sender.phone} placeholder="+351 …" className="mt-1 w-full rounded border p-2" /></label>
+          <label className="block">E-mail<input name="email" type="email" defaultValue={s.ctt_sender.email} className="mt-1 w-full rounded border p-2" /></label>
+        </div>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="fragile" defaultChecked={s.ctt_fragile} className="mt-0.5 h-4 w-4" />
+          <span>
+            <strong>Fragile</strong> on every shipment: CTT handles the parcels by hand, not by the sorting machines. Recommended by CTT for bottles; it adds a fee
+            per their price list.
+          </span>
+        </label>
+        <Submit>Save CTT settings</Submit>
+      </ActionForm>
       <ActionForm action={cttTestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">CTT: test the API connection</h2>
         <p className="text-muted">
-          Asks CTT for a token and reads the account settings and carriers. Nothing is created at CTT.
+          With the CTT Expresso keys in Railway (CTTX_AUTH_ID…): a tracking query and the list of anything missing. Otherwise (e-commerce API):
+          asks CTT for a token and reads the account settings and carriers. Nothing is created at CTT.
           Uses CTT_APP_ID, CTT_PUBLIC_KEY and CTT_SECRET_KEY from Railway; to try another application id without changing Railway, type it below.
         </p>
         <label className="block">

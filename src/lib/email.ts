@@ -114,14 +114,14 @@ async function send(o: Order | null, to: string, subject0: string, html0: string
       error = e instanceof Error ? e.message : String(e);
     }
     if (o) await logOrderEvent(o.id, error ? "email_error" : "email_sent", { kind, id, error, provider: "telnyx" });
-    if (!["admin_alert", "payment_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: null, orderId: o?.id, error });
+    if (!["admin_alert", "payment_issue", "shipping_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: null, orderId: o?.id, error });
     return { id, error };
   }
   const resend = new Resend(key);
   // Replies come back to the shop address, into Admin → Inbox (EMAIL_REPLY_TO overrides it).
   const r = await resend.emails.send({ from, to, subject, html, replyTo: shopAddress().replyTo ?? SITE.email, ...(attachments.length ? { attachments } : {}) });
   if (o) await logOrderEvent(o.id, r.error ? "email_error" : "email_sent", { kind, id: r.data?.id, error: r.error?.message });
-  if (!["admin_alert", "payment_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: r.data?.id, orderId: o?.id, error: r.error?.message });
+  if (!["admin_alert", "payment_issue", "shipping_issue", "team_invite"].includes(kind)) await logOutbound({ kind, to, subject, html, resendId: r.data?.id, orderId: o?.id, error: r.error?.message });
   return r;
 }
 
@@ -401,6 +401,15 @@ export async function sendPaymentIssueAlert(orderId: string, message: string) {
   if (!to) return;
   const html = layout("Atenção: pagamento", `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
   return send(null, to, `[Pagamento] ${orderId}: verificar`, html, "payment_issue");
+}
+
+/** A parcel needs attention (not delivered, waiting at a CTT shop, returned): to ADMIN_ALERT_EMAIL. */
+export async function sendShippingAlert(orderId: string, message: string) {
+  console.warn(`[ctt] ${orderId}: ${message}`);
+  const to = process.env.ADMIN_ALERT_EMAIL;
+  if (!to) return;
+  const html = layout("Atenção: envio CTT", `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
+  return send(null, to, `[CTT] ${orderId}: ${message.slice(0, 80)}`, html, "shipping_issue");
 }
 
 /** An incoming call the team did not answer, handled by the AI assistant: the team should call back. */
