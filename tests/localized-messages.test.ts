@@ -375,6 +375,21 @@ test("recovery is scheduled for every site language once email and phone are kno
   assert.equal(shouldScheduleRecovery(s, { locale: "xx", recoveryScheduledAt: null, email: "a@b.pt", phone: "+351916000000" }), false);
 });
 
+test("checkout phone: optional in Germany and Spain (e-mail reminders still start), required in Portugal; PT landlines accepted", async () => {
+  const { validateForPayment } = await import("../src/lib/draft");
+  const s = { recovery_enabled: true };
+  assert.equal(shouldScheduleRecovery(s, { locale: "de", recoveryScheduledAt: null, email: "a@b.de", phone: null, country: "DE" }), true);
+  assert.equal(shouldScheduleRecovery(s, { locale: "pt", recoveryScheduledAt: null, email: "a@b.pt", phone: null, country: "PT" }), false);
+  const o = (country: string, locale: string, phone: string | null) =>
+    ({ id: "WP-T", locale, country, email: "a@b.com", phone, customerName: "Ana Silva", shippingAddress: { line1: "Rua Augusta 10", postal_code: country === "PT" ? "1100-053" : country === "DE" ? "10115" : "28001", city: "X" } }) as unknown as Order;
+  assert.equal(validateForPayment(o("DE", "de", null), ["DE"]).phone, undefined);
+  assert.equal(validateForPayment(o("ES", "es", ""), ["ES"]).phone, undefined);
+  assert.ok(validateForPayment(o("DE", "de", "12"), ["DE"]).phone, "a typed number must still be valid");
+  assert.ok(validateForPayment(o("PT", "pt", null)).phone);
+  assert.equal(validateForPayment(o("PT", "pt", "21 234 5678")).phone, undefined);
+  assert.match(validateForPayment({ ...o("PT", "pt", "912345678"), shippingAddress: { line1: "Rua da Sé 1", postal_code: "9000-001", city: "Funchal" } } as unknown as Order).postalCode ?? "", /Madeira/);
+});
+
 test("stop/unsubscribe pages and API errors in the customer's language", () => {
   assert.match(linkPageHtml("ru", "stopDone"), /<html lang="ru">.*Вы больше не будете получать сообщения и звонки.*href="\/ru".*Вернуться в магазин/);
   assert.match(linkPageHtml("de", "unsubDone"), /<html lang="de">.*keine E-Mails mehr.*href="\/de"/);

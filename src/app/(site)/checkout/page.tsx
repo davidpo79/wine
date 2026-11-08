@@ -52,6 +52,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
         defaultKey: bundles.find((b) => b.qty === 2)?.key ?? "bf2",
         backHref: bfHref(locale),
         trust: bfCopy.trust.map((l) => fmt(l, { days: deliveryDays, date: cutoffLabel })),
+        banner: fmt(bfCopy.topBar, { date: cutoffLabel }),
       }
     : undefined;
   // Verified reviews with text (Admin → Reviews) first; the manual list in Settings only while there are none.

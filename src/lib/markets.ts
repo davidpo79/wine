@@ -69,6 +69,10 @@ export function localeFromAcceptLanguage(header: string | null | undefined): Loc
 }
 
 /** National number -> international (+49 151 2345678 from 0151 2345678 in Germany). */
+/** Where the mobile number at checkout is optional: first purchase from a Portuguese shop, typed by hand in the Facebook
+ * or Instagram app, and every extra field loses buyers. Without it there are no SMS/WhatsApp reminders, only e-mail. */
+export const PHONE_OPTIONAL: readonly Country[] = ["DE", "ES"];
+
 export function normalizePhoneFor(input: string, country: Country): string | null {
   let d = input.replace(/[\s().\-/]/g, "");
   if (d.startsWith("00")) d = `+${d.slice(2)}`;
