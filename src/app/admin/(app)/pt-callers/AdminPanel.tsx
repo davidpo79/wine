@@ -70,6 +70,7 @@ const FILTERS: { key: string; label: string; test: (l: Lead) => boolean }[] = [
   { key: "ready", label: "Ready", test: (l) => l.status === "ready" },
   { key: "unassigned", label: "Not assigned", test: (l) => l.status === "ready" && !l.assignedTo },
   { key: "worked", label: "Called", test: (l) => ["no_answer", "callback", "interested", "not_interested", "wrong_number", "won"].includes(l.status) },
+  { key: "interested", label: "Interested", test: (l) => l.status === "interested" },
   { key: "blocked", label: "Blocked", test: (l) => ["opt_out", "blocked"].includes(l.status) },
 ];
 
