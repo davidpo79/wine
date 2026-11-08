@@ -176,6 +176,23 @@ test("WhatsApp template definitions: pt_PT unchanged; ru and de with the same st
     assert.deepEqual(b.buttons[0].example, ["https://vinho.prendadenatal.com/retomar/abc123"]);
     assert.ok(b.buttons[0].text.length <= 25, "Meta: button text up to 25 characters");
   }
+  // Black Friday template: same variables and button, German and Spanish, names the offer and not the Trilogia.
+  for (const l of ["de", "es"] as const) {
+    const d = wa.bfRecoveryTemplateDefinition(l, "https://vinho.prendadenatal.com");
+    assert.equal(d.name, "blackfriday_retomar");
+    assert.equal(d.category, "MARKETING");
+    assert.equal(d.language, l);
+    const body = d.components[0] as { text: string; example: { body_text: string[][] } };
+    assert.deepEqual(body.text.match(/\{\{\d+\}\}/g), ["{{1}}", "{{2}}"]);
+    assert.equal(body.example.body_text[0].length, 2);
+    assert.match(body.text, /Black Friday|Black-Friday/);
+    assert.doesNotMatch(body.text, /Trilogia/);
+    assert.doesNotMatch(body.text, DASHES);
+    assert.ok(!/\}\}\.?$/.test(body.text.trim()));
+    const btn = (d.components[1] as { buttons: { text: string; url: string }[] }).buttons[0];
+    assert.equal(btn.url, "https://vinho.prendadenatal.com/{{1}}");
+    assert.ok(btn.text.length <= 25);
+  }
   const ru = (wa.recoveryTemplateDefinition("ru").components[0] as { text: string }).text;
   assert.match(ru, /^Здравствуйте, \{\{1\}\}!/);
   assert.match(ru, /ответьте СТОП\.$/);

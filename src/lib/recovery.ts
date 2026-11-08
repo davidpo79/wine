@@ -8,7 +8,7 @@ import { zonedDate, zonedToUtc } from "./time";
 import { orderCutoffIso, recoveryCopy, sendRecoveryEmail } from "./email";
 import { isBfBundle } from "./black-friday";
 import { assistantFor, dialCall, sendSms, telnyxConfigured } from "./telnyx";
-import { recoveryTemplateLanguage, sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
+import { recoveryTemplateLanguage, sendBfRecoveryTemplate, sendRecoveryTemplate, whatsappConfigured } from "./whatsapp";
 import { loadOutboundSettings } from "./outbound-settings";
 import { getSettings } from "./settings";
 import { dayMonthFor, deliveryDaysFor, getDict } from "./i18n";
@@ -142,8 +142,13 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
     if (step.step === "reminder_20m" && order.phone && order.consentMessages) {
       let whatsappSent = false;
       if (whatsappConfigured() && isBfBundle(order.bundleKey)) {
-        // The approved templates speak of the Christmas Trilogia: Black Friday reminders go by SMS.
-        result.whatsapp = "skipped: black friday order";
+        // Black Friday has its own template (German, Spanish). While Meta has not approved it the send fails and
+        // the SMS below goes out instead.
+        channels.push("whatsapp");
+        result.whatsapp = await sendBfRecoveryTemplate(order.phone, first || getDict(locale).messages.recovery.waNameFallback, bundleLabel(order), resumePath(order.id), locale).then(
+          (r) => (r && typeof r === "object" && "skipped" in r ? `skipped: ${r.skipped}` : ((whatsappSent = true), "sent")),
+          (e) => `error: ${e}`,
+        );
       } else if (whatsappConfigured() && !recoveryTemplateLanguage(locale)) {
         // No approved template in this language: never the Portuguese one, the SMS below goes out instead.
         result.whatsapp = `skipped: no approved ${locale} template`;
