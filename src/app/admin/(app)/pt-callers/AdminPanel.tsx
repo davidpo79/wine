@@ -61,20 +61,64 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 /** Team rule: after 3 calls without an answer, send the presentation by e-mail instead of calling again. */
 const tryEmail = (l: Lead) => l.status === "no_answer" && l.attempts >= 3 && !l.emailedAt;
 
-const FILTERS: { key: string; label: string; test: (l: Lead) => boolean }[] = [
-  { key: "all", label: "All", test: () => true },
-  { key: "approve", label: "To approve", test: (l) => !l.approved && !["opt_out", "blocked"].includes(l.status) },
-  { key: "phone", label: "Need a phone", test: (l) => l.approved && !l.phone && l.status === "new" },
-  { key: "pending", label: "Getting phone", test: (l) => l.status === "enrichment_pending" },
-  { key: "classify", label: "To prepare", test: (l) => !!l.phone && l.status === "new" },
-  { key: "ready", label: "Ready", test: (l) => l.status === "ready" },
-  { key: "unassigned", label: "Not assigned", test: (l) => l.status === "ready" && !l.assignedTo },
-  { key: "worked", label: "Called", test: (l) => ["no_answer", "callback", "interested", "not_interested", "wrong_number", "won"].includes(l.status) },
-  { key: "interested", label: "Interested", test: (l) => l.status === "interested" },
-  { key: "no_answer", label: "No answer", test: (l) => l.status === "no_answer" },
-  { key: "not_interested", label: "Not interested", test: (l) => l.status === "not_interested" },
-  { key: "blocked", label: "Blocked", test: (l) => ["opt_out", "blocked"].includes(l.status) },
+// group: "prep" = getting a lead ready to call, "calls" = what came of the calls. The quick buttons in front are the
+// views used every day (different for the admin and for a rep); everything else is in the two menus.
+const FILTERS: { key: string; label: string; group: "all" | "prep" | "calls"; test: (l: Lead) => boolean }[] = [
+  { key: "all", label: "All", group: "all", test: () => true },
+  { key: "approve", label: "To approve", group: "prep", test: (l) => !l.approved && !["opt_out", "blocked"].includes(l.status) },
+  { key: "phone", label: "Need a phone", group: "prep", test: (l) => l.approved && !l.phone && l.status === "new" },
+  { key: "pending", label: "Getting phone", group: "prep", test: (l) => l.status === "enrichment_pending" },
+  { key: "classify", label: "To prepare", group: "prep", test: (l) => !!l.phone && l.status === "new" },
+  { key: "ready", label: "Ready to call", group: "prep", test: (l) => l.status === "ready" },
+  { key: "unassigned", label: "Not assigned", group: "prep", test: (l) => l.status === "ready" && !l.assignedTo },
+  { key: "blocked", label: "Blocked", group: "prep", test: (l) => ["opt_out", "blocked"].includes(l.status) },
+  { key: "worked", label: "All called", group: "calls", test: (l) => ["no_answer", "callback", "interested", "not_interested", "wrong_number", "won"].includes(l.status) },
+  { key: "no_answer", label: "No answer", group: "calls", test: (l) => l.status === "no_answer" },
+  { key: "callback", label: "Call back", group: "calls", test: (l) => l.status === "callback" },
+  { key: "interested", label: "Interested", group: "calls", test: (l) => l.status === "interested" },
+  { key: "won", label: "Won", group: "calls", test: (l) => l.status === "won" },
+  { key: "not_interested", label: "Not interested", group: "calls", test: (l) => l.status === "not_interested" },
+  { key: "wrong_number", label: "Wrong number", group: "calls", test: (l) => l.status === "wrong_number" },
 ];
+const QUICK_ADMIN = ["all", "approve", "ready", "interested"];
+const QUICK_REP = ["all", "ready", "no_answer", "callback", "interested"];
+
+/** A filter menu: the button shows the chosen view of its group (or the group name); the list shows every count. */
+function FilterMenu({ label, items, value, counts, onPick }: { label: string; items: { key: string; label: string }[]; value: string; counts: Record<string, number>; onPick: (k: string) => void }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const cur = items.find((i) => i.key === value);
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (ref.current?.open && !ref.current.contains(e.target as Node)) ref.current.open = false;
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
+  return (
+    <details ref={ref} className="relative">
+      <summary className={`flex cursor-pointer list-none items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold [&::-webkit-details-marker]:hidden ${cur ? "border-[#0F2340] bg-[#0F2340] text-white" : "bg-white text-ink/80 hover:bg-paper"}`}>
+        {cur ? `${label}: ${cur.label}` : label}
+        {cur && <span className="opacity-70">{counts[cur.key]}</span>}
+        <span aria-hidden="true" className="text-[10px]">▼</span>
+      </summary>
+      <ul className="absolute left-0 z-30 mt-1 min-w-52 rounded-lg border bg-white p-1 text-sm shadow-lg">
+        {items.map((i) => (
+          <li key={i.key}>
+            <button
+              type="button"
+              onClick={() => { onPick(i.key); if (ref.current) ref.current.open = false; }}
+              className={`flex w-full items-center justify-between gap-4 rounded-md px-3 py-1.5 text-left hover:bg-paper ${i.key === value ? "font-semibold text-[#0F2340]" : ""}`}
+            >
+              <span>{i.key === value ? "✓ " : ""}{i.label}</span>
+              <span className={`text-xs ${counts[i.key] ? "text-ink/70" : "text-muted"}`}>{counts[i.key]}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 
 function Check({ ok, title, text, href }: { ok: boolean; title: string; text: string; href?: string }) {
   return (
@@ -346,28 +390,24 @@ export function AdminPanel(p: {
       {/* Leads */}
       <section id="leads-table" className="scroll-mt-4 rounded-xl border bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b p-3">
-          {FILTERS.filter((f) => !lim || f.key !== "unassigned").map((f) => (
+          {(lim ? QUICK_REP : QUICK_ADMIN).map((k) => FILTERS.find((f) => f.key === k)!).map((f) => (
             <button
               key={f.key}
               type="button"
               onClick={() => { setFilter(f.key); setSel([]); }}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${filter === f.key ? "bg-[#0F2340] text-white" : "bg-paper text-ink/80 hover:bg-paper/70"}`}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === f.key ? "bg-[#0F2340] text-white" : "bg-paper text-ink/80 hover:bg-paper/70"}`}
             >
               {f.label} <span className="opacity-70">{counts[f.key]}</span>
             </button>
           ))}
-          {shown.length > 1 && (
-            <span className="ml-auto flex items-center gap-1.5 text-xs">
-              <span className="text-muted">Select first</span>
-              {[10, 25, 50].filter((n, i) => i === 0 || shown.length > [10, 25, 50][i - 1]).map((n) => (
-                <button key={n} type="button" onClick={() => selectFirst(n)} className="rounded-md border px-2 py-1 font-semibold hover:bg-paper" title={`Select the first ${Math.min(n, shown.length)} rows shown (Shift+click a box to select a range)`}>
-                  {Math.min(n, shown.length)}
-                </button>
-              ))}
-            </span>
-          )}
+          <span className="mx-1 hidden h-5 w-px bg-paper-2 sm:block" aria-hidden="true" />
+          <FilterMenu label="Preparation" items={FILTERS.filter((f) => f.group === "prep" && (!lim || f.key !== "unassigned"))} value={filter} counts={counts} onPick={(k) => { setFilter(k); setSel([]); }} />
+          <FilterMenu label="Call results" items={FILTERS.filter((f) => f.group === "calls")} value={filter} counts={counts} onPick={(k) => { setFilter(k); setSel([]); }} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-b bg-paper/40 px-3 py-2">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search name, company, city…" className="w-full rounded-lg border bg-white p-1.5 text-sm sm:w-72" />
           {!lim && p.reps.length > 0 && (
-            <select value={repView} onChange={(e) => { setRepView(e.target.value); setSel([]); }} className={`rounded-lg border p-1.5 text-sm ${repView ? "border-[#0F2340] font-semibold" : ""}`} aria-label="Sales rep">
+            <select value={repView} onChange={(e) => { setRepView(e.target.value); setSel([]); }} className={`rounded-lg border bg-white p-1.5 text-sm ${repView ? "border-[#0F2340] font-semibold" : ""}`} aria-label="Sales rep">
               <option value="">Every sales rep</option>
               {p.reps.map((r) => (
                 <option key={r.id} value={r.id}>{r.email} ({p.leads.filter((l) => l.assignedTo === r.id).length})</option>
@@ -375,7 +415,17 @@ export function AdminPanel(p: {
               <option value="none">Not assigned ({p.leads.filter((l) => !l.assignedTo).length})</option>
             </select>
           )}
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, company, city…" className={`${shown.length > 1 ? "" : "ml-auto "}w-full rounded-lg border p-1.5 text-sm sm:w-64`} />
+          <span className="text-xs text-muted">{shown.length} shown</span>
+          {shown.length > 1 && (
+            <span className="ml-auto flex items-center gap-1.5 text-xs">
+              <span className="text-muted">Select first</span>
+              {[10, 25, 50].filter((n, i) => i === 0 || shown.length > [10, 25, 50][i - 1]).map((n) => (
+                <button key={n} type="button" onClick={() => selectFirst(n)} className="rounded-md border bg-white px-2 py-1 font-semibold hover:bg-paper" title={`Select the first ${Math.min(n, shown.length)} rows shown (Shift+click a box to select a range)`}>
+                  {Math.min(n, shown.length)}
+                </button>
+              ))}
+            </span>
+          )}
         </div>
         {shown.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted">
