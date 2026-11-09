@@ -167,11 +167,15 @@ export function AdminPanel(p: {
   unclaimed?: number;
   /** A sales rep's view: only her own leads, no import, delete, assignment or setup. */
   limited?: boolean;
+  /** Every lead in the database (the list may hold fewer). */
+  totalLeads?: number;
+  /** The Apollo page after the last one imported. */
+  importPage?: number;
 }) {
   const router = useRouter();
   const [sel, setSel] = useState<number[]>([]);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(p.importPage ?? 1);
   const [rep, setRep] = useState<string>("");
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
@@ -300,7 +304,7 @@ export function AdminPanel(p: {
 
       {/* Numbers */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Tile label="Leads" value={p.leads.length} sub={`${counts.approve} to approve`} />
+        <Tile label="Leads" value={p.totalLeads ?? p.leads.length} sub={`${counts.approve} to approve${p.totalLeads && p.totalLeads > p.leads.length ? ` · ${p.leads.length} shown` : ""}`} />
         <Tile label="With phone" value={withPhone} sub={`${counts.pending} lookups in progress`} />
         <Tile label="Ready to call" value={ready} sub={`${counts.classify} to prepare`} />
         <Tile label="Assigned" value={assigned} sub={`${p.reps.length} sales rep${p.reps.length === 1 ? "" : "s"}`} />
@@ -337,13 +341,20 @@ export function AdminPanel(p: {
             <button
               type="button"
               disabled={busy}
-              onClick={() => run("import", { page }, (r) => { setPage(page + 1); return `Page ${page}: ${r.inserted} new, ${r.duplicates} already here, ${r.blocked} blocked${r.source === "mock" ? " (demo data)" : ""}.`; })}
+              onClick={() =>
+                run("import", { page }, (r) => {
+                  if (r.nextPage) setPage(Number(r.nextPage));
+                  const pages = r.fromPage === r.toPage ? `Page ${r.fromPage}` : `Pages ${r.fromPage}–${r.toPage}`;
+                  const end = r.ended ? " That is the end of Apollo's results for this search." : !r.inserted ? " Click again to look further." : "";
+                  return `${pages}: ${r.inserted} new, ${r.duplicates} already here, ${r.blocked} blocked${r.source === "mock" ? " (demo data)" : ""}.${end}`;
+                })
+              }
               className="flex-1 rounded-lg bg-[#0F2340] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               Import 25 leads
             </button>
           </div>
-          <p className="mt-2 text-[11px] text-muted">The page number moves on by itself, so you can keep clicking.</p>
+          <p className="mt-2 text-[11px] text-muted">Starts after the last page imported and skips pages of people already here (up to 10 pages per click), so you can keep clicking.</p>
           <AddLead busy={busy} onAdd={(v) => run("add", v, () => `${v.firstName} added.`)} />
           {p.reps.length > 0 && (
             <div className="mt-4 border-t pt-3">

@@ -138,13 +138,46 @@ export async function leadForNumber(me: Me, raw: string): Promise<{ ok: boolean;
   return r.ok ? { ok: true, id: r.id, name: phone } : r;
 }
 
-export async function importLeads(me: Me, o: { page: number }) {
+/** Apollo search pages one "Import 25 leads" click may read while looking for new people (the search is free). */
+export const IMPORT_MAX_PAGES = 10;
+const IMPORT_TARGET = 25;
+
+/** The page after the last one imported from this source (the screen used to start at page 1 on every visit). */
+export async function nextImportPage(source: string) {
+  const [r] = await db
+    .select({ page: sql<number | null>`max((${schema.ptAccessLog.detail}->>'page')::int)` })
+    .from(schema.ptAccessLog)
+    .where(and(eq(schema.ptAccessLog.action, "import"), sql`${schema.ptAccessLog.detail}->>'source' = ${source}`));
+  return (r?.page ?? 0) + 1;
+}
+
+/**
+ * One click: from the given page (else the page after the last import), read Apollo pages until 25 new people are
+ * in, the results end, or IMPORT_MAX_PAGES pages were read. Pages of people already here are skipped by themselves.
+ */
+export async function importLeads(me: Me, o: { page?: number }) {
   adminOnly(me);
   const client = apolloFor();
-  const { people, totalEntries } = await client.search(o.page);
-  const r = await insertSearchResults(me, people, { demo: client.kind === "mock" });
-  await logAccess(me.id, null, "import", { page: o.page, source: client.kind, ...r, totalEntries });
-  return { source: client.kind, totalEntries, ...r };
+  const from = o.page && o.page > 0 ? Math.floor(o.page) : await nextImportPage(client.kind);
+  const total = { inserted: 0, duplicates: 0, blocked: 0 };
+  let totalEntries: number | null = null;
+  let page = from;
+  let ended = false;
+  for (; page < from + IMPORT_MAX_PAGES; page++) {
+    const s = await client.search(page);
+    totalEntries = s.totalEntries;
+    const r = await insertSearchResults(me, s.people, { demo: client.kind === "mock" });
+    await logAccess(me.id, null, "import", { page, source: client.kind, ...r, totalEntries });
+    total.inserted += r.inserted;
+    total.duplicates += r.duplicates;
+    total.blocked += r.blocked;
+    if (s.people.length < 25 || (totalEntries != null && page * 25 >= totalEntries)) {
+      ended = true;
+      break;
+    }
+    if (total.inserted >= IMPORT_TARGET || client.kind === "mock") break;
+  }
+  return { source: client.kind, totalEntries, ...total, fromPage: from, toPage: Math.min(page, from + IMPORT_MAX_PAGES - 1), nextPage: ended ? null : Math.min(page, from + IMPORT_MAX_PAGES - 1) + 1, ended };
 }
 
 export async function approveLeads(me: Me, ids: number[]) {

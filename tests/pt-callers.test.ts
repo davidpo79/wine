@@ -436,6 +436,17 @@ dbTest("flags off: import uses the mock (demo rows), dial is refused with a reas
   assert.equal(again.inserted, 0);
 });
 
+dbTest("import with no page goes on after the last page imported (the screen no longer starts at page 1)", async () => {
+  setEnv(offEnv);
+  await svc!.importLeads(admin, { page: 1 });
+  const next = await svc!.nextImportPage("mock");
+  assert.ok(next >= 2);
+  const r = await svc!.importLeads(admin, {});
+  assert.equal(r.fromPage, next);
+  assert.ok(r.inserted > 0, "a page not imported before brings new people");
+  assert.equal(await svc!.nextImportPage("mock"), next + 1);
+});
+
 dbTest("roles: only admins import and assign; a rep approves and enriches only her own leads, sees only them, numbers masked", async () => {
   await assert.rejects(svc!.importLeads(rep as never, { page: 1 }), /forbidden/);
   assert.match(why(await svc!.approveLeads(rep, [1])), /assigned to you/);
