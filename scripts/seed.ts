@@ -53,7 +53,7 @@ if (!bf) {
       shortDescription: "Caixa de 6 vinhos do Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha e Espanha, envio do armazém na Bélgica.",
       wines: [
         { name: "Galhofa Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
-        { name: "D. Graça Branco", vintage: "2025", type: "branco", producer: "Douro" },
+        { name: "Galhofa Branco", vintage: "2025", type: "branco", producer: "Douro" },
         { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
       ],
       images: [],
