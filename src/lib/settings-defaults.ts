@@ -133,10 +133,10 @@ export const DEFAULT_SETTINGS: Settings = {
   // close on Wednesday 25/11 at 23:59 in Berlin and Madrid (CET, UTC+1).
   black_friday: {
     enabled: true, // live since 01/11/2026 (switch in Settings → Black Friday)
-    countries: ["DE", "ES"],
+    countries: ["DE", "ES", "PT"],
     cutoff_at: "2026-11-25T22:59:00Z",
     delivery_days: "2",
-    vat_percent: { DE: 19, ES: 21 },
+    vat_percent: { DE: 19, ES: 21, PT: 13 }, // Portugal: wine 13% (as the Christmas box)
     costs: { wine_cents: 1500, shipping_box_cents: 300, transport_cents: 250, handling_cents: 200, delivery_cents: 650 },
   },
   ctt_fragile: true,

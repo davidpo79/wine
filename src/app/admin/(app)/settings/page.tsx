@@ -99,8 +99,10 @@ export default async function SettingsPage() {
             <label>Delivery days (shown)<input name="bf_days" defaultValue={bf.delivery_days} className="mt-1 block w-20 rounded border p-2" /></label>
             <label className="flex items-center gap-1"><input type="checkbox" name="bf_DE" defaultChecked={bf.countries.includes("DE")} /> DE</label>
             <label className="flex items-center gap-1"><input type="checkbox" name="bf_ES" defaultChecked={bf.countries.includes("ES")} /> ES</label>
+            <label className="flex items-center gap-1"><input type="checkbox" name="bf_PT" defaultChecked={bf.countries.includes("PT")} /> PT</label>
             <label>VAT DE %<input name="bf_vat_DE" defaultValue={bf.vat_percent.DE ?? 19} className="mt-1 block w-16 rounded border p-2" /></label>
             <label>VAT ES %<input name="bf_vat_ES" defaultValue={bf.vat_percent.ES ?? 21} className="mt-1 block w-16 rounded border p-2" /></label>
+            <label>VAT PT %<input name="bf_vat_PT" defaultValue={bf.vat_percent.PT ?? 13} className="mt-1 block w-16 rounded border p-2" /></label>
           </div>
           <p className="mt-3 text-xs font-semibold">Costs per box (€, without recoverable VAT), for Admin → Finance</p>
           <div className="mt-1 flex flex-wrap gap-3 text-xs">

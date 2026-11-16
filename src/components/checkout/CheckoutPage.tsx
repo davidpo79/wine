@@ -145,7 +145,8 @@ export function CheckoutPage({
   const [country, setCountry] = useState<Country>(initialCountry);
   const market = MARKETS[country];
   // The printed card is made in Portugal: offered for parcels from the Douro only.
-  const giftCardPrice = market.warehouse === "douro" ? giftCardSetting : null;
+  // Not on Black Friday orders sent to Portugal: the card is the Christmas (Trilogia) one.
+  const giftCardPrice = market.warehouse === "douro" && !bf ? giftCardSetting : null;
   const boxesText = (n: number) =>
     n === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n });
   const METHOD_INFO: Record<Method, { title: string; note: string }> = {

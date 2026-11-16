@@ -218,6 +218,13 @@
       "when": 1793879925380,
       "tag": "0030_bf_poco_reference_price",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793883525380,
+      "tag": "0031_bf_portugal",
+      "breakpoints": true
     }
   ]
 }

@@ -65,8 +65,10 @@ export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
 }
 
 /** Extra wines from the Portuguese stock: offered for orders shipped from the Douro only. */
-export function productOffers(settings: Settings, order?: Pick<Order, "country">): Offer[] {
+export function productOffers(settings: Settings, order?: Pick<Order, "country"> & Partial<Pick<Order, "bundleKey">>): Offer[] {
   if (order && isCountry(order.country) && MARKETS[order.country].warehouse !== "douro") return [];
+  // Black Friday orders sent to Portugal: not the Christmas extras (their prices are not the Black Friday ones).
+  if (order && isBfBundle(order.bundleKey)) return [];
   return settings.upsell_products
     .filter((p) => p.active && p.price_cents > 0)
     .map((p) => ({
