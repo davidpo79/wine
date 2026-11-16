@@ -127,10 +127,10 @@ export function bfCostsFor(s: BlackFridaySettings, offer: BfOfferId): BlackFrida
 }
 
 /**
- * Sparkling (David, 16/11/2026, per order of 3 bottles): wine 30 €, shipping box 3 €, delivery to Spain 10 €.
- * Poço do Canto: not given yet, so the wine is 0 until set in Settings (Finance overstates its profit until then).
+ * David, 16/11/2026, per box. Sparkling (3 bottles): wine 30 €, shipping box 3 €, delivery to Spain 10 €.
+ * Poço do Canto (6 bottles): wine 15 €, shipping box 2,50 €, delivery to Spain 7 €.
  */
 export const BF_DEFAULT_OFFER_COSTS: Record<Exclude<BfOfferId, "douro6">, BlackFridaySettings["costs"]> = {
   burbujas: { wine_cents: 3000, shipping_box_cents: 300, transport_cents: 0, handling_cents: 0, delivery_cents: 1000 },
-  poco: { wine_cents: 0, shipping_box_cents: 300, transport_cents: 0, handling_cents: 0, delivery_cents: 1000 },
+  poco: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 0, handling_cents: 0, delivery_cents: 700 },
 };

@@ -131,3 +131,13 @@ test("black friday one-time offer after payment: the other offer, Spain only, an
   // 69 / 1,21 = 57,02 net, minus 30 € wine and 2,07 € fee = 24,95 € more profit.
   assert.equal(withAddon.profit - base.profit, 2495);
 });
+
+test("black friday Poço do Canto costs: David's sheet (55 €: 46,70 € costs with 20% marketing, 8,30 € profit)", () => {
+  const fee3 = { percent: 3, fixed_cents: 0 };
+  const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, payment_fees: { card: fee3, mb_way: fee3, multibanco: fee3, other: fee3 } }, upsell_products: [], black_friday: DEFAULT_SETTINGS.black_friday };
+  assert.equal(bfBoxCost(DEFAULT_SETTINGS.black_friday, "poco"), 2450);
+  const c = computeOrderCosts({ totalCents: 5500, qtyBoxes: 1, paymentMethodType: "card", bundleKey: "bfp1", country: "ES" }, [], s);
+  assert.equal(c.vat, 955);
+  assert.equal(c.payment_fees, 165);
+  assert.equal(c.profit - 1100, 830);
+});
