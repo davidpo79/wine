@@ -131,7 +131,7 @@
 .bf-usual s{font:900 clamp(40px,11vw,60px)/1 Impact,"Arial Black",Arial,sans-serif;color:#2a2a2f;text-transform:none;letter-spacing:0;white-space:nowrap;text-decoration-color:rgba(227,22,27,.85);text-decoration-thickness:3px}
 .bf-was{font-size:13px}.bf-was s{white-space:nowrap;font-weight:800;color:#444;font-size:15px}
 /* Whole boxes on the options (Poço do Canto): 1 box; 2 boxes offset; 3 boxes as two behind and one in front. */
-.bf-bimg-boxes{aspect-ratio:1/0.82;max-width:170px}
+.bf-bimg-boxes{aspect-ratio:1/0.9;max-width:170px}
 .bf-bimg-boxes img{opacity:1!important;transform:none!important}
 .bf-bimg-boxes[data-qty="2"] img:nth-child(1){inset:0 30% 30% 0;width:70%;height:70%}
 .bf-bimg-boxes[data-qty="2"] img:nth-child(2){inset:30% 0 0 30%;width:70%;height:70%}
