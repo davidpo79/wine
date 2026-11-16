@@ -5,7 +5,7 @@ import { and, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Expense, Order, OrderAddon } from "@/db/schema";
 import type { BlackFridaySettings, CostModel, PaymentFeeKey, ProfitSplit, Settings } from "./settings-defaults";
-import { isBfBundle } from "./black-friday";
+import { bfCostsFor, bfOfferFor } from "./black-friday";
 
 export type OrderCosts = {
   paid: number; // what the customer paid (order + paid add-ons)
@@ -74,7 +74,8 @@ export function computeOrderCosts(
   payments = 1,
 ): OrderCosts {
   const m = settings.cost_model;
-  if (isBfBundle(order.bundleKey) && settings.black_friday) return bfOrderCosts(order, settings.black_friday, m, payments);
+  const offer = bfOfferFor(order.bundleKey);
+  if (offer && settings.black_friday) return bfOrderCosts(order, settings.black_friday, m, payments, offer.id);
   const paid = order.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   // The printed card is not wine: its VAT rate is its own (23% by default).
   const card = addons.filter((a) => a.kind === "card").reduce((n, a) => n + a.amountCents, 0);
@@ -105,13 +106,13 @@ export function computeOrderCosts(
  * Black Friday box (6 bottles, Belgian warehouse): VAT of the delivery country, then per box wine, carton, transport to
  * Belgium + delivery (counted as delivery) and handling (counted as other). Payment fees as for any order.
  */
-function bfOrderCosts(order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType"> & Partial<Pick<Order, "country">>, bf: BlackFridaySettings, m: CostModel, payments: number): OrderCosts {
+function bfOrderCosts(order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType"> & Partial<Pick<Order, "country">>, bf: BlackFridaySettings, m: CostModel, payments: number, offerId: Parameters<typeof bfCostsFor>[1]): OrderCosts {
   const paid = order.totalCents;
   const rate = bf.vat_percent[(order.country ?? "") as keyof BlackFridaySettings["vat_percent"]] ?? 21;
   const vatExact = paid - paid / (1 + rate / 100);
   const boxes = order.qtyBoxes;
   const fee = m.payment_fees[feeKey(order.paymentMethodType)] ?? m.payment_fees.other;
-  const c = bf.costs;
+  const c = bfCostsFor(bf, offerId);
   const parts = {
     wine: boxes * c.wine_cents,
     gift_boxes: 0,

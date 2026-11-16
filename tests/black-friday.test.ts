@@ -73,3 +73,40 @@ test("spain: postal codes and phone numbers", () => {
   assert.equal(normalizePhoneFor("612 345 678", "ES"), "+34612345678");
   assert.equal(normalizePhoneFor("+34 612 345 678", "ES"), "+34612345678");
 });
+
+test("black friday offers in spain: sparkling (3 bottles, 90 €) and Poço do Canto (6 bottles, 55 €)", async () => {
+  const { BF_OFFERS, BF_OFFER_BUNDLES, bfOfferFor, bfOfferByPath, bfOfferCountries, bfHref, contentIdFor } = await import("../src/lib/black-friday");
+  assert.equal(bfOfferFor("bf2")?.id, "douro6");
+  assert.equal(bfOfferFor("bfs1")?.id, "burbujas");
+  assert.equal(bfOfferFor("bfp3")?.id, "poco");
+  assert.equal(bfOfferFor("x2"), null);
+  assert.equal(bottlesPerBox("bfs2"), 3);
+  assert.equal(bottlesPerBox("bfp2"), 6);
+  assert.equal(contentIdFor("bfs1"), BF_OFFERS.burbujas.slug);
+  assert.equal(bfOfferByPath("espumoso")?.id, "burbujas");
+  assert.equal(bfOfferByPath(""), null);
+  assert.equal(bfHref("es", BF_OFFERS.poco), "/es/black-friday/poco-do-canto");
+  assert.equal(bfHref("es"), "/es/black-friday");
+  // Spain only, even while Germany sells the Douro box.
+  assert.deepEqual(bfOfferCountries(BF_OFFERS.burbujas, ["DE", "ES"]), ["ES"]);
+  assert.deepEqual(bfOfferCountries(BF_OFFERS.douro6, ["DE", "ES"]), ["DE", "ES"]);
+  for (const id of ["burbujas", "poco"] as const) {
+    const b = BF_OFFER_BUNDLES[id];
+    assert.ok(b.every((x) => isBfBundle(x.key) && bfOfferFor(x.key)?.id === id && x.shippingCents === 0));
+    const per = b.map((x) => x.priceCents / x.qty);
+    assert.ok(per[0] > per[1] && per[1] > per[2]);
+  }
+  assert.equal(BF_OFFER_BUNDLES.burbujas[0].priceCents, 9000);
+  assert.equal(BF_OFFER_BUNDLES.burbujas[0].compareAtCents, 18000);
+  assert.equal(BF_OFFER_BUNDLES.poco[0].priceCents, 5500);
+});
+
+test("black friday sparkling costs: David's sheet (90 €: 79,32 € costs with 20% marketing, 10,68 € profit)", () => {
+  const fee3 = { percent: 3, fixed_cents: 0 };
+  const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, payment_fees: { card: fee3, mb_way: fee3, multibanco: fee3, other: fee3 } }, upsell_products: [], black_friday: DEFAULT_SETTINGS.black_friday };
+  assert.equal(bfBoxCost(DEFAULT_SETTINGS.black_friday, "burbujas"), 4300);
+  const c = computeOrderCosts({ totalCents: 9000, qtyBoxes: 1, paymentMethodType: "card", bundleKey: "bfs1", country: "ES" }, [], s);
+  assert.equal(c.vat, 1562);
+  assert.equal(c.payment_fees, 270);
+  assert.equal(c.profit - 1800, 1068);
+});

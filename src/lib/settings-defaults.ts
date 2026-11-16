@@ -47,6 +47,8 @@ export type BlackFridaySettings = {
   delivery_days: string; // working days shown to customers ("2")
   vat_percent: Partial<Record<Country, number>>; // VAT included in the price, by delivery country (still wine, standard rate)
   costs: { wine_cents: number; shipping_box_cents: number; transport_cents: number; handling_cents: number; delivery_cents: number }; // per box, without recoverable VAT
+  /** Costs per box of the other offers (sparkling, Poço do Canto); missing = the defaults in lib/black-friday.ts. */
+  offer_costs?: Partial<Record<"burbujas" | "poco", BlackFridaySettings["costs"]>>;
 };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */

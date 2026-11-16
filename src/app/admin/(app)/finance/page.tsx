@@ -3,6 +3,7 @@ import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { eur } from "@/lib/money";
 import { getBfCatalog, getCatalog } from "@/lib/catalog";
+import { BF_OFFER_IDS, bfOfferCountries, bfOfferFor } from "@/lib/black-friday";
 import { getSettings } from "@/lib/settings";
 import { computeOrderCosts, dailyPnl, isAdCategory, lisbonDay, splitProfit } from "@/lib/profit";
 import { costModelAction, expenseAction, profitSplitAction } from "../../actions";
@@ -54,8 +55,9 @@ export default async function Finance({ searchParams }: { searchParams: Promise<
   const split = splitProfit(total.profit, total.boxes, ps);
   const examples = (catalog?.bundles ?? []).map((b) => ({ b, c: computeOrderCosts({ totalCents: b.priceCents + b.shippingCents, qtyBoxes: b.qty, paymentMethodType: "card" }, [], settings) }));
   // Black Friday box (6 bottles), by delivery country (VAT differs: Germany 19%, Spain 21%).
-  const bfExamples = ((await getBfCatalog())?.bundles ?? []).flatMap((b) =>
-    settings.black_friday.countries.map((country) => ({ b, country, c: computeOrderCosts({ totalCents: b.priceCents + b.shippingCents, qtyBoxes: b.qty, paymentMethodType: "card", bundleKey: b.key, country }, [], settings) })),
+  const bfCatalogs = await Promise.all(BF_OFFER_IDS.map((id) => getBfCatalog(id)));
+  const bfExamples = bfCatalogs.flatMap((c) => c?.bundles ?? []).flatMap((b) =>
+    bfOfferCountries(bfOfferFor(b.key)!, settings.black_friday.countries).map((country) => ({ b, country, c: computeOrderCosts({ totalCents: b.priceCents + b.shippingCents, qtyBoxes: b.qty, paymentMethodType: "card", bundleKey: b.key, country }, [], settings) })),
   );
 
   return (

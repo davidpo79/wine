@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate, zonedDate } from "@/lib/time";
-import { bfBoxCost } from "@/lib/black-friday";
+import { BF_OFFERS, bfBoxCost, bfCostsFor } from "@/lib/black-friday";
 import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction } from "../../actions";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
@@ -111,6 +111,26 @@ export default async function SettingsPage() {
             <label>Delivery<input name="bf_c_delivery" defaultValue={eur(bf.costs.delivery_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
             <span className="self-end pb-2 font-semibold">= €{eur(bfBoxCost(bf))} / box</span>
           </div>
+          {(["burbujas", "poco"] as const).map((id) => {
+            const c = bfCostsFor(bf, id);
+            const o = BF_OFFERS[id];
+            return (
+              <div key={id} className="mt-3">
+                <p className="text-xs font-semibold">
+                  {o.productName.es} (page /es/black-friday/{o.path}, options {o.prefix}1, {o.prefix}2, {o.prefix}3): costs per box of {o.bottlesPerBox} bottles
+                  {c.wine_cents === 0 && <span className="ml-1 text-amber-700">· wine cost not set: Finance overstates its profit</span>}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-3 text-xs">
+                  <label>Wine<input name={`bf_${id}_wine`} defaultValue={eur(c.wine_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+                  <label>Shipping box<input name={`bf_${id}_box`} defaultValue={eur(c.shipping_box_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+                  <label>Transport<input name={`bf_${id}_transport`} defaultValue={eur(c.transport_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+                  <label>Handling<input name={`bf_${id}_handling`} defaultValue={eur(c.handling_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+                  <label>Delivery<input name={`bf_${id}_delivery`} defaultValue={eur(c.delivery_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
+                  <span className="self-end pb-2 font-semibold">= €{eur(bfBoxCost(bf, id))} / box</span>
+                </div>
+              </div>
+            );
+          })}
         </fieldset>
         <label className="block font-semibold">Stock cap in boxes (optional)
           <input name="stock_cap" type="number" min={0} defaultValue={s.stock_cap_boxes ?? ""} placeholder="no limit" className="mt-1 w-40 rounded border p-2 font-normal" />
