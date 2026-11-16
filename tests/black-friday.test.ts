@@ -110,3 +110,24 @@ test("black friday sparkling costs: David's sheet (90 €: 79,32 € costs with 
   assert.equal(c.payment_fees, 270);
   assert.equal(c.profit - 1800, 1068);
 });
+
+test("black friday one-time offer after payment: the other offer, Spain only, and its profit", async () => {
+  const { bfCrossOffer } = await import("../src/lib/upsell");
+  const { BF_OFFERS } = await import("../src/lib/black-friday");
+  const fromBox = bfCrossOffer({ bundleKey: "bf1", country: "ES", locale: "es" });
+  assert.equal(fromBox?.sku, BF_OFFERS.burbujas.slug);
+  assert.equal(fromBox?.priceCents, 6900);
+  assert.equal(bfCrossOffer({ bundleKey: "bfp2", country: "ES", locale: "es" })?.sku, BF_OFFERS.burbujas.slug);
+  assert.equal(bfCrossOffer({ bundleKey: "bfs1", country: "ES", locale: "es" })?.sku, BF_OFFERS.douro6.slug);
+  assert.equal(bfCrossOffer({ bundleKey: "bfs1", country: "ES", locale: "es" })?.priceCents, 5500);
+  assert.equal(bfCrossOffer({ bundleKey: "bf1", country: "DE", locale: "de" }), null);
+  assert.equal(bfCrossOffer({ bundleKey: "x2", country: "PT", locale: "pt" }), null);
+  // 69 € sparkling on a 68,50 € box: wine 30 € only (same parcel), VAT 21% and 3% fee on both.
+  const fee3 = { percent: 3, fixed_cents: 0 };
+  const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, payment_fees: { card: fee3, mb_way: fee3, multibanco: fee3, other: fee3 } }, upsell_products: [], black_friday: DEFAULT_SETTINGS.black_friday };
+  const base = computeOrderCosts({ totalCents: 6850, qtyBoxes: 1, paymentMethodType: "card", bundleKey: "bf1", country: "ES" }, [], s);
+  const withAddon = computeOrderCosts({ totalCents: 6850, qtyBoxes: 1, paymentMethodType: "card", bundleKey: "bf1", country: "ES" }, [{ amountCents: 6900, boxes: 0, kind: "product", sku: BF_OFFERS.burbujas.slug }], s);
+  assert.equal(withAddon.products, 3000);
+  // 69 / 1,21 = 57,02 net, minus 30 € wine and 2,07 € fee = 24,95 € more profit.
+  assert.equal(withAddon.profit - base.profit, 2495);
+});

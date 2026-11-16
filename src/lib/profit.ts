@@ -5,7 +5,7 @@ import { and, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Expense, Order, OrderAddon } from "@/db/schema";
 import type { BlackFridaySettings, CostModel, PaymentFeeKey, ProfitSplit, Settings } from "./settings-defaults";
-import { bfCostsFor, bfOfferFor } from "./black-friday";
+import { BF_OFFER_IDS, BF_OFFERS, bfCostsFor, bfOfferFor } from "./black-friday";
 
 export type OrderCosts = {
   paid: number; // what the customer paid (order + paid add-ons)
@@ -75,7 +75,7 @@ export function computeOrderCosts(
 ): OrderCosts {
   const m = settings.cost_model;
   const offer = bfOfferFor(order.bundleKey);
-  if (offer && settings.black_friday) return bfOrderCosts(order, settings.black_friday, m, payments, offer.id);
+  if (offer && settings.black_friday) return bfOrderCosts(order, addons, settings.black_friday, m, payments, offer.id);
   const paid = order.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   // The printed card is not wine: its VAT rate is its own (23% by default).
   const card = addons.filter((a) => a.kind === "card").reduce((n, a) => n + a.amountCents, 0);
@@ -103,11 +103,22 @@ export function computeOrderCosts(
 }
 
 /**
+ * A Black Friday offer added after payment (bfCrossOffer): its wine, transport and handling; it travels in the same
+ * parcel, so no carton or delivery of its own.
+ */
+function bfAddonCost(bf: BlackFridaySettings, sku: string) {
+  const id = BF_OFFER_IDS.find((o) => BF_OFFERS[o].slug === sku);
+  if (!id) return 0;
+  const c = bfCostsFor(bf, id);
+  return c.wine_cents + c.transport_cents + c.handling_cents;
+}
+
+/**
  * Black Friday box (6 bottles, Belgian warehouse): VAT of the delivery country, then per box wine, carton, transport to
  * Belgium + delivery (counted as delivery) and handling (counted as other). Payment fees as for any order.
  */
-function bfOrderCosts(order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType"> & Partial<Pick<Order, "country">>, bf: BlackFridaySettings, m: CostModel, payments: number, offerId: Parameters<typeof bfCostsFor>[1]): OrderCosts {
-  const paid = order.totalCents;
+function bfOrderCosts(order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMethodType"> & Partial<Pick<Order, "country">>, addons: Pick<OrderAddon, "amountCents" | "sku">[], bf: BlackFridaySettings, m: CostModel, payments: number, offerId: Parameters<typeof bfCostsFor>[1]): OrderCosts {
+  const paid = order.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   const rate = bf.vat_percent[(order.country ?? "") as keyof BlackFridaySettings["vat_percent"]] ?? 21;
   const vatExact = paid - paid / (1 + rate / 100);
   const boxes = order.qtyBoxes;
@@ -119,7 +130,7 @@ function bfOrderCosts(order: Pick<Order, "totalCents" | "qtyBoxes" | "paymentMet
     shipping_boxes: boxes * c.shipping_box_cents,
     delivery: boxes * (c.transport_cents + c.delivery_cents),
     payment_fees: (paid * fee.percent) / 100 + fee.fixed_cents * payments,
-    products: 0,
+    products: addons.reduce((n, a) => n + bfAddonCost(bf, a.sku), 0),
     other: boxes * c.handling_cents,
   };
   const costs = Object.values(parts).reduce((n, v) => n + v, 0);

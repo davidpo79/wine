@@ -4,7 +4,7 @@ import { dealOf } from "./offers";
 import { getDict, moneyShortFor } from "./i18n";
 import { fmt } from "./i18n/rich";
 import { isCountry, isLocale, MARKETS } from "./markets";
-import { isBfBundle } from "./black-friday";
+import { BF_OFFERS, bfOfferFor, isBfBundle, isBfLocale, type BfOfferId } from "./black-friday";
 
 export type Offer = {
   key: string; // "boxes" or an upsell product key
@@ -87,4 +87,53 @@ export function productOffers(settings: Settings, order?: Pick<Order, "country">
 export function findOffer(key: string, order: Order, bundles: Bundle[], settings: Settings): Offer | null {
   if (key === "boxes") return boxesOffer(order, bundles);
   return productOffers(settings, order).find((o) => o.key === key) ?? null;
+}
+
+/**
+ * Black Friday one-time offer after payment (Spain, 16/11/2026, prices approved by David): the other offer, from the
+ * same warehouse and in the same parcel, below its page price. Douro box or Poço do Canto buyers: 3 sparkling for 69 €
+ * (page: 90 €); sparkling buyers: the 6-bottle Douro box for 55 € (page: 68,50 €). No ads and no extra delivery on it.
+ */
+export const BF_CROSS_OFFERS: Record<BfOfferId, { to: BfOfferId; priceCents: number; compareCents: number }> = {
+  douro6: { to: "burbujas", priceCents: 6900, compareCents: 9000 },
+  poco: { to: "burbujas", priceCents: 6900, compareCents: 9000 },
+  burbujas: { to: "douro6", priceCents: 5500, compareCents: 6850 },
+};
+
+const BF_CROSS_COPY: Record<BfOfferId, { title: string; label: string; description: string; image: string }> = {
+  burbujas: {
+    title: "3 espumosos D. Graça Bruto para las fiestas",
+    label: "Black Friday · 3 espumosos D. Graça Bruto (oferta tras la compra)",
+    description: "3 botellas de espumoso brut del Douro, para Navidad y Nochevieja. Llegan en la misma caja, sin gastos de envío.",
+    image: "/lp/bf/espumoso-hero.webp",
+  },
+  douro6: {
+    title: "La caja de 6 vinos del Douro",
+    label: "Black Friday · 6 vinos del Douro (oferta tras la compra)",
+    description: "3 tintos, 2 blancos y 1 rosado del Douro DOC. Llegan en el mismo envío, sin gastos de envío.",
+    image: "/lp/bf/bottles-cut.webp",
+  },
+  poco: { title: "", label: "", description: "", image: "" },
+};
+
+/** The one-time offer shown after a Black Friday order is paid (Spanish orders only), else null. */
+export function bfCrossOffer(order: Pick<Order, "bundleKey" | "country" | "locale">): Offer | null {
+  const from = bfOfferFor(order.bundleKey);
+  if (!from || order.country !== "ES" || !isBfLocale(order.locale) || order.locale !== "es") return null;
+  const x = BF_CROSS_OFFERS[from.id];
+  const to = BF_OFFERS[x.to];
+  const c = BF_CROSS_COPY[x.to];
+  return {
+    key: `bfx-${to.id}`,
+    kind: "product",
+    sku: to.slug,
+    title: c.title,
+    label: c.label,
+    description: c.description,
+    priceCents: x.priceCents,
+    compareCents: x.compareCents,
+    boxes: 0, // not Trilogia boxes (those count for the Christmas stock cap)
+    image: c.image,
+    percentOff: Math.round(((x.compareCents - x.priceCents) / x.compareCents) * 100),
+  };
 }
