@@ -33,6 +33,13 @@ export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
   poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
 };
 export const BF_OFFER_IDS = Object.keys(BF_OFFERS) as BfOfferId[];
+/** Short names in the admin (Orders, Funnel filters). */
+export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6" };
+/** Admin funnel filter "bf:<offer>" → the offer (null for "bf", every Black Friday offer). */
+export const bfOfferOfFilter = (f: string | null | undefined): BfOfferId | null => {
+  const id = f?.startsWith("bf:") ? f.slice(3) : null;
+  return id && id in BF_OFFERS ? (id as BfOfferId) : null;
+};
 export const BF_SLUGS = BF_OFFER_IDS.map((id) => BF_OFFERS[id].slug);
 export const bfOfferByPath = (path: string) => BF_OFFER_IDS.map((id) => BF_OFFERS[id]).find((o) => o.path && o.path === path) ?? null;
 

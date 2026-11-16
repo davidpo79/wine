@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
+import { BF_OFFER_ADMIN_LABEL, BF_OFFER_IDS, bfOfferFor } from "@/lib/black-friday";
 import { orderStatus } from "@/db/schema";
 import { queryOrders } from "@/lib/order-query";
 import { StatusPill } from "../../status-pill";
@@ -21,8 +22,9 @@ type SP = { status?: string; from?: string; to?: string; q?: string; funnel?: st
 const FUNNELS = [
   { key: "", label: "All" },
   { key: "xmas", label: "Christmas · Trilogia" },
-  { key: "bf", label: "Black Friday" },
-] as const;
+  { key: "bf", label: "Black Friday · all" },
+  ...BF_OFFER_IDS.map((id) => ({ key: `bf:${id}`, label: `BF · ${BF_OFFER_ADMIN_LABEL[id]}` })),
+];
 
 export default async function Orders({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
@@ -64,7 +66,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<S
           const p = new URLSearchParams(Object.entries({ ...sp, funnel: f.key }).filter(([, v]) => v) as [string, string][]).toString();
           const on = (sp.funnel ?? "") === f.key;
           return (
-            <Link key={f.key} href={`/admin/orders${p ? `?${p}` : ""}`} className={`rounded-full border px-3 py-1 font-semibold ${on ? (f.key === "bf" ? "border-[#e11d2a] bg-[#e11d2a] text-white" : "bg-night text-white") : "bg-white hover:bg-paper"}`}>
+            <Link key={f.key} href={`/admin/orders${p ? `?${p}` : ""}`} className={`rounded-full border px-3 py-1 font-semibold ${on ? (f.key.startsWith("bf") ? "border-[#e11d2a] bg-[#e11d2a] text-white" : "bg-night text-white") : "bg-white hover:bg-paper"}`}>
               {f.label}
             </Link>
           );
@@ -110,7 +112,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<S
                       <td>{lisbonTime(o.createdAt)}</td>
                       <td>{o.customerName ?? "·"}<br /><span className="text-xs text-muted">{o.email}</span></td>
                       <td>
-                        {o.bundleKey.startsWith("bf") && <span className="mr-1 rounded bg-[#e11d2a] px-1.5 py-0.5 text-[10px] font-bold text-white">BF</span>}
+                        {bfOfferFor(o.bundleKey) && <span className="mr-1 rounded bg-[#e11d2a] px-1.5 py-0.5 text-[10px] font-bold text-white">BF · {BF_OFFER_ADMIN_LABEL[bfOfferFor(o.bundleKey)!.id]}</span>}
                         {o.bundleKey} · {o.qtyBoxes} box{o.qtyBoxes === 1 ? "" : "es"}{o.isGift ? " 🎁" : ""}
                       </td>
                       <td>{eur(o.costs?.paid ?? o.totalCents)}</td>
