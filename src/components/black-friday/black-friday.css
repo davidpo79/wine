@@ -126,3 +126,7 @@
 /* Occasions with a symbol instead of a photo (sparkling, Poço do Canto): centred, one card per moment. */
 .bf-eve-icon{flex-direction:column;justify-content:center;text-align:center;gap:10px;padding:22px 18px}
 .bf-eveicon{display:grid;place-items:center;width:68px;height:68px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#3a0a0b,#151517);border:1px solid #e3161b55;font-size:32px;line-height:1}
+/* Reference price (sparkling, Poço do Canto): the label small, the old price big and readable, a thinner strike. */
+.bf-usual{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:clamp(14px,3.6vw,18px);letter-spacing:.06em;color:#555}
+.bf-usual s{font:900 clamp(40px,11vw,60px)/1 Impact,"Arial Black",Arial,sans-serif;color:#2a2a2f;text-transform:none;letter-spacing:0;white-space:nowrap;text-decoration-color:rgba(227,22,27,.85);text-decoration-thickness:3px}
+.bf-was{font-size:13px}.bf-was s{white-space:nowrap;font-weight:800;color:#444;font-size:15px}
