@@ -37,7 +37,8 @@ export type BfCopy = {
   storyTitle: string;
   story: { img: string; h: string; p: string }[];
   eveningTitle: string;
-  evening: { when: string; wine: string; img: string; p: string }[];
+  /** img: a cut-out bottle (Douro box); icon: a symbol instead, so the cards do not repeat one photo. */
+  evening: { when: string; wine: string; img?: string; icon?: string; p: string }[];
   whoTitle: string;
   who: { p1: string; p2: string; company: string; about: string; alt: string };
   whyTitle: string;
@@ -274,7 +275,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
           count: "× 3",
           name: "D. Graça Espumante Bruto · Douro",
           text: "Espumoso brut del Douro, de viñas en suelos de esquisto y granito. Fresco y elegante. Para brindar en Navidad y Nochevieja, de aperitivo o con marisco. Servir bien frío, a 6 a 8 °C.",
-          img: "/lp/bf/espumoso-bottle.webp",
+          img: "/lp/bf/espumoso-hero.webp",
           photo: true,
         },
       ],
@@ -283,13 +284,13 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
         ES.story[0],
         ES.story[1],
         { img: "/lp/bf/story-harvest2.webp", h: "En la bodega", p: "De la uva nace un vino base fresco, que después se convierte en espumoso." },
-        { img: "/lp/bf/espumoso-bottle.webp", h: "A tu casa", p: "Preparamos tu caja con protección para cada botella y la recibes en {days} días laborables, con seguimiento." },
+        { img: "/lp/bf/espumoso-hero.webp", h: "A tu casa", p: "Preparamos tu caja con protección para cada botella y la recibes en {days} días laborables, con seguimiento." },
       ],
       eveningTitle: "Tres momentos para brindar",
       evening: [
-        { when: "Black Friday", wine: "La primera botella", img: "/lp/bf/espumoso-bottle.webp", p: "Para estrenar la caja con algo para picar." },
-        { when: "Nochebuena", wine: "La segunda", img: "/lp/bf/espumoso-bottle.webp", p: "Con el marisco o de aperitivo antes de la cena." },
-        { when: "Nochevieja", wine: "La tercera", img: "/lp/bf/espumoso-bottle.webp", p: "Para las doce campanadas." },
+        { when: "Black Friday", wine: "La primera botella", icon: "🥂", p: "Para estrenar la caja con algo para picar." },
+        { when: "Nochebuena", wine: "La segunda", icon: "🎄", p: "Con el marisco o de aperitivo antes de la cena." },
+        { when: "Nochevieja", wine: "La tercera", icon: "🎆", p: "Para las doce campanadas." },
       ],
       why: [
         { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. El espumoso sale de la bodega del Douro y llega a tu casa." },
@@ -326,7 +327,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
           count: "× 6",
           name: "Poço do Canto Palhete 2019 · Douro",
           text: "El palhete es un estilo tradicional del Douro: uvas tintas y blancas que fermentan juntas. Un tinto de color claro, fresco y fácil de beber. Para la comida de cada día, tapas, carnes a la brasa y quesos. Servir a 14 a 16 °C.",
-          img: "/lp/bf/poco-bottle.webp",
+          img: "/lp/bf/poco-row.webp",
           photo: true,
         },
       ],
@@ -339,9 +340,9 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       ],
       eveningTitle: "Para cada ocasión",
       evening: [
-        { when: "Entre semana", wine: "Con la cena", img: "/lp/bf/poco-bottle.webp", p: "Un tinto ligero para la comida de cada día." },
-        { when: "El fin de semana", wine: "Con amigos", img: "/lp/bf/poco-bottle.webp", p: "Con tapas, embutidos y queso." },
-        { when: "En Navidad", wine: "En la mesa", img: "/lp/bf/poco-bottle.webp", p: "Con asados y carnes a la brasa." },
+        { when: "Entre semana", wine: "Con la cena", icon: "🍽️", p: "Un tinto ligero para la comida de cada día." },
+        { when: "El fin de semana", wine: "Con amigos", icon: "🧀", p: "Con tapas, embutidos y queso." },
+        { when: "En Navidad", wine: "En la mesa", icon: "🎄", p: "Con asados y carnes a la brasa." },
       ],
       why: [
         { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. El vino sale del Douro y llega a tu casa." },

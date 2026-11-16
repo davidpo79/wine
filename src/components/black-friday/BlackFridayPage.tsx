@@ -274,9 +274,14 @@ export function BlackFridayPage({
           <h2>{copy.eveningTitle}</h2>
           <div className="bf-evegrid">
             {copy.evening.map((e) => (
-              <div key={e.when} className="bf-eve">
+              <div key={e.when} className={`bf-eve${e.icon ? " bf-eve-icon" : ""}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.img} alt="" aria-hidden="true" loading="lazy" className={offerId === "douro6" ? undefined : e.img === img.cut ? "bf-evephoto bf-evephoto-tall" : "bf-evephoto"} />
+                {e.icon ? (
+                  <span className="bf-eveicon" aria-hidden="true">{e.icon}</span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={e.img} alt="" aria-hidden="true" loading="lazy" />
+                )}
                 <div>
                   <p className="bf-evewhen">{e.when}</p>
                   <h3>{e.wine}</h3>
@@ -305,7 +310,7 @@ export function BlackFridayPage({
           <ol className="bf-storygrid">
             {copy.story.map((s, i) => (
               <li key={s.h} className="bf-storystep">
-                <span className={`bf-storyimg${s.img.endsWith("-cut.webp") ? " bf-storyimg-bottles" : ""}`}>
+                <span className={`bf-storyimg${/-(cut|hero|row)\.webp$/.test(s.img) ? " bf-storyimg-bottles" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.img} alt="" aria-hidden="true" loading="lazy" />
                   <b>{i + 1}</b>

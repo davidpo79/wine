@@ -69,7 +69,7 @@ export const BF_BUNDLES: BfBundleSeed[] = [
 
 /**
  * Spain, 16/11/2026. Sparkling: 3 bottles of D. Graça Bruto 90 € with the reference price of the ad (180 €, David's
- * choice); Poço do Canto: 6 bottles 55 €, no reference price. 2 and 3 boxes follow the Douro box's steps (about -6% and
+ * choice); Poço do Canto: 6 bottles 55 € with the reference price of its ad (90 €, David 16/11/2026). 2 and 3 boxes follow the Douro box's steps (about -6% and
  * -10% per box). Prices can be changed in Admin → Products.
  */
 export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed[]> = {
@@ -79,9 +79,9 @@ export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed
     { key: "bfs3", label: "Black Friday · Espumante D. Graça · 3 caixas · 9 garrafas", qty: 3, priceCents: 23900, compareAtCents: 54000, shippingCents: 0, badge: "Melhor preço", sort: 23 },
   ],
   poco: [
-    { key: "bfp1", label: "Black Friday · Poço do Canto · 1 caixa · 6 garrafas", qty: 1, priceCents: 5500, compareAtCents: null, shippingCents: 0, badge: null, sort: 31 },
-    { key: "bfp2", label: "Black Friday · Poço do Canto · 2 caixas · 12 garrafas", qty: 2, priceCents: 10400, compareAtCents: null, shippingCents: 0, badge: "Mais escolhido", sort: 32 },
-    { key: "bfp3", label: "Black Friday · Poço do Canto · 3 caixas · 18 garrafas", qty: 3, priceCents: 14900, compareAtCents: null, shippingCents: 0, badge: "Melhor preço", sort: 33 },
+    { key: "bfp1", label: "Black Friday · Poço do Canto · 1 caixa · 6 garrafas", qty: 1, priceCents: 5500, compareAtCents: 9000, shippingCents: 0, badge: null, sort: 31 },
+    { key: "bfp2", label: "Black Friday · Poço do Canto · 2 caixas · 12 garrafas", qty: 2, priceCents: 10400, compareAtCents: 18000, shippingCents: 0, badge: "Mais escolhido", sort: 32 },
+    { key: "bfp3", label: "Black Friday · Poço do Canto · 3 caixas · 18 garrafas", qty: 3, priceCents: 14900, compareAtCents: 27000, shippingCents: 0, badge: "Melhor preço", sort: 33 },
   ],
 };
 
