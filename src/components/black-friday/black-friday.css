@@ -120,4 +120,4 @@
 .bf-bimg-photo img{border-radius:8px}
 .bf-winegrid-one{grid-template-columns:minmax(0,520px);justify-content:center}
 .bf-winephoto{max-height:100%;max-width:100%;border-radius:10px;object-fit:contain}
-.bf-eve img.bf-evephoto{width:72px;height:72px;object-fit:cover;border-radius:10px}
+.bf-eve img.bf-evephoto{width:72px;height:72px;object-fit:cover;object-position:50% 75%;border-radius:10px}

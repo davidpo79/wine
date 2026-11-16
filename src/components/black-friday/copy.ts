@@ -256,11 +256,11 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   burbujas: {
     es: {
       ...ES,
-      images: { hero: "/lp/bf/espumoso-hero.webp", heroW: 341, heroH: 752, cut: "/lp/bf/espumoso-bottle.webp", cutIsPhoto: true },
+      images: { hero: "/lp/bf/espumoso-hero.webp", heroW: 940, heroH: 591, cut: "/lp/bf/espumoso-bottle.webp", cutIsPhoto: true },
       metaTitle: "Black Friday · 3 espumosos del Douro por 90 € con envío gratis",
       metaDescription: "Colección de burbujas: 3 botellas de espumoso D. Graça Bruto del Douro, directas del productor. 90 € la caja de 3, impuestos incluidos y envío gratis. Solo hasta el {date}.",
       sub: "Colección de burbujas: 3 botellas de espumoso brut del Douro",
-      mix: ["3 botellas", "Espumoso Bruto", "Uva Gouveio"],
+      mix: ["3 botellas", "Espumoso Bruto", "Del Douro"],
       bundles: {
         bfs1: { title: "1 caja", bottles: "3 botellas" },
         bfs2: { title: "2 cajas", bottles: "6 botellas", badge: "El más elegido" },
@@ -272,7 +272,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
           type: "Espumoso Bruto",
           count: "× 3",
           name: "D. Graça Espumante Bruto · Douro",
-          text: "Espumoso del Douro de uva Gouveio, de viñas en suelos de esquisto y granito. Fresco y elegante. Para brindar en Navidad y Nochevieja, de aperitivo o con marisco. Servir bien frío, a 6 a 8 °C.",
+          text: "Espumoso brut del Douro, de viñas en suelos de esquisto y granito. Fresco y elegante. Para brindar en Navidad y Nochevieja, de aperitivo o con marisco. Servir bien frío, a 6 a 8 °C.",
           img: "/lp/bf/espumoso-bottle.webp",
           photo: true,
         },
@@ -281,7 +281,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       story: [
         ES.story[0],
         ES.story[1],
-        { img: "/lp/bf/story-harvest2.webp", h: "En la bodega", p: "De la uva Gouveio nace un vino base fresco, que después se convierte en espumoso." },
+        { img: "/lp/bf/story-harvest2.webp", h: "En la bodega", p: "De la uva nace un vino base fresco, que después se convierte en espumoso." },
         { img: "/lp/bf/espumoso-bottle.webp", h: "A tu casa", p: "Preparamos tu caja con protección para cada botella y la recibes en {days} días laborables, con seguimiento." },
       ],
       eveningTitle: "Tres momentos para brindar",

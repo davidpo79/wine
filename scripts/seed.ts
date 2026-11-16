@@ -70,7 +70,7 @@ await db
 const OFFER_PRODUCTS: Record<"burbujas" | "poco", { name: string; shortDescription: string; wines: WineItem[] }> = {
   burbujas: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
-    shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça (Gouveio), Douro. Espanha.",
+    shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
     wines: [{ name: "D. Graça Espumante Bruto", vintage: "", type: "branco", producer: "Douro" }],
   },
   poco: {
