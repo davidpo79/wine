@@ -211,6 +211,13 @@
       "when": 1793876325380,
       "tag": "0029_bf_box_galhofa",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793879925380,
+      "tag": "0030_bf_poco_reference_price",
+      "breakpoints": true
     }
   ]
 }
