@@ -121,3 +121,5 @@
 .bf-winegrid-one{grid-template-columns:minmax(0,520px);justify-content:center}
 .bf-winephoto{max-height:100%;max-width:100%;border-radius:10px;object-fit:contain}
 .bf-eve img.bf-evephoto{width:72px;height:72px;object-fit:cover;object-position:50% 75%;border-radius:10px}
+/* A whole bottle photo (sparkling): tall like the cut-out bottles of the Douro box. */
+.bf-eve img.bf-evephoto-tall{width:54px;height:180px;object-fit:contain;object-position:center;background:transparent;border-radius:8px}

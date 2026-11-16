@@ -18,7 +18,15 @@ import { COUNTRIES_FOR_LOCALE, defaultCountry, isCountry, isLocale, LOCALE_INFO,
 import { enabledCountries } from "@/lib/visitor";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Checkout · Trilogia 2160 | Wine Portugal", robots: { index: false, follow: false } };
+/** The tab title names what is being bought: the Black Friday offer of the link (?b=bfs2) or of a resumed order. */
+export async function generateMetadata({ searchParams }: { searchParams: SP }): Promise<Metadata> {
+  const sp = await searchParams;
+  const resumed = sp.o && sp.t ? await loadDraft(sp.o, sp.t) : null;
+  const offer = bfOfferFor(resumed ? resumed.bundleKey : sp.b);
+  const locale = resumed?.locale ?? sp.l;
+  const name = offer ? (isBfLocale(locale) && offer.locales.includes(locale) ? offer.productName[locale] : offer.productName[offer.locales[0]]) : "Trilogia 2160";
+  return { title: `Checkout · ${name} | Wine Portugal`, robots: { index: false, follow: false } };
+}
 
 type SP = Promise<Record<string, string | undefined>>;
 
