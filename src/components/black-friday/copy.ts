@@ -4,7 +4,8 @@ import { bfOfferFor, type BfLocale, type BfOfferId } from "@/lib/black-friday";
 
 export type BfCopy = {
   /** Photos of the offer: hero (with its size), the cut-out used on the 1/2/3 options and in "To your home". */
-  images: { hero: string; heroW: number; heroH: number; cut: string; cutIsPhoto?: boolean; who?: string };
+  /** cutIsBox: the cut-out is a whole box, laid out as 1, 2 or 3 boxes on the options (Poço do Canto). */
+  images: { hero: string; heroW: number; heroH: number; cut: string; cutIsPhoto?: boolean; cutIsBox?: boolean; who?: string };
   metaTitle: string;
   metaDescription: string;
   topBar: string;
@@ -309,7 +310,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   poco: {
     es: {
       ...ES,
-      images: { hero: "/lp/bf/poco-row.webp", heroW: 1100, heroH: 766, cut: "/lp/bf/poco-bottle.webp", cutIsPhoto: true, who: "/lp/bf/story-douro.webp" },
+      images: { hero: "/lp/bf/poco-row.webp", heroW: 1100, heroH: 766, cut: "/lp/bf/poco-cut.webp", cutIsBox: true, who: "/lp/bf/story-douro.webp" },
       who: { ...ES.who, alt: "El valle del Douro" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 por 55 € con envío gratis",
       metaDescription: "Caja de 6 botellas de Poço do Canto Palhete 2019, vino tinto del Douro. 55 € la caja, impuestos incluidos y envío gratis. Solo 500 cajas, hasta el {date}.",

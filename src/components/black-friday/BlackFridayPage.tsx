@@ -113,7 +113,7 @@ export function BlackFridayPage({
         return (
           <button key={b.key} type="button" role="radio" aria-checked={b.key === key} className="bf-bundle" data-qty={b.qty} onClick={() => choose(b.key)}>
             {info.badge ? <span className="bf-badge">{info.badge}</span> : <span className="bf-badge bf-badge-empty" aria-hidden="true" />}
-            <span className={`bf-bimg${img.cutIsPhoto ? " bf-bimg-photo" : ""}`} data-qty={Math.min(b.qty, 3)} aria-hidden="true">
+            <span className={`bf-bimg${img.cutIsPhoto ? " bf-bimg-photo" : ""}${img.cutIsBox ? " bf-bimg-boxes" : ""}`} data-qty={Math.min(b.qty, 3)} aria-hidden="true">
               {Array.from({ length: Math.min(b.qty, 3) }, (_, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={i} src={img.cut} alt="" loading="lazy" />
