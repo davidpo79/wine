@@ -305,7 +305,7 @@ export function BlackFridayPage({
           <ol className="bf-storygrid">
             {copy.story.map((s, i) => (
               <li key={s.h} className="bf-storystep">
-                <span className={`bf-storyimg${s.img === img.cut && !img.cutIsPhoto ? " bf-storyimg-bottles" : ""}`}>
+                <span className={`bf-storyimg${s.img.endsWith("-cut.webp") ? " bf-storyimg-bottles" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.img} alt="" aria-hidden="true" loading="lazy" />
                   <b>{i + 1}</b>

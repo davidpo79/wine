@@ -311,7 +311,7 @@ export const ABOUT_BF_OFFER: Record<string, { es: { winesH: string; wines: strin
       box: "Preparamos tu caja con protección para cada botella y la recibes en 2 días laborables, con seguimiento.",
       boxAlt: "El valle del Douro",
       cta: "Ver la oferta de Black Friday",
-      winesImg: "/lp/bf/poco-hero.webp",
+      winesImg: "/lp/bf/poco-row.webp",
       boxImg: "/lp/bf/story-douro.webp",
       path: "poco-do-canto",
     },

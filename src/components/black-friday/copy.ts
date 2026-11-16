@@ -308,7 +308,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   poco: {
     es: {
       ...ES,
-      images: { hero: "/lp/bf/poco-hero.webp", heroW: 921, heroH: 850, cut: "/lp/bf/poco-cut.webp", who: "/lp/bf/story-douro.webp" },
+      images: { hero: "/lp/bf/poco-row.webp", heroW: 1100, heroH: 766, cut: "/lp/bf/poco-bottle.webp", cutIsPhoto: true, who: "/lp/bf/story-douro.webp" },
       who: { ...ES.who, alt: "El valle del Douro" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 por 55 € con envío gratis",
       metaDescription: "Caja de 6 botellas de Poço do Canto Palhete 2019, vino tinto del Douro. 55 € la caja, impuestos incluidos y envío gratis. Solo 500 cajas, hasta el {date}.",
@@ -326,7 +326,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
           count: "× 6",
           name: "Poço do Canto Palhete 2019 · Douro",
           text: "El palhete es un estilo tradicional del Douro: uvas tintas y blancas que fermentan juntas. Un tinto de color claro, fresco y fácil de beber. Para la comida de cada día, tapas, carnes a la brasa y quesos. Servir a 14 a 16 °C.",
-          img: "/lp/bf/poco-hero.webp",
+          img: "/lp/bf/poco-bottle.webp",
           photo: true,
         },
       ],
@@ -339,9 +339,9 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       ],
       eveningTitle: "Para cada ocasión",
       evening: [
-        { when: "Entre semana", wine: "Con la cena", img: "/lp/bf/poco-hero.webp", p: "Un tinto ligero para la comida de cada día." },
-        { when: "El fin de semana", wine: "Con amigos", img: "/lp/bf/poco-hero.webp", p: "Con tapas, embutidos y queso." },
-        { when: "En Navidad", wine: "En la mesa", img: "/lp/bf/poco-hero.webp", p: "Con asados y carnes a la brasa." },
+        { when: "Entre semana", wine: "Con la cena", img: "/lp/bf/poco-bottle.webp", p: "Un tinto ligero para la comida de cada día." },
+        { when: "El fin de semana", wine: "Con amigos", img: "/lp/bf/poco-bottle.webp", p: "Con tapas, embutidos y queso." },
+        { when: "En Navidad", wine: "En la mesa", img: "/lp/bf/poco-bottle.webp", p: "Con asados y carnes a la brasa." },
       ],
       why: [
         { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. El vino sale del Douro y llega a tu casa." },
