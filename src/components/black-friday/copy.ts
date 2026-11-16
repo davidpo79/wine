@@ -128,9 +128,9 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     how: ["Eliges 1, 2 o 3 cajas y pagas de forma segura.", "Preparamos tu pedido en nuestro almacén de Bélgica.", "Lo recibes en casa en {days} días laborables, con número de seguimiento."],
     faqTitle: "Preguntas frecuentes",
     faq: [
-      { q: "¿El envío es realmente gratis?", a: "Sí. El precio incluye el envío a la España peninsular y a Baleares, y todos los impuestos (IVA). No hay ningún coste más." },
+      { q: "¿El envío es realmente gratis?", a: "Sí. El precio incluye el envío a la España peninsular, Baleares y Portugal continental, y todos los impuestos (IVA). No hay ningún coste más." },
       { q: "¿Cuándo llega?", a: "En {days} días laborables desde la confirmación del pago. Los pedidos hasta el {date} llegan a tiempo para el Black Friday. Recibirás el número de seguimiento por e-mail." },
-      { q: "¿A dónde enviáis?", a: "A la España peninsular y a las Islas Baleares. De momento no enviamos a Canarias, Ceuta ni Melilla." },
+      { q: "¿A dónde enviáis?", a: "A la España peninsular, las Islas Baleares y Portugal continental. De momento no enviamos a Canarias, Ceuta, Melilla, Azores ni Madeira." },
       { q: "¿Cómo puedo pagar?", a: "Con tarjeta (Visa, Mastercard), Apple Pay o Google Pay, en la página segura de Stripe. No guardamos los datos de tu tarjeta." },
       { q: "¿Y si una botella llega rota?", a: "Envíanos una foto por WhatsApp o e-mail y la reponemos sin coste. Además tienes 14 días para desistir de la compra." },
       { q: "¿Tengo que ser mayor de edad?", a: "Sí. Solo vendemos a mayores de 18 años." },
@@ -226,7 +226,7 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     faq: [
       { q: "Ist der Versand wirklich gratis?", a: "Ja. Der Preis enthält den Versand innerhalb Deutschlands und die Mehrwertsteuer. Es kommen keine weiteren Kosten hinzu." },
       { q: "Wann kommt meine Bestellung an?", a: "In {days} Werktagen nach Zahlungseingang. Bestellungen bis {date} kommen rechtzeitig zum Black Friday an. Die Sendungsnummer erhalten Sie per E-Mail." },
-      { q: "Wohin liefern Sie?", a: "Zum Black Friday liefern wir nach Deutschland und Spanien." },
+      { q: "Wohin liefern Sie?", a: "Zum Black Friday liefern wir nach Deutschland, Spanien und Portugal (Festland)." },
       { q: "Wie kann ich bezahlen?", a: "Mit Kredit- oder Debitkarte, Apple Pay oder Google Pay auf der sicheren Seite von Stripe. Wir speichern Ihre Kartendaten nicht." },
       { q: "Und wenn eine Flasche kaputt ankommt?", a: "Schicken Sie uns ein Foto per WhatsApp oder E-Mail, wir ersetzen sie kostenlos. Außerdem haben Sie 14 Tage Widerrufsrecht." },
       { q: "Muss ich volljährig sein?", a: "Ja. Wir verkaufen nur an Personen ab 18 Jahren." },

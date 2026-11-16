@@ -293,10 +293,10 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
     };
     await setSetting("black_friday", {
       enabled: fd.get("bf_enabled") === "on",
-      countries: (["DE", "ES"] as const).filter((c) => fd.get(`bf_${c}`) === "on"),
+      countries: (["DE", "ES", "PT"] as const).filter((c) => fd.get(`bf_${c}`) === "on"),
       cutoff_at: cut.toISOString(),
       delivery_days: String(fd.get("bf_days") ?? "").trim().slice(0, 20),
-      vat_percent: { DE: vat("bf_vat_DE", prevBf.vat_percent.DE ?? 19), ES: vat("bf_vat_ES", prevBf.vat_percent.ES ?? 21) },
+      vat_percent: { DE: vat("bf_vat_DE", prevBf.vat_percent.DE ?? 19), ES: vat("bf_vat_ES", prevBf.vat_percent.ES ?? 21), PT: vat("bf_vat_PT", prevBf.vat_percent.PT ?? 13) },
       costs: {
         wine_cents: cost("bf_c_wine", prevBf.costs.wine_cents),
         shipping_box_cents: cost("bf_c_box", prevBf.costs.shipping_box_cents),

@@ -24,13 +24,15 @@ export type BfOffer = {
   /** Page path after /{locale}/black-friday ("" = the main page). */
   path: string;
   locales: readonly BfLocale[];
+  /** Delivery countries it can sell to (while open in Settings → Black Friday). */
+  countries: readonly Country[];
   contentName: string;
   productName: Record<BfLocale, string>;
 };
 export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
-  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: BF_LOCALES, contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Douro-Weine" } },
-  burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
-  poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
+  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: BF_LOCALES, countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Douro-Weine" } },
+  burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
+  poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
 };
 export const BF_OFFER_IDS = Object.keys(BF_OFFERS) as BfOfferId[];
 /** Short names in the admin (Orders, Funnel filters). */
@@ -98,7 +100,8 @@ export const bfProductName = (locale: Locale, bundleKey?: string | null) => {
 export const bfHref = (locale: BfLocale, offer: BfOffer = BF_OFFERS.douro6) => `/${locale}/black-friday${offer.path ? `/${offer.path}` : ""}`;
 
 /** Delivery countries an offer sells to (of the open Black Friday countries). */
-export const bfOfferCountries = (offer: BfOffer, countries: readonly Country[]): Country[] => countries.filter((c) => offer.locales.includes(bfLocaleFor(c) as BfLocale));
+/** Portugal too (16/11/2026, David): a Spanish-page buyer may send the box to a Portuguese address. */
+export const bfOfferCountries = (offer: BfOffer, countries: readonly Country[]): Country[] => countries.filter((c) => offer.countries.includes(c));
 
 /** Black Friday language for a delivery country (the page only speaks German and Spanish). */
 export const bfLocaleFor = (country: string | null | undefined): BfLocale | null => (country === "ES" ? "es" : country === "DE" || country === "AT" || country === "LU" || country === "CH" ? "de" : null);
