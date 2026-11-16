@@ -286,6 +286,38 @@ export const ABOUT_COPY: Record<Locale, Copy> = {
 };
 
 /** "About us" opened from the Black Friday page: the Galhofa box instead of the Christmas Trilogia, and back to the offer. */
+/** The other Black Friday offers (Spain): About opened from their page (?from=bf-espumoso, ?from=bf-poco-do-canto). */
+export const ABOUT_BF_OFFER: Record<string, { es: { winesH: string; wines: string; winesAlt: string; boxH: string; box: string; boxAlt: string; cta: string; winesImg: string; boxImg: string; path: string } }> = {
+  "bf-espumoso": {
+    es: {
+      winesH: "El espumoso de nuestra caja de Black Friday",
+      wines: "La caja trae tres botellas de D. Graça Espumante Bruto, espumoso del Douro. Para brindar en Navidad y Nochevieja.",
+      winesAlt: "Botellas de espumoso D. Graça Bruto",
+      boxH: "Envío",
+      box: "Preparamos tu caja con protección para cada botella y la recibes en 2 días laborables, con seguimiento.",
+      boxAlt: "El valle del Douro",
+      cta: "Ver la oferta de Black Friday",
+      winesImg: "/lp/bf/espumoso-hero.webp",
+      boxImg: "/lp/bf/story-douro.webp",
+      path: "espumoso",
+    },
+  },
+  "bf-poco-do-canto": {
+    es: {
+      winesH: "El vino de nuestra caja de Black Friday",
+      wines: "La caja trae seis botellas de Poço do Canto Palhete 2019, un tinto del Douro de estilo tradicional.",
+      winesAlt: "Caja de seis botellas de Poço do Canto Palhete 2019",
+      boxH: "Envío",
+      box: "Preparamos tu caja con protección para cada botella y la recibes en 2 días laborables, con seguimiento.",
+      boxAlt: "El valle del Douro",
+      cta: "Ver la oferta de Black Friday",
+      winesImg: "/lp/bf/poco-hero.webp",
+      boxImg: "/lp/bf/story-douro.webp",
+      path: "poco-do-canto",
+    },
+  },
+};
+
 export const ABOUT_BF: Partial<Record<Locale, { winesH: string; wines: string; winesAlt: string; boxH: string; box: string; boxAlt: string; cta: string }>> = {
   de: {
     winesH: "Die Weine in unserer Black-Friday-Box",

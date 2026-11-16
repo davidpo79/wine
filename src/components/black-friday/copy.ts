@@ -4,7 +4,7 @@ import { bfOfferFor, type BfLocale, type BfOfferId } from "@/lib/black-friday";
 
 export type BfCopy = {
   /** Photos of the offer: hero (with its size), the cut-out used on the 1/2/3 options and in "To your home". */
-  images: { hero: string; heroW: number; heroH: number; cut: string; cutIsPhoto?: boolean };
+  images: { hero: string; heroW: number; heroH: number; cut: string; cutIsPhoto?: boolean; who?: string };
   metaTitle: string;
   metaDescription: string;
   topBar: string;
@@ -256,7 +256,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   burbujas: {
     es: {
       ...ES,
-      images: { hero: "/lp/bf/espumoso-hero.webp", heroW: 940, heroH: 591, cut: "/lp/bf/espumoso-bottle.webp", cutIsPhoto: true },
+      images: { hero: "/lp/bf/espumoso-hero.webp", heroW: 940, heroH: 591, cut: "/lp/bf/espumoso-bottle.webp", cutIsPhoto: true, who: "/lp/bf/story-douro.webp" },
+      who: { ...ES.who, alt: "El valle del Douro" },
       metaTitle: "Black Friday · 3 espumosos del Douro por 90 € con envío gratis",
       metaDescription: "Colección de burbujas: 3 botellas de espumoso D. Graça Bruto del Douro, directas del productor. 90 € la caja de 3, impuestos incluidos y envío gratis. Solo hasta el {date}.",
       sub: "Colección de burbujas: 3 botellas de espumoso brut del Douro",
@@ -307,7 +308,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   poco: {
     es: {
       ...ES,
-      images: { hero: "/lp/bf/poco-hero.webp", heroW: 921, heroH: 850, cut: "/lp/bf/poco-cut.webp" },
+      images: { hero: "/lp/bf/poco-hero.webp", heroW: 921, heroH: 850, cut: "/lp/bf/poco-cut.webp", who: "/lp/bf/story-douro.webp" },
+      who: { ...ES.who, alt: "El valle del Douro" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 por 55 € con envío gratis",
       metaDescription: "Caja de 6 botellas de Poço do Canto Palhete 2019, vino tinto del Douro. 55 € la caja, impuestos incluidos y envío gratis. Solo 500 cajas, hasta el {date}.",
       sub: "Poço do Canto Palhete 2019 · vino tinto del Douro",

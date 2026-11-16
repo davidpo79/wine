@@ -69,6 +69,8 @@ export function BlackFridayPage({
   const offer = BF_OFFERS[offerId];
   const perBoxBottles = offer.bottlesPerBox;
   const img = copy.images;
+  // The About page opened from here shows this offer (its wine and photos), not the Douro box.
+  const aboutFrom = offer.path ? `bf-${offer.path}` : "bf";
   const [open, setOpen] = useState(openAtLoad);
   const [key, setKey] = useState(bundles.find((b) => b.qty === 2)?.key ?? bundles[0]?.key);
   const [going, setGoing] = useState(false);
@@ -274,7 +276,7 @@ export function BlackFridayPage({
             {copy.evening.map((e) => (
               <div key={e.when} className="bf-eve">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.img} alt="" aria-hidden="true" loading="lazy" className={offerId === "douro6" ? undefined : "bf-evephoto"} />
+                <img src={e.img} alt="" aria-hidden="true" loading="lazy" className={offerId === "douro6" ? undefined : e.img === img.cut ? "bf-evephoto bf-evephoto-tall" : "bf-evephoto"} />
                 <div>
                   <p className="bf-evewhen">{e.when}</p>
                   <h3>{e.wine}</h3>
@@ -344,7 +346,7 @@ export function BlackFridayPage({
       <section className="bf-section bf-who">
         <div className="bf-wrap bf-whogrid">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/lp/bf/who-warehouse.webp" alt={copy.who.alt} loading="lazy" />
+          <img src={img.who ?? "/lp/bf/who-warehouse.webp"} alt={copy.who.alt} loading="lazy" />
           <div>
             <h2>{copy.whoTitle}</h2>
             <p>{copy.who.p1}</p>
@@ -354,7 +356,7 @@ export function BlackFridayPage({
               <br />
               {SITE.email} · WhatsApp {SITE.whatsapp}
             </p>
-            <a className="bf-wholink" href={`${aboutHref(isBfLocale(locale) ? locale : "de")}?from=bf`}>
+            <a className="bf-wholink" href={`${aboutHref(isBfLocale(locale) ? locale : "de")}?from=${aboutFrom}`}>
               {copy.who.about} →
             </a>
           </div>
@@ -376,7 +378,7 @@ export function BlackFridayPage({
       <footer className="bf-footer">
         <div className="bf-wrap">
           <p>
-            <a href={legalHref("terms", locale)}>{copy.legal.terms}</a> · <a href={legalHref("privacy", locale)}>{copy.legal.privacy}</a> · <a href={legalHref("shipping", locale)}>{copy.legal.shipping}</a> · <a href={`${aboutHref(locale)}?from=bf`}>{copy.legal.about}</a>
+            <a href={legalHref("terms", locale)}>{copy.legal.terms}</a> · <a href={legalHref("privacy", locale)}>{copy.legal.privacy}</a> · <a href={legalHref("shipping", locale)}>{copy.legal.shipping}</a> · <a href={`${aboutHref(locale)}?from=${aboutFrom}`}>{copy.legal.about}</a>
           </p>
           <p className="bf-small">{copy.footer18}</p>
           <p className="bf-small">© Wine Portugal · wine-portugal.com</p>
