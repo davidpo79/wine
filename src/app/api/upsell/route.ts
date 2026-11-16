@@ -5,7 +5,7 @@ import { db, schema } from "@/db";
 import { getCatalog, paidBoxes } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { loadDraft } from "@/lib/draft";
-import { findOffer } from "@/lib/upsell";
+import { bfCrossOffer, findOffer } from "@/lib/upsell";
 import { startAddonPayment, upsellMode } from "@/lib/payments";
 import { logOrderEvent } from "@/lib/orders";
 import { SITE } from "@/lib/site";
@@ -19,7 +19,8 @@ export async function POST(req: Request) {
   if (!order || !["paid", "preparing"].includes(order.status) || !upsellMode(order)) return Response.json({ error: apiErrorsFor(order).offerGone }, { status: 409 });
   const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
   if (!settings.upsell_enabled || !catalog) return Response.json({ error: apiErrorsFor(order).offerUnavailable }, { status: 409 });
-  const offer = findOffer(parsed.data.offer, order, catalog.bundles, settings);
+  const bfx = bfCrossOffer(order);
+  const offer = bfx && bfx.key === parsed.data.offer ? bfx : findOffer(parsed.data.offer, order, catalog.bundles, settings);
   if (!offer) return Response.json({ error: apiErrorsFor(order).offerUnavailable }, { status: 404 });
   const sku = offer.kind === "boxes" ? "trilogia-2160" : offer.sku;
   const existing = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.sku, sku), inArray(schema.orderAddons.status, ["paid"])));

@@ -2,13 +2,14 @@
 // Never overwrites values edited in the admin.
 import "./load-env";
 import { sql as pg, db, schema } from "../src/db";
+import type { WineItem } from "../src/db/schema";
 import { DEFAULT_SETTINGS } from "../src/lib/settings-defaults";
-import { BF_BUNDLES, BF_PRODUCT_SLUG } from "../src/lib/black-friday";
+import { BF_BUNDLES, BF_OFFER_BUNDLES, BF_OFFERS, BF_PRODUCT_SLUG, BF_SLUGS } from "../src/lib/black-friday";
 import { hash } from "@node-rs/argon2";
 import { createHash } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { eq, notInArray, sql } from "drizzle-orm";
 
-const [existing] = await db.select().from(schema.products).where(sql`${schema.products.slug} <> ${BF_PRODUCT_SLUG}`).limit(1);
+const [existing] = await db.select().from(schema.products).where(notInArray(schema.products.slug, BF_SLUGS)).limit(1);
 let productId = existing?.id;
 if (!productId) {
   const [p] = await db
@@ -52,7 +53,7 @@ if (!bf) {
       shortDescription: "Caixa de 6 vinhos do Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha e Espanha, envio do armazém na Bélgica.",
       wines: [
         { name: "Galhofa Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
-        { name: "D. Graça Branco", vintage: "2025", type: "branco", producer: "Douro" },
+        { name: "Galhofa Branco", vintage: "2025", type: "branco", producer: "Douro" },
         { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
       ],
       images: [],
@@ -64,6 +65,35 @@ await db
   .insert(schema.bundles)
   .values(BF_BUNDLES.map((b) => ({ ...b, productId: bf.id })))
   .onConflictDoNothing();
+
+// Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
+const OFFER_PRODUCTS: Record<"burbujas" | "poco", { name: string; shortDescription: string; wines: WineItem[] }> = {
+  burbujas: {
+    name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
+    shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
+    wines: [{ name: "D. Graça Espumante Bruto", vintage: "", type: "branco", producer: "Douro" }],
+  },
+  poco: {
+    name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas",
+    shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Espanha.",
+    wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
+  },
+};
+for (const id of ["burbujas", "poco"] as const) {
+  const slug = BF_OFFERS[id].slug;
+  let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
+  if (!p) {
+    [p] = await db
+      .insert(schema.products)
+      .values({ slug, ...OFFER_PRODUCTS[id], images: [] })
+      .returning();
+    console.log(`black friday product created: ${slug}`);
+  }
+  await db
+    .insert(schema.bundles)
+    .values(BF_OFFER_BUNDLES[id].map((b) => ({ ...b, productId: p.id })))
+    .onConflictDoNothing();
+}
 
 await db
   .insert(schema.settings)

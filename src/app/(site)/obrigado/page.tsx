@@ -70,7 +70,7 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
         {paid ? tx.confirmed : processing ? (p?.method === "mbway" ? tx.confirmMbway : tx.confirming) : tx.pending}
       </h1>
       <p className="mt-2 text-lg text-ink">
-        <Rich s={isBfBundle(order.bundleKey) ? tx.orderLine.replace("Trilogia 2160", bfProductName(locale)) : tx.orderLine} vars={{ id: order.id, boxes, total: eur(order.totalCents) }} />
+        <Rich s={isBfBundle(order.bundleKey) ? tx.orderLine.replace("Trilogia 2160", bfProductName(locale, order.bundleKey)) : tx.orderLine} vars={{ id: order.id, boxes, total: eur(order.totalCents) }} />
       </p>
       {addons.length > 0 && (
         <ul className="mt-2 space-y-1 text-sm text-ink">

@@ -16,6 +16,7 @@ import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/rich";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
 import { MARKETS, PHONE_OPTIONAL, type Country } from "@/lib/markets";
+import { contentIdFor } from "@/lib/black-friday";
 
 type BundleOpt = {
   key: string;
@@ -137,9 +138,10 @@ export function CheckoutPage({
   const t = d.checkout;
   const bf = !!product?.bf;
   const guide = guideSetting && !bf; // the recipe guide comes with the Christmas Trilogia only
-  const contentId = bf ? "black-friday-douro-6" : "trilogia-2160";
-  // A Black Friday checkout is saved apart from a Trilogia one (they are different orders).
-  const DRAFT_KEY = draftKey(locale) + (bf ? "_bf" : "");
+  const bfPrefix = bf ? (product?.defaultKey ?? "bf").replace(/\d+$/, "") : "";
+  const contentId = bf ? contentIdFor(product?.defaultKey) : "trilogia-2160";
+  // A Black Friday checkout is saved apart from a Trilogia one, and each offer apart from the others (different orders).
+  const DRAFT_KEY = draftKey(locale) + (bf ? `_${bfPrefix}` : "");
   const [country, setCountry] = useState<Country>(initialCountry);
   const market = MARKETS[country];
   // The printed card is made in Portugal: offered for parcels from the Douro only.

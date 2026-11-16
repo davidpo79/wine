@@ -7,7 +7,7 @@ import { flushJourney, jlog } from "@/lib/journey-client";
 import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/rich";
 import { aboutHref, legalHref } from "@/lib/i18n/paths";
-import { BF_PRODUCT_SLUG, bfHref, isBfLocale } from "@/lib/black-friday";
+import { BF_OFFERS, bfHref, isBfLocale, type BfOfferId } from "@/lib/black-friday";
 import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
 import { SITE } from "@/lib/site";
@@ -49,6 +49,7 @@ function Countdown({ cutoffIso, units, onEnd }: { cutoffIso: string; units: BfCo
 }
 
 export function BlackFridayPage({
+  offer: offerId = "douro6",
   copy,
   bundles,
   cutoffIso,
@@ -56,6 +57,7 @@ export function BlackFridayPage({
   deliveryDays,
   open: openAtLoad,
 }: {
+  offer?: BfOfferId;
   copy: BfCopy;
   bundles: BfBundle[];
   cutoffIso: string;
@@ -64,6 +66,9 @@ export function BlackFridayPage({
   open: boolean;
 }) {
   const { locale, country, money, moneyShort } = useI18n();
+  const offer = BF_OFFERS[offerId];
+  const perBoxBottles = offer.bottlesPerBox;
+  const img = copy.images;
   const [open, setOpen] = useState(openAtLoad);
   const [key, setKey] = useState(bundles.find((b) => b.qty === 2)?.key ?? bundles[0]?.key);
   const [going, setGoing] = useState(false);
@@ -73,7 +78,7 @@ export function BlackFridayPage({
   const t = (s: string) => fmt(s, v);
 
   useEffect(() => {
-    if (selected) track("ViewContent", { content_ids: [BF_PRODUCT_SLUG], content_type: "product", value: selected.priceCents / 100, currency: "EUR" });
+    if (selected) track("ViewContent", { content_ids: [offer.slug], content_type: "product", value: selected.priceCents / 100, currency: "EUR" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -82,34 +87,34 @@ export function BlackFridayPage({
     setKey(k);
     const b = bundles.find((x) => x.key === k);
     if (b) track("SelectBundle", { bundle_key: b.key, value: b.priceCents / 100, currency: "EUR" });
-    jlog("bundle_select", { bundle: k, where: "black_friday" });
+    jlog("bundle_select", { bundle: k, where: `black_friday${offer.path ? `_${offer.path}` : ""}` });
   };
 
   const buy = () => {
     if (!selected || !open || going) return;
     setGoing(true);
-    track("AddToCart", { content_ids: [BF_PRODUCT_SLUG], content_type: "product", value: selected.priceCents / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
-    jlog("click", { label: "checkout_cta", bundle: selected.key, where: "black_friday" });
+    track("AddToCart", { content_ids: [offer.slug], content_type: "product", value: selected.priceCents / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
+    jlog("click", { label: "checkout_cta", bundle: selected.key, where: `black_friday${offer.path ? `_${offer.path}` : ""}` });
     flushJourney();
     location.assign(`/checkout?b=${encodeURIComponent(selected.key)}&l=${locale}&c=${country}`);
   };
 
-  const hrefFor = useMemo(() => (l: string) => (isBfLocale(l) ? bfHref(l) : `/${l}`), []);
+  const hrefFor = useMemo(() => (l: string) => (isBfLocale(l) ? bfHref(l, offer) : `/${l}`), [offer]);
   const priceLabel = selected ? money(selected.priceCents) : "";
 
   const picker = (
     <div className="bf-bundles" role="radiogroup" aria-label={copy.cta.replace(" · {price}", "")}>
       {bundles.map((b) => {
-        const info = copy.bundles[b.key] ?? { title: `${b.qty}×`, bottles: `${b.qty * 6}` };
+        const info = copy.bundles[b.key] ?? { title: `${b.qty}×`, bottles: `${b.qty * perBoxBottles}` };
         const perBox = Math.round(b.priceCents / b.qty);
         const vsOne = single && b.qty > 1 ? single.priceCents * b.qty - b.priceCents : 0;
         return (
           <button key={b.key} type="button" role="radio" aria-checked={b.key === key} className="bf-bundle" data-qty={b.qty} onClick={() => choose(b.key)}>
             {info.badge ? <span className="bf-badge">{info.badge}</span> : <span className="bf-badge bf-badge-empty" aria-hidden="true" />}
-            <span className="bf-bimg" data-qty={Math.min(b.qty, 3)} aria-hidden="true">
+            <span className={`bf-bimg${img.cutIsPhoto ? " bf-bimg-photo" : ""}`} data-qty={Math.min(b.qty, 3)} aria-hidden="true">
               {Array.from({ length: Math.min(b.qty, 3) }, (_, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src="/lp/bf/bottles-cut.webp" alt="" loading="lazy" />
+                <img key={i} src={img.cut} alt="" loading="lazy" />
               ))}
             </span>
             <span className="bf-btitle">{info.title}</span>
@@ -124,7 +129,7 @@ export function BlackFridayPage({
             <span className="bf-price">{money(b.priceCents)}</span>
             <span className="bf-per">
               {b.qty > 1 ? fmt(copy.perBox, { per: money(perBox) }) + " · " : ""}
-              {fmt(copy.perBottle, { per: money(Math.round(b.priceCents / (b.qty * 6))) })}
+              {fmt(copy.perBottle, { per: money(Math.round(b.priceCents / (b.qty * perBoxBottles))) })}
             </span>
             <span className="bf-save">{vsOne > 0 ? fmt(copy.vsOne, { save: moneyShort(vsOne) }) : b.compareAtCents && b.compareAtCents > b.priceCents ? fmt(copy.youSave, { save: moneyShort(b.compareAtCents - b.priceCents) }) : ""}</span>
             <span className="bf-radio" aria-hidden="true" />
@@ -138,7 +143,7 @@ export function BlackFridayPage({
     <div className="bf">
       <div className="bf-top">{t(copy.topBar)}</div>
       <header className="bf-nav bf-wrap">
-        <a href={bfHref(isBfLocale(locale) ? locale : "de")} className="bf-logo" aria-label="Wine Portugal">
+        <a href={bfHref(isBfLocale(locale) ? locale : "de", offer)} className="bf-logo" aria-label="Wine Portugal">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo-light.svg" alt="Wine Portugal" width={961} height={300} />
         </a>
@@ -163,7 +168,7 @@ export function BlackFridayPage({
           <div className="bf-herogrid">
           <div className="bf-heroimg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="bf-bottles" src="/lp/bf/bottles.webp" alt={copy.productName} width={1200} height={712} fetchPriority="high" />
+            <img className={`bf-bottles${img.heroH > img.heroW ? " bf-bottles-tall" : ""}`} src={img.hero} alt={copy.productName} width={img.heroW} height={img.heroH} fetchPriority="high" />
             <div className="bf-shipstamp">
               <span aria-hidden="true">🚚</span>
               <b>{copy.freeShip.big}</b>
@@ -232,11 +237,14 @@ export function BlackFridayPage({
       <section className="bf-section bf-wines">
         <div className="bf-wrap">
           <h2>{copy.winesTitle}</h2>
-          <div className="bf-winegrid">
+          <div className={`bf-winegrid${copy.wines.length === 1 ? " bf-winegrid-one" : ""}`}>
             {copy.wines.map((w) => (
               <article key={w.name} className="bf-wine">
                 <div className="bf-wineimg">
-                  {w.img ? (
+                  {w.img && w.photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="bf-winephoto" src={w.img} alt={w.name} loading="lazy" />
+                  ) : w.img ? (
                     // The pack shots carry a baked cylinder shade and bowed label edges; a contact shadow and soft
                     // reflection ground them.
                     <span className="bf-bottle" style={{ ["--src" as string]: `url(${w.img})` }}>
@@ -266,7 +274,7 @@ export function BlackFridayPage({
             {copy.evening.map((e) => (
               <div key={e.when} className="bf-eve">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={e.img} alt="" aria-hidden="true" loading="lazy" />
+                <img src={e.img} alt="" aria-hidden="true" loading="lazy" className={offerId === "douro6" ? undefined : "bf-evephoto"} />
                 <div>
                   <p className="bf-evewhen">{e.when}</p>
                   <h3>{e.wine}</h3>
@@ -278,14 +286,16 @@ export function BlackFridayPage({
         </div>
       </section>
 
-      <section className="bf-section bf-producer">
-        <div className="bf-wrap">
-          <h2>{copy.producer.title}</h2>
-          <p className="bf-producer-p">{copy.producer.p}</p>
-          <ProducerVideo locale={locale} label={copy.producer.label} base="/video/producer/pedro-douro" wideOnly />
-          <p className="bf-producer-note">{copy.producer.note}</p>
-        </div>
-      </section>
+      {copy.producer && (
+        <section className="bf-section bf-producer">
+          <div className="bf-wrap">
+            <h2>{copy.producer.title}</h2>
+            <p className="bf-producer-p">{copy.producer.p}</p>
+            <ProducerVideo locale={locale} label={copy.producer.label} base="/video/producer/pedro-douro" wideOnly />
+            <p className="bf-producer-note">{copy.producer.note}</p>
+          </div>
+        </section>
+      )}
 
       <section className="bf-section bf-story">
         <div className="bf-wrap">
@@ -293,7 +303,7 @@ export function BlackFridayPage({
           <ol className="bf-storygrid">
             {copy.story.map((s, i) => (
               <li key={s.h} className="bf-storystep">
-                <span className={`bf-storyimg${s.img.includes("bottles") ? " bf-storyimg-bottles" : ""}`}>
+                <span className={`bf-storyimg${s.img === img.cut && !img.cutIsPhoto ? " bf-storyimg-bottles" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.img} alt="" aria-hidden="true" loading="lazy" />
                   <b>{i + 1}</b>

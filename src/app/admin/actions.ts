@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { bfCostsFor } from "@/lib/black-friday";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -303,6 +304,12 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
         handling_cents: cost("bf_c_handling", prevBf.costs.handling_cents),
         delivery_cents: cost("bf_c_delivery", prevBf.costs.delivery_cents),
       },
+      offer_costs: Object.fromEntries(
+        (["burbujas", "poco"] as const).map((id) => {
+          const old = bfCostsFor(prevBf, id);
+          return [id, { wine_cents: cost(`bf_${id}_wine`, old.wine_cents), shipping_box_cents: cost(`bf_${id}_box`, old.shipping_box_cents), transport_cents: cost(`bf_${id}_transport`, old.transport_cents), handling_cents: cost(`bf_${id}_handling`, old.handling_cents), delivery_cents: cost(`bf_${id}_delivery`, old.delivery_cents) }];
+        }),
+      ),
     });
   }
   revalidatePath("/admin/settings");

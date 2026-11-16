@@ -17,7 +17,7 @@ import { getSettings } from "./settings";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { bfProductName, bottlesPerBox, isBfBundle, isBfLocale } from "./black-friday";
-import { BF_COPY } from "@/components/black-friday/copy";
+import { bfCopyForBundle } from "@/components/black-friday/copy";
 
 const localeOf = (o: Pick<Order, "locale"> | null): Locale => (o && isLocale(o.locale) ? o.locale : "pt");
 /** Dictionary strings use <b>/<em>; email HTML keeps them as they are. */
@@ -60,7 +60,7 @@ function orderSummary(o: Order, addons: (Pick<OrderAddon, "label" | "amountCents
   const total = o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0);
   const lines = [
     `<strong>${fmt(t.order, { id: esc(o.id) })}</strong>`,
-    fmt(t.product, { boxes: o.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: o.qtyBoxes }), bottles: o.qtyBoxes * bottlesPerBox(o.bundleKey) }).replace("Trilogia 2160", isBfBundle(o.bundleKey) ? bfProductName(locale) : "Trilogia 2160"),
+    fmt(t.product, { boxes: o.qtyBoxes === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n: o.qtyBoxes }), bottles: o.qtyBoxes * bottlesPerBox(o.bundleKey) }).replace("Trilogia 2160", isBfBundle(o.bundleKey) ? bfProductName(locale, o.bundleKey) : "Trilogia 2160"),
     ...addons.map((a) => `+ ${esc(addonLabel(o, a, locale))}: ${eur(a.amountCents)}`),
     fmt(t.subtotalLine, { subtotal: eur(o.subtotalCents + addons.reduce((n, a) => n + a.amountCents, 0)), shipping: o.shippingCents ? eur(o.shippingCents) : t.shippingIncluded }),
     html_(fmt(t.totalLine, { total: eur(total) })),
@@ -79,7 +79,7 @@ async function send(o: Order | null, to: string, subject0: string, html0: string
   // Black Friday orders: the header names the offer instead of the Christmas Trilogia.
   let subject = subject0;
   const bfOrder = !!o && isBfBundle(o.bundleKey);
-  const html = bfOrder ? html0.replace("Trilogia 2160</td>", "Black Friday</td>").replaceAll("Trilogia 2160", bfProductName(localeOf(o!))) : html0;
+  const html = bfOrder ? html0.replace("Trilogia 2160</td>", "Black Friday</td>").replaceAll("Trilogia 2160", bfProductName(localeOf(o!), o!.bundleKey)) : html0;
   if (bfOrder) subject = subject.replaceAll("Trilogia 2160", "Black Friday");
   const from = process.env.EMAIL_FROM;
   const telnyx = process.env.EMAIL_PROVIDER === "telnyx";
@@ -303,7 +303,8 @@ export function orderCutoffIso(settings: Pick<Settings, "cutoff_at" | "markets" 
 export function recoveryCopy(o: Pick<Order, "bundleKey" | "locale">) {
   const locale = localeOf(o as Order);
   const t = getDict(locale).messages.recovery;
-  return isBfBundle(o.bundleKey) && isBfLocale(locale) ? { ...t, ...BF_COPY[locale].recovery } : t;
+  const bf = isBfBundle(o.bundleKey) && isBfLocale(locale) ? bfCopyForBundle(o.bundleKey, locale) : null;
+  return bf ? { ...t, ...bf.recovery } : t;
 }
 
 /** Christmas cutoff of the country a customer buys for (Admin → Settings → markets, else the global cutoff). */

@@ -1,8 +1,10 @@
 // Black Friday page copy (German and Spanish), plus the lines it lends to the checkout, emails and thank-you page.
 // {date}: cutoff day; {days}: delivery days; {price}/{per}/{save}: money already formatted.
-import type { BfLocale } from "@/lib/black-friday";
+import { bfOfferFor, type BfLocale, type BfOfferId } from "@/lib/black-friday";
 
 export type BfCopy = {
+  /** Photos of the offer: hero (with its size), the cut-out used on the 1/2/3 options and in "To your home". */
+  images: { hero: string; heroW: number; heroH: number; cut: string; cutIsPhoto?: boolean };
   metaTitle: string;
   metaDescription: string;
   topBar: string;
@@ -28,8 +30,10 @@ export type BfCopy = {
   /** The big free-shipping stamp on the hero photo. */
   freeShip: { big: string; small: string };
   winesTitle: string;
-  wines: { type: string; name: string; text: string; count: string; img: string | null }[];
-  producer: { title: string; p: string; label: string; note: string };
+  /** photo: a plain photo (no cut-out bottle with reflection). */
+  wines: { type: string; name: string; text: string; count: string; img: string | null; photo?: boolean }[];
+  /** The producer video (Pedro, Martin Boutique Wines): only on the Douro box. */
+  producer: { title: string; p: string; label: string; note: string } | null;
   storyTitle: string;
   story: { img: string; h: string; p: string }[];
   eveningTitle: string;
@@ -52,6 +56,7 @@ export type BfCopy = {
 
 export const BF_COPY: Record<BfLocale, BfCopy> = {
   es: {
+    images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp" },
     metaTitle: "Black Friday · 6 vinos del Douro por 68,50 € con envío gratis",
     metaDescription: "3 tintos, 2 blancos y 1 rosado del Douro DOC, directos del productor. 68,50 € la caja de 6, impuestos incluidos y envío gratis. Solo hasta el {date}.",
     topBar: "🔥 BLACK FRIDAY · ENVÍO GRATIS · IMPUESTOS INCLUIDOS · HASTA EL {date} 🔥",
@@ -147,6 +152,7 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
     },
   },
   de: {
+    images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp" },
     metaTitle: "Black Friday · 6 Douro-Weine für 68,50 € mit Gratisversand",
     metaDescription: "3 Rotweine, 2 Weißweine und 1 Rosé aus dem Douro DOC, direkt vom Erzeuger. 68,50 € für 6 Flaschen, inkl. MwSt. und Versand. Nur bis {date}.",
     topBar: "🔥 BLACK FRIDAY · GRATISVERSAND · INKL. MWST. · NUR BIS {date} 🔥",
@@ -241,4 +247,123 @@ export const BF_COPY: Record<BfLocale, BfCopy> = {
       smsAnon: "Wine Portugal: Ihre Black-Friday-Bestellung ({boxes}) ist noch nicht abgeschlossen. Hier geht es weiter: {link} Das Angebot endet am {cutoff}. Keine Nachrichten mehr: {stop}",
     },
   },
+};
+
+const ES = BF_COPY.es;
+
+/** Spain only (16/11/2026): the sparkling wine and the Poço do Canto pages. Shared lines come from the Douro box page. */
+export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<BfLocale, BfCopy>>> = {
+  burbujas: {
+    es: {
+      ...ES,
+      images: { hero: "/lp/bf/espumoso-hero.webp", heroW: 940, heroH: 591, cut: "/lp/bf/espumoso-bottle.webp", cutIsPhoto: true },
+      metaTitle: "Black Friday · 3 espumosos del Douro por 90 € con envío gratis",
+      metaDescription: "Colección de burbujas: 3 botellas de espumoso D. Graça Bruto del Douro, directas del productor. 90 € la caja de 3, impuestos incluidos y envío gratis. Solo hasta el {date}.",
+      sub: "Colección de burbujas: 3 botellas de espumoso brut del Douro",
+      mix: ["3 botellas", "Espumoso Bruto", "Del Douro"],
+      bundles: {
+        bfs1: { title: "1 caja", bottles: "3 botellas" },
+        bfs2: { title: "2 cajas", bottles: "6 botellas", badge: "El más elegido" },
+        bfs3: { title: "3 cajas", bottles: "9 botellas", badge: "Mejor precio" },
+      },
+      winesTitle: "Lo que hay en la caja",
+      wines: [
+        {
+          type: "Espumoso Bruto",
+          count: "× 3",
+          name: "D. Graça Espumante Bruto · Douro",
+          text: "Espumoso brut del Douro, de viñas en suelos de esquisto y granito. Fresco y elegante. Para brindar en Navidad y Nochevieja, de aperitivo o con marisco. Servir bien frío, a 6 a 8 °C.",
+          img: "/lp/bf/espumoso-bottle.webp",
+          photo: true,
+        },
+      ],
+      producer: null,
+      story: [
+        ES.story[0],
+        ES.story[1],
+        { img: "/lp/bf/story-harvest2.webp", h: "En la bodega", p: "De la uva nace un vino base fresco, que después se convierte en espumoso." },
+        { img: "/lp/bf/espumoso-bottle.webp", h: "A tu casa", p: "Preparamos tu caja con protección para cada botella y la recibes en {days} días laborables, con seguimiento." },
+      ],
+      eveningTitle: "Tres momentos para brindar",
+      evening: [
+        { when: "Black Friday", wine: "La primera botella", img: "/lp/bf/espumoso-bottle.webp", p: "Para estrenar la caja con algo para picar." },
+        { when: "Nochebuena", wine: "La segunda", img: "/lp/bf/espumoso-bottle.webp", p: "Con el marisco o de aperitivo antes de la cena." },
+        { when: "Nochevieja", wine: "La tercera", img: "/lp/bf/espumoso-bottle.webp", p: "Para las doce campanadas." },
+      ],
+      why: [
+        { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. El espumoso sale de la bodega del Douro y llega a tu casa." },
+        { h: "Del Douro", p: "Espumoso del valle del Douro, la región vinícola demarcada más antigua del mundo." },
+        { h: "Solo por Black Friday", p: "La mitad del precio habitual, con envío incluido. Cuando termine la cuenta atrás, termina la oferta." },
+      ],
+      how: ["Eliges 1, 2 o 3 cajas y pagas de forma segura.", "Preparamos tu pedido con protección para cada botella.", "Lo recibes en casa en {days} días laborables, con número de seguimiento."],
+      productName: "Black Friday · 3 espumosos D. Graça Bruto",
+      trust: ["🍾 3 botellas de espumoso brut · Douro", "🚚 Envío gratis con seguimiento · {days} días laborables · pedidos hasta el {date}", "🔒 Pago seguro con Stripe · no guardamos los datos de tu tarjeta", "↩️ ¿Botella rota? La reponemos gratis · 14 días para desistir", "💬 ¿Dudas? WhatsApp +351 910 348 577"],
+      recovery: {
+        ...ES.recovery,
+        titleFirst: "Tus 3 espumosos del Douro te esperan",
+      },
+    },
+  },
+  poco: {
+    es: {
+      ...ES,
+      images: { hero: "/lp/bf/poco-hero.webp", heroW: 921, heroH: 850, cut: "/lp/bf/poco-cut.webp" },
+      metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 por 55 € con envío gratis",
+      metaDescription: "Caja de 6 botellas de Poço do Canto Palhete 2019, vino tinto del Douro. 55 € la caja, impuestos incluidos y envío gratis. Solo 500 cajas, hasta el {date}.",
+      sub: "Poço do Canto Palhete 2019 · vino tinto del Douro",
+      mix: ["6 botellas", "Cosecha 2019", "Solo 500 cajas"],
+      bundles: {
+        bfp1: { title: "1 caja", bottles: "6 botellas" },
+        bfp2: { title: "2 cajas", bottles: "12 botellas", badge: "El más elegido" },
+        bfp3: { title: "3 cajas", bottles: "18 botellas", badge: "Mejor precio" },
+      },
+      winesTitle: "Lo que hay en la caja",
+      wines: [
+        {
+          type: "Tinto · Palhete",
+          count: "× 6",
+          name: "Poço do Canto Palhete 2019 · Douro",
+          text: "El palhete es un estilo tradicional del Douro: uvas tintas y blancas que fermentan juntas. Un tinto de color claro, fresco y fácil de beber. Para la comida de cada día, tapas, carnes a la brasa y quesos. Servir a 14 a 16 °C.",
+          img: "/lp/bf/poco-hero.webp",
+          photo: true,
+        },
+      ],
+      producer: null,
+      story: [
+        ES.story[0],
+        ES.story[1],
+        { img: "/lp/bf/story-harvest2.webp", h: "En la bodega", p: "Uvas tintas y blancas fermentan juntas, como se ha hecho siempre en el Douro para el palhete." },
+        { img: "/lp/bf/poco-cut.webp", h: "A tu casa", p: "Preparamos tu caja con protección para cada botella y la recibes en {days} días laborables, con seguimiento." },
+      ],
+      eveningTitle: "Para cada ocasión",
+      evening: [
+        { when: "Entre semana", wine: "Con la cena", img: "/lp/bf/poco-hero.webp", p: "Un tinto ligero para la comida de cada día." },
+        { when: "El fin de semana", wine: "Con amigos", img: "/lp/bf/poco-hero.webp", p: "Con tapas, embutidos y queso." },
+        { when: "En Navidad", wine: "En la mesa", img: "/lp/bf/poco-hero.webp", p: "Con asados y carnes a la brasa." },
+      ],
+      why: [
+        { h: "Del productor a tu puerta", p: "Sin distribuidores ni tiendas en medio. El vino sale del Douro y llega a tu casa." },
+        { h: "Cosecha 2019", p: "Un tinto de 2019, listo para beber." },
+        { h: "Solo 500 cajas", p: "Una cantidad limitada para Black Friday, con envío incluido. Cuando se acaben o termine la cuenta atrás, termina la oferta." },
+      ],
+      how: ["Eliges 1, 2 o 3 cajas y pagas de forma segura.", "Preparamos tu pedido con protección para cada botella.", "Lo recibes en casa en {days} días laborables, con número de seguimiento."],
+      productName: "Black Friday · 6 Poço do Canto Palhete 2019",
+      trust: ["🍷 6 botellas de Poço do Canto Palhete 2019 · Douro", "🚚 Envío gratis con seguimiento · {days} días laborables · pedidos hasta el {date}", "🔒 Pago seguro con Stripe · no guardamos los datos de tu tarjeta", "↩️ ¿Botella rota? La reponemos gratis · 14 días para desistir", "💬 ¿Dudas? WhatsApp +351 910 348 577"],
+      recovery: {
+        ...ES.recovery,
+        titleFirst: "Tus 6 Poço do Canto te esperan",
+      },
+    },
+  },
+};
+
+/** The copy of an offer in a language (null: the offer is not sold in that language). */
+export function bfCopyFor(offer: BfOfferId, locale: BfLocale): BfCopy | null {
+  return offer === "douro6" ? BF_COPY[locale] : (BF_OFFER_COPY[offer][locale] ?? null);
+}
+
+/** The copy of an order's offer (emails, reminders, checkout). */
+export const bfCopyForBundle = (bundleKey: string | null | undefined, locale: BfLocale) => {
+  const o = bfOfferFor(bundleKey);
+  return o ? bfCopyFor(o.id, locale) : null;
 };
