@@ -132,17 +132,25 @@ export async function createCttxLabel(o: Order, by: string) {
   const boxes = o.qtyBoxes + (extra?.n ?? 0);
   const parcels = parcelsForBoxes(boxes, c.boxesPerParcel);
   try {
-    const r = await cttxCreateShipment(
-      {
+    const shipment = {
         reference: o.id,
         subProduct: c.subProduct,
         parcels,
         weightG: boxes * c.boxWeightG,
         observations: `Vinho em garrafas: frágil${parcels > 1 ? ` · ${parcels} volumes` : ""}`,
         receiver: { name: a.name || o.customerName || "", address: [a.line1, a.line2].filter(Boolean).join(", "), postalCode: a.postal_code ?? "", city: a.city ?? "", country, email: o.email, phone: o.phone },
-      },
-      c,
-    );
+      };
+    let r;
+    try {
+      r = await cttxCreateShipment(shipment, c);
+    } catch (e) {
+      // The contract may not include the "Fragil" special service for this product (CTT, 16/11/2026: "Special Service
+      // Fragil is not valid for the following Client ... and Product EMSF057.01"): create the label without it; the
+      // observations still say the parcel holds bottles.
+      if (!c.fragile || !/Special Service\s+Fragil\s+is not valid/i.test(e instanceof Error ? e.message : String(e))) throw e;
+      r = await cttxCreateShipment(shipment, { ...c, fragile: false });
+      await logOrderEvent(o.id, "ctt_fragile_skipped", { by, reason: "not in the CTT contract for this product" });
+    }
     const values = {
       provider: "cttx",
       carrierName: "CTT Expresso",

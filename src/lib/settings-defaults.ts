@@ -139,7 +139,7 @@ export const DEFAULT_SETTINGS: Settings = {
     vat_percent: { DE: 19, ES: 21, PT: 13 }, // Portugal: wine 13% (as the Christmas box)
     costs: { wine_cents: 1500, shipping_box_cents: 300, transport_cents: 250, handling_cents: 200, delivery_cents: 650 },
   },
-  ctt_fragile: true,
+  ctt_fragile: false, // off (David, 16/11/2026): the CTT contract does not include "Fragil" for EMSF057.01
   ctt_sender: { name: "Wine Portugal", contact: "", address: "", postalCode: "", city: "", phone: "", email: "" },
   cost_model: {
     vat_percent: 13,
