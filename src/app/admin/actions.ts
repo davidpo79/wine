@@ -19,7 +19,7 @@ import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc, zonedToUtc } from "@/lib/time";
-import { COUNTRIES, isLocale } from "@/lib/markets";
+import { COUNTRIES, MARKETS, isCountry, isLocale } from "@/lib/markets";
 import { ebookKey, guideFor } from "@/lib/ebook";
 
 export type FormState = { error?: string; ok?: string } | undefined;
@@ -75,6 +75,26 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         if ("error" in r) return { error: r.error };
         revalidatePath(`/admin/orders/${id}`);
         return { ok: r.trackingId ? `Label ready · tracking ${r.trackingId}` : "Label ready." };
+      }
+      case "edit_customer": {
+        // Fix what the customer typed (a wrong phone or postal code stops the CTT label). Logged with the old values.
+        const v = (k: string, max = 200) => String(fd.get(k) ?? "").trim().slice(0, max);
+        const country = v("country", 2).toUpperCase();
+        if (!isCountry(country)) return { error: "Unknown country." };
+        const postal = v("postal_code", 12);
+        if (postal && !MARKETS[country].postal.test(postal)) return { error: `Postal code "${postal}" is not valid for ${country} (e.g. ${MARKETS[country].postalExample}).` };
+        const phone = v("phone", 30).replace(/[^\d+]/g, "");
+        if (phone && !/^\+?\d{8,15}$/.test(phone)) return { error: "Invalid phone number (international format, e.g. +34612345678)." };
+        const email = v("email", 200).toLowerCase();
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Invalid email." };
+        const before = { name: o.customerName, email: o.email, phone: o.phone, nif: o.nif, address: o.shippingAddress };
+        const address = { ...(o.shippingAddress ?? {}), name: v("name") || null, line1: v("line1") || null, line2: v("line2") || null, postal_code: postal || null, city: v("city", 100) || null, country };
+        await db
+          .update(schema.orders)
+          .set({ customerName: v("name") || o.customerName, email: email || o.email, phone: phone || null, nif: v("nif", 20) || null, shippingAddress: address, country })
+          .where(eq(schema.orders.id, id));
+        await logOrderEvent(id, "customer_edited", { ...by, before, after: { name: v("name"), email, phone, nif: v("nif", 20), address } });
+        break;
       }
       case "note": {
         const note = String(fd.get("note") ?? "").trim().slice(0, 2000);
