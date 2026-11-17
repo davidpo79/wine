@@ -166,15 +166,20 @@ export function createShipmentXml(s: CttxShipmentInput, c: CttxConfig, requestId
   const sender = own
     ? addressXml("Sender", { ...c.sender, country: "PT" })
     : `<ctt1:SenderData>${[el("ctt1", "Address", "-"), el("ctt1", "City", "-"), el("ctt1", "Country", "PT"), el("ctt1", "Name", clip(c.sender.name, 60)), el("ctt1", "Type", "Sender")].join("")}</ctt1:SenderData>`;
+  // Outside Portugal (Spain) CTT requires the export type and the UPU content type ("O tipo de exportação é
+  // obrigatório; O tipo de produto é obrigatório", 17/11/2026): a permanent export of goods (wine sold). Intra-EU: no customs.
+  const intl = s.receiver.country !== "PT";
   const shipment = `<ctt1:ShipmentCTT><ctt1:ShipmentCTT>${[
     el("ctt1", "HasSenderInformation", own),
     addressXml("Receiver", s.receiver),
     sender,
     `<ctt1:ShipmentData>${[
       el("ctt1", "ClientReference", clip(s.reference, 21)),
+      intl ? el("ctt1", "ExportType", "Permanent") : "",
       el("ctt1", "IsDevolution", false),
       el("ctt1", "Observations", clip(s.observations, 50)),
       el("ctt1", "Quantity", Math.max(1, Math.round(s.parcels))),
+      intl ? el("ctt1", "UPUCode", "Goods") : "",
       el("ctt1", "Weight", Math.max(1, Math.round(s.weightG))),
     ].join("")}</ctt1:ShipmentData>`,
     // Required by CTT for these products: two delivery attempts, then the parcel waits at the CTT shop.

@@ -41,6 +41,18 @@ test("CreateShipment: fields in alphabetical order (WCF), split postal codes, es
   assert.throws(() => x.createShipmentXml({ ...input, receiver: { ...input.receiver, postalCode: "1100" } }, cfg), /postal code/);
 });
 
+test("CreateShipment to Spain: export type and UPU content type (required by CTT outside Portugal), in WCF order", () => {
+  const es = x.createShipmentXml({ ...input, receiver: { ...input.receiver, postalCode: "28001", city: "Madrid", country: "ES", phone: "+34633663348" } }, cfg, "r");
+  const data = es.slice(es.indexOf("<ctt1:ShipmentData>"), es.indexOf("</ctt1:ShipmentData>"));
+  const names = ["ClientReference", "ExportType", "IsDevolution", "Observations", "Quantity", "UPUCode", "Weight"];
+  assert.ok(names.map((n) => data.indexOf(`<ctt1:${n}>`)).every((v, i, a) => v >= 0 && (i === 0 || v > a[i - 1])));
+  assert.match(data, /<ctt1:ExportType>Permanent<\/ctt1:ExportType>/);
+  assert.match(data, /<ctt1:UPUCode>Goods<\/ctt1:UPUCode>/);
+  assert.match(es, /<ctt1:NonPTZipCode>28001<\/ctt1:NonPTZipCode>/);
+  const pt = x.createShipmentXml(input, cfg, "r");
+  assert.doesNotMatch(pt, /ExportType|UPUCode/);
+});
+
 test("object range: consecutive S10 codes with their check digits", () => {
   assert.deepEqual(x.objectRange("DB005827819PT", "DB005827822PT"), ["DB005827819PT", "DB005827822PT"]);
   assert.deepEqual(x.objectRange("DB005827782PT", "DB005827796PT"), ["DB005827782PT", "DB005827796PT"]);
