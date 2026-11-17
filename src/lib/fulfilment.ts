@@ -118,7 +118,9 @@ export async function createCttxLabel(o: Order, by: string) {
   if (!["paid", "preparing"].includes(o.status)) return { error: `Labels are created for paid orders (this one is "${o.status}").` };
   const a = o.shippingAddress ?? {};
   const country = (a.country ?? o.country ?? "PT").toUpperCase();
-  if (!isCountry(country) || MARKETS[country].warehouse !== "douro") return { error: "CTT ships the orders from the Douro (Portugal) only; this one goes from the Belgian warehouse." };
+  // CTT Expresso ships from the Douro to Portugal and to Spain (Black Friday Spain, 17/11/2026: the Spanish orders
+  // leave from Portugal too); the other countries still go from the Belgian warehouse.
+  if (!isCountry(country) || (MARKETS[country].warehouse !== "douro" && country !== "ES")) return { error: "CTT ships to Portugal and Spain only; this order goes from the Belgian warehouse." };
   const c = await loadCttxConfig();
   const missing = cttxMissing(c);
   if (missing.length) return { error: `CTT Expresso: missing ${missing.join(", ")}.` };

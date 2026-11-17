@@ -100,6 +100,22 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           )}
           <h2 className="mt-5 font-semibold">Shipping address</h2>
           <p className="text-sm">{a ? [a.name, a.line1, a.line2, `${a.postal_code ?? ""} ${a.city ?? ""}`, a.country].filter(Boolean).join(", ") : "·"}</p>
+          <details className="mt-3 rounded border p-3 text-sm">
+            <summary className="cursor-pointer font-medium">Edit customer details</summary>
+            <ActionForm action={orderAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+              <input type="hidden" name="id" value={o.id} />
+              <label className="text-xs">Name<input name="name" defaultValue={a?.name ?? o.customerName ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Email<input name="email" type="email" defaultValue={o.email ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Phone (international, e.g. +34612345678)<input name="phone" defaultValue={o.phone ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">NIF<input name="nif" defaultValue={o.nif ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs sm:col-span-2">Address<input name="line1" defaultValue={a?.line1 ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs sm:col-span-2">Address line 2<input name="line2" defaultValue={a?.line2 ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Postal code<input name="postal_code" defaultValue={a?.postal_code ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">City<input name="city" defaultValue={a?.city ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Country (PT, ES, DE…)<input name="country" defaultValue={a?.country ?? o.country ?? ""} maxLength={2} className="mt-1 block w-20 rounded border p-1.5 text-sm uppercase" /></label>
+              <div className="sm:col-span-2"><Submit name="action" value="edit_customer">Save customer details</Submit></div>
+            </ActionForm>
+          </details>
           {addons.some((x) => x.sku === "gift-card" && x.status === "paid") && (
             <div className="mt-4 grid grid-cols-[140px_1fr] items-start gap-3">
               <GiftCard message={o.giftMessage ?? ""} orderId={o.id} className="rounded shadow" />
