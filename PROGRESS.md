@@ -2,6 +2,10 @@
 
 Last updated: 10/10/2026 (session 1)
 
+## 18/11: Black Friday Germany sells the Cheda mix (Lavradores de Feitoria, Belgian warehouse), 68,50 €, costs 30,50 €/box (wine 15, transport 2,50, box 2,50, handling 2, delivery 8,50). Spain keeps the Galhofa mix (from Lisbon, CTT). Ads: public/ads/bf10_cheda_*.
+
+**Meta targeting rule for every Black Friday campaign (David, 18/11/2026): men only, ages 28 to 65.** Advantage+ Audience OFF (with it on, age and gender are only suggestions), genders [1], age_min 28, age_max 65; keep the country, the excluded areas (Canarias, Ceuta, Melilla for Spain) and the excluded recent buyers audience. Applies to new Black Friday ad sets in every country (DE, ES, NL, BE).
+
 ## 04/11: CTT Expresso web service (A4 transport guide, daily close, tracking by polling) replaces the e-commerce API v3 when `CTTX_AUTH_ID` is set. Tested end to end against CTT's sandbox (shipments of 1 and 2 parcels, close, events). Waiting for: the collection address (Admin → Settings → CTT), CTT's validation of `docs/ctt-expresso-examples/`, then production keys. See docs/CTT-EXPRESSO.md.
 
 ## 29/10: Black Friday for Germany and Spain. Box of 6 Douro wines (3 red, 2 white, 1 rosé) from the Belgian warehouse, own product (black-friday-douro-6) and bundles bf1 68,50 € / bf2 129 € / bf3 185 €, free delivery, all taxes included. Pages /de/black-friday and /es/black-friday (black/red, big countdown to the cutoff 25/11 23:59 CET, 2 days before Black Friday); /black-friday picks German or Spanish from the saved choice, phone language, then IP; Spanish visitors of / and /es land on it. New market ES (es-ES, postcodes without Canarias/Ceuta/Melilla, +34) and Spanish site language (dictionary, legal drafts, about, cookie banner). Admin → Settings → Black Friday (switch, cutoff, delivery days, countries, VAT DE 19 / ES 21, costs 29 €/box); Finance computes Black Friday profit with those. Christmas codes, the box upsell, the printed card and the e-book do not apply to Black Friday orders; WhatsApp reminders skipped (templates are about the Trilogia), email/SMS reminders have Black Friday wording.
