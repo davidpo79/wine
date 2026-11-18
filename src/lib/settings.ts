@@ -8,6 +8,7 @@ export async function getSettings(): Promise<Settings> {
   // Countries and fields added after a value was saved in the admin keep their defaults (Spain, 29/10/2026).
   out.markets = { ...DEFAULT_SETTINGS.markets, ...(out.markets as Settings["markets"]) };
   out.ctt_sender = { ...DEFAULT_SETTINGS.ctt_sender, ...(out.ctt_sender as Settings["ctt_sender"]) };
+  out.shiphero = { ...DEFAULT_SETTINGS.shiphero, ...(out.shiphero as Settings["shiphero"]) };
   out.black_friday = { ...DEFAULT_SETTINGS.black_friday, ...(out.black_friday as Settings["black_friday"]) };
   return out as Settings;
 }

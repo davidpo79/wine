@@ -231,6 +231,8 @@ export async function markOrderPaid(order: Order, p: Payment, source: string) {
   await reportPurchase(paid, p.amountCents);
   await snapshotCosts(paid.id, await getSettings()).catch((e) => console.error("[profit] snapshot", e));
   await sendAdminAlert(paid, addons).catch(() => {});
+  // Belgian warehouse (DE/NL/BE): straight to ShipHero; a failure alerts the team, the payment is never affected.
+  await import("./shiphero-fulfilment").then((m) => m.autoSendToShiphero(paid)).catch((e) => console.error("[shiphero] auto", e));
 }
 
 /** Post-purchase add-on paid (its own charge): confirmation, its own Purchase event, cost snapshot. */

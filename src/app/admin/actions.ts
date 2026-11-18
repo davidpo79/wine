@@ -69,6 +69,12 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await sendShipped(r);
         break;
       }
+      case "shiphero_send": {
+        const { sendToShiphero } = await import("@/lib/shiphero-fulfilment");
+        const r = await sendToShiphero(o, admin.email);
+        revalidatePath(`/admin/orders/${id}`);
+        return "error" in r ? { error: r.error } : { ok: r.ok };
+      }
       case "ctt_label": {
         const { createCttLabel } = await import("@/lib/fulfilment");
         const r = await createCttLabel(o, admin.email);
@@ -759,4 +765,37 @@ export async function bfPanelsAction(_: FormState, fd: FormData): Promise<FormSt
   await setSetting("black_friday", { ...prev, stock, marketing_percent: mkt, fee_percent: fee });
   revalidatePath("/admin/black-friday");
   return { ok: "Saved." };
+}
+
+/** Admin → Settings → ShipHero: automatic sending on payment, shop name and the SKU of each box type. */
+export async function shipheroSettingsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const prev = (await getSettings()).shiphero;
+  const keys = ["cheda_mix_6", "galhofa_mix_6", "poco_6", "dgraca_3", "trilogia_2160"] as const;
+  const skus: typeof prev.skus = {};
+  for (const k of keys) {
+    const v = String(fd.get(`sku_${k}`) ?? "").trim();
+    if (v.length > 100) return { error: `SKU too long for ${k}.` };
+    if (v) skus[k] = v;
+  }
+  const shop = String(fd.get("shop_name") ?? "").trim() || prev.shop_name;
+  await setSetting("shiphero", { ...prev, enabled: fd.get("enabled") === "on", shop_name: shop.slice(0, 60), skus });
+  revalidatePath("/admin/settings");
+  return { ok: "ShipHero settings saved." };
+}
+
+/** "Connect shipping updates": registers ShipHero's webhooks on this site and keeps their signing secret. */
+export async function shipheroWebhooksAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const site = (process.env.SITE_URL ?? "").replace(/\/$/, "");
+  if (!/^https:\/\//.test(site)) return { error: "SITE_URL must be the public https address of the site." };
+  const { shipheroConfigured, connectShipheroWebhooks } = await import("@/lib/shiphero");
+  if (!shipheroConfigured()) return { error: "ShipHero is not connected yet (SHIPHERO_REFRESH_TOKEN in Railway)." };
+  try {
+    const n = await connectShipheroWebhooks(site, (await getSettings()).shiphero.shop_name);
+    revalidatePath("/admin/settings");
+    return { ok: `Shipping updates connected (${n} webhooks on ${site}).` };
+  } catch (e) {
+    return { error: `ShipHero: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }

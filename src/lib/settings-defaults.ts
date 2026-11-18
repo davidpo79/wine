@@ -32,6 +32,7 @@ export type Settings = {
   black_friday: BlackFridaySettings; // 6-bottle Douro box for Germany and Spain (lib/black-friday.ts)
   ctt_sender: CttSender; // where CTT Expresso collects the parcels (Admin → Settings → CTT); empty = the address CTT has for the contract
   ctt_fragile: boolean; // CTT special service "Fragil" on every shipment (recommended by CTT for bottles; extra fee)
+  shiphero: ShipheroSettings; // Belgian warehouse (lib/shiphero.ts): orders to DE/NL/BE go to ShipHero when paid
 };
 
 export type CttSender = { name: string; contact: string; address: string; postalCode: string; city: string; phone: string; email: string };
@@ -55,6 +56,10 @@ export type BlackFridaySettings = {
   fee_percent?: number;
   stock?: Partial<Record<"douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa", number>>;
 };
+
+/** What the warehouse ships for an order line; each maps to a ShipHero SKU in Admin → Settings → ShipHero. */
+export type ShipheroItemKey = "cheda_mix_6" | "galhofa_mix_6" | "poco_6" | "dgraca_3" | "trilogia_2160";
+export type ShipheroSettings = { enabled: boolean; shop_name: string; skus: Partial<Record<ShipheroItemKey, string>>; warehouse_id?: string };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
 export type ProfitSplit = { my_name: string; partner_name: string; my_percent: number | null; min_per_box_cents: number | null };
@@ -146,6 +151,14 @@ export const DEFAULT_SETTINGS: Settings = {
     fee_percent: 3,
     stock: { douro6: 500, pocoeu: 440, galhofa: 440 }, // David's panels of 18/11/2026 (Cheda 500, Poço do Canto 440, Galhofa NL/BE 440) // Portugal: wine 13% (as the Christmas box)
     costs: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 18/11/2026: Cheda to Germany, 30,50 €/box
+  },
+  // 18/11/2026 (David): automatic on payment. SKUs = the box codes of the producers' sheet of 18/11/2026 (to be checked
+  // against ShipHero's products in Admin → Settings); D. Graça 3 corrected by David to 55604086420020 on 18/11. Trilogia 2160 left empty: its GTIN in the sheet repeats Cheda's.
+  shiphero: {
+    enabled: true,
+    shop_name: "wine-portugal",
+    skus: { cheda_mix_6: "15604086390028", galhofa_mix_6: "65600320721899", poco_6: "65600320721882", dgraca_3: "55604086420020" },
+    warehouse_id: "V2FyZWhvdXNlOjkwNzM3", // the Belgian warehouse ("Primary", BE); the account also has an empty one
   },
   ctt_fragile: false, // off (David, 16/11/2026): the CTT contract does not include "Fragil" for EMSF057.01
   ctt_sender: { name: "Wine Portugal", contact: "", address: "", postalCode: "", city: "", phone: "", email: "" },

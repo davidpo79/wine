@@ -572,6 +572,7 @@ export const nl: Dict = {
     shippedTextIntl: "Goed nieuws: uw Trilogia 2160 is verzonden.",
     tracking: "Track-and-tracecode: <b>{code}</b>",
     trackButton: "Bestelling volgen bij CTT",
+    trackButtonIntl: "Bestelling volgen",
     notHome: "Is er niemand thuis, volg dan de instructies van CTT via de link hierboven.",
     shippedSubject: "Bestelling {id} verzonden · CTT {code}",
     shippedSubjectIntl: "Bestelling {id} verzonden · {code}",

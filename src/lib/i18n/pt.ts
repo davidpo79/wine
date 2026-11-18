@@ -572,6 +572,7 @@ export const pt = {
     shippedTextIntl: "Boas notícias: a sua Trilogia 2160 já foi enviada.",
     tracking: "Código de seguimento: <b>{code}</b>",
     trackButton: "Seguir encomenda nos CTT",
+    trackButtonIntl: "Seguir encomenda",
     notHome: "Se não estiver ninguém em casa, siga as indicações dos CTT no link acima.",
     shippedSubject: "Encomenda {id} enviada · CTT {code}",
     shippedSubjectIntl: "Encomenda {id} enviada · {code}",

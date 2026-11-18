@@ -2,7 +2,8 @@ import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate, zonedDate } from "@/lib/time";
 import { BF_OFFERS, bfBoxCost, bfCostsFor } from "@/lib/black-friday";
-import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction } from "../../actions";
+import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction, shipheroSettingsAction, shipheroWebhooksAction } from "../../actions";
+import { SHIPHERO_ITEM_LABEL, SHIPHERO_WEBHOOKS, shipheroConfigured, shipheroProducts, shipheroWebhookSecrets, shipheroWebhooks } from "@/lib/shiphero";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
 import { OutboundCallsSection } from "./outbound-calls";
@@ -46,7 +47,7 @@ export default async function SettingsPage() {
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Countries (markets)</legend>
           <p className="text-xs text-muted">
-            Portugal ships from the Douro (CTT, MB WAY, Multibanco). Germany, the Netherlands, Belgium and Luxembourg ship from the Belgian warehouse and pay with Stripe (iDEAL and Bancontact must be enabled in the
+            Portugal ships from the Douro (CTT, MB WAY, Multibanco). Germany, the Netherlands and Belgium ship from the Belgian warehouse and pay with Stripe (iDEAL and Bancontact must be enabled in the
             Stripe dashboard). Open a country only once excise duty and VAT for it are sorted. Logged-in admins always see every country open, to test.
           </p>
           <table className="mt-2 w-full text-left text-xs">
@@ -209,6 +210,8 @@ export default async function SettingsPage() {
           <Submit name="action" value="off" className="!bg-white !text-night border">Turn off</Submit>
         </ActionForm>
       </section>
+      <ShipheroSection sh={s.shiphero} />
+
       <ActionForm action={cttSenderAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">CTT: collection address</h2>
         <p className="text-xs text-muted">
@@ -258,5 +261,65 @@ export default async function SettingsPage() {
         <Submit>Send test event</Submit>
       </ActionForm>
     </div>
+  );
+}
+
+/** Belgian warehouse: automatic sending, and the ShipHero SKU of each box type (picked from the warehouse's products). */
+async function ShipheroSection({ sh }: { sh: Awaited<ReturnType<typeof getSettings>>["shiphero"] }) {
+  const connected = shipheroConfigured();
+  let products: Awaited<ReturnType<typeof shipheroProducts>> = [];
+  let problem: string | null = null;
+  let hooks: { name: string; url: string }[] = [];
+  const signed = (await shipheroWebhookSecrets()).length > 0;
+  if (connected) {
+    try {
+      [products, hooks] = await Promise.all([shipheroProducts(), shipheroWebhooks()]);
+    } catch (e) {
+      problem = e instanceof Error ? e.message : String(e);
+    }
+  }
+  return (
+    <>
+    <ActionForm action={shipheroSettingsAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+      <h2 className="font-semibold">Belgian warehouse (ShipHero)</h2>
+      <p className="text-xs text-muted">
+        Paid orders to Germany, the Netherlands and Belgium are created in ShipHero; when the warehouse ships, the order becomes “shipped” and the customer gets the tracking link.{" "}
+        {connected ? "Connected." : "Not connected yet: set SHIPHERO_REFRESH_TOKEN (Third-Party Developer user) in Railway."}
+      </p>
+      {problem && <p className="text-xs text-xmas">ShipHero: {problem}</p>}
+      <label className="flex items-center gap-2"><input type="checkbox" name="enabled" defaultChecked={sh.enabled} /> Send paid orders automatically</label>
+      <label className="block">Shop name in ShipHero<input name="shop_name" defaultValue={sh.shop_name} className="mt-1 block w-60 rounded border p-1.5" /></label>
+      <datalist id="shiphero-skus">{products.map((p) => <option key={p.sku} value={p.sku}>{p.name}{p.onHand != null ? ` · ${p.onHand} in stock` : ""}</option>)}</datalist>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(Object.keys(SHIPHERO_ITEM_LABEL) as (keyof typeof SHIPHERO_ITEM_LABEL)[]).map((k) => {
+          const p = products.find((x) => x.sku === sh.skus[k]);
+          return (
+            <label key={k} className="block text-xs">
+              {SHIPHERO_ITEM_LABEL[k]}
+              <input name={`sku_${k}`} list="shiphero-skus" defaultValue={sh.skus[k] ?? ""} placeholder="SKU" className="mt-1 block w-full rounded border p-1.5 text-sm" />
+              {sh.skus[k] && products.length > 0 && <span className={p ? "text-muted" : "text-xmas"}>{p ? `${p.name}${p.onHand != null ? ` · ${p.onHand} in stock` : ""}` : "not found in ShipHero"}</span>}
+            </label>
+          );
+        })}
+      </div>
+      {products.length > 0 && <p className="text-xs text-muted">{products.length} products in ShipHero: start typing to pick a SKU.</p>}
+      <Submit>Save ShipHero settings</Submit>
+    </ActionForm>
+    <ShipheroWebhooksSection hooks={hooks} signed={signed} />
+    </>
+  );
+}
+
+/** Shipping updates (tracking → "shipped" + customer email) need ShipHero's webhooks on this site. */
+function ShipheroWebhooksSection({ hooks, signed }: { hooks: { name: string; url: string }[]; signed: boolean }) {
+  const ours = SHIPHERO_WEBHOOKS.every((n) => hooks.some((h) => h.name === n && h.url.endsWith("/api/webhooks/shiphero")));
+  return (
+    <ActionForm action={shipheroWebhooksAction} className="mt-3 space-y-2 rounded-lg border bg-white p-5 text-sm">
+      <h3 className="font-semibold">Shipping updates from the warehouse</h3>
+      <p className="text-xs text-muted">
+        {ours && signed ? "Connected: shipments mark the order shipped and email the tracking link." : "Not connected: press the button once (after the deploy) so ShipHero tells us when an order ships."}
+      </p>
+      <Submit>{ours ? "Reconnect shipping updates" : "Connect shipping updates"}</Submit>
+    </ActionForm>
   );
 }

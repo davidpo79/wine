@@ -178,7 +178,8 @@ ${orderSummary(o)}
   return send(o, o.email, fmt(t.pendingSubject, { id: o.id }), html, "pending");
 }
 
-export async function sendShipped(o: Order) {
+/** trackingUrl: the carrier's page for parcels that do not go with CTT (ShipHero / UPS from the Belgian warehouse). */
+export async function sendShipped(o: Order, trackingUrl?: string | null) {
   if (!o.email || !o.trackingNumber) return;
   const locale = localeOf(o);
   const t = getDict(locale).email;
@@ -187,7 +188,7 @@ export async function sendShipped(o: Order) {
     t.shippedTitle,
     `<p>${ctt ? t.shippedText : t.shippedTextIntl}</p>
 <p>${html_(fmt(t.tracking, { code: esc(o.trackingNumber) }))}</p>
-${ctt ? button(ctTrackingUrl(o.trackingNumber), t.trackButton) : ""}
+${ctt ? button(ctTrackingUrl(o.trackingNumber), t.trackButton) : trackingUrl ? button(trackingUrl, t.trackButtonIntl) : ""}
 ${orderSummary(o)}
 ${ctt ? `<p>${t.notHome}</p>` : ""}`,
     locale,
@@ -220,16 +221,21 @@ ${row("Origem", source || null)}
 </table>`;
 }
 
+/** Every paid order: to ADMIN_ALERT_EMAIL and to ORDER_ALERT_EMAILS (David, 18/11/2026), once per address. */
+export const ORDER_ALERT_EMAILS = ["dudi79@gmail.com"];
+
 export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
-  const to = process.env.ADMIN_ALERT_EMAIL;
-  if (!to) return;
+  const list = [...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const recipients = [...new Set(list)];
+  if (!recipients.length) return;
   const html = layout(
     "Nova encomenda",
     `<p>Nova encomenda paga${o.country !== "PT" ? ` · ${esc(o.country)} (${esc(o.locale)})` : ""}.</p>${orderSummary(o, addons, "pt")}
 ${adminOrderDetails(o)}
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
-  return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
+  const subject = `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`;
+  for (const to of recipients) await send(o, to, subject, html, "admin_alert").catch((e) => console.error("[email] admin alert", to, e));
 }
 
 /** Login details for a new team member (temporary password, changed at first login). Admin UI is in English. */
@@ -405,12 +411,12 @@ export async function sendPaymentIssueAlert(orderId: string, message: string) {
 }
 
 /** A parcel needs attention (not delivered, waiting at a CTT shop, returned): to ADMIN_ALERT_EMAIL. */
-export async function sendShippingAlert(orderId: string, message: string) {
-  console.warn(`[ctt] ${orderId}: ${message}`);
+export async function sendShippingAlert(orderId: string, message: string, carrier = "CTT") {
+  console.warn(`[${carrier.toLowerCase()}] ${orderId}: ${message}`);
   const to = process.env.ADMIN_ALERT_EMAIL;
   if (!to) return;
-  const html = layout("Atenção: envio CTT", `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
-  return send(null, to, `[CTT] ${orderId}: ${message.slice(0, 80)}`, html, "shipping_issue");
+  const html = layout(`Atenção: envio ${carrier}`, `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
+  return send(null, to, `[${carrier}] ${orderId}: ${message.slice(0, 80)}`, html, "shipping_issue");
 }
 
 /** An incoming call the team did not answer, handled by the AI assistant: the team should call back. */
