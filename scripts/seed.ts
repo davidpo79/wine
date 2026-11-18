@@ -67,7 +67,7 @@ await db
   .onConflictDoNothing();
 
 // Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
-const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu", { name: string; shortDescription: string; wines: WineItem[] }> = {
+const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa", { name: string; shortDescription: string; wines: WineItem[] }> = {
   burbujas: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
@@ -78,13 +78,22 @@ const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu", { name: string; sho
     shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Espanha.",
     wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
   },
+  galhofa: {
+    name: "Black Friday · Galhofa mix · 6 garrafas · NL/BE",
+    shortDescription: "Caixa de 6 vinhos Galhofa, Douro DOC: 3 tintos, 2 brancos e 1 rosé. Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
+    wines: [
+      { name: "Galhofa Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
+      { name: "Galhofa Branco", vintage: "2025", type: "branco", producer: "Douro" },
+      { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
+    ],
+  },
   pocoeu: {
     name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas · DE/NL/BE",
     shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Alemanha, Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
     wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
   },
 };
-for (const id of ["burbujas", "poco", "pocoeu"] as const) {
+for (const id of ["burbujas", "poco", "pocoeu", "galhofa"] as const) {
   const slug = BF_OFFERS[id].slug;
   let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
   if (!p) {

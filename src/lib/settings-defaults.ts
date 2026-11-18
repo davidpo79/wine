@@ -48,7 +48,12 @@ export type BlackFridaySettings = {
   vat_percent: Partial<Record<Country, number>>; // VAT included in the price, by delivery country (still wine, standard rate)
   costs: { wine_cents: number; shipping_box_cents: number; transport_cents: number; handling_cents: number; delivery_cents: number }; // per box, without recoverable VAT
   /** Costs per box of the other offers (sparkling, Poço do Canto); missing = the defaults in lib/black-friday.ts. */
-  offer_costs?: Partial<Record<"burbujas" | "poco" | "pocoeu", BlackFridaySettings["costs"]>>;
+  offer_costs?: Partial<Record<"burbujas" | "poco" | "pocoeu" | "galhofa", BlackFridaySettings["costs"]>>;
+  /** Admin → Black Friday panels: share of the price kept for ads (David's panels: 20%) and boxes available per offer. */
+  marketing_percent?: number;
+  /** Payment fee used by the panels (David plans with 3%; Finance uses the real Stripe/ifthenpay price lists). */
+  fee_percent?: number;
+  stock?: Partial<Record<"douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa", number>>;
 };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
@@ -136,7 +141,10 @@ export const DEFAULT_SETTINGS: Settings = {
     countries: ["DE", "ES", "PT", "NL", "BE"],
     cutoff_at: "2026-11-27T22:59:00Z", // 18/11/2026 (David): orders until Black Friday itself, 27/11 23:59 CET
     delivery_days: "2",
-    vat_percent: { DE: 19, ES: 21, PT: 13, NL: 21, BE: 21 }, // Portugal: wine 13% (as the Christmas box)
+    vat_percent: { DE: 19, ES: 21, PT: 13, NL: 21, BE: 21 },
+    marketing_percent: 20,
+    fee_percent: 3,
+    stock: { douro6: 500, pocoeu: 440, galhofa: 440 }, // David's panels of 18/11/2026 (Cheda 500, Poço do Canto 440, Galhofa NL/BE 440) // Portugal: wine 13% (as the Christmas box)
     costs: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 18/11/2026: Cheda to Germany, 30,50 €/box
   },
   ctt_fragile: false, // off (David, 16/11/2026): the CTT contract does not include "Fragil" for EMSF057.01

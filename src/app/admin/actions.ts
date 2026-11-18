@@ -325,7 +325,7 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
         delivery_cents: cost("bf_c_delivery", prevBf.costs.delivery_cents),
       },
       offer_costs: Object.fromEntries(
-        (["burbujas", "poco", "pocoeu"] as const).map((id) => {
+        (["burbujas", "poco", "pocoeu", "galhofa"] as const).map((id) => {
           const old = bfCostsFor(prevBf, id);
           return [id, { wine_cents: cost(`bf_${id}_wine`, old.wine_cents), shipping_box_cents: cost(`bf_${id}_box`, old.shipping_box_cents), transport_cents: cost(`bf_${id}_transport`, old.transport_cents), handling_cents: cost(`bf_${id}_handling`, old.handling_cents), delivery_cents: cost(`bf_${id}_delivery`, old.delivery_cents) }];
         }),
@@ -738,4 +738,25 @@ export async function whatsappTemplateStatusAction(_: FormState, _fd: FormData):
   } catch (e) {
     return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
   }
+}
+
+/** Admin → Black Friday panels: boxes available per offer and the marketing share of the price. */
+export async function bfPanelsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const prev = (await getSettings()).black_friday;
+  const stock: NonNullable<typeof prev.stock> = {};
+  for (const id of ["douro6", "burbujas", "poco", "pocoeu", "galhofa"] as const) {
+    const raw = String(fd.get(`stock_${id}`) ?? "").trim();
+    if (!raw) continue;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0 || n > 100000) return { error: `Invalid number of boxes for ${id}.` };
+    stock[id] = n;
+  }
+  const mkt = Number(String(fd.get("marketing_percent") ?? "20").replace(",", "."));
+  if (!Number.isFinite(mkt) || mkt < 0 || mkt > 100) return { error: "Marketing must be between 0 and 100%." };
+  const fee = Number(String(fd.get("fee_percent") ?? "3").replace(",", "."));
+  if (!Number.isFinite(fee) || fee < 0 || fee > 20) return { error: "Payment fee must be between 0 and 20%." };
+  await setSetting("black_friday", { ...prev, stock, marketing_percent: mkt, fee_percent: fee });
+  revalidatePath("/admin/black-friday");
+  return { ok: "Saved." };
 }

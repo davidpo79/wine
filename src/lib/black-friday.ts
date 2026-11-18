@@ -18,7 +18,8 @@ export const isBfLocale = (x: unknown): x is BfLocale => typeof x === "string" &
  * ES); the sparkling wine and Poço do Canto boxes (16/11/2026) sell in Spain; "pocoeu" (18/11/2026) is the Poço do Canto
  * box for Germany, the Netherlands and Belgium, from the Belgian warehouse, with its own prices (same page path).
  */
-export type BfOfferId = "douro6" | "burbujas" | "poco" | "pocoeu";
+// "galhofa" (18/11/2026) is the Galhofa mix for the Netherlands and Belgium, with a reference price.
+export type BfOfferId = "douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa";
 export type BfOffer = {
   id: BfOfferId;
   slug: string;
@@ -36,17 +37,24 @@ export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
   douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: ["de", "es"], countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine" } },
   burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
   poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
+  galhofa: { id: "galhofa", slug: "black-friday-galhofa-mix-6", prefix: "bfg", bottlesPerBox: 6, path: "galhofa", locales: ["nl", "fr"], countries: ["NL", "BE"], contentName: "Black Friday Galhofa mix 6 NL BE", productName: { nl: "Black Friday · 6 Galhofa-wijnen uit de Douro", fr: "Black Friday · 6 vins Galhofa du Douro" } },
   pocoeu: { id: "pocoeu", slug: "black-friday-poco-do-canto-6-eu", prefix: "bfq", bottlesPerBox: 6, path: "poco-do-canto", locales: ["de", "nl", "fr"], countries: ["DE", "NL", "BE"], contentName: "Black Friday Poco do Canto 6 DE NL BE", productName: { de: "Black Friday · 6 Poço do Canto Palhete 2019", nl: "Black Friday · 6 Poço do Canto Palhete 2019", fr: "Black Friday · 6 Poço do Canto Palhete 2019" } },
 };
 export const BF_OFFER_IDS = Object.keys(BF_OFFERS) as BfOfferId[];
 /** Short names in the admin (Orders, Funnel filters). */
-export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6 (ES)", pocoeu: "Poço do Canto ×6 (DE/NL/BE)" };
+export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6 (ES)", pocoeu: "Poço do Canto ×6 (DE/NL/BE)", galhofa: "Galhofa mix ×6 (NL/BE)" };
 /** Admin funnel filter "bf:<offer>" → the offer (null for "bf", every Black Friday offer). */
 export const bfOfferOfFilter = (f: string | null | undefined): BfOfferId | null => {
   const id = f?.startsWith("bf:") ? f.slice(3) : null;
   return id && id in BF_OFFERS ? (id as BfOfferId) : null;
 };
 export const BF_SLUGS = BF_OFFER_IDS.map((id) => BF_OFFERS[id].slug);
+/**
+ * Own address of every offer (David, 18/11/2026): the Douro box answers on its main page and also on /de/black-friday/cheda
+ * and /es/black-friday/galhofa, so each ad can link to the name of its wine.
+ */
+export const BF_DOURO_ALIASES: Partial<Record<BfLocale, string>> = { de: "cheda", es: "galhofa" };
+
 /** The offer of a page path, in a language (Poço do Canto has one page path for Spain and one offer for DE/NL/BE). */
 export const bfOfferByPath = (path: string, locale?: BfLocale) => BF_OFFER_IDS.map((id) => BF_OFFERS[id]).find((o) => o.path && o.path === path && (!locale || o.locales.includes(locale))) ?? null;
 
@@ -92,6 +100,13 @@ export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed
   ],
   // Germany, the Netherlands and Belgium (David, 18/11/2026): 60 € a box, 2 boxes 110 €, 3 boxes 159 €; reference price
   // 120 € a box as in his ad (his choice, flagged: PAngV §11 / Omnibus wants the lowest price of the last 30 days).
+  // Galhofa mix for the Netherlands and Belgium (David, 18/11/2026): the Douro box prices with his reference price of
+  // 137 € a box (-50%), as in his ad (his choice; Omnibus flagged).
+  galhofa: [
+    { key: "bfg1", label: "Black Friday · Galhofa NL/BE · 1 caixa · 6 garrafas", qty: 1, priceCents: 6850, compareAtCents: 13700, shippingCents: 0, badge: null, sort: 51 },
+    { key: "bfg2", label: "Black Friday · Galhofa NL/BE · 2 caixas · 12 garrafas", qty: 2, priceCents: 12900, compareAtCents: 27400, shippingCents: 0, badge: "Mais escolhido", sort: 52 },
+    { key: "bfg3", label: "Black Friday · Galhofa NL/BE · 3 caixas · 18 garrafas", qty: 3, priceCents: 18500, compareAtCents: 41100, shippingCents: 0, badge: "Melhor preço", sort: 53 },
+  ],
   pocoeu: [
     { key: "bfq1", label: "Black Friday · Poço do Canto DE/NL/BE · 1 caixa · 6 garrafas", qty: 1, priceCents: 6000, compareAtCents: 12000, shippingCents: 0, badge: null, sort: 41 },
     { key: "bfq2", label: "Black Friday · Poço do Canto DE/NL/BE · 2 caixas · 12 garrafas", qty: 2, priceCents: 11000, compareAtCents: 24000, shippingCents: 0, badge: "Mais escolhido", sort: 42 },
@@ -152,5 +167,7 @@ export const BF_DEFAULT_OFFER_COSTS: Record<Exclude<BfOfferId, "douro6">, BlackF
   poco: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 0, handling_cents: 0, delivery_cents: 700 },
   // David, 18/11/2026 (DE/NL/BE from the Belgian warehouse): wine 12 €, transport to Belgium 2,50 €, box 2,50 €,
   // handling 2 €, delivery 8,50 € (confirmed for Germany, an estimate for NL and BE).
+  // Galhofa mix to NL/BE (David, 18/11/2026): as the Douro box, 30,50 € (delivery 8,50 € is an estimate for NL and BE).
+  galhofa: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 },
   pocoeu: { wine_cents: 1200, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 },
 };

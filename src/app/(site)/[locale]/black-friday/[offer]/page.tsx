@@ -8,7 +8,8 @@ import { dateFor, deliveryDaysFor, getDict } from "@/lib/i18n";
 import { fmt } from "@/lib/i18n/rich";
 import { LOCALE_INFO } from "@/lib/markets";
 import { getAdmin } from "@/lib/auth";
-import { bfCountryFor, bfHref, bfOfferByPath, bfOpen, isBfLocale, type BfLocale, type BfOffer } from "@/lib/black-friday";
+import { BF_DOURO_ALIASES, bfCountryFor, bfHref, bfOfferByPath, bfOpen, isBfLocale, type BfLocale, type BfOffer } from "@/lib/black-friday";
+import DouroBox, { generateMetadata as douroMetadata } from "../page";
 import { bfCopyFor } from "@/components/black-friday/copy";
 import { BlackFridayPage } from "@/components/black-friday/BlackFridayPage";
 import "../../../landing.css";
@@ -26,8 +27,12 @@ function resolve(locale: string, path: string): { offer: BfOffer; locale: BfLoca
   return { offer, locale };
 }
 
+/** /de/black-friday/cheda and /es/black-friday/galhofa: the Douro box page under the name of its wine. */
+const isDouroAlias = (locale: string, path: string) => isBfLocale(locale) && BF_DOURO_ALIASES[locale] === path;
+
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const p = await params;
+  if (isDouroAlias(p.locale, p.offer)) return douroMetadata({ params: Promise.resolve({ locale: p.locale }) });
   const r = resolve(p.locale, p.offer);
   if (!r) return {};
   const c = bfCopyFor(r.offer.id, r.locale)!;
@@ -42,8 +47,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 }
 
 /** The other Black Friday offers (Spain only): same page as the Douro box, with their own product, prices and copy. */
-export default async function BlackFridayOffer({ params }: { params: Params }) {
+export default async function BlackFridayOffer({ params, searchParams }: { params: Params; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const p = await params;
+  if (isDouroAlias(p.locale, p.offer)) return DouroBox({ params: Promise.resolve({ locale: p.locale }), searchParams });
   const r = resolve(p.locale, p.offer);
   if (!r) notFound();
   const { offer, locale } = r;

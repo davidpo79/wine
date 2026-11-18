@@ -160,3 +160,14 @@ test("Poço do Canto for Germany, the Netherlands and Belgium: own offer, prices
   for (const l of ["de", "nl", "fr"] as const) assert.ok(bfCopyFor("pocoeu", l), l);
   assert.equal(bfCopyFor("douro6", "nl"), null);
 });
+
+test("Black Friday panels reproduce David's numbers (3% fee, 20% marketing, VAT of the country)", async () => {
+  const { bfPanel } = await import("../src/lib/bf-panels");
+  const s = { black_friday: DEFAULT_SETTINGS.black_friday, cost_model: DEFAULT_SETTINGS.cost_model };
+  const profit = (id: Parameters<typeof bfPanel>[0], price: number, c: string) => Math.round(bfPanel(id, s, price).countries.find((x) => x.country === c)!.profit);
+  assert.equal(profit("douro6", 6850, "DE"), 1131); // Cheda: 11,31 € a box
+  assert.equal(profit("pocoeu", 6000, "DE"), 912); // Poço do Canto: 9,12 €
+  assert.equal(profit("pocoeu", 6000, "NL"), 829); // 8,29 €
+  assert.equal(profit("galhofa", 6850, "BE"), 1036); // Galhofa NL/BE: 10,36 €
+  assert.equal(Math.round(bfPanel("galhofa", s, 6850).ifAllSold!.profitMin), 455689); // 440 boxes: 4.556,89 €
+});
