@@ -19,7 +19,7 @@ permissions:
 jobs:
   ci:
     name: ci
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest became 26.04, where Playwright 1.56 has no Chromium
     timeout-minutes: 25
 
     # The landing page and checkout read the catalog from Postgres, and part of the unit tests
