@@ -321,8 +321,8 @@ export const ABOUT_BF_OFFER: Record<string, { es: { winesH: string; wines: strin
 export const ABOUT_BF: Partial<Record<Locale, { winesH: string; wines: string; winesAlt: string; boxH: string; box: string; boxAlt: string; cta: string }>> = {
   de: {
     winesH: "Die Weine in unserer Black-Friday-Box",
-    wines: "Die Box vereint sechs Weine der Linie Galhofa, alle Douro DOC: drei Rotweine, zwei Weißweine und einen Rosé. Für einen ganzen Abend, vom Aperitif bis zum Hauptgang.",
-    winesAlt: "Die sechs Galhofa-Weine der Black-Friday-Box",
+    wines: "Die Box vereint sechs Weine der Linie Cheda von Lavradores de Feitoria, alle Douro DOC: drei Rotweine, zwei Weißweine und einen Rosé. Für einen ganzen Abend, vom Aperitif bis zum Hauptgang.",
+    winesAlt: "Die sechs Cheda-Weine der Black-Friday-Box",
     boxH: "Versand",
     box: "Wir packen Ihre Box in unserem Lager in Belgien, mit Schutz für jede Flasche, und sie kommt in 2 Werktagen mit Sendungsverfolgung bei Ihnen an.",
     boxAlt: "Wein wird für den Versand verpackt",

@@ -42,7 +42,7 @@ export function AboutPage({ locale, from }: { locale: Locale; from?: string }) {
   const c = { ...ABOUT_COPY[locale], ...(bf ?? {}) };
   const offer = ox ? bfOfferByPath(ox.path) : null;
   const home = bf && isBfLocale(locale) ? (offer ? bfHref(locale, offer) : bfHref(locale)) : homeHref(locale);
-  const winesImg = ox?.winesImg ?? (bf ? "/lp/bf/bottles.webp" : "/lp/table-768.webp");
+  const winesImg = ox?.winesImg ?? (bf ? (locale === "de" ? "/lp/bf/cheda-hero.webp" : "/lp/bf/bottles.webp") : "/lp/table-768.webp");
   const boxImg = ox?.boxImg ?? (bf ? "/lp/bf/who-warehouse.webp" : "/lp/giftbox-768.webp");
   return (
     <>

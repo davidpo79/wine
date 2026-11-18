@@ -18,19 +18,22 @@ test("black friday bundles: 68,50 € a box, cheaper per box with more boxes, 6 
   assert.equal(isBfBundle("x1"), false);
 });
 
-test("black friday costs: 29 € a box (David's numbers) and the profit before marketing", () => {
+test("black friday costs: 30,50 € a box (David's numbers of 18/11/2026) and the profit before marketing", () => {
   const bf = DEFAULT_SETTINGS.black_friday;
-  assert.equal(bfBoxCost(bf), 2900);
-  // David's sheet: 21% VAT included, 3% banking. 68,50 € -> 25,56 € before the 20% marketing (13,70 €) = 11,86 €.
+  // Wine 15 + transport to Belgium 2,50 + shipping box 2,50 + handling 2 + delivery 8,50.
+  assert.equal(bfBoxCost(bf), 3050);
+  // 21% VAT included, 3% banking. 68,50 € -> 24,06 € before the 20% marketing (13,70 €).
   const fee3 = { percent: 3, fixed_cents: 0 };
   const s = { cost_model: { ...DEFAULT_SETTINGS.cost_model, payment_fees: { card: fee3, mb_way: fee3, multibanco: fee3, other: fee3 } }, upsell_products: [], black_friday: bf };
   const es1 = computeOrderCosts({ totalCents: 6850, qtyBoxes: 1, paymentMethodType: "card", bundleKey: "bf1", country: "ES" }, [], s);
   assert.equal(es1.vat, 1189);
-  assert.equal(es1.profit, 2556);
-  assert.equal(es1.wine + es1.shipping_boxes + es1.delivery + es1.other, 2900);
+  assert.equal(es1.profit, 2406);
+  assert.equal(es1.wine + es1.shipping_boxes + es1.delivery + es1.other, 3050);
   // Germany: 19% VAT.
   const de1 = computeOrderCosts({ totalCents: 6850, qtyBoxes: 1, paymentMethodType: "card", bundleKey: "bf1", country: "DE" }, [], s);
   assert.equal(de1.vat, 1094);
+  // David's German sheet (18/11/2026): 25,00 € before the 20% marketing (13,70 €) = about 11,31 € a box.
+  assert.ok(Math.abs(de1.profit - 2500) <= 1, String(de1.profit));
   // More boxes: more profit per order.
   const es2 = computeOrderCosts({ totalCents: 12900, qtyBoxes: 2, paymentMethodType: "card", bundleKey: "bf2", country: "ES" }, [], s);
   const es3 = computeOrderCosts({ totalCents: 18500, qtyBoxes: 3, paymentMethodType: "card", bundleKey: "bf3", country: "ES" }, [], s);
