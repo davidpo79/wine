@@ -1,5 +1,6 @@
 // Black Friday 2026 for Germany and Spain: a box of 6 Douro wines (3 red, 2 white, 1 rosé) from the Belgian warehouse,
-// sold on its own page (/de/black-friday, /es/black-friday) with its own product and bundles. Prices live in the
+// sold on its own page (/de/black-friday, /es/black-friday; since 18/11/2026 the German page sells the Cheda mix of
+// Lavradores de Feitoria from the Belgian warehouse, the Spanish one the Galhofa mix) with its own product and bundles. Prices live in the
 // bundles table (Admin → Products); dates, countries and costs in Settings.black_friday.
 import type { Country, Locale } from "./markets";
 import type { BlackFridaySettings } from "./settings-defaults";
@@ -30,13 +31,13 @@ export type BfOffer = {
   productName: Record<BfLocale, string>;
 };
 export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
-  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: BF_LOCALES, countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Douro-Weine" } },
+  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: BF_LOCALES, countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine" } },
   burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
   poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
 };
 export const BF_OFFER_IDS = Object.keys(BF_OFFERS) as BfOfferId[];
 /** Short names in the admin (Orders, Funnel filters). */
-export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6" };
+export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6" };
 /** Admin funnel filter "bf:<offer>" → the offer (null for "bf", every Black Friday offer). */
 export const bfOfferOfFilter = (f: string | null | undefined): BfOfferId | null => {
   const id = f?.startsWith("bf:") ? f.slice(3) : null;

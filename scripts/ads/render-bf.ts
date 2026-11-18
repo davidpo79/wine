@@ -12,25 +12,28 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const out = resolve(process.argv[2] ?? "public/ads");
 const file = (p: string) => `file://${ROOT}/${p}`;
 
-type Copy = { kicker: string; title: string; sub: string; price: string; per: string; ticks: string[]; deadline: string; cta: string; two: string; perBig: string; perSmall: string; six: string; direct: string; foot: string };
+type Copy = { img: string; kicker: string; title: string; sub: string; price: string; per: string; ticks: string[]; deadline: string; cta: string; two: string; perBig: string; perSmall: string; six: string; direct: string; foot: string };
 const COPY: Record<"de" | "es", Copy> = {
+  // Germany sells the Cheda mix (Lavradores de Feitoria) since 18/11/2026; Spain the Galhofa mix.
   de: {
+    img: "public/lp/bf/cheda-cut.webp",
     kicker: "Black Friday",
-    title: "6 Flaschen Douro-Wein",
+    title: "6 Cheda Douro-Weine",
     sub: "3 Rotweine · 2 Weißweine · 1 Rosé",
     price: "68,50 €",
-    per: "11,42 € pro Flasche · inkl. MwSt.",
-    ticks: ["Gratisversand", "Lieferung in 2 Werktagen", "Douro DOC, direkt aus Portugal"],
+    per: "11,42 € pro Flasche · inkl. MwSt. & Versand",
+    ticks: ["Ohne Zwischenhändler", "Lieferung in 2 Werktagen", "Douro DOC, direkt vom Winzer"],
     deadline: "Nur bis 25.11.",
     cta: "Jetzt sichern",
     two: "2 Boxen 129 € · 3 Boxen 185 €",
     perBig: "11,42 €",
     perSmall: "pro Flasche",
-    six: "6 Flaschen",
-    direct: "Vom Douro zu Ihnen",
+    six: "6 Flaschen Cheda",
+    direct: "Direkt vom Winzer zu Ihnen",
     foot: "Lieferung in 2 Werktagen · inkl. MwSt.",
   },
   es: {
+    img: "public/lp/bf/bottles-cut.webp",
     kicker: "Black Friday",
     title: "6 botellas del Douro",
     sub: "3 tintos · 2 blancos · 1 rosado",
@@ -93,7 +96,7 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
 .bf span{color:#e11d2a}
 .t{font-weight:850;font-size:${story ? 64 : 58}px;margin-top:18px;letter-spacing:-.01em}
 .s{font-weight:600;font-size:32px;color:#d9d9d9;margin-top:8px}
-.img{flex:1;width:100%;min-height:0;margin:${story ? 34 : 22}px 0;-webkit-mask-image:linear-gradient(#000 78%,transparent);background:url(${file("public/lp/bf/bottles-cut.webp")}) center/contain no-repeat,radial-gradient(closest-side,rgba(225,29,42,.35),transparent) center/80% 90% no-repeat;filter:drop-shadow(0 30px 40px rgba(0,0,0,.6))}
+.img{flex:1;width:100%;min-height:0;margin:${story ? 34 : 22}px 0;-webkit-mask-image:linear-gradient(#000 78%,transparent);background:url(${file(c.img)}) center/contain no-repeat,radial-gradient(closest-side,rgba(225,29,42,.35),transparent) center/80% 90% no-repeat;filter:drop-shadow(0 30px 40px rgba(0,0,0,.6))}
 .price{font-weight:900;font-size:${story ? 150 : 128}px;line-height:1;color:#fff;letter-spacing:-.03em}
 .per{font-weight:600;font-size:30px;color:#d9d9d9;margin-top:10px}
 .two{font-weight:700;font-size:30px;color:#ffd6d9;margin-top:8px}
@@ -128,7 +131,7 @@ const bottle = (c: Copy, f: keyof typeof FORMATS) => {
 body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;color:#fff;background:#0b0b0b}
 .ad{position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;text-align:center;padding:${story ? "200px 60px 320px" : "56px 60px"}}
 .ad>.bf,.ad>.s,.ad>.big,.ad>.small,.ad>.mix,.ad>.row{z-index:2}
-.photo{position:absolute;left:30px;right:30px;top:${story ? 560 : 290}px;height:${story ? 760 : 600}px;background:url(${file("public/lp/bf/bottles-cut.webp")}) center/contain no-repeat;-webkit-mask-image:linear-gradient(#000 80%,transparent);filter:drop-shadow(0 20px 40px rgba(225,29,42,.35))}
+.photo{position:absolute;left:30px;right:30px;top:${story ? 560 : 290}px;height:${story ? 760 : 600}px;background:url(${file(c.img)}) center/contain no-repeat;-webkit-mask-image:linear-gradient(#000 80%,transparent);filter:drop-shadow(0 20px 40px rgba(225,29,42,.35))}
 .glow{position:absolute;left:0;right:0;top:${story ? 560 : 290}px;height:${story ? 760 : 600}px;background:radial-gradient(50% 50% at 50% 55%,rgba(225,29,42,.45),transparent 70%)}
 .bf{position:relative;font-weight:900;font-size:${story ? 120 : 96}px;letter-spacing:-.03em;line-height:.9}.bf span{color:#e11d2a}
 .s{position:relative;font-weight:700;font-size:34px;color:#ffd6d9;margin-top:16px;letter-spacing:.04em;text-transform:uppercase}
@@ -189,7 +192,7 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
 .price{font-weight:900;font-size:100px;letter-spacing:-.03em;margin-top:6px;line-height:1}
 .s{font-weight:600;font-size:28px;color:#d9d9d9}
 .kick{display:inline-block;border:2px solid #e11d2a;border-radius:999px;padding:8px 18px;font-weight:800;font-size:24px;letter-spacing:.08em;text-transform:uppercase;color:#ffd6d9}
-.bottles{-webkit-mask-image:linear-gradient(#000 80%,transparent);background:url(${file("public/lp/bf/bottles-cut.webp")}) center/contain no-repeat;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7))}
+.bottles{-webkit-mask-image:linear-gradient(#000 80%,transparent);background:url(${file(c.img)}) center/contain no-repeat;filter:drop-shadow(0 18px 24px rgba(0,0,0,.7))}
 .pill{background:#e11d2a;border-radius:999px;padding:14px 30px;font-weight:900;font-size:32px}
 .banner{position:absolute;left:${win.x}px;width:${win.w}px;top:${win.y + win.h - (story ? 150 : 120)}px;text-align:center}
 .banner span{display:inline-block;background:#e11d2a;color:#fff;font-weight:900;font-size:${story ? 58 : 48}px;padding:12px 26px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);letter-spacing:-.01em}

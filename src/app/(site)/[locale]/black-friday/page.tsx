@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: c.metaTitle,
     description,
     alternates: { canonical: bfHref(locale), languages: Object.fromEntries(BF_LOCALES.map((l) => [LOCALE_INFO[l].htmlLang, bfHref(l)])) },
-    openGraph: { locale: LOCALE_INFO[locale].og, title: c.metaTitle, description, images: [{ url: `${SITE.url}/lp/bf/bottles.webp`, width: 1200, height: 712 }] },
+    openGraph: { locale: LOCALE_INFO[locale].og, title: c.metaTitle, description, images: [{ url: `${SITE.url}${c.images.hero}`, width: c.images.heroW, height: c.images.heroH }] },
   };
 }
 
@@ -56,7 +56,7 @@ export default async function BlackFriday({ params, searchParams }: { params: Pa
     "@context": "https://schema.org",
     "@type": "Product",
     name: BF_COPY[locale].productName,
-    image: [`${SITE.url}/lp/bf/bottles.webp`],
+    image: [`${SITE.url}${BF_COPY[locale].images.hero}`],
     sku: BF_PRODUCT_SLUG,
     category: "Wine",
     offers: bundles.map((b) => ({ "@type": "Offer", price: (b.priceCents / 100).toFixed(2), priceCurrency: "EUR", availability: open ? "https://schema.org/InStock" : "https://schema.org/OutOfStock", url: `${SITE.url}${bfHref(locale)}` })),

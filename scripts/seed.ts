@@ -100,6 +100,39 @@ await db
   .values(Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({ key, value })))
   .onConflictDoNothing();
 
+// One-time update, 18/11/2026 (David): the German Black Friday page sells the Cheda mix (Lavradores de Feitoria) from the
+// Belgian warehouse at 68,50 €. Per box: wine 15 €, transport Portugal → Belgium 2,50 €, shipping box 2,50 €, handling
+// 2 €, delivery to Germany 8,50 € (= 30,50 €; payment fees 3% and marketing come from Finance). Applied once, marked
+// in settings, so later edits in Admin → Settings / Products are kept.
+{
+  const MARK = "patch_bf_cheda_de_20261118";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = (row?.value ?? DEFAULT_SETTINGS.black_friday) as typeof DEFAULT_SETTINGS.black_friday;
+    const value = { ...DEFAULT_SETTINGS.black_friday, ...cur, costs: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 } };
+    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    await db
+      .update(schema.products)
+      .set({
+        name: "Black Friday · 6 vinhos do Douro (DE Cheda · ES Galhofa)",
+        shortDescription: "Caixa de 6 vinhos do Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha: Cheda (Lavradores de Feitoria), armazém na Bélgica. Espanha: Galhofa, enviado de Lisboa.",
+        wines: [
+          { name: "Cheda Tinto (DE)", vintage: "", type: "tinto", producer: "Lavradores de Feitoria" },
+          { name: "Cheda Branco (DE)", vintage: "", type: "branco", producer: "Lavradores de Feitoria" },
+          { name: "Cheda Rosé (DE)", vintage: "", type: "rose", producer: "Lavradores de Feitoria" },
+          { name: "Galhofa Tinto (ES)", vintage: "2024", type: "tinto", producer: "Douro" },
+          { name: "Galhofa Branco (ES)", vintage: "2025", type: "branco", producer: "Douro" },
+          { name: "Galhofa Rosé (ES)", vintage: "2025", type: "rose", producer: "Douro" },
+        ],
+      })
+      .where(eq(schema.products.slug, BF_PRODUCT_SLUG));
+    await db.update(schema.bundles).set({ priceCents: 6850, shippingCents: 0 }).where(eq(schema.bundles.key, "bf1"));
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Black Friday Germany = Cheda, 68,50 €, costs 30,50 €/box");
+  }
+}
+
 // First admin bootstrap: only when no admin exists yet. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD in Railway,
 // deploy once, log in, then delete ADMIN_INITIAL_PASSWORD. Later changes go through `npm run admin:create`.
 const [anyAdmin] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).limit(1);
