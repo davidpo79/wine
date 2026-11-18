@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 process.env.SESSION_SECRET = "x".repeat(40);
 const { DEFAULT_SETTINGS } = await import("../src/lib/settings-defaults");
-const { BF_BUNDLES, bfBoxCost, bfOpen, bottlesPerBox, isBfBundle } = await import("../src/lib/black-friday");
+const { BF_BUNDLES, BF_OFFERS, BF_OFFER_BUNDLES, bfBoxCost, bfOfferByPath, bfOfferFor, bfOpen, bottlesPerBox, isBfBundle } = await import("../src/lib/black-friday");
+const { bfCopyFor } = await import("../src/components/black-friday/copy");
 const { bfLocaleForVisitor } = await import("../src/lib/black-friday-visitor");
 const { computeOrderCosts } = await import("../src/lib/profit");
 const { computeAmounts } = await import("../src/lib/draft");
@@ -50,9 +51,9 @@ test("black friday prices ignore the Christmas discount codes", () => {
 test("black friday opens and closes with its own switch and cutoff", () => {
   assert.equal(DEFAULT_SETTINGS.black_friday.enabled, true);
   const bf = DEFAULT_SETTINGS.black_friday;
-  assert.equal(bf.cutoff_at, "2026-11-25T22:59:00Z"); // Wednesday 25/11 23:59 in Madrid and Berlin, Black Friday is 27/11
-  assert.equal(bfOpen(bf, new Date("2026-11-25T22:58:00Z")), true);
-  assert.equal(bfOpen(bf, new Date("2026-11-25T23:00:00Z")), false);
+  assert.equal(bf.cutoff_at, "2026-11-27T22:59:00Z"); // Black Friday itself, 27/11 23:59 in Madrid, Berlin, Amsterdam and Brussels (David, 18/11)
+  assert.equal(bfOpen(bf, new Date("2026-11-27T22:58:00Z")), true);
+  assert.equal(bfOpen(bf, new Date("2026-11-27T23:00:00Z")), false);
   assert.equal(bfOpen({ ...bf, enabled: false }, new Date("2026-11-01T12:00:00Z")), false);
 });
 
@@ -62,6 +63,8 @@ test("black friday language follows the saved choice, then the phone, then the l
   assert.equal(bfLocaleForVisitor(v(null, null, "DE")), "de");
   assert.equal(bfLocaleForVisitor(v(null, null, "AT")), "de");
   assert.equal(bfLocaleForVisitor(v(null, "es", "DE")), "es"); // a Spanish phone in Germany
+  assert.equal(bfLocaleForVisitor(v(null, null, "NL")), "nl");
+  assert.equal(bfLocaleForVisitor(v(null, "fr", "BE")), "fr"); // a French phone in Belgium
   assert.equal(bfLocaleForVisitor(v("de", "es", "ES")), "de"); // picked German in the switcher
   assert.equal(bfLocaleForVisitor(v("pt", null, "ES")), null);
   assert.equal(bfLocaleForVisitor(v(null, null, "US")), null); // crawlers: keep the page asked for
@@ -143,4 +146,17 @@ test("black friday Poço do Canto costs: David's sheet (55 €: 46,70 € costs 
   assert.equal(c.vat, 955);
   assert.equal(c.payment_fees, 165);
   assert.equal(c.profit - 1100, 830);
+});
+
+test("Poço do Canto for Germany, the Netherlands and Belgium: own offer, prices and costs, same page path as Spain", () => {
+  const o = BF_OFFERS.pocoeu;
+  assert.deepEqual([...o.countries], ["DE", "NL", "BE"]);
+  assert.equal(bfOfferByPath("poco-do-canto", "es")?.id, "poco");
+  assert.equal(bfOfferByPath("poco-do-canto", "nl")?.id, "pocoeu");
+  assert.equal(bfOfferByPath("poco-do-canto", "de")?.id, "pocoeu");
+  assert.equal(bfOfferFor("bfq2")?.id, "pocoeu");
+  assert.deepEqual(BF_OFFER_BUNDLES.pocoeu.map((b) => [b.priceCents, b.compareAtCents]), [[6000, 12000], [11000, 24000], [15900, 36000]]);
+  assert.equal(bfBoxCost(DEFAULT_SETTINGS.black_friday, "pocoeu"), 2750); // 12 + 2,50 + 2,50 + 2 + 8,50 (+ 3% fee and 20% marketing = 41,30 €)
+  for (const l of ["de", "nl", "fr"] as const) assert.ok(bfCopyFor("pocoeu", l), l);
+  assert.equal(bfCopyFor("douro6", "nl"), null);
 });

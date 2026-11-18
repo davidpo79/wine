@@ -48,7 +48,7 @@ export type BlackFridaySettings = {
   vat_percent: Partial<Record<Country, number>>; // VAT included in the price, by delivery country (still wine, standard rate)
   costs: { wine_cents: number; shipping_box_cents: number; transport_cents: number; handling_cents: number; delivery_cents: number }; // per box, without recoverable VAT
   /** Costs per box of the other offers (sparkling, Poço do Canto); missing = the defaults in lib/black-friday.ts. */
-  offer_costs?: Partial<Record<"burbujas" | "poco", BlackFridaySettings["costs"]>>;
+  offer_costs?: Partial<Record<"burbujas" | "poco" | "pocoeu", BlackFridaySettings["costs"]>>;
 };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
@@ -133,10 +133,10 @@ export const DEFAULT_SETTINGS: Settings = {
   // close on Wednesday 25/11 at 23:59 in Berlin and Madrid (CET, UTC+1).
   black_friday: {
     enabled: true, // live since 01/11/2026 (switch in Settings → Black Friday)
-    countries: ["DE", "ES", "PT"],
-    cutoff_at: "2026-11-25T22:59:00Z",
+    countries: ["DE", "ES", "PT", "NL", "BE"],
+    cutoff_at: "2026-11-27T22:59:00Z", // 18/11/2026 (David): orders until Black Friday itself, 27/11 23:59 CET
     delivery_days: "2",
-    vat_percent: { DE: 19, ES: 21, PT: 13 }, // Portugal: wine 13% (as the Christmas box)
+    vat_percent: { DE: 19, ES: 21, PT: 13, NL: 21, BE: 21 }, // Portugal: wine 13% (as the Christmas box)
     costs: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 18/11/2026: Cheda to Germany, 30,50 €/box
   },
   ctt_fragile: false, // off (David, 16/11/2026): the CTT contract does not include "Fragil" for EMSF057.01

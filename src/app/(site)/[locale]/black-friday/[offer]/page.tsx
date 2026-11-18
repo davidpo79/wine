@@ -20,7 +20,8 @@ type Params = Promise<{ locale: string; offer: string }>;
 
 /** The offer and its copy for this URL (/es/black-friday/espumoso, /es/black-friday/poco-do-canto), else null. */
 function resolve(locale: string, path: string): { offer: BfOffer; locale: BfLocale } | null {
-  const offer = bfOfferByPath(path);
+  if (!isBfLocale(locale)) return null;
+  const offer = bfOfferByPath(path, locale);
   if (!offer || !isBfLocale(locale) || !offer.locales.includes(locale) || !bfCopyFor(offer.id, locale)) return null;
   return { offer, locale };
 }

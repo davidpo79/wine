@@ -2,6 +2,8 @@
 
 Last updated: 10/10/2026 (session 1)
 
+## 18/11 (later): Poço do Canto for Germany, the Netherlands and Belgium (offer "pocoeu", bundles bfq1/bfq2/bfq3: 60 / 110 / 159 €, reference price 120 € a box as in David's ad, his choice). Pages /de|nl|fr/black-friday/poco-do-canto (Dutch and French are new Black Friday languages; /nl and /fr/black-friday open this page). Costs 27,50 €/box (wine 12, transport 2,50, box 2,50, handling 2, delivery 8,50), 440 boxes. VAT NL and BE 21%. Orders open until Black Friday itself, 27/11 23:59 CET. Ads: public/ads/bfq_poco_* (scripts/ads/render-poco-eu.ts).
+
 ## 18/11: Black Friday Germany sells the Cheda mix (Lavradores de Feitoria, Belgian warehouse), 68,50 €, costs 30,50 €/box (wine 15, transport 2,50, box 2,50, handling 2, delivery 8,50). Spain keeps the Galhofa mix (from Lisbon, CTT). Ads: public/ads/bf10_cheda_*.
 
 **Meta targeting rule for every Black Friday campaign (David, 18/11/2026): men only, ages 28 to 65.** Advantage+ Audience OFF (with it on, age and gender are only suggestions), genders [1], age_min 28, age_max 65; keep the country, the excluded areas (Canarias, Ceuta, Melilla for Spain) and the excluded recent buyers audience. Applies to new Black Friday ad sets in every country (DE, ES, NL, BE).
