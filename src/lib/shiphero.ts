@@ -106,19 +106,30 @@ export async function shipheroGql<T>(query: string, variables: Record<string, un
   return j.data;
 }
 
+/**
+ * ShipHero refuses customer_account_id: null ("Invalid customer_account_id"), so the argument is only declared and sent
+ * when SHIPHERO_CUSTOMER_ACCOUNT_ID is set (a 3PL account acting for us).
+ */
+export function customerArg(): { decl: string; arg: string; vars: Record<string, string> } {
+  const cid = process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID?.trim();
+  return cid ? { decl: ", $cid: String", arg: "customer_account_id: $cid", vars: { cid } } : { decl: "", arg: "", vars: {} };
+}
+
 const customer = () => (process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID ? { customer_account_id: process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID } : {});
 
 /** The warehouse's products (SKU, name, stock), to map each box type to its SKU in the admin. */
 export async function shipheroProducts(): Promise<{ sku: string; name: string; onHand: number | null }[]> {
-  const q = `query($cid: String) { products(customer_account_id: $cid) { data(first: 100) { edges { node { sku name warehouse_products { on_hand } } } } } }`;
-  const d = await shipheroGql<{ products: { data: { edges: { node: { sku: string; name: string; warehouse_products?: { on_hand: number }[] } }[] } } }>(q, { cid: process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID ?? null });
+  const c = customerArg();
+  const q = `query${c.decl ? `(${c.decl.slice(2)})` : ""} { products${c.arg ? `(${c.arg})` : ""} { data(first: 100) { edges { node { sku name warehouse_products { on_hand } } } } } }`;
+  const d = await shipheroGql<{ products: { data: { edges: { node: { sku: string; name: string; warehouse_products?: { on_hand: number }[] } }[] } } }>(q, c.vars);
   return d.products.data.edges.map(({ node: n }) => ({ sku: n.sku, name: n.name, onHand: n.warehouse_products?.reduce((s, w) => s + (w.on_hand ?? 0), 0) ?? null }));
 }
 
 /** An order already in ShipHero (retries after a timeout must not create it twice). */
 async function findShipheroOrder(orderNumber: string): Promise<string | null> {
-  const q = `query($n: String, $cid: String) { orders(order_number: $n, customer_account_id: $cid) { data(first: 1) { edges { node { id } } } } }`;
-  const d = await shipheroGql<{ orders: { data: { edges: { node: { id: string } }[] } } }>(q, { n: orderNumber, cid: process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID ?? null });
+  const c = customerArg();
+  const q = `query($n: String${c.decl}) { orders(order_number: $n${c.arg ? `, ${c.arg}` : ""}) { data(first: 1) { edges { node { id } } } } }`;
+  const d = await shipheroGql<{ orders: { data: { edges: { node: { id: string } }[] } } }>(q, { n: orderNumber, ...c.vars });
   return d.orders.data.edges[0]?.node.id ?? null;
 }
 
@@ -206,10 +217,10 @@ export async function shipheroWebhookSecrets(): Promise<string[]> {
 
 /** The registered webhooks of the account (name, url). */
 export async function shipheroWebhooks(): Promise<{ name: string; url: string }[]> {
-  const cid = process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID ?? null;
+  const c = customerArg();
   const d = await shipheroGql<{ webhooks: { data: { edges: { node: { name: string; url: string } }[] } } }>(
-    `query($cid: String) { webhooks(customer_account_id: $cid) { data(first: 50) { edges { node { name url } } } } }`,
-    { cid },
+    `query${c.decl ? `(${c.decl.slice(2)})` : ""} { webhooks${c.arg ? `(${c.arg})` : ""} { data(first: 50) { edges { node { name url } } } } }`,
+    c.vars,
   );
   return d.webhooks.data.edges.map((e) => e.node);
 }

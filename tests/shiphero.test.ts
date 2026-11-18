@@ -56,3 +56,12 @@ test("webhook signature accepts any of the saved secrets", async () => {
   assert.equal(validShipheroSignature(raw, sig, ["first"]), false);
   assert.equal(validShipheroSignature(raw, sig, []), false);
 });
+
+test("customer_account_id is left out unless set (ShipHero refuses null)", async () => {
+  const { customerArg } = await import("../src/lib/shiphero");
+  delete process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID;
+  assert.deepEqual(customerArg(), { decl: "", arg: "", vars: {} });
+  process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID = "abc";
+  assert.equal(customerArg().arg, "customer_account_id: $cid");
+  delete process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID;
+});
