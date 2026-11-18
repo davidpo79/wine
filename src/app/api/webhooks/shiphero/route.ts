@@ -1,7 +1,7 @@
 import { db, schema } from "@/db";
 import { logOrderEvent } from "@/lib/orders";
 import { sendShippingAlert } from "@/lib/email";
-import { parseShipmentUpdate, validShipheroSignature } from "@/lib/shiphero";
+import { parseShipmentUpdate, shipheroWebhookSecrets, validShipheroSignature } from "@/lib/shiphero";
 import { handleShipheroShipment } from "@/lib/shiphero-fulfilment";
 
 // ShipHero webhooks (registered with `npx tsx scripts/shiphero.ts webhooks`): "Shipment Update" brings the tracking and
@@ -9,7 +9,7 @@ import { handleShipheroShipment } from "@/lib/shiphero-fulfilment";
 // the raw body with SHIPHERO_WEBHOOK_SECRET); X-Shiphero-Message-ID makes redeliveries harmless.
 export async function POST(req: Request) {
   const raw = await req.text();
-  if (!validShipheroSignature(raw, req.headers.get("x-shiphero-hmac-sha256"))) return new Response("invalid signature", { status: 401 });
+  if (!validShipheroSignature(raw, req.headers.get("x-shiphero-hmac-sha256"), await shipheroWebhookSecrets())) return new Response("invalid signature", { status: 401 });
   let body: { webhook_type?: string; test?: string; fulfillment?: unknown; order_number?: string; partner_order_id?: string } | null = null;
   try {
     body = JSON.parse(raw);

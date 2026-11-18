@@ -135,6 +135,7 @@ export function shipheroOrderInput(o: Order, s: Pick<Settings, "shiphero">) {
   const missing = items.filter((i) => !s.shiphero.skus[i.key]).map((i) => SHIPHERO_ITEM_LABEL[i.key]);
   if (missing.length) throw new ShipheroError(`No ShipHero SKU for ${missing.join(", ")} (Admin → Settings → ShipHero).`);
   const lineTotal = Math.round(o.totalCents / Math.max(1, items.reduce((n, i) => n + i.qty, 0)));
+  const warehouse = process.env.SHIPHERO_WAREHOUSE_ID || s.shiphero.warehouse_id;
   return {
     ...customer(),
     order_number: o.id,
@@ -158,7 +159,7 @@ export function shipheroOrderInput(o: Order, s: Pick<Settings, "shiphero">) {
       product_name: SHIPHERO_ITEM_LABEL[i.key],
       fulfillment_status: "pending",
       quantity_pending_fulfillment: i.qty,
-      ...(process.env.SHIPHERO_WAREHOUSE_ID ? { warehouse_id: process.env.SHIPHERO_WAREHOUSE_ID } : {}),
+      ...(warehouse ? { warehouse_id: warehouse } : {}),
     })),
   };
 }
@@ -183,11 +184,59 @@ export async function pushOrderToShiphero(o: Order, s: Pick<Settings, "shiphero"
 // --- webhooks -----------------------------------------------------------------------------------------------------
 
 /** x-shiphero-hmac-sha256 = base64(HMAC-SHA256(secret, raw body)). */
-export function validShipheroSignature(raw: string, signature: string | null, secret = process.env.SHIPHERO_WEBHOOK_SECRET) {
-  if (!secret || !signature) return false;
-  const want = Buffer.from(createHmac("sha256", secret).update(raw, "utf8").digest("base64"));
+export function validShipheroSignature(raw: string, signature: string | null, secret: string | string[] | undefined = process.env.SHIPHERO_WEBHOOK_SECRET) {
+  const secrets = (Array.isArray(secret) ? secret : [secret]).filter((x): x is string => !!x);
+  if (!secrets.length || !signature) return false;
   const got = Buffer.from(signature.trim());
-  return want.length === got.length && timingSafeEqual(want, got);
+  return secrets.some((k) => {
+    const want = Buffer.from(createHmac("sha256", k).update(raw, "utf8").digest("base64"));
+    return want.length === got.length && timingSafeEqual(want, got);
+  });
+}
+
+const WEBHOOK_SECRETS_KEY = "shiphero_webhook_secrets";
+export const SHIPHERO_WEBHOOKS = ["Shipment Update", "Order Canceled"] as const;
+
+/** Secrets that may sign ShipHero webhooks: SHIPHERO_WEBHOOK_SECRET and those saved by "Connect shipping updates". */
+export async function shipheroWebhookSecrets(): Promise<string[]> {
+  const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, WEBHOOK_SECRETS_KEY));
+  const saved = (row?.value as string[] | undefined) ?? [];
+  return [process.env.SHIPHERO_WEBHOOK_SECRET, ...saved].filter((x): x is string => !!x);
+}
+
+/** The registered webhooks of the account (name, url). */
+export async function shipheroWebhooks(): Promise<{ name: string; url: string }[]> {
+  const cid = process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID ?? null;
+  const d = await shipheroGql<{ webhooks: { data: { edges: { node: { name: string; url: string } }[] } } }>(
+    `query($cid: String) { webhooks(customer_account_id: $cid) { data(first: 50) { edges { node { name url } } } } }`,
+    { cid },
+  );
+  return d.webhooks.data.edges.map((e) => e.node);
+}
+
+/**
+ * Registers "Shipment Update" and "Order Canceled" on <site>/api/webhooks/shiphero (re-creating ours if present) and
+ * keeps their shared_signature_secret in the settings table, so nobody has to copy it anywhere.
+ */
+export async function connectShipheroWebhooks(site: string, shopName: string): Promise<number> {
+  const url = `${site.replace(/\/$/, "")}/api/webhooks/shiphero`;
+  const cid = process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID;
+  const extra = cid ? { customer_account_id: cid } : {};
+  const existing = await shipheroWebhooks();
+  const secrets: string[] = [];
+  for (const name of SHIPHERO_WEBHOOKS) {
+    if (existing.some((w) => w.name === name)) {
+      await shipheroGql(`mutation($data: DeleteWebhookInput!) { webhook_delete(data: $data) { request_id } }`, { data: { name, shop_name: shopName, ...extra } });
+    }
+    const d = await shipheroGql<{ webhook_create: { webhook: { shared_signature_secret: string } } }>(
+      `mutation($data: CreateWebhookInput!) { webhook_create(data: $data) { webhook { shared_signature_secret } } }`,
+      { data: { name, url, shop_name: shopName, ...extra } },
+    );
+    secrets.push(d.webhook_create.webhook.shared_signature_secret);
+  }
+  const value = [...new Set(secrets.filter(Boolean))];
+  await db.insert(schema.settings).values({ key: WEBHOOK_SECRETS_KEY, value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+  return SHIPHERO_WEBHOOKS.length;
 }
 
 export type ShipheroShipment = { orderNumber: string; trackingNumber: string | null; trackingUrl: string | null; carrier: string | null; method: string | null; packages: number };

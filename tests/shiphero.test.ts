@@ -47,3 +47,12 @@ test("ShipHero: webhook signature and Shipment Update parsing", () => {
   assert.deepEqual(s, { orderNumber: "WP1042", trackingNumber: "1Z999AA10123456784", trackingUrl: "https://www.ups.com/track?tracknum=1Z999AA10123456784", carrier: "ups", method: "UPS Standard", packages: 1 });
   assert.equal(parseShipmentUpdate({ fulfillment: {} }), null);
 });
+
+test("webhook signature accepts any of the saved secrets", async () => {
+  const { createHmac } = await import("node:crypto");
+  const raw = '{"webhook_type":"Shipment Update"}';
+  const sig = createHmac("sha256", "second").update(raw).digest("base64");
+  assert.equal(validShipheroSignature(raw, sig, ["first", "second"]), true);
+  assert.equal(validShipheroSignature(raw, sig, ["first"]), false);
+  assert.equal(validShipheroSignature(raw, sig, []), false);
+});

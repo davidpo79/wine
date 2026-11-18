@@ -779,7 +779,23 @@ export async function shipheroSettingsAction(_: FormState, fd: FormData): Promis
     if (v) skus[k] = v;
   }
   const shop = String(fd.get("shop_name") ?? "").trim() || prev.shop_name;
-  await setSetting("shiphero", { enabled: fd.get("enabled") === "on", shop_name: shop.slice(0, 60), skus });
+  await setSetting("shiphero", { ...prev, enabled: fd.get("enabled") === "on", shop_name: shop.slice(0, 60), skus });
   revalidatePath("/admin/settings");
   return { ok: "ShipHero settings saved." };
+}
+
+/** "Connect shipping updates": registers ShipHero's webhooks on this site and keeps their signing secret. */
+export async function shipheroWebhooksAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const site = (process.env.SITE_URL ?? "").replace(/\/$/, "");
+  if (!/^https:\/\//.test(site)) return { error: "SITE_URL must be the public https address of the site." };
+  const { shipheroConfigured, connectShipheroWebhooks } = await import("@/lib/shiphero");
+  if (!shipheroConfigured()) return { error: "ShipHero is not connected yet (SHIPHERO_REFRESH_TOKEN in Railway)." };
+  try {
+    const n = await connectShipheroWebhooks(site, (await getSettings()).shiphero.shop_name);
+    revalidatePath("/admin/settings");
+    return { ok: `Shipping updates connected (${n} webhooks on ${site}).` };
+  } catch (e) {
+    return { error: `ShipHero: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }

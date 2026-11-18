@@ -2,8 +2,8 @@ import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate, zonedDate } from "@/lib/time";
 import { BF_OFFERS, bfBoxCost, bfCostsFor } from "@/lib/black-friday";
-import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction, shipheroSettingsAction } from "../../actions";
-import { SHIPHERO_ITEM_LABEL, shipheroConfigured, shipheroProducts } from "@/lib/shiphero";
+import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction, shipheroSettingsAction, shipheroWebhooksAction } from "../../actions";
+import { SHIPHERO_ITEM_LABEL, SHIPHERO_WEBHOOKS, shipheroConfigured, shipheroProducts, shipheroWebhookSecrets, shipheroWebhooks } from "@/lib/shiphero";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
 import { OutboundCallsSection } from "./outbound-calls";
@@ -269,19 +269,22 @@ async function ShipheroSection({ sh }: { sh: Awaited<ReturnType<typeof getSettin
   const connected = shipheroConfigured();
   let products: Awaited<ReturnType<typeof shipheroProducts>> = [];
   let problem: string | null = null;
+  let hooks: { name: string; url: string }[] = [];
+  const signed = (await shipheroWebhookSecrets()).length > 0;
   if (connected) {
     try {
-      products = await shipheroProducts();
+      [products, hooks] = await Promise.all([shipheroProducts(), shipheroWebhooks()]);
     } catch (e) {
       problem = e instanceof Error ? e.message : String(e);
     }
   }
   return (
+    <>
     <ActionForm action={shipheroSettingsAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
       <h2 className="font-semibold">Belgian warehouse (ShipHero)</h2>
       <p className="text-xs text-muted">
         Paid orders to Germany, the Netherlands and Belgium are created in ShipHero; when the warehouse ships, the order becomes “shipped” and the customer gets the tracking link.{" "}
-        {connected ? "Connected." : "Not connected yet: set SHIPHERO_REFRESH_TOKEN (Third-Party Developer user) and SHIPHERO_WEBHOOK_SECRET in Railway."}
+        {connected ? "Connected." : "Not connected yet: set SHIPHERO_REFRESH_TOKEN (Third-Party Developer user) in Railway."}
       </p>
       {problem && <p className="text-xs text-xmas">ShipHero: {problem}</p>}
       <label className="flex items-center gap-2"><input type="checkbox" name="enabled" defaultChecked={sh.enabled} /> Send paid orders automatically</label>
@@ -301,6 +304,22 @@ async function ShipheroSection({ sh }: { sh: Awaited<ReturnType<typeof getSettin
       </div>
       {products.length > 0 && <p className="text-xs text-muted">{products.length} products in ShipHero: start typing to pick a SKU.</p>}
       <Submit>Save ShipHero settings</Submit>
+    </ActionForm>
+    <ShipheroWebhooksSection hooks={hooks} signed={signed} />
+    </>
+  );
+}
+
+/** Shipping updates (tracking → "shipped" + customer email) need ShipHero's webhooks on this site. */
+function ShipheroWebhooksSection({ hooks, signed }: { hooks: { name: string; url: string }[]; signed: boolean }) {
+  const ours = SHIPHERO_WEBHOOKS.every((n) => hooks.some((h) => h.name === n && h.url.endsWith("/api/webhooks/shiphero")));
+  return (
+    <ActionForm action={shipheroWebhooksAction} className="mt-3 space-y-2 rounded-lg border bg-white p-5 text-sm">
+      <h3 className="font-semibold">Shipping updates from the warehouse</h3>
+      <p className="text-xs text-muted">
+        {ours && signed ? "Connected: shipments mark the order shipped and email the tracking link." : "Not connected: press the button once (after the deploy) so ShipHero tells us when an order ships."}
+      </p>
+      <Submit>{ours ? "Reconnect shipping updates" : "Connect shipping updates"}</Submit>
     </ActionForm>
   );
 }
