@@ -1,6 +1,6 @@
 # Belgian warehouse: ShipHero
 
-Orders delivered to **Germany, the Netherlands, Belgium and Luxembourg** are created in ShipHero as soon as they are
+Orders delivered to **Germany, the Netherlands and Belgium** are created in ShipHero as soon as they are
 paid. When the warehouse ships, ShipHero's "Shipment Update" webhook marks the order **shipped** and the customer gets
 the email with the tracking number and link. Spain and Portugal keep shipping from Lisbon with CTT.
 
@@ -22,7 +22,7 @@ the email with the tracking number and link. Spain and Portugal keep shipping fr
 
 ## Day to day
 
-- Paid order (DE/NL/BE/LU) → created in ShipHero, order status **preparing**.
+- Paid order (DE/NL/BE) → created in ShipHero, order status **preparing**.
 - If ShipHero refuses it (missing SKU, address...), the team gets an email; fix it and press **Send to ShipHero** on the
   order page.
 - Warehouse ships → order **shipped**, customer email with the tracking link (UPS).

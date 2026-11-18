@@ -47,7 +47,7 @@ export default async function SettingsPage() {
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Countries (markets)</legend>
           <p className="text-xs text-muted">
-            Portugal ships from the Douro (CTT, MB WAY, Multibanco). Germany, the Netherlands, Belgium and Luxembourg ship from the Belgian warehouse and pay with Stripe (iDEAL and Bancontact must be enabled in the
+            Portugal ships from the Douro (CTT, MB WAY, Multibanco). Germany, the Netherlands and Belgium ship from the Belgian warehouse and pay with Stripe (iDEAL and Bancontact must be enabled in the
             Stripe dashboard). Open a country only once excise duty and VAT for it are sorted. Logged-in admins always see every country open, to test.
           </p>
           <table className="mt-2 w-full text-left text-xs">
@@ -280,7 +280,7 @@ async function ShipheroSection({ sh }: { sh: Awaited<ReturnType<typeof getSettin
     <ActionForm action={shipheroSettingsAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
       <h2 className="font-semibold">Belgian warehouse (ShipHero)</h2>
       <p className="text-xs text-muted">
-        Paid orders to Germany, the Netherlands, Belgium and Luxembourg are created in ShipHero; when the warehouse ships, the order becomes “shipped” and the customer gets the tracking link.{" "}
+        Paid orders to Germany, the Netherlands and Belgium are created in ShipHero; when the warehouse ships, the order becomes “shipped” and the customer gets the tracking link.{" "}
         {connected ? "Connected." : "Not connected yet: set SHIPHERO_REFRESH_TOKEN (Third-Party Developer user) and SHIPHERO_WEBHOOK_SECRET in Railway."}
       </p>
       {problem && <p className="text-xs text-xmas">ShipHero: {problem}</p>}

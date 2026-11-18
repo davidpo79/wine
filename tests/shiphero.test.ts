@@ -11,6 +11,7 @@ test("ShipHero: only the Belgian warehouse countries, and the right box per offe
   assert.equal(isBelgianOrder({ country: "DE" } as never), true);
   assert.equal(isBelgianOrder({ country: "BE" } as never), true);
   assert.equal(isBelgianOrder({ country: "ES" } as never), false);
+  assert.equal(isBelgianOrder({ country: "LU" } as never), false); // the warehouse ships to DE, NL and BE only
   assert.equal(isBelgianOrder({ country: "PT" } as never), false);
   assert.deepEqual(shipheroItemsFor(order()), [{ key: "cheda_mix_6", qty: 2 }]); // Douro box to Germany = Cheda
   assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfq1", qtyBoxes: 1, country: "NL" })), [{ key: "poco_6", qty: 1 }]);

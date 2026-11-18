@@ -1,5 +1,5 @@
-// Belgian warehouse on ShipHero (David, 18/11/2026). Orders delivered to Germany, the Netherlands, Belgium and
-// Luxembourg (MARKETS[c].warehouse === "belgium") are created in ShipHero as soon as they are paid, and again from the
+// Belgian warehouse on ShipHero (David, 18/11/2026). Orders delivered to Germany, the Netherlands and Belgium
+// (the only countries the Belgian warehouse ships to) are created in ShipHero as soon as they are paid, and again from the
 // admin if that failed. ShipHero's "Shipment Update" webhook (app/api/webhooks/shiphero) brings the tracking back:
 // the order becomes "shipped" and the customer gets the email with the tracking link.
 //
@@ -21,10 +21,10 @@ const API = process.env.SHIPHERO_API_URL ?? "https://public-api.shiphero.com";
 export const shipheroConfigured = () => !!process.env.SHIPHERO_REFRESH_TOKEN || !!process.env.SHIPHERO_ACCESS_TOKEN;
 
 /**
- * Orders the Belgian warehouse ships: delivery to DE, NL, BE or LU. Spain is still "belgium" in MARKETS (the first Black
+ * Orders the Belgian warehouse ships: delivery to DE, NL or BE (not LU). Spain is still "belgium" in MARKETS (the first Black
  * Friday plan) but its parcels leave from Lisbon with CTT (lib/fulfilment), so it never goes to ShipHero.
  */
-export const SHIPHERO_COUNTRIES = ["DE", "NL", "BE", "LU"] as const;
+export const SHIPHERO_COUNTRIES = ["DE", "NL", "BE"] as const; // the warehouse ships to these three only (David, 18/11/2026)
 export const isBelgianOrder = (o: Pick<Order, "country">) => isCountry(o.country) && MARKETS[o.country].warehouse === "belgium" && (SHIPHERO_COUNTRIES as readonly string[]).includes(o.country);
 
 export const SHIPHERO_ITEM_LABEL: Record<ShipheroItemKey, string> = {

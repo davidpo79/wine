@@ -10,7 +10,7 @@ import { isBelgianOrder, pushOrderToShiphero, shipheroConfigured, upsTrackingUrl
 /** Admin button and automatic push: creates the order in ShipHero and moves it to "preparing". */
 export async function sendToShiphero(o: Order, by: string): Promise<{ ok: string } | { error: string }> {
   if (!shipheroConfigured()) return { error: "ShipHero is not connected yet (SHIPHERO_REFRESH_TOKEN in Railway)." };
-  if (!isBelgianOrder(o)) return { error: "Only orders to Germany, the Netherlands, Belgium and Luxembourg go to the Belgian warehouse." };
+  if (!isBelgianOrder(o)) return { error: "Only orders to Germany, the Netherlands and Belgium go to the Belgian warehouse." };
   if (!["paid", "preparing"].includes(o.status)) return { error: `Only paid orders go to the warehouse (this one is "${o.status}").` };
   const settings = await getSettings();
   try {
