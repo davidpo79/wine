@@ -169,5 +169,5 @@ test("Black Friday panels reproduce David's numbers (3% fee, 20% marketing, VAT 
   assert.equal(profit("pocoeu", 6000, "DE"), 912); // Poço do Canto: 9,12 €
   assert.equal(profit("pocoeu", 6000, "NL"), 829); // 8,29 €
   assert.equal(profit("galhofa", 6850, "BE"), 1036); // Galhofa NL/BE: 10,36 €
-  assert.equal(Math.round(bfPanel("galhofa", s, 6850).ifAllSold!.profitMin), 455689); // 440 boxes: 4.556,89 €
+  assert.equal(Math.round(bfPanel("galhofa", s, 6850).ifAllSold!.profitMin), 372837); // 360 boxes (customs documents): 3.728,37 €
 });

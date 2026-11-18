@@ -167,6 +167,26 @@ await db
   }
 }
 
+// One-time update, 18/11/2026 (David): stock of the Belgian warehouse per the customs documents (e-DA PT 323854,
+// invoices Vinilourenço FCT 2026/786 and Lavradores FA 2026/416 + 415): Cheda 500, Poço do Canto 360, Galhofa 360
+// boxes; ShipHero SKUs D. Graça ×3 = 35600320722376, Trilogia 2160 = 55604086420020. Later admin edits are kept.
+{
+  const MARK = "patch_be_stock_customs_20261118";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [bf] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = { ...DEFAULT_SETTINGS.black_friday, ...((bf?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.black_friday>) };
+    const value = { ...cur, stock: { ...cur.stock, douro6: 500, pocoeu: 360, galhofa: 360 } };
+    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    const [sh] = await db.select().from(schema.settings).where(eq(schema.settings.key, "shiphero"));
+    const shCur = { ...DEFAULT_SETTINGS.shiphero, ...((sh?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.shiphero>) };
+    const shValue = { ...shCur, skus: { ...shCur.skus, dgraca_3: "35600320722376", trilogia_2160: "55604086420020" } };
+    await db.insert(schema.settings).values({ key: "shiphero", value: shValue }).onConflictDoUpdate({ target: schema.settings.key, set: { value: shValue } });
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Belgian warehouse stock and SKUs from the customs documents");
+  }
+}
+
 // First admin bootstrap: only when no admin exists yet. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD in Railway,
 // deploy once, log in, then delete ADMIN_INITIAL_PASSWORD. Later changes go through `npm run admin:create`.
 const [anyAdmin] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).limit(1);
