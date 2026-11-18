@@ -27,7 +27,7 @@ permissions:
 jobs:
   smoke:
     name: production smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # ubuntu-latest became 26.04, where Playwright 1.56 has no Chromium
     timeout-minutes: 15
     env:
       BASE_URL: ${{ github.event.inputs.base_url || 'https://vinho.prendadenatal.com' }}
