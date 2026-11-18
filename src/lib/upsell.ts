@@ -100,6 +100,7 @@ export const BF_CROSS_OFFERS: Record<BfOfferId, { to: BfOfferId; priceCents: num
   douro6: { to: "burbujas", priceCents: 6900, compareCents: 9000 },
   poco: { to: "burbujas", priceCents: 6900, compareCents: 9000 },
   burbujas: { to: "douro6", priceCents: 5500, compareCents: 6850 },
+  pocoeu: { to: "burbujas", priceCents: 6900, compareCents: 9000 }, // never used: the offer after payment is for Spanish orders only
 };
 
 const BF_CROSS_COPY: Record<BfOfferId, { title: string; label: string; description: string; image: string }> = {
@@ -116,6 +117,7 @@ const BF_CROSS_COPY: Record<BfOfferId, { title: string; label: string; descripti
     image: "/lp/bf/bottles-cut.webp",
   },
   poco: { title: "", label: "", description: "", image: "" },
+  pocoeu: { title: "", label: "", description: "", image: "" },
 };
 
 /** The one-time offer shown after a Black Friday order is paid (Spanish orders only), else null. */

@@ -7,16 +7,18 @@ import type { BlackFridaySettings } from "./settings-defaults";
 
 export const BF_PRODUCT_SLUG = "black-friday-douro-6";
 export const BF_BOTTLES_PER_BOX = 6;
-export const BF_LOCALES = ["de", "es"] as const satisfies readonly Locale[];
+/** Languages of the Black Friday pages: German and Spanish (all offers), Dutch and French (Poço do Canto for the Netherlands and Belgium, 18/11/2026). */
+export const BF_LOCALES = ["de", "es", "nl", "fr"] as const satisfies readonly Locale[];
 export type BfLocale = (typeof BF_LOCALES)[number];
-export const isBfLocale = (x: unknown): x is BfLocale => x === "de" || x === "es";
+export const isBfLocale = (x: unknown): x is BfLocale => typeof x === "string" && (BF_LOCALES as readonly string[]).includes(x);
 
 /**
  * The Black Friday offers. Each has its own product, bundles (prefix + qty: bf1, bfs2, bfp3...), page and costs; they
  * share the switch, cutoff, delivery days and VAT of Settings.black_friday. "douro6" is the original 6-bottle box (DE,
- * ES); the sparkling wine and Poço do Canto boxes (16/11/2026) sell in Spain only.
+ * ES); the sparkling wine and Poço do Canto boxes (16/11/2026) sell in Spain; "pocoeu" (18/11/2026) is the Poço do Canto
+ * box for Germany, the Netherlands and Belgium, from the Belgian warehouse, with its own prices (same page path).
  */
-export type BfOfferId = "douro6" | "burbujas" | "poco";
+export type BfOfferId = "douro6" | "burbujas" | "poco" | "pocoeu";
 export type BfOffer = {
   id: BfOfferId;
   slug: string;
@@ -28,23 +30,25 @@ export type BfOffer = {
   /** Delivery countries it can sell to (while open in Settings → Black Friday). */
   countries: readonly Country[];
   contentName: string;
-  productName: Record<BfLocale, string>;
+  productName: Partial<Record<BfLocale, string>>;
 };
 export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
-  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: BF_LOCALES, countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine" } },
+  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: ["de", "es"], countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine" } },
   burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
   poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
+  pocoeu: { id: "pocoeu", slug: "black-friday-poco-do-canto-6-eu", prefix: "bfq", bottlesPerBox: 6, path: "poco-do-canto", locales: ["de", "nl", "fr"], countries: ["DE", "NL", "BE"], contentName: "Black Friday Poco do Canto 6 DE NL BE", productName: { de: "Black Friday · 6 Poço do Canto Palhete 2019", nl: "Black Friday · 6 Poço do Canto Palhete 2019", fr: "Black Friday · 6 Poço do Canto Palhete 2019" } },
 };
 export const BF_OFFER_IDS = Object.keys(BF_OFFERS) as BfOfferId[];
 /** Short names in the admin (Orders, Funnel filters). */
-export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6" };
+export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6 (ES)", pocoeu: "Poço do Canto ×6 (DE/NL/BE)" };
 /** Admin funnel filter "bf:<offer>" → the offer (null for "bf", every Black Friday offer). */
 export const bfOfferOfFilter = (f: string | null | undefined): BfOfferId | null => {
   const id = f?.startsWith("bf:") ? f.slice(3) : null;
   return id && id in BF_OFFERS ? (id as BfOfferId) : null;
 };
 export const BF_SLUGS = BF_OFFER_IDS.map((id) => BF_OFFERS[id].slug);
-export const bfOfferByPath = (path: string) => BF_OFFER_IDS.map((id) => BF_OFFERS[id]).find((o) => o.path && o.path === path) ?? null;
+/** The offer of a page path, in a language (Poço do Canto has one page path for Spain and one offer for DE/NL/BE). */
+export const bfOfferByPath = (path: string, locale?: BfLocale) => BF_OFFER_IDS.map((id) => BF_OFFERS[id]).find((o) => o.path && o.path === path && (!locale || o.locales.includes(locale))) ?? null;
 
 /** Bundle keys of the Black Friday offers ("bf1", "bfs2", "bfp3"...); the Trilogia uses x1 / x2 / x4. */
 export const isBfBundle = (key: string | null | undefined) => !!key && /^bf[a-z]?\d+$/.test(key);
@@ -86,6 +90,13 @@ export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed
     { key: "bfp2", label: "Black Friday · Poço do Canto · 2 caixas · 12 garrafas", qty: 2, priceCents: 10400, compareAtCents: 18000, shippingCents: 0, badge: "Mais escolhido", sort: 32 },
     { key: "bfp3", label: "Black Friday · Poço do Canto · 3 caixas · 18 garrafas", qty: 3, priceCents: 14900, compareAtCents: 27000, shippingCents: 0, badge: "Melhor preço", sort: 33 },
   ],
+  // Germany, the Netherlands and Belgium (David, 18/11/2026): 60 € a box, 2 boxes 110 €, 3 boxes 159 €; reference price
+  // 120 € a box as in his ad (his choice, flagged: PAngV §11 / Omnibus wants the lowest price of the last 30 days).
+  pocoeu: [
+    { key: "bfq1", label: "Black Friday · Poço do Canto DE/NL/BE · 1 caixa · 6 garrafas", qty: 1, priceCents: 6000, compareAtCents: 12000, shippingCents: 0, badge: null, sort: 41 },
+    { key: "bfq2", label: "Black Friday · Poço do Canto DE/NL/BE · 2 caixas · 12 garrafas", qty: 2, priceCents: 11000, compareAtCents: 24000, shippingCents: 0, badge: "Mais escolhido", sort: 42 },
+    { key: "bfq3", label: "Black Friday · Poço do Canto DE/NL/BE · 3 caixas · 18 garrafas", qty: 3, priceCents: 15900, compareAtCents: 36000, shippingCents: 0, badge: "Melhor preço", sort: 43 },
+  ],
 };
 
 /** Product id for Meta / GA4 events. */
@@ -95,7 +106,7 @@ export const contentNameFor = (bundleKey: string | null | undefined) => bfOfferF
 /** Product name in customer-facing texts (emails, thank-you page). */
 export const bfProductName = (locale: Locale, bundleKey?: string | null) => {
   const o = bfOfferFor(bundleKey) ?? BF_OFFERS.douro6;
-  return isBfLocale(locale) ? o.productName[locale] : o.contentName;
+  return (isBfLocale(locale) ? o.productName[locale] : undefined) ?? o.contentName;
 };
 
 export const bfHref = (locale: BfLocale, offer: BfOffer = BF_OFFERS.douro6) => `/${locale}/black-friday${offer.path ? `/${offer.path}` : ""}`;
@@ -105,9 +116,11 @@ export const bfHref = (locale: BfLocale, offer: BfOffer = BF_OFFERS.douro6) => `
 export const bfOfferCountries = (offer: BfOffer, countries: readonly Country[]): Country[] => countries.filter((c) => offer.countries.includes(c));
 
 /** Black Friday language for a delivery country (the page only speaks German and Spanish). */
-export const bfLocaleFor = (country: string | null | undefined): BfLocale | null => (country === "ES" ? "es" : country === "DE" || country === "AT" || country === "LU" || country === "CH" ? "de" : null);
+export const bfLocaleFor = (country: string | null | undefined): BfLocale | null =>
+  country === "ES" ? "es" : country === "DE" || country === "AT" || country === "LU" || country === "CH" ? "de" : country === "NL" || country === "BE" ? "nl" : null;
 
-export const bfCountryFor = (locale: BfLocale): Country => (locale === "es" ? "ES" : "DE");
+/** Default delivery country of a language (French: Belgium; the checkout lets the buyer pick the other countries). */
+export const bfCountryFor = (locale: BfLocale): Country => (locale === "es" ? "ES" : locale === "nl" ? "NL" : locale === "fr" ? "BE" : "DE");
 
 /** Countries taking Black Friday orders right now (none once switched off). */
 export function bfOpenCountries(s: BlackFridaySettings): Country[] {
@@ -137,4 +150,7 @@ export function bfCostsFor(s: BlackFridaySettings, offer: BfOfferId): BlackFrida
 export const BF_DEFAULT_OFFER_COSTS: Record<Exclude<BfOfferId, "douro6">, BlackFridaySettings["costs"]> = {
   burbujas: { wine_cents: 3000, shipping_box_cents: 300, transport_cents: 0, handling_cents: 0, delivery_cents: 1000 },
   poco: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 0, handling_cents: 0, delivery_cents: 700 },
+  // David, 18/11/2026 (DE/NL/BE from the Belgian warehouse): wine 12 €, transport to Belgium 2,50 €, box 2,50 €,
+  // handling 2 €, delivery 8,50 € (confirmed for Germany, an estimate for NL and BE).
+  pocoeu: { wine_cents: 1200, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 },
 };

@@ -113,13 +113,13 @@ export default async function SettingsPage() {
             <label>Delivery<input name="bf_c_delivery" defaultValue={eur(bf.costs.delivery_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
             <span className="self-end pb-2 font-semibold">= €{eur(bfBoxCost(bf))} / box</span>
           </div>
-          {(["burbujas", "poco"] as const).map((id) => {
+          {(["burbujas", "poco", "pocoeu"] as const).map((id) => {
             const c = bfCostsFor(bf, id);
             const o = BF_OFFERS[id];
             return (
               <div key={id} className="mt-3">
                 <p className="text-xs font-semibold">
-                  {o.productName.es} (page /es/black-friday/{o.path}, options {o.prefix}1, {o.prefix}2, {o.prefix}3): costs per box of {o.bottlesPerBox} bottles
+                  {o.productName[o.locales[0]]} ({o.countries.join(", ")} · page /{o.locales.join("|")}/black-friday/{o.path}, options {o.prefix}1, {o.prefix}2, {o.prefix}3): costs per box of {o.bottlesPerBox} bottles
                   {c.wine_cents === 0 && <span className="ml-1 text-amber-700">· wine cost not set: Finance overstates its profit</span>}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-3 text-xs">

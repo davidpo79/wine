@@ -40,7 +40,7 @@ export function AboutPage({ locale, from }: { locale: Locale; from?: string }) {
   const ox = from && locale === "es" ? ABOUT_BF_OFFER[from]?.es : undefined;
   const bf = ox ?? (from === "bf" && isBfLocale(locale) ? ABOUT_BF[locale] : undefined);
   const c = { ...ABOUT_COPY[locale], ...(bf ?? {}) };
-  const offer = ox ? bfOfferByPath(ox.path) : null;
+  const offer = ox ? bfOfferByPath(ox.path, "es") : null;
   const home = bf && isBfLocale(locale) ? (offer ? bfHref(locale, offer) : bfHref(locale)) : homeHref(locale);
   const winesImg = ox?.winesImg ?? (bf ? (locale === "de" ? "/lp/bf/cheda-hero.webp" : "/lp/bf/bottles.webp") : "/lp/table-768.webp");
   const boxImg = ox?.boxImg ?? (bf ? "/lp/bf/who-warehouse.webp" : "/lp/giftbox-768.webp");

@@ -67,7 +67,7 @@ await db
   .onConflictDoNothing();
 
 // Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
-const OFFER_PRODUCTS: Record<"burbujas" | "poco", { name: string; shortDescription: string; wines: WineItem[] }> = {
+const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu", { name: string; shortDescription: string; wines: WineItem[] }> = {
   burbujas: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
@@ -78,8 +78,13 @@ const OFFER_PRODUCTS: Record<"burbujas" | "poco", { name: string; shortDescripti
     shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Espanha.",
     wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
   },
+  pocoeu: {
+    name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas · DE/NL/BE",
+    shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Alemanha, Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
+    wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
+  },
 };
-for (const id of ["burbujas", "poco"] as const) {
+for (const id of ["burbujas", "poco", "pocoeu"] as const) {
   const slug = BF_OFFERS[id].slug;
   let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
   if (!p) {
@@ -130,6 +135,26 @@ await db
     await db.update(schema.bundles).set({ priceCents: 6850, shippingCents: 0 }).where(eq(schema.bundles.key, "bf1"));
     await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
     console.log("patch applied: Black Friday Germany = Cheda, 68,50 €, costs 30,50 €/box");
+  }
+}
+
+// One-time update, 18/11/2026 (David): Black Friday also in the Netherlands and Belgium (Poço do Canto, VAT 21%), and
+// orders open until Black Friday itself (27/11 23:59 CET instead of 25/11). Later edits in Admin → Settings are kept.
+{
+  const MARK = "patch_bf_nl_be_cutoff_20261118";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = { ...DEFAULT_SETTINGS.black_friday, ...((row?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.black_friday>) };
+    const value = {
+      ...cur,
+      countries: [...new Set([...cur.countries, "NL", "BE"] as const)],
+      vat_percent: { ...cur.vat_percent, NL: 21, BE: 21 },
+      cutoff_at: "2026-11-27T22:59:00Z",
+    };
+    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Black Friday in NL and BE, orders until 27/11");
   }
 }
 
