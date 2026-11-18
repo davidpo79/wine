@@ -4,11 +4,11 @@
 //   npx tsx scripts/shiphero.ts webhooks register   register "Shipment Update" and "Order Canceled" on SITE_URL and
 //                                                   print the shared_signature_secret (→ SHIPHERO_WEBHOOK_SECRET; shown once)
 import "./load-env";
-import { shipheroGql, shipheroProducts } from "../src/lib/shiphero";
+import { shipheroGql, shipheroProducts, shipheroWebhooks } from "../src/lib/shiphero";
 
 const [cmd, sub] = process.argv.slice(2);
 const site = (process.env.SITE_URL ?? "").replace(/\/$/, "");
-const cid = process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID ?? null;
+const cid = process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID?.trim() || null;
 
 if (cmd === "products") {
   for (const p of await shipheroProducts()) console.log(`${p.sku}\t${p.onHand ?? "?"}\t${p.name}`);
@@ -23,11 +23,7 @@ if (cmd === "products") {
   }
   console.log("Set SHIPHERO_WEBHOOK_SECRET in Railway to the secret above (ShipHero signs every webhook of the account with it).");
 } else if (cmd === "webhooks") {
-  const d = await shipheroGql<{ webhooks: { data: { edges: { node: { id: string; name: string; url: string; health?: string } }[] } } }>(
-    `query($cid: String) { webhooks(customer_account_id: $cid) { data(first: 50) { edges { node { id name url health } } } } }`,
-    { cid },
-  );
-  for (const { node: w } of d.webhooks.data.edges) console.log(`${w.name}\t${w.health ?? ""}\t${w.url}`);
+  for (const w of await shipheroWebhooks()) console.log(`${w.name}\t${w.url}`);
 } else {
   console.log("Usage: npx tsx scripts/shiphero.ts products | webhooks | webhooks register");
 }
