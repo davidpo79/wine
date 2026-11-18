@@ -573,6 +573,7 @@ export const en: Dict = {
     shippedTextIntl: "Good news: your Trilogia 2160 has shipped.",
     tracking: "Tracking code: <b>{code}</b>",
     trackButton: "Track your order on the CTT site",
+    trackButtonIntl: "Track your order",
     notHome: "If nobody is home, follow CTT's instructions at the link above.",
     shippedSubject: "Order {id} shipped · CTT {code}",
     shippedSubjectIntl: "Order {id} shipped · {code}",

@@ -573,6 +573,7 @@ export const ru: Dict = {
     shippedTextIntl: "Хорошие новости: Ваша Trilogia 2160 уже отправлена.",
     tracking: "Код отслеживания: <b>{code}</b>",
     trackButton: "Отследить заказ на сайте CTT",
+    trackButtonIntl: "Отследить заказ",
     notHome: "Если никого не будет дома, следуйте указаниям CTT по ссылке выше.",
     shippedSubject: "Заказ {id} отправлен · CTT {code}",
     shippedSubjectIntl: "Заказ {id} отправлен · {code}",

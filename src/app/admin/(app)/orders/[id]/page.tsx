@@ -1,6 +1,7 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
 import { loadCttxConfig, shipmentOf, shippingReady } from "@/lib/fulfilment";
 import { cttxConfigured, cttxMissing } from "@/lib/cttx";
+import { isBelgianOrder, shipheroConfigured } from "@/lib/shiphero";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -142,6 +143,32 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             {paid && <Submit name="action" value="resend_confirmation" className="!bg-white !text-night border">Resend confirmation</Submit>}
             {paid && <Submit name="action" value="regenerate_ebook" className="!bg-white !text-night border">New e-book link</Submit>}
           </ActionForm>
+          {isBelgianOrder(o) ? (
+          <div className="rounded border p-3 text-sm">
+            <p className="font-medium">Belgian warehouse (ShipHero)</p>
+            {shipment?.provider === "shiphero" ? (
+              <div className="mt-1 space-y-1 text-xs">
+                <p>
+                  {shipment.objects[0] ? <>In ShipHero · id {shipment.objects[0]}</> : "Not in ShipHero yet"}
+                  {shipment.trackingId && <> · tracking <strong>{shipment.trackingId}</strong></>}
+                  {shipment.trackingUrl && <> · <a className="underline" href={shipment.trackingUrl} target="_blank" rel="noreferrer">follow</a></>}
+                </p>
+                {shipment.lastText && <p>Last: {shipment.lastText}</p>}
+                {shipment.error && <p className="text-xmas">{shipment.error}</p>}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-muted">{shipheroConfigured() ? "Not sent to ShipHero yet (paid orders are sent automatically)." : "ShipHero not connected yet (SHIPHERO_REFRESH_TOKEN in Railway)."}</p>
+            )}
+            {shipheroConfigured() && (o.status === "paid" || o.status === "preparing") && !shipment?.trackingId && (
+              <ActionForm action={orderAction} className="mt-2">
+                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="action" value="shiphero_send" />
+                <Submit>{shipment?.objects[0] ? "Check / send to ShipHero again" : "Send to ShipHero"}</Submit>
+              </ActionForm>
+            )}
+            <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email and tracking link) when the warehouse ships it: automatic.</p>
+          </div>
+          ) : (
           <div className="rounded border p-3 text-sm">
             <p className="font-medium">CTT shipping</p>
             {shipment ? (
@@ -176,6 +203,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             {cttReady && <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email) when CTT picks the parcel up, and “delivered” on delivery: automatic.</p>}
             {cttxTodo.length > 0 && <p className="mt-2 text-xs text-xmas">CTT Expresso: missing {cttxTodo.join(", ")}.</p>}
           </div>
+          )}
           {(o.status === "paid" || o.status === "preparing") && (
             <ActionForm action={orderAction} className="rounded border p-3" confirm="Send the shipping email to the customer?">
               <input type="hidden" name="id" value={o.id} />

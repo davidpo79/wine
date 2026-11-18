@@ -573,6 +573,7 @@ export const es: Dict = {
     shippedTextIntl: "Buenas noticias: su Trilogia 2160 ya va de camino.",
     tracking: "Número de seguimiento: <b>{code}</b>",
     trackButton: "Seguir el envío en CTT",
+    trackButtonIntl: "Seguir el envío",
     notHome: "Si no hay nadie en casa, siga las indicaciones de CTT en el enlace de arriba.",
     shippedSubject: "Pedido {id} enviado · CTT {code}",
     shippedSubjectIntl: "Pedido {id} enviado · {code}",

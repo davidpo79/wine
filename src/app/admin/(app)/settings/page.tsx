@@ -2,7 +2,8 @@ import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { lisbonDate, zonedDate } from "@/lib/time";
 import { BF_OFFERS, bfBoxCost, bfCostsFor } from "@/lib/black-friday";
-import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction } from "../../actions";
+import { settingsAction, ga4TestAction, cttTestAction, cttSenderAction, ebookAction, shipheroSettingsAction } from "../../actions";
+import { SHIPHERO_ITEM_LABEL, shipheroConfigured, shipheroProducts } from "@/lib/shiphero";
 import { EBOOK_LOCALES } from "@/lib/ebook";
 import { ActionForm, Submit } from "../../ui";
 import { OutboundCallsSection } from "./outbound-calls";
@@ -209,6 +210,8 @@ export default async function SettingsPage() {
           <Submit name="action" value="off" className="!bg-white !text-night border">Turn off</Submit>
         </ActionForm>
       </section>
+      <ShipheroSection sh={s.shiphero} />
+
       <ActionForm action={cttSenderAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
         <h2 className="font-semibold">CTT: collection address</h2>
         <p className="text-xs text-muted">
@@ -258,5 +261,46 @@ export default async function SettingsPage() {
         <Submit>Send test event</Submit>
       </ActionForm>
     </div>
+  );
+}
+
+/** Belgian warehouse: automatic sending, and the ShipHero SKU of each box type (picked from the warehouse's products). */
+async function ShipheroSection({ sh }: { sh: Awaited<ReturnType<typeof getSettings>>["shiphero"] }) {
+  const connected = shipheroConfigured();
+  let products: Awaited<ReturnType<typeof shipheroProducts>> = [];
+  let problem: string | null = null;
+  if (connected) {
+    try {
+      products = await shipheroProducts();
+    } catch (e) {
+      problem = e instanceof Error ? e.message : String(e);
+    }
+  }
+  return (
+    <ActionForm action={shipheroSettingsAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+      <h2 className="font-semibold">Belgian warehouse (ShipHero)</h2>
+      <p className="text-xs text-muted">
+        Paid orders to Germany, the Netherlands, Belgium and Luxembourg are created in ShipHero; when the warehouse ships, the order becomes “shipped” and the customer gets the tracking link.{" "}
+        {connected ? "Connected." : "Not connected yet: set SHIPHERO_REFRESH_TOKEN (Third-Party Developer user) and SHIPHERO_WEBHOOK_SECRET in Railway."}
+      </p>
+      {problem && <p className="text-xs text-xmas">ShipHero: {problem}</p>}
+      <label className="flex items-center gap-2"><input type="checkbox" name="enabled" defaultChecked={sh.enabled} /> Send paid orders automatically</label>
+      <label className="block">Shop name in ShipHero<input name="shop_name" defaultValue={sh.shop_name} className="mt-1 block w-60 rounded border p-1.5" /></label>
+      <datalist id="shiphero-skus">{products.map((p) => <option key={p.sku} value={p.sku}>{p.name}{p.onHand != null ? ` · ${p.onHand} in stock` : ""}</option>)}</datalist>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {(Object.keys(SHIPHERO_ITEM_LABEL) as (keyof typeof SHIPHERO_ITEM_LABEL)[]).map((k) => {
+          const p = products.find((x) => x.sku === sh.skus[k]);
+          return (
+            <label key={k} className="block text-xs">
+              {SHIPHERO_ITEM_LABEL[k]}
+              <input name={`sku_${k}`} list="shiphero-skus" defaultValue={sh.skus[k] ?? ""} placeholder="SKU" className="mt-1 block w-full rounded border p-1.5 text-sm" />
+              {sh.skus[k] && products.length > 0 && <span className={p ? "text-muted" : "text-xmas"}>{p ? `${p.name}${p.onHand != null ? ` · ${p.onHand} in stock` : ""}` : "not found in ShipHero"}</span>}
+            </label>
+          );
+        })}
+      </div>
+      {products.length > 0 && <p className="text-xs text-muted">{products.length} products in ShipHero: start typing to pick a SKU.</p>}
+      <Submit>Save ShipHero settings</Submit>
+    </ActionForm>
   );
 }

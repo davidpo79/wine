@@ -178,7 +178,8 @@ ${orderSummary(o)}
   return send(o, o.email, fmt(t.pendingSubject, { id: o.id }), html, "pending");
 }
 
-export async function sendShipped(o: Order) {
+/** trackingUrl: the carrier's page for parcels that do not go with CTT (ShipHero / UPS from the Belgian warehouse). */
+export async function sendShipped(o: Order, trackingUrl?: string | null) {
   if (!o.email || !o.trackingNumber) return;
   const locale = localeOf(o);
   const t = getDict(locale).email;
@@ -187,7 +188,7 @@ export async function sendShipped(o: Order) {
     t.shippedTitle,
     `<p>${ctt ? t.shippedText : t.shippedTextIntl}</p>
 <p>${html_(fmt(t.tracking, { code: esc(o.trackingNumber) }))}</p>
-${ctt ? button(ctTrackingUrl(o.trackingNumber), t.trackButton) : ""}
+${ctt ? button(ctTrackingUrl(o.trackingNumber), t.trackButton) : trackingUrl ? button(trackingUrl, t.trackButtonIntl) : ""}
 ${orderSummary(o)}
 ${ctt ? `<p>${t.notHome}</p>` : ""}`,
     locale,
@@ -405,12 +406,12 @@ export async function sendPaymentIssueAlert(orderId: string, message: string) {
 }
 
 /** A parcel needs attention (not delivered, waiting at a CTT shop, returned): to ADMIN_ALERT_EMAIL. */
-export async function sendShippingAlert(orderId: string, message: string) {
-  console.warn(`[ctt] ${orderId}: ${message}`);
+export async function sendShippingAlert(orderId: string, message: string, carrier = "CTT") {
+  console.warn(`[${carrier.toLowerCase()}] ${orderId}: ${message}`);
   const to = process.env.ADMIN_ALERT_EMAIL;
   if (!to) return;
-  const html = layout("Atenção: envio CTT", `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
-  return send(null, to, `[CTT] ${orderId}: ${message.slice(0, 80)}`, html, "shipping_issue");
+  const html = layout(`Atenção: envio ${carrier}`, `<p>${esc(message)}</p>${button(`${SITE.url}/admin/orders/${orderId}`, "Abrir no admin")}`);
+  return send(null, to, `[${carrier}] ${orderId}: ${message.slice(0, 80)}`, html, "shipping_issue");
 }
 
 /** An incoming call the team did not answer, handled by the AI assistant: the team should call back. */

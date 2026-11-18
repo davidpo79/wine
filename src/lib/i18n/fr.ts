@@ -572,6 +572,7 @@ export const fr: Dict = {
     shippedTextIntl: "Bonne nouvelle : votre Trilogia 2160 a été expédiée.",
     tracking: "Numéro de suivi : <b>{code}</b>",
     trackButton: "Suivre la commande sur le site de CTT",
+    trackButtonIntl: "Suivre la commande",
     notHome: "S’il n’y a personne à la maison, suivez les instructions de CTT via le lien ci-dessus.",
     shippedSubject: "Commande {id} expédiée · CTT {code}",
     shippedSubjectIntl: "Commande {id} expédiée · {code}",
