@@ -221,16 +221,21 @@ ${row("Origem", source || null)}
 </table>`;
 }
 
+/** Every paid order: to ADMIN_ALERT_EMAIL and to ORDER_ALERT_EMAILS (David, 18/11/2026), once per address. */
+export const ORDER_ALERT_EMAILS = ["dudi79@gmail.com"];
+
 export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
-  const to = process.env.ADMIN_ALERT_EMAIL;
-  if (!to) return;
+  const list = [...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const recipients = [...new Set(list)];
+  if (!recipients.length) return;
   const html = layout(
     "Nova encomenda",
     `<p>Nova encomenda paga${o.country !== "PT" ? ` · ${esc(o.country)} (${esc(o.locale)})` : ""}.</p>${orderSummary(o, addons, "pt")}
 ${adminOrderDetails(o)}
 ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   );
-  return send(o, to, `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`, html, "admin_alert");
+  const subject = `[Nova encomenda] ${o.id} · ${eur(o.totalCents + addons.reduce((n, a) => n + a.amountCents, 0))}`;
+  for (const to of recipients) await send(o, to, subject, html, "admin_alert").catch((e) => console.error("[email] admin alert", to, e));
 }
 
 /** Login details for a new team member (temporary password, changed at first login). Admin UI is in English. */
