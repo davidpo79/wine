@@ -355,7 +355,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
         titleFirst: "Tus 6 Poço do Canto te esperan",
       },
     },
-  },  // Germany, the Netherlands and Belgium (18/11/2026): the same box from the Belgian warehouse, 60 €, reference 120 €.
+  },  galhofa: {}, // filled below from the Dutch and French Poço do Canto pages
+  // Germany, the Netherlands and Belgium (18/11/2026): the same box from the Belgian warehouse, 60 €, reference 120 €.
   pocoeu: {
     de: {
       ...DE,
@@ -595,6 +596,92 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
         smsAnon: "Wine Portugal : votre commande Black Friday ({boxes}) n'est pas terminée. Continuez ici : {link} L'offre se termine le {cutoff}. Ne plus recevoir de messages : {stop}",
       },
     },
+  },
+};
+
+/** Galhofa mix for the Netherlands and Belgium (18/11/2026): 3 red, 2 white, 1 rosé, 68,50 € (reference 137 €). */
+const GALHOFA_NL = BF_OFFER_COPY.pocoeu.nl!;
+const GALHOFA_FR = BF_OFFER_COPY.pocoeu.fr!;
+BF_OFFER_COPY.galhofa = {
+  nl: {
+    ...GALHOFA_NL,
+    images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp", who: "/lp/bf/who-warehouse.webp" },
+    who: { ...GALHOFA_NL.who, alt: "Wijn wordt ingepakt voor verzending" },
+    metaTitle: "Black Friday · 6 Douro-wijnen Galhofa voor 68,50 € met gratis verzending",
+    metaDescription: "3 rode, 2 witte en 1 rosé Galhofa, Douro DOC, rechtstreeks van de producent. 68,50 € per doos van 6, inclusief btw en verzending. Slechts 440 dozen, tot {date}.",
+    sub: "6 Galhofa-wijnen uit de Douro, van de producent naar je deur",
+    mix: ["3 rode", "2 witte", "1 rosé"],
+    bundles: {
+      bfg1: { title: "1 doos", bottles: "6 flessen" },
+      bfg2: { title: "2 dozen", bottles: "12 flessen", badge: "Meest gekozen" },
+      bfg3: { title: "3 dozen", bottles: "18 flessen", badge: "Beste prijs" },
+    },
+    wines: [
+      { type: "Rood", count: "× 3", name: "Galhofa Tinto 2024 · Douro DOC", text: "Touriga Nacional, Tinta Roriz en traditionele druiven van hooggelegen wijngaarden. Fris rood fruit, evenwichtig en aromatisch. Bij gebraad, stoofschotels en voor elke dag. Schenken op 16 °C.", img: "/lp/bf/red.webp" },
+      { type: "Wit", count: "× 2", name: "Galhofa Branco 2025 · Douro DOC", text: "Rabigato, Viosinho, Gouveio en Fernão Pires. Jong en intens aroma met citrus en bloemen, typisch voor de hooggelegen witte wijnen van de Douro Superior; fris, romig en evenwichtig. Als aperitief of bij zeevruchten, vis, licht vlees, pasta of Aziatische gerechten. Schenken op 8 tot 10 °C.", img: "/lp/bf/white.webp" },
+      { type: "Rosé", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Kersenrode kleur en een delicaat aroma van framboos. Goede frisheid en structuur: perfect bij sushi, pizza en salades. Schenken op 10 °C.", img: "/lp/bf/rose.webp" },
+    ],
+    story: [
+      GALHOFA_NL.story[0],
+      GALHOFA_NL.story[1],
+      { img: "/lp/bf/story-harvest2.webp", h: "In de kelder", p: "Ontsteeld, geselecteerd en vergist: zo ontstaan rood, wit en rosé van traditionele Douro-druiven." },
+      { img: "/lp/bf/bottles-cut.webp", h: "Naar jou", p: "Je doos wordt ingepakt in ons magazijn in België en komt in {days} werkdagen aan, met track & trace." },
+    ],
+    eveningTitle: "Eén avond, zes wijnen",
+    evening: [
+      { when: "Als aperitief", wine: "Rosé", img: "/lp/bf/rose.webp", p: "De Galhofa Rosé, goed gekoeld, bij olijven, kaas en hapjes." },
+      { when: "Als voorgerecht", wine: "Wit", img: "/lp/bf/white.webp", p: "De Galhofa Branco bij zeevruchten, vis of salade." },
+      { when: "Als hoofdgerecht", wine: "Rood", img: "/lp/bf/red.webp", p: "De Galhofa Tinto bij gebraad, stoofschotels en belegen kaas." },
+    ],
+    why: [
+      { h: "Rechtstreeks van de producent", p: "Geen groothandel, geen winkel ertussen. De wijnen komen van het wijnhuis in de Douro rechtstreeks bij jou thuis." },
+      { h: "Douro DOC", p: "Wijnen met beschermde oorsprong uit de Douro-vallei, het oudste afgebakende wijngebied ter wereld." },
+      { h: "Slechts 440 dozen", p: "Een beperkte hoeveelheid voor Black Friday, verzending inbegrepen. Als ze op zijn of de teller op nul staat, eindigt de aanbieding." },
+    ],
+    faq: GALHOFA_NL.faq.map((f) => (f.q === "Waar leveren jullie?" ? { ...f, a: "Deze doos leveren we voor Black Friday in Nederland en België." } : f)),
+    productName: "Black Friday · 6 Galhofa-wijnen uit de Douro",
+    trust: ["🍷 3 rode, 2 witte, 1 rosé Galhofa · Douro DOC", ...GALHOFA_NL.trust.slice(1)],
+    recovery: { ...GALHOFA_NL.recovery, titleFirst: "Je 6 Douro-wijnen wachten op je" },
+  },
+  fr: {
+    ...GALHOFA_FR,
+    images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp", who: "/lp/bf/who-warehouse.webp" },
+    who: { ...GALHOFA_FR.who, alt: "Du vin préparé pour l'envoi" },
+    metaTitle: "Black Friday · 6 vins du Douro Galhofa pour 68,50 € livraison offerte",
+    metaDescription: "3 rouges, 2 blancs et 1 rosé Galhofa, Douro DOC, directement du producteur. 68,50 € la caisse de 6, TVA et livraison comprises. Seulement 440 caisses, jusqu'au {date}.",
+    sub: "6 vins Galhofa du Douro, du producteur à votre porte",
+    mix: ["3 rouges", "2 blancs", "1 rosé"],
+    bundles: {
+      bfg1: { title: "1 caisse", bottles: "6 bouteilles" },
+      bfg2: { title: "2 caisses", bottles: "12 bouteilles", badge: "Le plus choisi" },
+      bfg3: { title: "3 caisses", bottles: "18 bouteilles", badge: "Meilleur prix" },
+    },
+    wines: [
+      { type: "Rouge", count: "× 3", name: "Galhofa Tinto 2024 · Douro DOC", text: "Touriga Nacional, Tinta Roriz et cépages traditionnels d'altitude. Fruits rouges frais, équilibré et aromatique. Avec les rôtis, les plats mijotés et pour tous les jours. Servir à 16 °C.", img: "/lp/bf/red.webp" },
+      { type: "Blanc", count: "× 2", name: "Galhofa Branco 2025 · Douro DOC", text: "Rabigato, Viosinho, Gouveio et Fernão Pires. Nez jeune et intense, notes d'agrumes et de fleurs, typique des blancs d'altitude du Douro Superior ; frais, crémeux et équilibré. À l'apéritif ou avec fruits de mer, poisson, viandes blanches, pâtes ou cuisine asiatique. Servir entre 8 et 10 °C.", img: "/lp/bf/white.webp" },
+      { type: "Rosé", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Couleur cerise et arôme délicat de framboise. Belle fraîcheur et belle texture : parfait avec sushis, pizza et salades. Servir à 10 °C.", img: "/lp/bf/rose.webp" },
+    ],
+    story: [
+      GALHOFA_FR.story[0],
+      GALHOFA_FR.story[1],
+      { img: "/lp/bf/story-harvest2.webp", h: "Au chai", p: "Éraflage, tri et fermentation : ainsi naissent le rouge, le blanc et le rosé, avec des cépages traditionnels du Douro." },
+      { img: "/lp/bf/bottles-cut.webp", h: "Chez vous", p: "Votre caisse est préparée dans notre entrepôt en Belgique et arrive en {days} jours ouvrables, avec suivi." },
+    ],
+    eveningTitle: "Une soirée, six vins",
+    evening: [
+      { when: "À l'apéritif", wine: "Rosé", img: "/lp/bf/rose.webp", p: "Le Galhofa Rosé, bien frais, avec olives, fromage et amuse-bouches." },
+      { when: "En entrée", wine: "Blanc", img: "/lp/bf/white.webp", p: "Le Galhofa Branco avec fruits de mer, poisson ou salade." },
+      { when: "En plat", wine: "Rouge", img: "/lp/bf/red.webp", p: "Le Galhofa Tinto avec rôtis, plats mijotés et fromages affinés." },
+    ],
+    why: [
+      { h: "Du producteur à votre porte", p: "Ni grossiste ni magasin entre les deux. Les vins partent du domaine dans le Douro et arrivent chez vous." },
+      { h: "Douro DOC", p: "Des vins d'appellation d'origine de la vallée du Douro, la plus ancienne région viticole délimitée au monde." },
+      { h: "Seulement 440 caisses", p: "Une quantité limitée pour le Black Friday, livraison comprise. Quand elles sont épuisées ou que le compte à rebours se termine, l'offre s'arrête." },
+    ],
+    faq: GALHOFA_FR.faq.map((f) => (f.q === "Où livrez-vous ?" ? { ...f, a: "Pour le Black Friday, nous livrons cette caisse en Belgique et aux Pays-Bas." } : f)),
+    productName: "Black Friday · 6 vins Galhofa du Douro",
+    trust: ["🍷 3 rouges, 2 blancs, 1 rosé Galhofa · Douro DOC", ...GALHOFA_FR.trust.slice(1)],
+    recovery: { ...GALHOFA_FR.recovery, titleFirst: "Vos 6 vins du Douro vous attendent" },
   },
 };
 

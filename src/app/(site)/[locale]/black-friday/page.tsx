@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 type Params = Promise<{ locale: string }>;
 
-/** The 6-bottle Douro box sells in German and Spanish only; Dutch and French visitors get their Poço do Canto page. */
+/** The 6-bottle Douro box sells in German (Cheda) and Spanish (Galhofa); Dutch and French visitors get their Galhofa box. */
 const DOURO_LOCALES = BF_OFFERS.douro6.locales;
 const isDouroLocale = (l: unknown): l is "de" | "es" => l === "de" || l === "es";
 
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 /** Black Friday box for Germany and Spain, in German or Spanish. */
 export default async function BlackFriday({ params, searchParams }: { params: Params; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { locale } = await params;
-  if (locale === "nl" || locale === "fr") redirect(bfHref(locale, BF_OFFERS.pocoeu));
+  if (locale === "nl" || locale === "fr") redirect(bfHref(locale, BF_OFFERS.galhofa));
   if (!isDouroLocale(locale)) notFound();
   const [catalog, settings, v, admin, sp] = await Promise.all([getBfCatalog(), getSettings(), visitor(), getAdmin().catch(() => null), searchParams]);
   // Shown in the visitor's language: a German link opened on a Spanish phone goes to the Spanish page (and the other

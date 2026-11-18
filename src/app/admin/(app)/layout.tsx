@@ -28,6 +28,7 @@ const ADMIN_NAV: NavGroup[] = [
     title: "Store",
     items: [
       { href: "/admin/products", label: "Products & pricing", icon: "product" },
+      { href: "/admin/black-friday", label: "Black Friday panels", icon: "finance" },
       { href: "/admin/reviews", label: "Reviews", icon: "star" },
       { href: "/admin/newsletter", label: "Newsletter", icon: "mail" },
       { href: "/admin/leads", label: "Leads", icon: "leads" },

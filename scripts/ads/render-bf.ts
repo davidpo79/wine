@@ -12,8 +12,8 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const out = resolve(process.argv[2] ?? "public/ads");
 const file = (p: string) => `file://${ROOT}/${p}`;
 
-type Copy = { img: string; kicker: string; title: string; sub: string; price: string; per: string; ticks: string[]; deadline: string; cta: string; two: string; perBig: string; perSmall: string; six: string; direct: string; foot: string };
-const COPY: Record<"de" | "es", Copy> = {
+type Copy = { img: string; was?: string; badge?: string; kicker: string; title: string; sub: string; price: string; per: string; ticks: string[]; deadline: string; cta: string; two: string; perBig: string; perSmall: string; six: string; direct: string; foot: string };
+const COPY: Record<"de" | "es" | "nl" | "fr", Copy> = {
   // Germany sells the Cheda mix (Lavradores de Feitoria) since 18/11/2026; Spain the Galhofa mix.
   de: {
     img: "public/lp/bf/cheda-cut.webp",
@@ -49,6 +49,50 @@ const COPY: Record<"de" | "es", Copy> = {
     direct: "Del Douro a tu casa",
     foot: "Entrega en 2 días laborables · IVA incluido",
   },
+  // Galhofa mix for the Netherlands and Belgium (18/11/2026): David's reference price 137 € (-50%), orders until 27/11.
+  nl: {
+    img: "public/lp/bf/bottles-cut.webp",
+    was: "137,00 €",
+    badge: "-50%",
+    kicker: "Black Friday",
+    title: "6 flessen Douro-wijn",
+    sub: "3 rode · 2 witte · 1 rosé",
+    price: "68,50 €",
+    per: "11,42 € per fles · incl. btw",
+    ticks: ["Gratis verzending", "Levering in 2 werkdagen", "Douro DOC, rechtstreeks uit Portugal"],
+    deadline: "Alleen t/m 27/11",
+    cta: "Nu kopen",
+    two: "2 dozen 129 € · 3 dozen 185 €",
+    perBig: "11,42 €",
+    perSmall: "per fles",
+    six: "6 flessen",
+    direct: "Van de Douro naar je deur",
+    foot: "Levering in 2 werkdagen · incl. btw",
+  },
+  fr: {
+    img: "public/lp/bf/bottles-cut.webp",
+    was: "137,00 €",
+    badge: "-50%",
+    kicker: "Black Friday",
+    title: "6 bouteilles du Douro",
+    sub: "3 rouges · 2 blancs · 1 rosé",
+    price: "68,50 €",
+    per: "11,42 € la bouteille · TVA comprise",
+    ticks: ["Livraison offerte", "Livraison en 2 jours ouvrables", "Douro DOC, direct du Portugal"],
+    deadline: "Jusqu'au 27/11",
+    cta: "Acheter",
+    two: "2 caisses 129 € · 3 caisses 185 €",
+    perBig: "11,42 €",
+    perSmall: "la bouteille",
+    six: "6 bouteilles",
+    direct: "Du Douro à votre porte",
+    foot: "Livraison en 2 jours ouvrables · TVA comprise",
+  },
+};
+/** A starburst with the discount (David's "-50%" on the Galhofa ad). */
+const burst = (t: string, x: number, y: number, size: number) => {
+  const pts = Array.from({ length: 32 }, (_, i) => { const r = i % 2 ? 0.86 : 1; const a = (i / 32) * Math.PI * 2; return `${50 + 50 * r * Math.cos(a)},${50 + 50 * r * Math.sin(a)}`; }).join(" ");
+  return `<div style="position:absolute;left:${x}px;top:${y}px;width:${size}px;height:${size}px;transform:rotate(-12deg);z-index:3;filter:drop-shadow(0 12px 24px rgba(0,0,0,.6))"><svg viewBox="0 0 100 100" width="${size}" height="${size}" style="position:absolute;inset:0"><defs><radialGradient id="bb" cx="40%" cy="35%"><stop offset="0" stop-color="#ff4d58"/><stop offset="1" stop-color="#b3101b"/></radialGradient></defs><polygon points="${pts}" fill="url(#bb)" stroke="#d4af37" stroke-width="2.5"/></svg><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:${size * 0.25}px;letter-spacing:-.04em;color:#fff;font-style:italic">${t}</div></div>`;
 };
 const FORMATS = { "4x5": { w: 1080, h: 1350 }, "9x16": { w: 1080, h: 1920 } } as const;
 
@@ -97,6 +141,7 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
 .t{font-weight:850;font-size:${story ? 64 : 58}px;margin-top:18px;letter-spacing:-.01em}
 .s{font-weight:600;font-size:32px;color:#d9d9d9;margin-top:8px}
 .img{flex:1;width:100%;min-height:0;margin:${story ? 34 : 22}px 0;-webkit-mask-image:linear-gradient(#000 78%,transparent);background:url(${file(c.img)}) center/contain no-repeat,radial-gradient(closest-side,rgba(225,29,42,.35),transparent) center/80% 90% no-repeat;filter:drop-shadow(0 30px 40px rgba(0,0,0,.6))}
+.was{font-weight:800;font-size:40px;color:#cfcfcf;text-decoration:line-through;text-decoration-color:#e11d2a;text-decoration-thickness:5px;margin-bottom:-6px}
 .price{font-weight:900;font-size:${story ? 150 : 128}px;line-height:1;color:#fff;letter-spacing:-.03em}
 .per{font-weight:600;font-size:30px;color:#d9d9d9;margin-top:10px}
 .two{font-weight:700;font-size:30px;color:#ffd6d9;margin-top:8px}
@@ -112,7 +157,8 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
   <div class="t">${c.title}</div>
   <div class="s">${c.sub}</div>
   <div class="img"></div>
-  <div class="price">${c.price}</div>
+  ${c.was ? `<div class="was">${c.was}</div>` : ""}
+  <div class="price">${c.price}</div>${c.badge ? burst(c.badge, story ? 820 : 790, story ? 860 : 700, story ? 210 : 230) : ""}
   <div class="per">${c.per}</div>
   <div class="two">${c.two}</div>
   <div class="ticks">${c.ticks.map((t) => `<span>${t}</span>`).join("")}</div>
@@ -202,7 +248,8 @@ body{width:${w}px;height:${h}px;overflow:hidden;font-family:Inter,sans-serif;col
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM ?? "/opt/pw-browsers/chromium" }).catch(() => chromium.launch());
 const CONCEPTS = { box: html, bottle, frame } as const;
-for (const loc of ["de", "es"] as const) {
+// BF_LOCALES=nl,fr renders only those languages (default: German and Spanish).
+for (const loc of (process.env.BF_LOCALES?.split(",") ?? ["de", "es"]) as (keyof typeof COPY)[]) {
   for (const f of Object.keys(FORMATS) as (keyof typeof FORMATS)[]) for (const [concept, make] of Object.entries(CONCEPTS)) {
     const { w, h } = FORMATS[f];
     const page = await browser.newPage({ viewport: { width: w, height: h } });
