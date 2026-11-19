@@ -12,6 +12,8 @@ import { CTTX_ALERT, CTTX_DELIVERED, CTTX_SHIPPED, cttxCloseShipments, cttxConfi
 import { cttTrackingUrl } from "./shipping/ctt";
 import { MARKETS, isCountry } from "./markets";
 import { logOrderEvent, setStatus } from "./orders";
+import { purchaseComplete } from "./purchase-complete";
+import { BF_SLUGS } from "./black-friday";
 import { sendShipped, sendShippingAlert } from "./email";
 
 /** CTT Expresso settings: keys from Railway, collection address from Admin → Settings. */
@@ -45,6 +47,7 @@ export async function createCttLabel(o: Order, by: string) {
   if (cttxConfigured()) return createCttxLabel(o, by);
   if (!cttConfigured()) return { error: "CTT is not connected yet (API key)." };
   if (!["paid", "preparing"].includes(o.status)) return { error: `Labels are created for paid orders (this one is "${o.status}").` };
+  if (!(await purchaseComplete(o))) return { error: "The buyer may still add the offer after payment: the label can be made once they reach the thank-you page, or 20 minutes after payment." };
   const simulated = cttConfig().simulate;
   let s = await shipmentOf(o.id);
   try {
@@ -116,6 +119,7 @@ function mergeEvents(s: Shipment, statuses: TrackingStatus[]) {
  */
 export async function createCttxLabel(o: Order, by: string) {
   if (!["paid", "preparing"].includes(o.status)) return { error: `Labels are created for paid orders (this one is "${o.status}").` };
+  if (!(await purchaseComplete(o))) return { error: "The buyer may still add the offer after payment: the label can be made once they reach the thank-you page, or 20 minutes after payment." };
   const a = o.shippingAddress ?? {};
   const country = (a.country ?? o.country ?? "PT").toUpperCase();
   // CTT Expresso ships from the Douro to Portugal and to Spain (Black Friday Spain, 17/11/2026: the Spanish orders
@@ -127,11 +131,9 @@ export async function createCttxLabel(o: Order, by: string) {
   const sandbox = cttxSandbox(c);
   let s = await shipmentOf(o.id);
   if (s?.provider === "cttx" && s.objects.length && s.labelPdf && s.simulated === sandbox) return { ok: true as const, trackingId: s.trackingId };
-  const [extra] = await db
-    .select({ n: sql<number>`coalesce(sum(${schema.orderAddons.boxes}), 0)::int` })
-    .from(schema.orderAddons)
-    .where(and(eq(schema.orderAddons.orderId, o.id), eq(schema.orderAddons.status, "paid")));
-  const boxes = o.qtyBoxes + (extra?.n ?? 0);
+  const paidAddons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, o.id), eq(schema.orderAddons.status, "paid")));
+  // Extra boxes of the same kind, plus a Black Friday box bought after payment (Spain: its cross-offer, same parcel).
+  const boxes = o.qtyBoxes + paidAddons.reduce((n, x) => n + x.boxes + (x.kind === "product" && BF_SLUGS.includes(x.sku) ? x.qty : 0), 0);
   const parcels = parcelsForBoxes(boxes, c.boxesPerParcel);
   try {
     const shipment = {

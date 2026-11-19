@@ -7,8 +7,6 @@ import { isCountry, isLocale, MARKETS } from "./markets";
 import { BF_OFFERS, bfOfferFor, bfProductName, isBfBundle, isBfLocale, type BfOfferId } from "./black-friday";
 import { bfCopyFor } from "@/components/black-friday/copy";
 
-/** Black Friday boxes with the "more boxes" offer after payment: the Belgian warehouse countries (David, 19/11/2026). */
-const BF_BOXES_OFFER_COUNTRIES = ["DE", "NL", "BE"];
 
 export type Offer = {
   key: string; // "boxes" or an upsell product key
@@ -30,10 +28,10 @@ export type Offer = {
  * At the top bundle: one more box at its per-box price.
  */
 export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
-  // Black Friday boxes: more of the same box from the Belgian warehouse (DE/NL/BE), priced from the offer's own bundles
-  // (`bundles` must be that offer's); Spain keeps its cross-offer (bfCrossOffer).
+  // Black Friday boxes (David, 19/11/2026): more of the same box, priced from the offer's own bundles (`bundles` must be
+  // that offer's). In Spain the cross-offer (bfCrossOffer) comes first; this one is shown when there is none.
   const bf = bfOfferFor(order.bundleKey);
-  if (isBfBundle(order.bundleKey) && (!bf || !BF_BOXES_OFFER_COUNTRIES.includes(order.country))) return null;
+  if (isBfBundle(order.bundleKey) && !bf) return null;
   const byQty = [...bundles].sort((a, b) => a.qty - b.qty);
   const current = byQty.find((b) => b.qty === order.qtyBoxes) ?? byQty.find((b) => b.key === order.bundleKey);
   if (!current) return null;

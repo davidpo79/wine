@@ -84,6 +84,7 @@ test("ShipHero: orders wait for the thank-you page (post-purchase offer), then g
   process.env.DATABASE_URL = DB_URL;
   process.env.SHIPHERO_ACCESS_TOKEN = "test-token";
   process.env.SHIPHERO_API_URL = "http://127.0.0.1:9/graphql"; // nothing listens: a send attempt fails fast
+  process.env.IFTHENPAY_MBWAY_KEY ??= "TEST-MBWAY"; // MB WAY buyers get the one-click offer after paying
   const { db, schema } = await import("../src/db");
   const { eq, inArray } = await import("drizzle-orm");
   const { autoSendToShiphero } = await import("../src/lib/shiphero-fulfilment");
@@ -91,7 +92,7 @@ test("ShipHero: orders wait for the thank-you page (post-purchase offer), then g
   const [tri] = await db.select().from(schema.bundles).where(eq(schema.bundles.key, "x2"));
   const [bf] = await db.select().from(schema.bundles).where(eq(schema.bundles.key, "bf1"));
   const mk = async (suffix: string, b: typeof tri) =>
-    (await db.insert(schema.orders).values({ id: `${run}-${suffix}`, bundleId: b.id, bundleKey: b.key, qtyBoxes: b.qty, subtotalCents: b.priceCents, shippingCents: 0, totalCents: b.priceCents, locale: "de", country: "DE", email: "t@example.com", status: "paid", paidAt: new Date() }).returning())[0];
+    (await db.insert(schema.orders).values({ id: `${run}-${suffix}`, bundleId: b.id, bundleKey: b.key, qtyBoxes: b.qty, subtotalCents: b.priceCents, shippingCents: 0, totalCents: b.priceCents, locale: "de", country: "DE", email: "t@example.com", phone: "+4915112345678", paymentMethodType: "mb_way", status: "paid", paidAt: new Date() }).returning())[0];
   const t = await mk("tri", tri);
   const b = await mk("bf", bf);
   await autoSendToShiphero(t, "paid");
@@ -102,6 +103,11 @@ test("ShipHero: orders wait for the thank-you page (post-purchase offer), then g
   await autoSendToShiphero(b, "thanks");
   const after = await db.select().from(schema.shipments).where(inArray(schema.shipments.orderId, [t.id, b.id]));
   assert.equal(after.length, 2); // both tried at the thank-you page
+  const { purchaseComplete, markPurchaseComplete } = await import("../src/lib/purchase-complete");
+  assert.equal(await purchaseComplete(t), false); // offer still open: no CTT label, no ShipHero
+  assert.equal(await purchaseComplete(t, Date.now() + 21 * 60_000), true); // 20 minutes after payment
+  await markPurchaseComplete(t.id);
+  assert.equal(await purchaseComplete(t), true); // thank-you page reached
   const ids = [t.id, b.id];
   await db.delete(schema.shipments).where(inArray(schema.shipments.orderId, ids));
   await db.delete(schema.orderEvents).where(inArray(schema.orderEvents.orderId, ids));

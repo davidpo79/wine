@@ -183,7 +183,7 @@ test("Sekt for Germany (19/11/2026): own page, bundles and Belgian warehouse box
   assert.ok(bfCopyFor("sekt", "de")?.bundles.bfk3);
 });
 
-test("Black Friday boxes from the Belgian warehouse get one more box after paying (19/11/2026); Spain does not", async () => {
+test("Black Friday boxes get one more box after paying (19/11/2026), from their own bundles", async () => {
   const { boxesOffer } = await import("../src/lib/upsell");
   const { BF_BUNDLES } = await import("../src/lib/black-friday");
   const bundles = BF_BUNDLES.map((b, i) => ({ ...b, id: i + 1, productId: 1, active: true })) as never;
@@ -197,5 +197,5 @@ test("Black Friday boxes from the Belgian warehouse get one more box after payin
   assert.equal(de.image, "/lp/bf/cheda-cut.webp");
   const top = boxesOffer(o({ bundleKey: "bf3", qtyBoxes: 3, country: "NL", locale: "nl" }), bundles);
   assert.equal(top?.priceCents, Math.round(18500 / 3)); // at 3 boxes: one more at the 3-box price per box
-  assert.equal(boxesOffer(o({ country: "ES", locale: "es" }), bundles), null);
+  assert.equal(boxesOffer(o({ country: "ES", locale: "es" }), bundles)?.priceCents, 12900 - 6850); // Spain: shown when its cross-offer is not
 });

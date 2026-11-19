@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Order } from "@/db/schema";
 import { getSettings } from "./settings";
+import { purchaseComplete } from "./purchase-complete";
 import { logOrderEvent, setStatus } from "./orders";
 import { sendShipped, sendShippingAlert } from "./email";
 import { SHIPHERO_COUNTRIES, addBoxesToShipheroOrder, isBelgianOrder, pushOrderToShiphero, shipheroConfigured, upsTrackingUrl, type ShipheroShipment } from "./shiphero";
@@ -38,9 +39,9 @@ export async function autoSendToShiphero(o: Order, when: "paid" | "thanks" | "la
   if (!isBelgianOrder(o) || !shipheroConfigured() || o.status !== "paid") return;
   const settings = await getSettings();
   if (!settings.shiphero.enabled) return;
-  // Every DE/NL/BE order can get the "more boxes" offer after paying (Trilogia and, since 19/11/2026, the Black Friday
-  // boxes), so it waits for the thank-you page while the offer is on.
-  if (when === "paid" && settings.upsell_enabled) {
+  // Every order can get an offer after paying (Trilogia and, since 19/11/2026, the Black Friday boxes): it waits until
+  // the purchase is complete (thank-you page, no one-click offer possible, or 20 minutes after payment).
+  if (when === "paid" && !(await purchaseComplete(o))) {
     await logOrderEvent(o.id, "shiphero_waiting", { reason: "post-purchase offer" }).catch(() => {});
     return;
   }
