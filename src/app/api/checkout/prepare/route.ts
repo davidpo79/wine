@@ -4,7 +4,7 @@ import { z } from "zod";
 import { apiErrorsFor } from "@/lib/i18n";
 import { db, schema } from "@/db";
 import { GIFT_CARD_SKU, loadDraft, publicAmounts, validateForPayment } from "@/lib/draft";
-import { getCatalog } from "@/lib/catalog";
+import { catalogForBundle } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
 import { orderAddons, stripeSavesCard } from "@/lib/payments";
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   // Card via Stripe (saved card) and MB WAY (new push to the same phone) get the offer right after paying instead.
   let offer = null;
   let products: ReturnType<typeof productOffers> = [];
-  const [settings, catalog] = await Promise.all([getSettings(), getCatalog()]);
+  const [settings, catalog] = await Promise.all([getSettings(), catalogForBundle(order.bundleKey)]); // the order's own product (Black Friday boxes: their offer)
   const m = parsed.data.method;
   const afterPayment = m === "mbway" || (m === "card" && stripeConfigured() && stripeSavesCard(isCountry(order.country) ? order.country : "PT"));
   if (settings.upsell_enabled && catalog && !afterPayment && !parsed.data.check_only) {

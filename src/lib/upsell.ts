@@ -4,7 +4,9 @@ import { dealOf } from "./offers";
 import { getDict, moneyShortFor } from "./i18n";
 import { fmt } from "./i18n/rich";
 import { isCountry, isLocale, MARKETS } from "./markets";
-import { BF_OFFERS, bfOfferFor, isBfBundle, isBfLocale, type BfOfferId } from "./black-friday";
+import { BF_OFFERS, bfOfferFor, bfProductName, isBfBundle, isBfLocale, type BfOfferId } from "./black-friday";
+import { bfCopyFor } from "@/components/black-friday/copy";
+
 
 export type Offer = {
   key: string; // "boxes" or an upsell product key
@@ -26,8 +28,10 @@ export type Offer = {
  * At the top bundle: one more box at its per-box price.
  */
 export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
-  // Black Friday boxes: the 1 / 2 / 3 box choice is the offer, nothing is added on top.
-  if (isBfBundle(order.bundleKey)) return null;
+  // Black Friday boxes (David, 19/11/2026): more of the same box, priced from the offer's own bundles (`bundles` must be
+  // that offer's). In Spain the cross-offer (bfCrossOffer) comes first; this one is shown when there is none.
+  const bf = bfOfferFor(order.bundleKey);
+  if (isBfBundle(order.bundleKey) && !bf) return null;
   const byQty = [...bundles].sort((a, b) => a.qty - b.qty);
   const current = byQty.find((b) => b.qty === order.qtyBoxes) ?? byQty.find((b) => b.key === order.bundleKey);
   if (!current) return null;
@@ -44,22 +48,29 @@ export function boxesOffer(order: Order, bundles: Bundle[]): Offer | null {
   const t = getDict(locale).upsell;
   const p = moneyShortFor(locale)(price);
   const what = boxes === 1 ? t.whatOne : fmt(t.whatMany, { n: boxes });
+  // The dictionary speaks of the Trilogia: a Black Friday box is named by its offer (customer) or its content name (team).
+  const named = (x: string) => (bf ? x.replaceAll("Trilogia 2160", bfProductName(locale, order.bundleKey)) : x);
+  const team = (x: string) => (bf ? x.replaceAll("Trilogia 2160", `Black Friday · ${bf.contentName}`) : x);
+  const perBox = bf?.bottlesPerBox ?? 3;
+  const bfImage = bf && isBfLocale(locale) ? bfCopyFor(bf.id, locale)?.images.cut : undefined;
   return {
     key: "boxes",
     kind: "boxes",
-    sku: "trilogia-2160",
-    title: deal?.paid ? fmt(t.boxesPayGetTitle, { paid: deal.paid, qty: deal.qty }) : boxes === 1 ? fmt(t.boxesOneTitle, { price: p }) : fmt(t.boxesManyTitle, { n: boxes }),
+    sku: bf?.slug ?? "trilogia-2160",
+    title: named(deal?.paid ? fmt(t.boxesPayGetTitle, { paid: deal.paid, qty: deal.qty }) : boxes === 1 ? fmt(t.boxesOneTitle, { price: p }) : fmt(t.boxesManyTitle, { n: boxes })),
     // The label is stored on the add-on row and read by the team (admin, shipping list): always Portuguese.
-    label: fmt(getDict("pt").upsell.boxesLabel, { what: boxes === 1 ? getDict("pt").upsell.whatOne : fmt(getDict("pt").upsell.whatMany, { n: boxes }), bottles: boxes * 3 }),
-    description: deal?.paid
-      ? fmt(t.boxesPayGetText, { what, price: p, qty: deal.qty, paid: deal.paid })
-      : next
-        ? fmt(t.boxesNextText, { n: next.qty, price: p })
-        : fmt(t.boxesTopText, { n: top.qty }),
+    label: team(fmt(getDict("pt").upsell.boxesLabel, { what: boxes === 1 ? getDict("pt").upsell.whatOne : fmt(getDict("pt").upsell.whatMany, { n: boxes }), bottles: boxes * perBox })),
+    description: named(
+      deal?.paid
+        ? fmt(t.boxesPayGetText, { what, price: p, qty: deal.qty, paid: deal.paid })
+        : next
+          ? fmt(t.boxesNextText, { n: next.qty, price: p })
+          : fmt(t.boxesTopText, { n: top.qty }),
+    ),
     priceCents: price,
     compareCents: compare,
     boxes,
-    image: "/lp/box-cutout.webp",
+    image: bfImage ?? "/lp/box-cutout.webp",
     percentOff: pct,
   };
 }

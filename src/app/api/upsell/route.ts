@@ -2,7 +2,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { apiErrorsFor } from "@/lib/i18n";
 import { db, schema } from "@/db";
-import { getCatalog, paidBoxes } from "@/lib/catalog";
+import { catalogForBundle, paidBoxes } from "@/lib/catalog";
+import { isBfBundle } from "@/lib/black-friday";
 import { getSettings } from "@/lib/settings";
 import { loadDraft } from "@/lib/draft";
 import { bfCrossOffer, findOffer } from "@/lib/upsell";
@@ -17,15 +18,15 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || !["paid", "preparing"].includes(order.status) || !upsellMode(order)) return Response.json({ error: apiErrorsFor(order).offerGone }, { status: 409 });
-  const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
+  const [catalog, settings] = await Promise.all([catalogForBundle(order.bundleKey), getSettings()]); // the order's own product (Black Friday boxes: their offer)
   if (!settings.upsell_enabled || !catalog) return Response.json({ error: apiErrorsFor(order).offerUnavailable }, { status: 409 });
   const bfx = bfCrossOffer(order);
   const offer = bfx && bfx.key === parsed.data.offer ? bfx : findOffer(parsed.data.offer, order, catalog.bundles, settings);
   if (!offer) return Response.json({ error: apiErrorsFor(order).offerUnavailable }, { status: 404 });
-  const sku = offer.kind === "boxes" ? "trilogia-2160" : offer.sku;
+  const sku = offer.sku;
   const existing = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.sku, sku), inArray(schema.orderAddons.status, ["paid"])));
   if (existing.length) return Response.json({ status: "succeeded", already: true });
-  if (offer.boxes && settings.stock_cap_boxes != null && (await paidBoxes()) + offer.boxes > settings.stock_cap_boxes) {
+  if (offer.boxes && !isBfBundle(order.bundleKey) && settings.stock_cap_boxes != null && (await paidBoxes()) + offer.boxes > settings.stock_cap_boxes) {
     return Response.json({ error: apiErrorsFor(order).noStockOffer }, { status: 409 });
   }
   // A previous unfinished attempt for the same item (e.g. MB WAY expired) is replaced.

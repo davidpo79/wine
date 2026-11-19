@@ -69,3 +69,47 @@ test("customer_account_id is left out unless set (ShipHero refuses null)", async
 test("the German sparkling box ships as the D. Graça ×3 SKU", () => {
   assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfk2", qtyBoxes: 2, country: "DE" })), [{ key: "dgraca_3", qty: 2 }]);
 });
+
+test("ShipHero: boxes added by a paid upsell ship in the same order (19/11/2026)", () => {
+  assert.deepEqual(shipheroItemsFor(order({ bundleKey: "x2", qtyBoxes: 2, country: "DE" }), 2), [{ key: "trilogia_2160", qty: 4 }]);
+  const s = { shiphero: { enabled: true, shop_name: "wine-portugal", skus: { trilogia_2160: "TRI-2160" } } };
+  const i = shipheroOrderInput(order({ bundleKey: "x2", qtyBoxes: 2, totalCents: 8990 }), s, { boxes: 2, cents: 5980 });
+  assert.equal(i.total_price, "149.70");
+  assert.deepEqual(i.line_items.map((l) => [l.sku, l.quantity]), [["TRI-2160", 4]]);
+});
+
+// DE/NL/BE orders wait for the thank-you page while the post-purchase offer is on (it joins the same parcel).
+const DB_URL = process.env.TEST_DATABASE_URL;
+test("ShipHero: orders wait for the thank-you page (post-purchase offer), then go with their extra boxes", { skip: !DB_URL && "TEST_DATABASE_URL not set" }, async () => {
+  process.env.DATABASE_URL = DB_URL;
+  process.env.SHIPHERO_ACCESS_TOKEN = "test-token";
+  process.env.SHIPHERO_API_URL = "http://127.0.0.1:9/graphql"; // nothing listens: a send attempt fails fast
+  process.env.IFTHENPAY_MBWAY_KEY ??= "TEST-MBWAY"; // MB WAY buyers get the one-click offer after paying
+  const { db, schema } = await import("../src/db");
+  const { eq, inArray } = await import("drizzle-orm");
+  const { autoSendToShiphero } = await import("../src/lib/shiphero-fulfilment");
+  const run = `shw-${Date.now()}`;
+  const [tri] = await db.select().from(schema.bundles).where(eq(schema.bundles.key, "x2"));
+  const [bf] = await db.select().from(schema.bundles).where(eq(schema.bundles.key, "bf1"));
+  const mk = async (suffix: string, b: typeof tri) =>
+    (await db.insert(schema.orders).values({ id: `${run}-${suffix}`, bundleId: b.id, bundleKey: b.key, qtyBoxes: b.qty, subtotalCents: b.priceCents, shippingCents: 0, totalCents: b.priceCents, locale: "de", country: "DE", email: "t@example.com", phone: "+4915112345678", paymentMethodType: "mb_way", status: "paid", paidAt: new Date() }).returning())[0];
+  const t = await mk("tri", tri);
+  const b = await mk("bf", bf);
+  await autoSendToShiphero(t, "paid");
+  await autoSendToShiphero(b, "paid");
+  const ships = await db.select().from(schema.shipments).where(inArray(schema.shipments.orderId, [t.id, b.id]));
+  assert.deepEqual(ships, []); // nothing sent at payment: the offer may still add boxes
+  await autoSendToShiphero(t, "thanks");
+  await autoSendToShiphero(b, "thanks");
+  const after = await db.select().from(schema.shipments).where(inArray(schema.shipments.orderId, [t.id, b.id]));
+  assert.equal(after.length, 2); // both tried at the thank-you page
+  const { purchaseComplete, markPurchaseComplete } = await import("../src/lib/purchase-complete");
+  assert.equal(await purchaseComplete(t), false); // offer still open: no CTT label, no ShipHero
+  assert.equal(await purchaseComplete(t, Date.now() + 21 * 60_000), true); // 20 minutes after payment
+  await markPurchaseComplete(t.id);
+  assert.equal(await purchaseComplete(t), true); // thank-you page reached
+  const ids = [t.id, b.id];
+  await db.delete(schema.shipments).where(inArray(schema.shipments.orderId, ids));
+  await db.delete(schema.orderEvents).where(inArray(schema.orderEvents.orderId, ids));
+  await db.delete(schema.orders).where(inArray(schema.orders.id, ids));
+});

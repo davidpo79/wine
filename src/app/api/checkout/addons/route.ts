@@ -3,7 +3,8 @@ import { z } from "zod";
 import { apiErrorsFor } from "@/lib/i18n";
 import { db, schema } from "@/db";
 import { GIFT_CARD_SKU, loadDraft, publicAmounts } from "@/lib/draft";
-import { getCatalog, paidBoxes } from "@/lib/catalog";
+import { catalogForBundle, paidBoxes } from "@/lib/catalog";
+import { isBfBundle } from "@/lib/black-friday";
 import { getSettings } from "@/lib/settings";
 import { logOrderEvent } from "@/lib/orders";
 import { orderAddons } from "@/lib/payments";
@@ -17,19 +18,19 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: "Pedido inválido." }, { status: 400 });
   const order = await loadDraft(parsed.data.o, parsed.data.t);
   if (!order || order.status !== "pending_payment") return Response.json({ error: apiErrorsFor(order).orderUnavailable }, { status: 409 });
-  const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
+  const [catalog, settings] = await Promise.all([catalogForBundle(order.bundleKey), getSettings()]); // the order's own product (Black Friday boxes: their offer)
   if (!catalog) return Response.json({ error: apiErrorsFor(order).unavailable }, { status: 409 });
 
   const wanted = [...new Set(parsed.data.keys)].map((k) => findOffer(k, order, catalog.bundles, settings)).filter((x) => x !== null);
   const extraBoxes = wanted.reduce((n, w) => n + w.boxes, 0);
-  if (extraBoxes && settings.stock_cap_boxes != null && (await paidBoxes()) + order.qtyBoxes + extraBoxes > settings.stock_cap_boxes) {
+  if (extraBoxes && !isBfBundle(order.bundleKey) && settings.stock_cap_boxes != null && (await paidBoxes()) + order.qtyBoxes + extraBoxes > settings.stock_cap_boxes) {
     return Response.json({ error: apiErrorsFor(order).noStockBox }, { status: 409 });
   }
   // The printed-card order bump is managed by the checkout form, not by the offer window: keep it.
   await db.delete(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, "pending"), ne(schema.orderAddons.sku, GIFT_CARD_SKU)));
   if (wanted.length) {
     await db.insert(schema.orderAddons).values(
-      wanted.map((w) => ({ orderId: order.id, kind: w.kind, sku: w.kind === "boxes" ? "trilogia-2160" : w.sku, label: w.label, qty: 1, boxes: w.boxes, amountCents: w.priceCents })),
+      wanted.map((w) => ({ orderId: order.id, kind: w.kind, sku: w.sku, label: w.label, qty: 1, boxes: w.boxes, amountCents: w.priceCents })),
     );
   }
   await logOrderEvent(order.id, wanted.length ? "upsell_accepted" : "upsell_declined", { keys: wanted.map((w) => w.key) });
