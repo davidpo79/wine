@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { phoneDigits } from "./phone-digits";
 
 function secret() {
   return process.env.SESSION_SECRET ?? "dev";
@@ -26,7 +27,7 @@ export function leadToken(email: string) {
 
 /** Portuguese mobile numbers (91/92/93/96), with or without +351/00351. Returns +3519XXXXXXXX or null. */
 export function normalizePtMobile(input: string): string | null {
-  let d = input.replace(/[\s().-]/g, "");
+  let d = phoneDigits(input);
   if (d.startsWith("+351")) d = d.slice(4);
   else if (d.startsWith("00351")) d = d.slice(5);
   else if (d.startsWith("351") && d.length === 12) d = d.slice(3);
@@ -37,7 +38,7 @@ export function normalizePtMobile(input: string): string | null {
 export function normalizePhone(input: string): string | null {
   const pt = normalizePtMobile(input);
   if (pt) return pt;
-  let d = input.replace(/[\s().-]/g, "");
+  let d = phoneDigits(input);
   if (d.startsWith("00")) d = `+${d.slice(2)}`;
   return /^\+[1-9]\d{7,14}$/.test(d) ? d : null;
 }

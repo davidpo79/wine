@@ -1,6 +1,7 @@
 // In-house checkout ("draft" order): created when /checkout opens, autosaved field by field,
 // paid through ifthenpay (MB WAY, card, Apple/Google Pay, Multibanco). The order row is the single source of truth.
 import { and, eq } from "drizzle-orm";
+import { phoneDigits } from "./phone-digits";
 import { db, schema } from "@/db";
 import type { Bundle, Order, OrderAddon, Utm } from "@/db/schema";
 import { catalogForBundle, paidBoxes, salesState, canBuy } from "./catalog";
@@ -104,7 +105,7 @@ export const GIFT_CARD_SKU = "gift-card";
 
 /** A Portuguese landline typed without +351 ("21 234 5678"): accepted as a contact number (MB WAY asks for its own). */
 const ptLandline = (v: string) => {
-  const d = v.replace(/[\s().-]/g, "").replace(/^(\+|00)351/, "");
+  const d = phoneDigits(v).replace(/^(\+|00)351/, "");
   return /^2\d{8}$/.test(d) ? `+351${d}` : null;
 };
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, n) : undefined);

@@ -327,3 +327,14 @@ test("checkout accepts common ways of typing a Portuguese mobile and postal code
   assert.equal(postalValid("1000", "PT"), "format");
   assert.equal(normalizePostal("10115", "DE"), "10115");
 });
+
+test("checkout accepts phone numbers typed with dashes, dots, invisible marks or the country code without +", async () => {
+  const { normalizePhone } = await import("../src/lib/leads");
+  const { normalizePhoneFor } = await import("../src/lib/markets");
+  // Portugal: en dashes, dots, and a number pasted from the contacts with Unicode direction marks around it.
+  for (const p of ["912–345–678", "912.345.678", "‪+351 912 345 678‬", "+351 (91) 234-5678"]) assert.equal(normalizePhone(p), "+351912345678", JSON.stringify(p));
+  // Spain and Germany.
+  for (const p of ["612 345 678", "+34 612 34 56 78", "34 612 345 678", "0034-612-345-678", "‪612 345 678‬"]) assert.equal(normalizePhoneFor(p, "ES"), "+34612345678", JSON.stringify(p));
+  for (const p of ["0151 2345678", "+49 (0)151/2345678".replace("(0)", ""), "49 151 2345678", "0151–2345678"]) assert.equal(normalizePhoneFor(p, "DE"), "+491512345678", JSON.stringify(p));
+  assert.equal(normalizePhoneFor("12", "ES"), null);
+});

@@ -1,3 +1,4 @@
+import { phoneDigits } from "./phone-digits";
 // Countries we can sell to and the languages the site speaks. Portugal ships from the Douro (CTT, MB WAY,
 // Multibanco); Germany, the Netherlands, Belgium and Luxembourg ship from the Belgian warehouse (pricing of 17/10/2026).
 // Spain (es) ships from the Belgian warehouse too (Black Friday box of 2026).
@@ -74,12 +75,15 @@ export function localeFromAcceptLanguage(header: string | null | undefined): Loc
 export const PHONE_OPTIONAL: readonly Country[] = ["DE", "ES"];
 
 export function normalizePhoneFor(input: string, country: Country): string | null {
-  let d = input.replace(/[\s().\-/]/g, "");
+  let d = phoneDigits(input);
   if (d.startsWith("00")) d = `+${d.slice(2)}`;
   if (!d.startsWith("+")) {
     const cc = MARKETS[country].callingCode;
+    const ccDigits = cc.slice(1);
     if (country === "PT") d = `${cc}${d}`;
     else if (d.startsWith("0")) d = `${cc}${d.slice(1)}`;
+    // The country code typed without "+" ("34 612 345 678"): a national number of the right length follows it.
+    else if (d.startsWith(ccDigits) && d.length - ccDigits.length >= 8 && d.length - ccDigits.length <= 11) d = `+${d}`;
     else d = `${cc}${d}`;
   }
   return /^\+[1-9]\d{7,14}$/.test(d) ? d : null;
