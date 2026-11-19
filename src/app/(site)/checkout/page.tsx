@@ -41,7 +41,9 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
   const saved = jar.get(LOCALE_COOKIE)?.value;
   let locale: Locale = isLocale(resumed?.locale) ? resumed.locale : isLocale(sp.l) ? sp.l : isLocale(saved) ? saved : "pt";
   if (offer && !(isBfLocale(locale) && offer.locales.includes(locale))) locale = offer.locales.includes("de") ? "de" : offer.locales[0];
-  const bfCountries = offer ? bfOfferCountries(offer, (await getAdmin().catch(() => null)) ? settings.black_friday.countries : bfOpenCountries(settings.black_friday)) : [];
+  const bfAll = offer ? bfOfferCountries(offer, (await getAdmin().catch(() => null)) ? settings.black_friday.countries : bfOpenCountries(settings.black_friday)) : [];
+  // The Russian Cheda page is for the community in Germany: it delivers to Germany only.
+  const bfCountries = offer && locale === "ru" ? bfAll.filter((c) => c === "DE") : bfAll;
   const open = bf ? bfCountries : await enabledCountries(settings);
   const wanted = isCountry(resumed?.country) ? resumed.country : isCountry(sp.c) ? sp.c : bf && isBfLocale(locale) ? bfCountryFor(locale) : defaultCountry(locale);
   const countries: Country[] = bf
