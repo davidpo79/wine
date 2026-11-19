@@ -16,7 +16,7 @@ import { ebookFileName, ebookKey, ebookTitle, guideFor } from "./ebook";
 import { getSettings } from "./settings";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { bfProductName, bottlesPerBox, isBfBundle, isBfLocale } from "./black-friday";
+import { bfCutoffFor, bfOfferFor, bfProductName, bottlesPerBox, isBfBundle, isBfLocale } from "./black-friday";
 import { bfCopyForBundle } from "@/components/black-friday/copy";
 
 const localeOf = (o: Pick<Order, "locale"> | null): Locale => (o && isLocale(o.locale) ? o.locale : "pt");
@@ -79,8 +79,10 @@ async function send(o: Order | null, to: string, subject0: string, html0: string
   // Black Friday orders: the header names the offer instead of the Christmas Trilogia.
   let subject = subject0;
   const bfOrder = !!o && isBfBundle(o.bundleKey);
-  const html = bfOrder ? html0.replace("Trilogia 2160</td>", "Black Friday</td>").replaceAll("Trilogia 2160", bfProductName(localeOf(o!), o!.bundleKey)) : html0;
-  if (bfOrder) subject = subject.replaceAll("Trilogia 2160", "Black Friday");
+  // The Christmas boxes from the Belgian warehouse (19/11/2026) sell under the Black Friday offers but keep their own name.
+  const label = bfOrder && bfOfferFor(o!.bundleKey)?.cutoffAt ? bfProductName(localeOf(o!), o!.bundleKey) : "Black Friday";
+  const html = bfOrder ? html0.replace("Trilogia 2160</td>", `${label}</td>`).replaceAll("Trilogia 2160", bfProductName(localeOf(o!), o!.bundleKey)) : html0;
+  if (bfOrder) subject = subject.replaceAll("Trilogia 2160", label);
   const from = process.env.EMAIL_FROM;
   const telnyx = process.env.EMAIL_PROVIDER === "telnyx";
   const key = telnyx ? process.env.TELNYX_API_KEY : process.env.RESEND_API_KEY;
@@ -302,7 +304,7 @@ ${button(`${SITE.url}${contactHref(m.contact)}`, "Responder no admin")}`,
 
 /** Cutoff an order's reminders speak of: Black Friday's for its boxes, else the Christmas one of its country. */
 export function orderCutoffIso(settings: Pick<Settings, "cutoff_at" | "markets" | "black_friday">, o: Pick<Order, "country" | "bundleKey">): string {
-  return isBfBundle(o.bundleKey) ? settings.black_friday.cutoff_at : marketCutoffIso(settings, o.country);
+  return isBfBundle(o.bundleKey) ? bfCutoffFor(settings.black_friday, bfOfferFor(o.bundleKey)) : marketCutoffIso(settings, o.country);
 }
 
 /** Reminder texts of an order: the dictionary's, with the Black Friday wording for its boxes (German and Spanish). */
