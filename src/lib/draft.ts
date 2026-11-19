@@ -13,7 +13,7 @@ import { normalizeCode, promoDiscountCents, promoShippingCents } from "./promo";
 import { resumeToken, scheduleRecovery, verifyResumeToken } from "./recovery";
 import { normalizePhone } from "./leads";
 import { getDict } from "./i18n";
-import { isCountry, isLocale, MARKETS, normalizePhoneFor, normalizePostal, postalValid, type Country, type Locale } from "./markets";
+import { isCountry, isLocale, MARKETS, normalizePhoneFor, normalizePostal, PHONE_OPTIONAL, postalValid, type Country, type Locale } from "./markets";
 import { fmt } from "./i18n/rich";
 
 const orderCountry = (o: Pick<Order, "country">): Country => (isCountry(o.country) ? o.country : "PT");
@@ -102,6 +102,11 @@ export type DraftPatch = Partial<{
 
 export const GIFT_CARD_SKU = "gift-card";
 
+/** A Portuguese landline typed without +351 ("21 234 5678"): accepted as a contact number (MB WAY asks for its own). */
+const ptLandline = (v: string) => {
+  const d = v.replace(/[\s().-]/g, "").replace(/^(\+|00)351/, "");
+  return /^2\d{8}$/.test(d) ? `+351${d}` : null;
+};
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, n) : undefined);
 
 /**
@@ -109,8 +114,10 @@ const clip = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0
  * language the site speaks (email, SMS and WhatsApp follow the order's language; each step keeps its own rules: the
  * AI call only for pt and ru orders on +351 numbers, WhatsApp only in an approved template language).
  */
-export function shouldScheduleRecovery(settings: Pick<Settings, "recovery_enabled">, o: Pick<Order, "locale" | "recoveryScheduledAt" | "email" | "phone">) {
-  return !!(settings.recovery_enabled && isLocale(o.locale) && !o.recoveryScheduledAt && o.email && o.phone && /@/.test(o.email));
+export function shouldScheduleRecovery(settings: Pick<Settings, "recovery_enabled">, o: Pick<Order, "locale" | "recoveryScheduledAt" | "email" | "phone"> & { country?: string | null }) {
+  // Where the phone is optional, the e-mail alone starts them (the SMS/WhatsApp/call steps skip an order without one).
+  const reachable = o.phone || (o.country && (PHONE_OPTIONAL as readonly string[]).includes(o.country));
+  return !!(settings.recovery_enabled && isLocale(o.locale) && !o.recoveryScheduledAt && o.email && reachable && /@/.test(o.email));
 }
 
 /** Autosave: stores whatever was typed (lightly cleaned). Final validation happens in validateForPayment. */
@@ -119,7 +126,7 @@ export async function updateDraft(order: Order, patch: DraftPatch) {
   if (patch.country !== undefined && isCountry(patch.country)) set.country = patch.country;
   const country = (set.country as Country | undefined) ?? orderCountry(order);
   if (patch.email !== undefined) set.email = clip(patch.email, 160)?.trim().toLowerCase() || null;
-  if (patch.phone !== undefined) set.phone = (country === "PT" ? normalizePhone(patch.phone) : normalizePhoneFor(patch.phone, country)) ?? (clip(patch.phone, 30)?.trim() || null);
+  if (patch.phone !== undefined) set.phone = (country === "PT" ? (normalizePhone(patch.phone) ?? ptLandline(patch.phone)) : normalizePhoneFor(patch.phone, country)) ?? (clip(patch.phone, 30)?.trim() || null);
   if (patch.firstName !== undefined || patch.lastName !== undefined) {
     const [f0, ...l0] = (order.customerName ?? "").split(" ");
     const first = patch.firstName !== undefined ? clip(patch.firstName, 60)!.trim() : f0;
@@ -204,7 +211,9 @@ export function validateForPayment(o: Order, open: Country[] = ["PT"]): FieldErr
   const [first, ...rest] = (o.customerName ?? "").split(" ");
   if (!open.includes(country)) e.country = t.country;
   if (!o.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)) e.email = t.email;
-  if (!o.phone || !(country === "PT" ? normalizePhone(o.phone) : normalizePhoneFor(o.phone, country))) e.phone = t.phone;
+  if (!o.phone) {
+    if (!PHONE_OPTIONAL.includes(country)) e.phone = t.phone;
+  } else if (!(country === "PT" ? normalizePhone(o.phone) ?? ptLandline(o.phone) : normalizePhoneFor(o.phone, country))) e.phone = t.phone;
   if (!first) e.firstName = t.firstName;
   if (!rest.join(" ")) e.lastName = t.lastName;
   if (!a.line1 || a.line1.length < 4) e.address1 = t.address1;

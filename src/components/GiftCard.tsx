@@ -61,3 +61,60 @@ export function GiftCard({ message, orderId, className = "", placeholder = "A su
     </div>
   );
 }
+
+/** Two wine glasses clinking, line drawing in gold. */
+function Toast({ className }: { className: string }) {
+  const glass = "M-9 -30 C-10 -16 -7 -6 0 -4 C7 -6 10 -16 9 -30 Z M0 -4 L0 18 M-7 19 L7 19";
+  return (
+    <svg className={className} viewBox="-40 -44 80 66" aria-hidden="true" fill="none" stroke="#b8913c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <g transform="translate(-11 0) rotate(-14)">
+        <path d={glass} />
+        <path d="M-8.4 -22 C-4 -20 4 -24 8.4 -22 C8 -13 5 -7.5 0 -6.5 C-5 -7.5 -8 -13 -8.4 -22 Z" fill="#9c0d10" stroke="none" opacity="0.9" />
+      </g>
+      <g transform="translate(11 0) rotate(14)">
+        <path d={glass} />
+        <path d="M-8.4 -22 C-4 -24 4 -20 8.4 -22 C8 -13 5 -7.5 0 -6.5 C-5 -7.5 -8 -13 -8.4 -22 Z" fill="#9c0d10" stroke="none" opacity="0.9" />
+      </g>
+      <g strokeWidth="1.3">
+        <path d="M0 -40 L0 -35" />
+        <path d="M-7 -38 L-5 -34" />
+        <path d="M7 -38 L5 -34" />
+      </g>
+    </svg>
+  );
+}
+
+const DOTS: [number, number, number, string][] = [
+  [9, 14, 1.6, "r"], [91, 11, 1.3, "k"], [7, 40, 1, "g"], [93, 36, 1.1, "r"], [7, 62, 1.2, "k"], [94, 60, 1.4, "r"], [8, 92, 1.3, "r"], [93, 83, 1, "g"], [24, 9, 0.9, "g"], [74, 13, 1, "r"],
+];
+
+/**
+ * Printed greeting card for the Black Friday boxes (Spain, A6 portrait), in the page's black, red and gold, Spanish.
+ * Same markup rules as the Christmas card: only the customer's message changes. Not offered in the checkout yet
+ * (16/11/2026: waiting for the Belgian warehouse to say whether it can print and pack it).
+ */
+export function BfGreetingCard({ message, orderId, className = "", placeholder = "Tu mensaje aparece aquí." }: { message: string; orderId?: string; className?: string; placeholder?: string }) {
+  const text = message.trim();
+  const size = text.length <= 60 ? "gc-lg" : text.length <= 120 ? "gc-md" : "gc-sm";
+  return (
+    <div className={`giftcard gcb ${className}`}>
+      <link rel="stylesheet" href={FONTS} precedence="default" />
+      <div className="gc-inner">
+        {DOTS.map(([x, y, s, c], i) => (
+          <span key={i} className={`gcb-dot gcb-dot-${c}`} style={{ left: `${x}%`, top: `${y}%`, width: `${s}cqw`, height: `${s}cqw` }} aria-hidden="true" />
+        ))}
+        <span className="gcb-corner gcb-corner-tl" aria-hidden="true" />
+        <span className="gcb-corner gcb-corner-br" aria-hidden="true" />
+        <div className="gc-body">
+          <Toast className="gcb-toast" />
+          <p className="gc-title">Un brindis por ti</p>
+          <p className="gc-sub">¡Felices Fiestas!</p>
+          <span className="gc-rule" aria-hidden="true" />
+          <p className={`gc-msg ${size}`}>{text || placeholder}</p>
+          <p className="gc-foot">Wine Portugal · Del Douro a tu mesa</p>
+        </div>
+      </div>
+      {orderId && <span className="gc-ref">{orderId}</span>}
+    </div>
+  );
+}

@@ -204,6 +204,34 @@
       "when": 1793789925380,
       "tag": "0028_ctt_expresso",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793876325380,
+      "tag": "0029_bf_box_galhofa",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793879925380,
+      "tag": "0030_bf_poco_reference_price",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793883525380,
+      "tag": "0031_bf_portugal",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793887125380,
+      "tag": "0032_ctt_no_fragile",
+      "breakpoints": true
     }
   ]
 }

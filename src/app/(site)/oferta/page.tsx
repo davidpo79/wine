@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { loadDraft } from "@/lib/draft";
-import { getCatalog } from "@/lib/catalog";
+import { catalogForBundle } from "@/lib/catalog";
 import { getSettings } from "@/lib/settings";
-import { boxesOffer, productOffers } from "@/lib/upsell";
+import { bfCrossOffer, boxesOffer, productOffers } from "@/lib/upsell";
 import { upsellMode } from "@/lib/payments";
 import { logOrderEvent } from "@/lib/orders";
 import { stripePublishableKey } from "@/lib/stripe";
@@ -30,7 +30,7 @@ export default async function Oferta({
   if (!order || !o || !t) redirect("/");
   const q = `o=${encodeURIComponent(o)}&t=${encodeURIComponent(t)}`;
   const mode = upsellMode(order);
-  const [catalog, settings] = await Promise.all([getCatalog(), getSettings()]);
+  const [catalog, settings] = await Promise.all([catalogForBundle(order.bundleKey), getSettings()]); // the order's own product (Black Friday boxes: their offer)
   if (!mode || !settings.upsell_enabled || !catalog) redirect(`/obrigado?${q}`);
   const paidAddons = await db
     .select({ sku: schema.orderAddons.sku })
@@ -42,7 +42,9 @@ export default async function Oferta({
       ),
     );
   const taken = new Set(paidAddons.map((a) => a.sku));
-  const first = boxesOffer(order, catalog.bundles);
+  // Black Friday orders: the other offer, in the same parcel (bfCrossOffer); the Trilogia: more boxes.
+  const bfx = bfCrossOffer(order);
+  const first = bfx && !taken.has(bfx.sku) ? bfx : boxesOffer(order, catalog.bundles);
   const others = productOffers(settings, order).filter(
     (p) => !taken.has(p.sku),
   );
@@ -73,7 +75,7 @@ export default async function Oferta({
         token={t}
         firstName={(order.customerName ?? "").split(" ")[0]}
         boxes={order.qtyBoxes}
-        first={first && !taken.has("trilogia-2160") ? first : null}
+        first={first && !taken.has(first.sku) ? first : null}
         others={others}
         mode={mode}
         phone={order.phone ?? ""}

@@ -16,7 +16,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
   try {
     switch (action) {
       case "import":
-        return Response.json({ ok: true, ...(await svc.importLeads(me, { page: Number(b.page) || 1 })) });
+        return Response.json({ ok: true, ...(await svc.importLeads(me, { page: Number(b.page) || undefined })) });
       case "add":
         return Response.json(
           await svc.addManualLead(me, {

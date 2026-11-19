@@ -236,6 +236,106 @@ export async function recoveryTemplateStatus(): Promise<{ ok: boolean; message: 
   };
 }
 
+// --- Black Friday abandoned checkout (Germany and Spain): its own template, as the Trilogia one names the Trilogia ----
+
+export const BF_RECOVERY_TEMPLATE_NAME = "blackfriday_retomar";
+export const BF_TEMPLATE_LANGS = { de: "de", es: "es" } as const;
+export type BfTemplateLocale = keyof typeof BF_TEMPLATE_LANGS;
+const isBfTemplateLocale = (l: string): l is BfTemplateLocale => l in BF_TEMPLATE_LANGS;
+
+// Same variables as the Trilogia template: {{1}} first name, {{2}} boxes; URL button {{1}} = "retomar/<token>".
+const BF_RECOVERY_COPY: Record<BfTemplateLocale, { body: string; example: [string, string]; button: string }> = {
+  de: {
+    body: "Hallo {{1}}! Ihre Black-Friday-Box mit Douro-Weinen ({{2}}) wartet auf Sie: Ihre Bestellung ist noch nicht abgeschlossen. Gratisversand, nur bis 25.11. Wenn Sie keine Nachrichten mehr erhalten möchten, antworten Sie STOPP.",
+    example: ["Anna", "2 Boxen"],
+    button: "Bestellung abschließen",
+  },
+  es: {
+    body: "¡Hola {{1}}! Tu caja de Black Friday con vinos del Duero ({{2}}) te espera: tu pedido aún no está completo. Envío gratis, solo hasta el 25/11. Para no recibir más mensajes, responde STOP.",
+    example: ["Ana", "2 cajas"],
+    button: "Completar mi pedido",
+  },
+};
+
+export function bfRecoveryTemplateDefinition(locale: BfTemplateLocale, siteUrl = SITE.url) {
+  const c = BF_RECOVERY_COPY[locale];
+  return {
+    name: BF_RECOVERY_TEMPLATE_NAME,
+    category: "MARKETING" as const,
+    language: BF_TEMPLATE_LANGS[locale],
+    components: [
+      { type: "BODY", text: c.body, example: { body_text: [[...c.example]] } },
+      { type: "BUTTONS", buttons: [{ type: "URL", text: c.button, url: `${siteUrl}/{{1}}`, example: [`${siteUrl}/retomar/abc123`] }] },
+    ],
+  };
+}
+
+/**
+ * Black Friday reminder on WhatsApp, in German or Spanish. Until Meta approves the template the send fails and the
+ * caller sends the SMS instead, so nothing is lost while it is pending.
+ */
+export async function sendBfRecoveryTemplate(toE164: string, firstName: string, bundleLabel: string, resumePath: string, locale: Locale) {
+  if (!isBfTemplateLocale(locale)) return { skipped: "no_black_friday_template_in_this_language" as const, locale };
+  const env = E();
+  const components = [
+    { type: "body", parameters: [{ type: "text", text: firstName }, { type: "text", text: bundleLabel }] },
+    { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: resumePath }] },
+  ];
+  const code = BF_TEMPLATE_LANGS[locale];
+  const r = viaTelnyx()
+    ? await fetch("https://api.telnyx.com/v2/messages/whatsapp", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.TELNYX_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: env.TELNYX_WHATSAPP_FROM, to: toE164, whatsapp_message: { type: "template", template: { name: BF_RECOVERY_TEMPLATE_NAME, language: { policy: "deterministic", code }, components } } }),
+        signal: AbortSignal.timeout(15000),
+      })
+    : await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", to: toE164.replace("+", ""), type: "template", template: { name: BF_RECOVERY_TEMPLATE_NAME, language: { code }, components } }),
+        signal: AbortSignal.timeout(15000),
+      });
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`WhatsApp ${r.status}: ${JSON.stringify(json).slice(0, 300)}`);
+  return json;
+}
+
+/** Submits the Black Friday template (German, Spanish) to Meta through Telnyx; a language already there is left alone. */
+export async function createBfRecoveryTemplate(): Promise<{ ok: boolean; message: string }> {
+  const env = E();
+  if (!env.TELNYX_API_KEY) return { ok: false, message: "TELNYX_API_KEY is not set in Railway." };
+  if (!env.WHATSAPP_WABA_ID) return { ok: false, message: "Save the WhatsApp Business Account id (WABA) first." };
+  if (!/^https:\/\//.test(SITE.url)) return { ok: false, message: `SITE_URL must be the public https address (now ${SITE.url}).` };
+  const existing = await existingTemplates(BF_RECOVERY_TEMPLATE_NAME);
+  if (!existing.ok) return { ok: false, message: `Could not list the existing templates, nothing was submitted. ${existing.message}` };
+  const have = new Map(existing.list.map((t) => [t.language ?? "", t.status ?? "?"]));
+  const lines: string[] = [];
+  let ok = true;
+  for (const l of Object.keys(BF_TEMPLATE_LANGS) as BfTemplateLocale[]) {
+    const code = BF_TEMPLATE_LANGS[l];
+    if (have.has(code)) {
+      lines.push(`${code}: already there (${have.get(code)}), not submitted`);
+      continue;
+    }
+    const r = await telnyx("POST", "/whatsapp/message_templates", { waba_id: env.WHATSAPP_WABA_ID, ...bfRecoveryTemplateDefinition(l) });
+    const data = (r.body as { data?: { status?: string } } | null)?.data;
+    if (r.ok) lines.push(`${code}: submitted to Meta (status: ${data?.status ?? "submitted"})`);
+    else {
+      ok = false;
+      lines.push(`${code}: Telnyx answered HTTP ${r.status}: ${JSON.stringify(r.body).slice(0, 400)}`);
+    }
+  }
+  return { ok, message: `Template ${BF_RECOVERY_TEMPLATE_NAME}: ${lines.join(" · ")}.` };
+}
+
+/** Review status of the Black Friday template, one line. */
+export async function bfRecoveryTemplateStatus(): Promise<string> {
+  const existing = await existingTemplates(BF_RECOVERY_TEMPLATE_NAME);
+  if (!existing.ok) return `Black Friday template: ${existing.message}`;
+  if (!existing.list.length) return `Black Friday template ${BF_RECOVERY_TEMPLATE_NAME}: not created yet.`;
+  return `Black Friday: ${existing.list.map((t) => `${t.name} (${t.language}): ${t.status}${t.rejected_reason ? `, reason: ${t.rejected_reason}` : ""}`).join(" · ")}.`;
+}
+
 // --- Sales prospects (Portugal HR leads) ---------------------------------------------------------------------------
 // A rep may write first only with this approved template, and only to someone who asked for WhatsApp on the call.
 // Once the person replies, Meta opens a 24 h window in which free text is allowed (each reply opens it again).

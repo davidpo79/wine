@@ -1,8 +1,8 @@
 import { Footer, Header, WhatsAppIcon } from "@/components/landing/Chrome";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
 import { LOCALE_INFO, type Locale } from "@/lib/markets";
-import { ABOUT_BF, ABOUT_COPY } from "./copy";
-import { bfHref, isBfLocale } from "@/lib/black-friday";
+import { ABOUT_BF, ABOUT_BF_OFFER, ABOUT_COPY } from "./copy";
+import { bfHref, bfOfferByPath, isBfLocale } from "@/lib/black-friday";
 import { SITE } from "@/lib/site";
 
 /** One row of the "usual path vs with us" comparison. */
@@ -36,9 +36,14 @@ function Path({ label, steps, ours = false }: { label: string; steps: string[]; 
 
 /** from = "bf": opened from the Black Friday page, so the wines, the box and the button are the Black Friday ones. */
 export function AboutPage({ locale, from }: { locale: Locale; from?: string }) {
-  const bf = from === "bf" && isBfLocale(locale) ? ABOUT_BF[locale] : undefined;
+  // from = "bf-espumoso" / "bf-poco-do-canto": the other Black Friday offers (Spanish only), with their own wine and photos.
+  const ox = from && locale === "es" ? ABOUT_BF_OFFER[from]?.es : undefined;
+  const bf = ox ?? (from === "bf" && isBfLocale(locale) ? ABOUT_BF[locale] : undefined);
   const c = { ...ABOUT_COPY[locale], ...(bf ?? {}) };
-  const home = bf && isBfLocale(locale) ? bfHref(locale) : homeHref(locale);
+  const offer = ox ? bfOfferByPath(ox.path, "es") : null;
+  const home = bf && isBfLocale(locale) ? (offer ? bfHref(locale, offer) : bfHref(locale)) : homeHref(locale);
+  const winesImg = ox?.winesImg ?? (bf ? (locale === "de" ? "/lp/bf/cheda-hero.webp" : "/lp/bf/bottles.webp") : "/lp/table-768.webp");
+  const boxImg = ox?.boxImg ?? (bf ? "/lp/bf/who-warehouse.webp" : "/lp/giftbox-768.webp");
   return (
     <>
       <Header locale={locale} home={home} />
@@ -62,11 +67,11 @@ export function AboutPage({ locale, from }: { locale: Locale; from?: string }) {
           <p>{c.logistics}</p>
 
           <h2>{c.winesH}</h2>
-          <img src={bf ? "/lp/bf/bottles.webp" : "/lp/table-768.webp"} alt={c.winesAlt} width={768} height={658} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
+          <img src={winesImg} alt={c.winesAlt} width={768} height={658} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
           <p>{c.wines}</p>
 
           <h2>{c.boxH}</h2>
-          <img src={bf ? "/lp/bf/who-warehouse.webp" : "/lp/giftbox-768.webp"} alt={c.boxAlt} width={767} height={638} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
+          <img src={boxImg} alt={c.boxAlt} width={767} height={638} className="mt-4 w-full rounded-lg object-cover" style={{ aspectRatio: "3 / 2" }} loading="lazy" />
           <p>{c.box}</p>
 
           <h2>{c.promiseH}</h2>

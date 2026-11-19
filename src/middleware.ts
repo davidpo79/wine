@@ -13,6 +13,11 @@ async function roleOf(req: NextRequest) {
   return u && !u.disabledAt && u.v === s.v ? u.role : null;
 }
 
+/** Short link -> landing page with its UTM, so every visit and order from it is attributed. */
+const SHORT_LINKS: Record<string, string> = {
+  "/rus": "/ru/black-friday/cheda?utm_source=ru_de_group&utm_medium=community&utm_campaign=bf_cheda_ru",
+};
+
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   // Sales reps (Portugal callers): 403 on every admin page and API outside their allow-list. Pages, actions and
@@ -28,9 +33,13 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Short links for groups and partners: one word, redirected to the page with its tracking parameters.
+  const short = SHORT_LINKS[path];
+  if (short) return NextResponse.redirect(new URL(short, req.nextUrl.origin), 302);
+
   // First-touch UTM attribution: stored for 30 days, never overwritten by later visits.
   const res = NextResponse.next();
-  if ((path === "/" || path.endsWith("/black-friday")) && !req.cookies.get(UTM_COOKIE)) {
+  if ((path === "/" || /\/black-friday(\/[^/]+)?$/.test(path)) && !req.cookies.get(UTM_COOKIE)) {
     const utm = utmFromSearch(req.nextUrl.searchParams);
     if (utm) {
       res.cookies.set(UTM_COOKIE, encodeURIComponent(JSON.stringify(utm)), {
@@ -45,4 +54,4 @@ export async function middleware(req: NextRequest) {
 }
 
 // Node runtime: the role is read from the database. Only the home and Black Friday pages (UTM) and admin / API paths run it.
-export const config = { matcher: ["/", "/black-friday", "/:locale/black-friday", "/admin/:path*", "/api/:path*"], runtime: "nodejs" };
+export const config = { matcher: ["/", "/black-friday", "/:locale/black-friday", "/:locale/black-friday/:offer", "/rus", "/admin/:path*", "/api/:path*"], runtime: "nodejs" };

@@ -2,13 +2,14 @@
 // Never overwrites values edited in the admin.
 import "./load-env";
 import { sql as pg, db, schema } from "../src/db";
+import type { WineItem } from "../src/db/schema";
 import { DEFAULT_SETTINGS } from "../src/lib/settings-defaults";
-import { BF_BUNDLES, BF_PRODUCT_SLUG } from "../src/lib/black-friday";
+import { BF_BUNDLES, BF_OFFER_BUNDLES, BF_OFFERS, BF_PRODUCT_SLUG, BF_SLUGS } from "../src/lib/black-friday";
 import { hash } from "@node-rs/argon2";
 import { createHash } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
-const [existing] = await db.select().from(schema.products).where(sql`${schema.products.slug} <> ${BF_PRODUCT_SLUG}`).limit(1);
+const [existing] = await db.select().from(schema.products).where(notInArray(schema.products.slug, BF_SLUGS)).limit(1);
 let productId = existing?.id;
 if (!productId) {
   const [p] = await db
@@ -52,7 +53,7 @@ if (!bf) {
       shortDescription: "Caixa de 6 vinhos do Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha e Espanha, envio do armazém na Bélgica.",
       wines: [
         { name: "Galhofa Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
-        { name: "D. Graça Branco", vintage: "2025", type: "branco", producer: "Douro" },
+        { name: "Galhofa Branco", vintage: "2025", type: "branco", producer: "Douro" },
         { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
       ],
       images: [],
@@ -65,10 +66,172 @@ await db
   .values(BF_BUNDLES.map((b) => ({ ...b, productId: bf.id })))
   .onConflictDoNothing();
 
+// Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
+const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt", { name: string; shortDescription: string; wines: WineItem[] }> = {
+  burbujas: {
+    name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
+    shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
+    wines: [{ name: "D. Graça Espumante Bruto", vintage: "", type: "branco", producer: "Douro" }],
+  },
+  poco: {
+    name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas",
+    shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Espanha.",
+    wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
+  },
+  galhofa: {
+    name: "Black Friday · Galhofa mix · 6 garrafas · NL/BE",
+    shortDescription: "Caixa de 6 vinhos Galhofa, Douro DOC: 3 tintos, 2 brancos e 1 rosé. Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
+    wines: [
+      { name: "Galhofa Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
+      { name: "Galhofa Branco", vintage: "2025", type: "branco", producer: "Douro" },
+      { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
+    ],
+  },
+  sekt: {
+    name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas · DE",
+    shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Alemanha, armazém na Bélgica (UPS). 336 caixas.",
+    wines: [{ name: "D. Graça Espumante Bruto", vintage: "2022", type: "branco", producer: "Douro" }],
+  },
+  pocoeu: {
+    name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas · DE/NL/BE",
+    shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Alemanha, Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
+    wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
+  },
+};
+for (const id of ["burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const) {
+  const slug = BF_OFFERS[id].slug;
+  let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
+  if (!p) {
+    [p] = await db
+      .insert(schema.products)
+      .values({ slug, ...OFFER_PRODUCTS[id], images: [] })
+      .returning();
+    console.log(`black friday product created: ${slug}`);
+  }
+  await db
+    .insert(schema.bundles)
+    .values(BF_OFFER_BUNDLES[id].map((b) => ({ ...b, productId: p.id })))
+    .onConflictDoNothing();
+}
+
 await db
   .insert(schema.settings)
   .values(Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({ key, value })))
   .onConflictDoNothing();
+
+// One-time update, 18/11/2026 (David): the German Black Friday page sells the Cheda mix (Lavradores de Feitoria) from the
+// Belgian warehouse at 68,50 €. Per box: wine 15 €, transport Portugal → Belgium 2,50 €, shipping box 2,50 €, handling
+// 2 €, delivery to Germany 8,50 € (= 30,50 €; payment fees 3% and marketing come from Finance). Applied once, marked
+// in settings, so later edits in Admin → Settings / Products are kept.
+{
+  const MARK = "patch_bf_cheda_de_20261118";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = (row?.value ?? DEFAULT_SETTINGS.black_friday) as typeof DEFAULT_SETTINGS.black_friday;
+    const value = { ...DEFAULT_SETTINGS.black_friday, ...cur, costs: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 } };
+    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    await db
+      .update(schema.products)
+      .set({
+        name: "Black Friday · 6 vinhos do Douro (DE Cheda · ES Galhofa)",
+        shortDescription: "Caixa de 6 vinhos do Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha: Cheda (Lavradores de Feitoria), armazém na Bélgica. Espanha: Galhofa, enviado de Lisboa.",
+        wines: [
+          { name: "Cheda Tinto (DE)", vintage: "", type: "tinto", producer: "Lavradores de Feitoria" },
+          { name: "Cheda Branco (DE)", vintage: "", type: "branco", producer: "Lavradores de Feitoria" },
+          { name: "Cheda Rosé (DE)", vintage: "", type: "rose", producer: "Lavradores de Feitoria" },
+          { name: "Galhofa Tinto (ES)", vintage: "2024", type: "tinto", producer: "Douro" },
+          { name: "Galhofa Branco (ES)", vintage: "2025", type: "branco", producer: "Douro" },
+          { name: "Galhofa Rosé (ES)", vintage: "2025", type: "rose", producer: "Douro" },
+        ],
+      })
+      .where(eq(schema.products.slug, BF_PRODUCT_SLUG));
+    await db.update(schema.bundles).set({ priceCents: 6850, shippingCents: 0 }).where(eq(schema.bundles.key, "bf1"));
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Black Friday Germany = Cheda, 68,50 €, costs 30,50 €/box");
+  }
+}
+
+// One-time update, 18/11/2026 (David): Black Friday also in the Netherlands and Belgium (Poço do Canto, VAT 21%), and
+// orders open until Black Friday itself (27/11 23:59 CET instead of 25/11). Later edits in Admin → Settings are kept.
+{
+  const MARK = "patch_bf_nl_be_cutoff_20261118";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = { ...DEFAULT_SETTINGS.black_friday, ...((row?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.black_friday>) };
+    const value = {
+      ...cur,
+      countries: [...new Set([...cur.countries, "NL", "BE"] as const)],
+      vat_percent: { ...cur.vat_percent, NL: 21, BE: 21 },
+      cutoff_at: "2026-11-27T22:59:00Z",
+    };
+    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Black Friday in NL and BE, orders until 27/11");
+  }
+}
+
+// One-time update, 18/11/2026 (David): stock of the Belgian warehouse per the customs documents (e-DA PT 323854,
+// invoices Vinilourenço FCT 2026/786 and Lavradores FA 2026/416 + 415): Cheda 500, Poço do Canto 360, Galhofa 360
+// boxes; ShipHero SKUs D. Graça ×3 = 35600320722376, Trilogia 2160 = 55604086420020. Later admin edits are kept.
+{
+  const MARK = "patch_be_stock_customs_20261118";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [bf] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = { ...DEFAULT_SETTINGS.black_friday, ...((bf?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.black_friday>) };
+    const value = { ...cur, stock: { ...cur.stock, douro6: 500, pocoeu: 360, galhofa: 360, sekt: 336 } };
+    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    const [sh] = await db.select().from(schema.settings).where(eq(schema.settings.key, "shiphero"));
+    const shCur = { ...DEFAULT_SETTINGS.shiphero, ...((sh?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.shiphero>) };
+    const shValue = { ...shCur, skus: { ...shCur.skus, dgraca_3: "35600320722376", trilogia_2160: "55604086420020" } };
+    await db.insert(schema.settings).values({ key: "shiphero", value: shValue }).onConflictDoUpdate({ target: schema.settings.key, set: { value: shValue } });
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Belgian warehouse stock and SKUs from the customs documents");
+  }
+}
+
+// One-time update, 19/11/2026 (David): the Christmas Trilogia 2160 pages (/de, /nl, /fr) sell in Germany, the
+// Netherlands and Belgium, shipped from the Belgian warehouse (UPS, 2 working days), orders until the Christmas cutoff.
+{
+  const MARK = "patch_xmas_markets_de_nl_be_20261119";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "markets"));
+    const cur = { ...DEFAULT_SETTINGS.markets, ...((row?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.markets>) };
+    const value = { ...cur };
+    for (const c of ["DE", "NL", "BE"] as const) value[c] = { ...cur[c], enabled: true, delivery_days: cur[c]?.delivery_days || "2" };
+    await db.insert(schema.settings).values({ key: "markets", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Christmas pages open in DE, NL and BE");
+  }
+}
+
+// One-time, 19/11/2026 (David): paid orders to Germany, the Netherlands and Belgium that never reached ShipHero (paid
+// before the integration went live on 18/11, or refused with "SKUs not found" before the products existed in ShipHero)
+// are sent now, as the admin's "Send to ShipHero" button does. An order already in ShipHero is found and not created
+// twice. The mark is set only when every order went through, so a failure is retried at the next deploy.
+{
+  const MARK = "patch_shiphero_resend_20261119";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  const { shipheroConfigured } = await import("../src/lib/shiphero");
+  if (!done && shipheroConfigured()) {
+    const { sendToShiphero } = await import("../src/lib/shiphero-fulfilment");
+    const rows = await db
+      .select()
+      .from(schema.orders)
+      .where(and(inArray(schema.orders.country, ["DE", "NL", "BE"]), eq(schema.orders.status, "paid")));
+    let failed = 0;
+    for (const o of rows) {
+      const r = await sendToShiphero(o, "resend 19/11");
+      if ("error" in r) failed++;
+      console.log(`shiphero resend ${o.id}: ${"error" in r ? r.error : r.ok}`);
+    }
+    if (!failed) await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log(`patch: ${rows.length} paid DE/NL/BE orders sent to ShipHero, ${failed} failed`);
+  }
+}
 
 // First admin bootstrap: only when no admin exists yet. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD in Railway,
 // deploy once, log in, then delete ADMIN_INITIAL_PASSWORD. Later changes go through `npm run admin:create`.

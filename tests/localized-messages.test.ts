@@ -176,6 +176,23 @@ test("WhatsApp template definitions: pt_PT unchanged; ru and de with the same st
     assert.deepEqual(b.buttons[0].example, ["https://vinho.prendadenatal.com/retomar/abc123"]);
     assert.ok(b.buttons[0].text.length <= 25, "Meta: button text up to 25 characters");
   }
+  // Black Friday template: same variables and button, German and Spanish, names the offer and not the Trilogia.
+  for (const l of ["de", "es"] as const) {
+    const d = wa.bfRecoveryTemplateDefinition(l, "https://vinho.prendadenatal.com");
+    assert.equal(d.name, "blackfriday_retomar");
+    assert.equal(d.category, "MARKETING");
+    assert.equal(d.language, l);
+    const body = d.components[0] as { text: string; example: { body_text: string[][] } };
+    assert.deepEqual(body.text.match(/\{\{\d+\}\}/g), ["{{1}}", "{{2}}"]);
+    assert.equal(body.example.body_text[0].length, 2);
+    assert.match(body.text, /Black Friday|Black-Friday/);
+    assert.doesNotMatch(body.text, /Trilogia/);
+    assert.doesNotMatch(body.text, DASHES);
+    assert.ok(!/\}\}\.?$/.test(body.text.trim()));
+    const btn = (d.components[1] as { buttons: { text: string; url: string }[] }).buttons[0];
+    assert.equal(btn.url, "https://vinho.prendadenatal.com/{{1}}");
+    assert.ok(btn.text.length <= 25);
+  }
   const ru = (wa.recoveryTemplateDefinition("ru").components[0] as { text: string }).text;
   assert.match(ru, /^Здравствуйте, \{\{1\}\}!/);
   assert.match(ru, /ответьте СТОП\.$/);
@@ -373,6 +390,21 @@ test("recovery is scheduled for every site language once email and phone are kno
   assert.equal(shouldScheduleRecovery(s, { locale: "ru", recoveryScheduledAt: new Date(), email: "a@b.pt", phone: "+351916000000" }), false);
   assert.equal(shouldScheduleRecovery({ recovery_enabled: false }, { locale: "ru", recoveryScheduledAt: null, email: "a@b.pt", phone: "+351916000000" }), false);
   assert.equal(shouldScheduleRecovery(s, { locale: "xx", recoveryScheduledAt: null, email: "a@b.pt", phone: "+351916000000" }), false);
+});
+
+test("checkout phone: optional in Germany and Spain (e-mail reminders still start), required in Portugal; PT landlines accepted", async () => {
+  const { validateForPayment } = await import("../src/lib/draft");
+  const s = { recovery_enabled: true };
+  assert.equal(shouldScheduleRecovery(s, { locale: "de", recoveryScheduledAt: null, email: "a@b.de", phone: null, country: "DE" }), true);
+  assert.equal(shouldScheduleRecovery(s, { locale: "pt", recoveryScheduledAt: null, email: "a@b.pt", phone: null, country: "PT" }), false);
+  const o = (country: string, locale: string, phone: string | null) =>
+    ({ id: "WP-T", locale, country, email: "a@b.com", phone, customerName: "Ana Silva", shippingAddress: { line1: "Rua Augusta 10", postal_code: country === "PT" ? "1100-053" : country === "DE" ? "10115" : "28001", city: "X" } }) as unknown as Order;
+  assert.equal(validateForPayment(o("DE", "de", null), ["DE"]).phone, undefined);
+  assert.equal(validateForPayment(o("ES", "es", ""), ["ES"]).phone, undefined);
+  assert.ok(validateForPayment(o("DE", "de", "12"), ["DE"]).phone, "a typed number must still be valid");
+  assert.ok(validateForPayment(o("PT", "pt", null)).phone);
+  assert.equal(validateForPayment(o("PT", "pt", "21 234 5678")).phone, undefined);
+  assert.match(validateForPayment({ ...o("PT", "pt", "912345678"), shippingAddress: { line1: "Rua da Sé 1", postal_code: "9000-001", city: "Funchal" } } as unknown as Order).postalCode ?? "", /Madeira/);
 });
 
 test("stop/unsubscribe pages and API errors in the customer's language", () => {

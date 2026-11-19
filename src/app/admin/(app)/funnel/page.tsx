@@ -4,6 +4,7 @@ import { PERIODS, type Period } from "@/lib/analytics";
 import { breakdown, FUNNEL_STEPS, fieldStats, funnelOf, journeySessions, reached, topEvents, type SessionRow } from "@/lib/journey-stats";
 import { JOURNEY_RETENTION_DAYS } from "@/lib/journey";
 import { startOfLisbonDay } from "@/lib/time";
+import { BF_OFFER_ADMIN_LABEL, BF_OFFER_IDS } from "@/lib/black-friday";
 
 const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(n / d < 0.1 ? 1 : 0)}%` : "·");
 const dur = (ms: number) => (ms < 60_000 ? `${Math.round(ms / 1000)}s` : `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`);
@@ -86,9 +87,10 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
           {[
             ["", "All funnels"],
             ["xmas", "Christmas · Trilogia"],
-            ["bf", "Black Friday"],
+            ["bf", "Black Friday · all"],
+            ...BF_OFFER_IDS.map((id) => [`bf:${id}`, `BF · ${BF_OFFER_ADMIN_LABEL[id]}`]),
           ].map(([k, label]) => (
-            <Link key={k} href={href({ fn: k || undefined })} className={`px-3 py-1.5 ${(sp.fn ?? "") === k ? (k === "bf" ? "bg-[#e11d2a] text-white" : "bg-night text-paper") : "hover:bg-paper"}`}>
+            <Link key={k} href={href({ fn: k || undefined })} className={`px-3 py-1.5 ${(sp.fn ?? "") === k ? (k.startsWith("bf") ? "bg-[#e11d2a] text-white" : "bg-night text-paper") : "hover:bg-paper"}`}>
               {label}
             </Link>
           ))}

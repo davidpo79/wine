@@ -15,7 +15,8 @@ import { dealOf, dealText } from "@/lib/offers";
 import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/rich";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
-import { MARKETS, type Country } from "@/lib/markets";
+import { MARKETS, PHONE_OPTIONAL, type Country } from "@/lib/markets";
+import { contentIdFor } from "@/lib/black-friday";
 
 type BundleOpt = {
   key: string;
@@ -60,6 +61,8 @@ export type CheckoutProduct = {
   defaultKey: string;
   backHref: string;
   trust: string[] | null; // replaces the default trust list
+  /** Black Friday: the offer's top bar, so the checkout looks like the page the buyer came from. */
+  banner?: string;
 };
 
 const EMPTY: Fields = {
@@ -135,13 +138,15 @@ export function CheckoutPage({
   const t = d.checkout;
   const bf = !!product?.bf;
   const guide = guideSetting && !bf; // the recipe guide comes with the Christmas Trilogia only
-  const contentId = bf ? "black-friday-douro-6" : "trilogia-2160";
-  // A Black Friday checkout is saved apart from a Trilogia one (they are different orders).
-  const DRAFT_KEY = draftKey(locale) + (bf ? "_bf" : "");
+  const bfPrefix = bf ? (product?.defaultKey ?? "bf").replace(/\d+$/, "") : "";
+  const contentId = bf ? contentIdFor(product?.defaultKey) : "trilogia-2160";
+  // A Black Friday checkout is saved apart from a Trilogia one, and each offer apart from the others (different orders).
+  const DRAFT_KEY = draftKey(locale) + (bf ? `_${bfPrefix}` : "");
   const [country, setCountry] = useState<Country>(initialCountry);
   const market = MARKETS[country];
   // The printed card is made in Portugal: offered for parcels from the Douro only.
-  const giftCardPrice = market.warehouse === "douro" ? giftCardSetting : null;
+  // Not on Black Friday orders sent to Portugal: the card is the Christmas (Trilogia) one.
+  const giftCardPrice = market.warehouse === "douro" && !bf ? giftCardSetting : null;
   const boxesText = (n: number) =>
     n === 1 ? d.common.oneBox : fmt(d.common.nBoxes, { n });
   const METHOD_INFO: Record<Method, { title: string; note: string }> = {
@@ -991,18 +996,22 @@ export function CheckoutPage({
 
   return (
     <div className="min-h-screen bg-white text-ink">
-      <header className="border-b border-paper-2">
+      {/* Black Friday: the same black and red top as the offer page, so the buyer knows they are still in the same shop. */}
+      {bf && product?.banner && (
+        <div className="bg-[#e3161b] px-3 py-2 text-center text-[11px] font-extrabold uppercase tracking-wide text-white sm:text-xs">{product.banner}</div>
+      )}
+      <header className={bf ? "border-b border-black bg-[#0b0b0c]" : "border-b border-paper-2"}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <a href={product?.backHref ?? homeHref(locale)} className="leading-none text-azulejo">
             <img
-              src="/brand/logo.svg"
+              src={bf ? "/brand/logo-light.svg" : "/brand/logo.svg"}
               alt="Wine Portugal"
               width={961}
-              height={390}
+              height={bf ? 300 : 390}
               className="h-9 w-auto"
             />
           </a>
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-muted">
+          <span className={`flex items-center gap-1.5 text-xs font-semibold ${bf ? "text-white/80" : "text-muted"}`}>
             {t.securePayment}
           </span>
         </div>
@@ -1010,17 +1019,26 @@ export function CheckoutPage({
 
       {/* Mobile: collapsible summary */}
       <div className="border-b border-paper-2 bg-paper lg:hidden">
+        {/* What is being bought, always in view: photo, boxes and bottles, delivery included, total. The full summary
+            (other bundles, promo code) opens below. */}
         <button
           type="button"
           onClick={() => setShowSummary((v) => !v)}
-          className="mx-auto flex w-full max-w-xl items-center justify-between px-4 py-4 text-sm"
+          className="mx-auto flex w-full max-w-xl items-center gap-3 px-4 py-3 text-left text-sm"
           aria-expanded={showSummary}
         >
-          <span className="font-semibold text-azulejo">
-            {showSummary ? t.hideSummary : t.showSummary}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={product?.image ?? "/lp/giftbox-thumb.webp"} alt="" className={`h-12 w-12 shrink-0 rounded-md border border-paper-2 bg-white ${bf ? "object-contain p-0.5" : "object-cover"}`} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-semibold">{product?.name ?? t.productName}</span>
+            <span className="block text-xs text-muted">
+              {boxesText(selected?.qty ?? 1)} · {fmt(d.common.bottles, { n: (selected?.qty ?? 0) * (product?.bottlesPerBox ?? 3) })}
+            </span>
+            <span className="block text-xs font-semibold text-[#2f7d4f]">✓ {d.common.deliveryIncluded}</span>
           </span>
-          <span className="text-lg font-bold">
-            {amounts ? money(amounts.total) : "…"}
+          <span className="text-right">
+            <span className="block text-lg font-bold">{amounts ? money(amounts.total) : "…"}</span>
+            <span className="block text-[11px] font-semibold text-azulejo underline">{showSummary ? t.hideSummary : t.showSummary}</span>
           </span>
         </button>
         {showSummary && (
@@ -1056,7 +1074,7 @@ export function CheckoutPage({
               required: true,
             })}
             <p className="-mt-2 text-xs text-muted">{t.emailReminderNote}</p>
-            {input("phone", t.phone, {
+            {input("phone", PHONE_OPTIONAL.includes(country) ? t.phoneOptional : t.phone, {
               type: "tel",
               autoComplete: "tel",
               inputMode: "tel",
@@ -1064,7 +1082,7 @@ export function CheckoutPage({
                 country === "PT"
                   ? t.phonePlaceholder
                   : `${market.callingCode} …`,
-              required: true,
+              required: !PHONE_OPTIONAL.includes(country),
             })}
             {/* Calls/messages consent: a card right under the phone, never pre-ticked (GDPR). Without it no reminder
                 or call follows an unfinished payment, and a plain one-line checkbox was being skipped. */}

@@ -17,7 +17,6 @@ dbTest("pending Multibanco = open reference only; left before paying = e-mail an
   const run = `cnt-${Date.now()}`;
   const mk = async (suffix: string, email: string | null) =>
     (await db.insert(schema.orders).values({ id: `${run}-${suffix}`, bundleId: bundle.id, bundleKey: bundle.key, qtyBoxes: bundle.qty, subtotalCents: 1000, shippingCents: 0, totalCents: 1000, locale: "pt", country: "PT", email }).returning())[0];
-  const before = { mb: await pendingMultibanco(), left: await leftBeforePaying(30) };
   const open = await mk("open", "a@example.com");
   const expired = await mk("expired", "b@example.com");
   const leftOne = await mk("left", "c@example.com");
@@ -28,12 +27,13 @@ dbTest("pending Multibanco = open reference only; left before paying = e-mail an
     { orderId: expired.id, method: "multibanco", ref: `${run}-r2`, amountCents: 1000, status: "pending", expiresAt: new Date(Date.now() - 1000) },
     { orderId: failedCard.id, method: "card", ref: `${run}-r3`, amountCents: 1000, status: "failed" },
   ]);
-  const mb = await pendingMultibanco();
-  const left = await leftBeforePaying(30);
-  assert.equal(mb.count - before.mb.count, 1); // only the open reference
-  assert.equal(mb.valueCents - before.mb.valueCents, 1000);
+  // Counted on this run's orders only: other test files write orders to the same database at the same time.
+  const mb = await pendingMultibanco(`${run}-`);
+  const left = await leftBeforePaying(30, `${run}-`);
+  assert.equal(mb.count, 1); // only the open reference
+  assert.equal(mb.valueCents, 1000);
   // Left before paying: the one with no payment, the expired reference (nothing open) and the failed card; not the open one, not the one without e-mail.
-  assert.equal(left.count - before.left.count, 3);
+  assert.equal(left.count, 3);
   void leftOne;
   const ids = [open, expired, leftOne, failedCard].map((o) => o.id).concat(`${run}-noemail`);
   await db.delete(schema.payments).where(inArray(schema.payments.orderId, ids));

@@ -32,6 +32,8 @@ Admin → Settings → "Test CTT connection" checks everything.
 ## Notes from the integration
 - WCF data contracts: CTT rejects a message whose elements are not in alphabetical order ("Element 'Type' ... is not
   expected"). The builders keep that order; the unit tests check it.
+- Spain (and any receiver outside Portugal): CTT requires `ExportType` (we send `Permanent`) and `UPUCode` ("tipo de
+  produto"; we send `Goods`) in ShipmentData, else "O tipo de exportação é obrigatório; O tipo de produto é obrigatório".
 - The ZPL 10x15 label also comes back; we use the A4 PDF guide (agreed with CTT).
 - Object codes of a multi-parcel shipment are consecutive S10 serials (first..last); we compute each one.
 - Sandbox examples of our requests and responses (keys masked): `docs/ctt-expresso-examples/`.

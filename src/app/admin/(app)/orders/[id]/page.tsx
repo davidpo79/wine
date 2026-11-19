@@ -1,6 +1,7 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
 import { loadCttxConfig, shipmentOf, shippingReady } from "@/lib/fulfilment";
 import { cttxConfigured, cttxMissing } from "@/lib/cttx";
+import { isBelgianOrder, shipheroConfigured } from "@/lib/shiphero";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { notFound } from "next/navigation";
@@ -100,6 +101,22 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           )}
           <h2 className="mt-5 font-semibold">Shipping address</h2>
           <p className="text-sm">{a ? [a.name, a.line1, a.line2, `${a.postal_code ?? ""} ${a.city ?? ""}`, a.country].filter(Boolean).join(", ") : "·"}</p>
+          <details className="mt-3 rounded border p-3 text-sm">
+            <summary className="cursor-pointer font-medium">Edit customer details</summary>
+            <ActionForm action={orderAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+              <input type="hidden" name="id" value={o.id} />
+              <label className="text-xs">Name<input name="name" defaultValue={a?.name ?? o.customerName ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Email<input name="email" type="email" defaultValue={o.email ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Phone (international, e.g. +34612345678)<input name="phone" defaultValue={o.phone ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">NIF<input name="nif" defaultValue={o.nif ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs sm:col-span-2">Address<input name="line1" defaultValue={a?.line1 ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs sm:col-span-2">Address line 2<input name="line2" defaultValue={a?.line2 ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Postal code<input name="postal_code" defaultValue={a?.postal_code ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">City<input name="city" defaultValue={a?.city ?? ""} className="mt-1 block w-full rounded border p-1.5 text-sm" /></label>
+              <label className="text-xs">Country (PT, ES, DE…)<input name="country" defaultValue={a?.country ?? o.country ?? ""} maxLength={2} className="mt-1 block w-20 rounded border p-1.5 text-sm uppercase" /></label>
+              <div className="sm:col-span-2"><Submit name="action" value="edit_customer">Save customer details</Submit></div>
+            </ActionForm>
+          </details>
           {addons.some((x) => x.sku === "gift-card" && x.status === "paid") && (
             <div className="mt-4 grid grid-cols-[140px_1fr] items-start gap-3">
               <GiftCard message={o.giftMessage ?? ""} orderId={o.id} className="rounded shadow" />
@@ -126,6 +143,32 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             {paid && <Submit name="action" value="resend_confirmation" className="!bg-white !text-night border">Resend confirmation</Submit>}
             {paid && <Submit name="action" value="regenerate_ebook" className="!bg-white !text-night border">New e-book link</Submit>}
           </ActionForm>
+          {isBelgianOrder(o) ? (
+          <div className="rounded border p-3 text-sm">
+            <p className="font-medium">Belgian warehouse (ShipHero)</p>
+            {shipment?.provider === "shiphero" ? (
+              <div className="mt-1 space-y-1 text-xs">
+                <p>
+                  {shipment.objects[0] ? <>In ShipHero · id {shipment.objects[0]}</> : "Not in ShipHero yet"}
+                  {shipment.trackingId && <> · tracking <strong>{shipment.trackingId}</strong></>}
+                  {shipment.trackingUrl && <> · <a className="underline" href={shipment.trackingUrl} target="_blank" rel="noreferrer">follow</a></>}
+                </p>
+                {shipment.lastText && <p>Last: {shipment.lastText}</p>}
+                {shipment.error && <p className="text-xmas">{shipment.error}</p>}
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-muted">{shipheroConfigured() ? "Not sent to ShipHero yet (paid orders are sent automatically)." : "ShipHero not connected yet (SHIPHERO_REFRESH_TOKEN in Railway)."}</p>
+            )}
+            {shipheroConfigured() && (o.status === "paid" || o.status === "preparing") && !shipment?.trackingId && (
+              <ActionForm action={orderAction} className="mt-2">
+                <input type="hidden" name="id" value={o.id} />
+                <input type="hidden" name="action" value="shiphero_send" />
+                <Submit>{shipment?.objects[0] ? "Check / send to ShipHero again" : "Send to ShipHero"}</Submit>
+              </ActionForm>
+            )}
+            <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email and tracking link) when the warehouse ships it: automatic.</p>
+          </div>
+          ) : (
           <div className="rounded border p-3 text-sm">
             <p className="font-medium">CTT shipping</p>
             {shipment ? (
@@ -160,6 +203,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             {cttReady && <p className="mt-2 text-xs text-muted">The order becomes “shipped” (with the customer email) when CTT picks the parcel up, and “delivered” on delivery: automatic.</p>}
             {cttxTodo.length > 0 && <p className="mt-2 text-xs text-xmas">CTT Expresso: missing {cttxTodo.join(", ")}.</p>}
           </div>
+          )}
           {(o.status === "paid" || o.status === "preparing") && (
             <ActionForm action={orderAction} className="rounded border p-3" confirm="Send the shipping email to the customer?">
               <input type="hidden" name="id" value={o.id} />

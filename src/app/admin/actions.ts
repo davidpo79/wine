@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { bfCostsFor } from "@/lib/black-friday";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -18,7 +19,7 @@ import { resnapshotAll } from "@/lib/profit";
 import { getSettings, setSetting } from "@/lib/settings";
 import { bucketConfigured, putObject } from "@/lib/bucket";
 import { lisbonToUtc, zonedToUtc } from "@/lib/time";
-import { COUNTRIES, isLocale } from "@/lib/markets";
+import { COUNTRIES, MARKETS, isCountry, isLocale } from "@/lib/markets";
 import { ebookKey, guideFor } from "@/lib/ebook";
 
 export type FormState = { error?: string; ok?: string } | undefined;
@@ -68,12 +69,38 @@ export async function orderAction(_: FormState, fd: FormData): Promise<FormState
         await sendShipped(r);
         break;
       }
+      case "shiphero_send": {
+        const { sendToShiphero } = await import("@/lib/shiphero-fulfilment");
+        const r = await sendToShiphero(o, admin.email);
+        revalidatePath(`/admin/orders/${id}`);
+        return "error" in r ? { error: r.error } : { ok: r.ok };
+      }
       case "ctt_label": {
         const { createCttLabel } = await import("@/lib/fulfilment");
         const r = await createCttLabel(o, admin.email);
         if ("error" in r) return { error: r.error };
         revalidatePath(`/admin/orders/${id}`);
         return { ok: r.trackingId ? `Label ready · tracking ${r.trackingId}` : "Label ready." };
+      }
+      case "edit_customer": {
+        // Fix what the customer typed (a wrong phone or postal code stops the CTT label). Logged with the old values.
+        const v = (k: string, max = 200) => String(fd.get(k) ?? "").trim().slice(0, max);
+        const country = v("country", 2).toUpperCase();
+        if (!isCountry(country)) return { error: "Unknown country." };
+        const postal = v("postal_code", 12);
+        if (postal && !MARKETS[country].postal.test(postal)) return { error: `Postal code "${postal}" is not valid for ${country} (e.g. ${MARKETS[country].postalExample}).` };
+        const phone = v("phone", 30).replace(/[^\d+]/g, "");
+        if (phone && !/^\+?\d{8,15}$/.test(phone)) return { error: "Invalid phone number (international format, e.g. +34612345678)." };
+        const email = v("email", 200).toLowerCase();
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Invalid email." };
+        const before = { name: o.customerName, email: o.email, phone: o.phone, nif: o.nif, address: o.shippingAddress };
+        const address = { ...(o.shippingAddress ?? {}), name: v("name") || null, line1: v("line1") || null, line2: v("line2") || null, postal_code: postal || null, city: v("city", 100) || null, country };
+        await db
+          .update(schema.orders)
+          .set({ customerName: v("name") || o.customerName, email: email || o.email, phone: phone || null, nif: v("nif", 20) || null, shippingAddress: address, country })
+          .where(eq(schema.orders.id, id));
+        await logOrderEvent(id, "customer_edited", { ...by, before, after: { name: v("name"), email, phone, nif: v("nif", 20), address } });
+        break;
       }
       case "note": {
         const note = String(fd.get("note") ?? "").trim().slice(0, 2000);
@@ -292,10 +319,10 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
     };
     await setSetting("black_friday", {
       enabled: fd.get("bf_enabled") === "on",
-      countries: (["DE", "ES"] as const).filter((c) => fd.get(`bf_${c}`) === "on"),
+      countries: (["DE", "ES", "PT"] as const).filter((c) => fd.get(`bf_${c}`) === "on"),
       cutoff_at: cut.toISOString(),
       delivery_days: String(fd.get("bf_days") ?? "").trim().slice(0, 20),
-      vat_percent: { DE: vat("bf_vat_DE", prevBf.vat_percent.DE ?? 19), ES: vat("bf_vat_ES", prevBf.vat_percent.ES ?? 21) },
+      vat_percent: { DE: vat("bf_vat_DE", prevBf.vat_percent.DE ?? 19), ES: vat("bf_vat_ES", prevBf.vat_percent.ES ?? 21), PT: vat("bf_vat_PT", prevBf.vat_percent.PT ?? 13) },
       costs: {
         wine_cents: cost("bf_c_wine", prevBf.costs.wine_cents),
         shipping_box_cents: cost("bf_c_box", prevBf.costs.shipping_box_cents),
@@ -303,6 +330,12 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
         handling_cents: cost("bf_c_handling", prevBf.costs.handling_cents),
         delivery_cents: cost("bf_c_delivery", prevBf.costs.delivery_cents),
       },
+      offer_costs: Object.fromEntries(
+        (["burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const).map((id) => {
+          const old = bfCostsFor(prevBf, id);
+          return [id, { wine_cents: cost(`bf_${id}_wine`, old.wine_cents), shipping_box_cents: cost(`bf_${id}_box`, old.shipping_box_cents), transport_cents: cost(`bf_${id}_transport`, old.transport_cents), handling_cents: cost(`bf_${id}_handling`, old.handling_cents), delivery_cents: cost(`bf_${id}_delivery`, old.delivery_cents) }];
+        }),
+      ),
     });
   }
   revalidatePath("/admin/settings");
@@ -689,11 +722,11 @@ export async function whatsappTemplateCreateAction(_: FormState, _fd: FormData):
   await requireAdmin({ role: "admin" });
   const { loadOutboundSettings } = await import("@/lib/outbound-settings");
   await loadOutboundSettings(true);
-  const { createProspectTemplate, createRecoveryTemplate } = await import("@/lib/whatsapp");
+  const { createProspectTemplate, createRecoveryTemplate, createBfRecoveryTemplate } = await import("@/lib/whatsapp");
   try {
-    const [r, p] = [await createRecoveryTemplate(), await createProspectTemplate()];
-    const message = `${r.message} ${p.message}`;
-    return r.ok && p.ok ? { ok: message } : { error: message };
+    const [r, p, b] = [await createRecoveryTemplate(), await createProspectTemplate(), await createBfRecoveryTemplate()];
+    const message = `${r.message} ${p.message} ${b.message}`;
+    return r.ok && p.ok && b.ok ? { ok: message } : { error: message };
   } catch (e) {
     return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -703,12 +736,66 @@ export async function whatsappTemplateStatusAction(_: FormState, _fd: FormData):
   await requireAdmin({ role: "admin" });
   const { loadOutboundSettings } = await import("@/lib/outbound-settings");
   await loadOutboundSettings(true);
-  const { prospectTemplateStatus, recoveryTemplateStatus } = await import("@/lib/whatsapp");
+  const { prospectTemplateStatus, recoveryTemplateStatus, bfRecoveryTemplateStatus } = await import("@/lib/whatsapp");
   try {
     const r = await recoveryTemplateStatus();
-    const prospects = r.ok ? ` Sales prospects: ${await prospectTemplateStatus()}` : "";
+    const prospects = r.ok ? ` Sales prospects: ${await prospectTemplateStatus()} ${await bfRecoveryTemplateStatus()}` : "";
     return r.ok ? { ok: r.message + prospects } : { error: r.message };
   } catch (e) {
     return { error: `Could not reach Telnyx: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+/** Admin → Black Friday panels: boxes available per offer and the marketing share of the price. */
+export async function bfPanelsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const prev = (await getSettings()).black_friday;
+  const stock: NonNullable<typeof prev.stock> = {};
+  for (const id of ["douro6", "burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const) {
+    const raw = String(fd.get(`stock_${id}`) ?? "").trim();
+    if (!raw) continue;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0 || n > 100000) return { error: `Invalid number of boxes for ${id}.` };
+    stock[id] = n;
+  }
+  const mkt = Number(String(fd.get("marketing_percent") ?? "20").replace(",", "."));
+  if (!Number.isFinite(mkt) || mkt < 0 || mkt > 100) return { error: "Marketing must be between 0 and 100%." };
+  const fee = Number(String(fd.get("fee_percent") ?? "3").replace(",", "."));
+  if (!Number.isFinite(fee) || fee < 0 || fee > 20) return { error: "Payment fee must be between 0 and 20%." };
+  await setSetting("black_friday", { ...prev, stock, marketing_percent: mkt, fee_percent: fee });
+  revalidatePath("/admin/black-friday");
+  return { ok: "Saved." };
+}
+
+/** Admin → Settings → ShipHero: automatic sending on payment, shop name and the SKU of each box type. */
+export async function shipheroSettingsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const prev = (await getSettings()).shiphero;
+  const keys = ["cheda_mix_6", "galhofa_mix_6", "poco_6", "dgraca_3", "trilogia_2160"] as const;
+  const skus: typeof prev.skus = {};
+  for (const k of keys) {
+    const v = String(fd.get(`sku_${k}`) ?? "").trim();
+    if (v.length > 100) return { error: `SKU too long for ${k}.` };
+    if (v) skus[k] = v;
+  }
+  const shop = String(fd.get("shop_name") ?? "").trim() || prev.shop_name;
+  await setSetting("shiphero", { ...prev, enabled: fd.get("enabled") === "on", shop_name: shop.slice(0, 60), skus });
+  revalidatePath("/admin/settings");
+  return { ok: "ShipHero settings saved." };
+}
+
+/** "Connect shipping updates": registers ShipHero's webhooks on this site and keeps their signing secret. */
+export async function shipheroWebhooksAction(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin({ role: "admin" });
+  const site = (process.env.SITE_URL ?? "").replace(/\/$/, "");
+  if (!/^https:\/\//.test(site)) return { error: "SITE_URL must be the public https address of the site." };
+  const { shipheroConfigured, connectShipheroWebhooks } = await import("@/lib/shiphero");
+  if (!shipheroConfigured()) return { error: "ShipHero is not connected yet (SHIPHERO_REFRESH_TOKEN in Railway)." };
+  try {
+    const n = await connectShipheroWebhooks(site, (await getSettings()).shiphero.shop_name);
+    revalidatePath("/admin/settings");
+    return { ok: `Shipping updates connected (${n} webhooks on ${site}).` };
+  } catch (e) {
+    return { error: `ShipHero: ${e instanceof Error ? e.message : String(e)}` };
   }
 }

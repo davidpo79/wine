@@ -2,9 +2,9 @@ import { publicReviews } from "@/lib/reviews";
 import type { Metadata } from "next";
 import { guideFor } from "@/lib/ebook";
 import { cookies } from "next/headers";
-import { getCatalog, getBfCatalog } from "@/lib/catalog";
-import { bfCountryFor, bfHref, bfOpenCountries, isBfBundle, isBfLocale, BF_BOTTLES_PER_BOX } from "@/lib/black-friday";
-import { BF_COPY } from "@/components/black-friday/copy";
+import { getCatalog } from "@/lib/catalog";
+import { bfCountryFor, bfHref, bfOfferCountries, bfOfferFor, bfOpenCountries, isBfLocale } from "@/lib/black-friday";
+import { bfCopyFor } from "@/components/black-friday/copy";
 import { getAdmin } from "@/lib/auth";
 import { fmt } from "@/lib/i18n/rich";
 import { getSettings } from "@/lib/settings";
@@ -18,7 +18,15 @@ import { COUNTRIES_FOR_LOCALE, defaultCountry, isCountry, isLocale, LOCALE_INFO,
 import { enabledCountries } from "@/lib/visitor";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Checkout · Trilogia 2160 | Wine Portugal", robots: { index: false, follow: false } };
+/** The tab title names what is being bought: the Black Friday offer of the link (?b=bfs2) or of a resumed order. */
+export async function generateMetadata({ searchParams }: { searchParams: SP }): Promise<Metadata> {
+  const sp = await searchParams;
+  const resumed = sp.o && sp.t ? await loadDraft(sp.o, sp.t) : null;
+  const offer = bfOfferFor(resumed ? resumed.bundleKey : sp.b);
+  const locale = resumed?.locale ?? sp.l;
+  const name = offer ? (isBfLocale(locale) && offer.locales.includes(locale) ? offer.productName[locale] : offer.productName[offer.locales[0]]) : "Trilogia 2160";
+  return { title: `Checkout · ${name} | Wine Portugal`, robots: { index: false, follow: false } };
+}
 
 type SP = Promise<Record<string, string | undefined>>;
 
@@ -27,12 +35,15 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const resumed = sp.o && sp.t ? await loadDraft(sp.o, sp.t) : null;
   // Black Friday checkout: an order of its boxes, or a link from its page (?b=bf2).
-  const bf = resumed ? isBfBundle(resumed.bundleKey) : isBfBundle(sp.b);
-  const [catalog, settings, jar] = await Promise.all([bf ? getBfCatalog() : getCatalog(), getSettings(), cookies()]);
+  const offer = bfOfferFor(resumed ? resumed.bundleKey : sp.b);
+  const bf = !!offer;
+  const [catalog, settings, jar] = await Promise.all([offer ? getCatalog(offer.slug) : getCatalog(), getSettings(), cookies()]);
   const saved = jar.get(LOCALE_COOKIE)?.value;
   let locale: Locale = isLocale(resumed?.locale) ? resumed.locale : isLocale(sp.l) ? sp.l : isLocale(saved) ? saved : "pt";
-  if (bf && !isBfLocale(locale)) locale = "de";
-  const bfCountries = (await getAdmin().catch(() => null)) ? settings.black_friday.countries : bfOpenCountries(settings.black_friday);
+  if (offer && !(isBfLocale(locale) && offer.locales.includes(locale))) locale = offer.locales.includes("de") ? "de" : offer.locales[0];
+  const bfAll = offer ? bfOfferCountries(offer, (await getAdmin().catch(() => null)) ? settings.black_friday.countries : bfOpenCountries(settings.black_friday)) : [];
+  // The Russian Cheda page is for the community in Germany: it delivers to Germany only.
+  const bfCountries = offer && locale === "ru" ? bfAll.filter((c) => c === "DE") : bfAll;
   const open = bf ? bfCountries : await enabledCountries(settings);
   const wanted = isCountry(resumed?.country) ? resumed.country : isCountry(sp.c) ? sp.c : bf && isBfLocale(locale) ? bfCountryFor(locale) : defaultCountry(locale);
   const countries: Country[] = bf
@@ -42,16 +53,17 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
   const cutoffIso = bf ? settings.black_friday.cutoff_at : (settings.markets?.[wanted]?.cutoff_at ?? settings.cutoff_at);
   const cutoffLabel = dateFor(locale, cutoffIso).slice(0, 5);
   const deliveryDays = deliveryDaysFor(locale, bf ? settings.black_friday.delivery_days : (settings.markets?.[wanted]?.delivery_days ?? ""));
-  const bfCopy = bf && isBfLocale(locale) ? BF_COPY[locale] : null;
-  const product = bfCopy && isBfLocale(locale)
+  const bfCopy = offer && isBfLocale(locale) ? bfCopyFor(offer.id, locale) : null;
+  const product = offer && bfCopy && isBfLocale(locale)
     ? {
         bf: true,
         name: bfCopy.productName,
-        image: "/lp/bf/bottles.webp",
-        bottlesPerBox: BF_BOTTLES_PER_BOX,
-        defaultKey: bundles.find((b) => b.qty === 2)?.key ?? "bf2",
-        backHref: bfHref(locale),
+        image: bfCopy.images.hero,
+        bottlesPerBox: offer.bottlesPerBox,
+        defaultKey: bundles.find((b) => b.qty === 2)?.key ?? `${offer.prefix}2`,
+        backHref: bfHref(locale, offer),
         trust: bfCopy.trust.map((l) => fmt(l, { days: deliveryDays, date: cutoffLabel })),
+        banner: fmt(bfCopy.topBar, { date: cutoffLabel }),
       }
     : undefined;
   // Verified reviews with text (Admin → Reviews) first; the manual list in Settings only while there are none.

@@ -3,7 +3,8 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/auth";
 import { ptFlags } from "@/lib/pt-callers/flags";
-import { creditSummary, listForRep, sweepTimeouts } from "@/lib/pt-callers/service";
+import { creditSummary, listForRep, nextImportPage, sweepTimeouts } from "@/lib/pt-callers/service";
+import { apolloFor } from "@/lib/pt-callers/apollo";
 import { logAccess } from "@/lib/pt-callers/rules";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
 import { RepPanel } from "./RepPanel";
@@ -11,6 +12,8 @@ import { AdminPanel } from "./AdminPanel";
 import { panelConfig, panelLead } from "./panel-data";
 
 export const dynamic = "force-dynamic";
+
+const LEADS_SHOWN = 2000;
 
 // Portugal HR callers. One page, two halves: the sales rep's (pt-PT, assigned leads only) and the admin's (English).
 export default async function PtCallers() {
@@ -24,9 +27,12 @@ export default async function PtCallers() {
   if (me.role !== "admin") redirect("/admin/orders");
 
   await sweepTimeouts();
-  const [leads, reps, requests, credits] = await Promise.all([
-    // Leads with a phone first (the ones that can be called), newest first inside each group.
-    db.select().from(schema.ptLeads).orderBy(sql`${schema.ptLeads.phone} is null`, desc(schema.ptLeads.id)).limit(500),
+  const [leads, [{ total }], importPage, reps, requests, credits] = await Promise.all([
+    // Leads with a phone first (the ones that can be called), newest first inside each group. The screen holds at most
+    // LEADS_SHOWN; the Leads tile counts them all.
+    db.select().from(schema.ptLeads).orderBy(sql`${schema.ptLeads.phone} is null`, desc(schema.ptLeads.id)).limit(LEADS_SHOWN),
+    db.select({ total: sql<number>`count(*)::int` }).from(schema.ptLeads),
+    nextImportPage(apolloFor().kind),
     // ready: can receive leads (enabled, and accepted the invitation by logging in at least once).
     db
       .select({ id: schema.adminUsers.id, email: schema.adminUsers.email, ready: sql<boolean>`${schema.adminUsers.disabledAt} is null and ${schema.adminUsers.lastLoginAt} is not null` })
@@ -57,6 +63,8 @@ export default async function PtCallers() {
       holders={[...holders].map((h) => ({ id: Number(h.id), email: String(h.email), role: String(h.role), disabled: !!h.disabled, lastLogin: h.last_login_at ? new Date(h.last_login_at as string).toISOString() : null, leads: Number(h.leads) }))}
       sharedLeads={shared?.n ?? 0}
       leads={leads.map((l) => panelLead(l))}
+      totalLeads={total}
+      importPage={importPage}
       requests={requests.map((r) => ({ id: r.id, mode: r.mode, status: r.status, apolloRequestId: r.apolloRequestId, demo: r.demo, sentAt: r.sentAt.toISOString(), error: r.error }))}
     />
   );

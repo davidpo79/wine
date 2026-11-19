@@ -169,3 +169,20 @@
 .giftcard .gc-sm { font-size: 6.6cqw; line-height: 1.14; }
 .giftcard .gc-foot { margin: 0; font: 600 2.5cqw/1 Arial, Helvetica, sans-serif; letter-spacing: 0.28em; text-transform: uppercase; color: #9e1b22; }
 .giftcard .gc-ref { position: absolute; right: 2cqw; bottom: 1cqw; font: 1.8cqw/1 Arial, sans-serif; color: rgba(255, 255, 255, 0.55); }
+
+/* ---- Black Friday greeting card (BfGreetingCard): black frame, red and gold on cream ---- */
+.giftcard.gcb { background: #0b0b0c; background-image: repeating-linear-gradient(45deg, rgba(227, 22, 27, 0.16) 0 0.6cqw, transparent 0.6cqw 3cqw); }
+.giftcard.gcb .gc-inner { background: radial-gradient(ellipse at 50% 28%, #fffdf8 0%, #faf5ec 65%, #f1e8d8 100%); border-color: #e3161b; box-shadow: inset 0 0 0 1cqw #faf5ec, inset 0 0 0 1.25cqw #b8913c; }
+.giftcard.gcb .gcb-dot { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); }
+.giftcard.gcb .gcb-dot-r { background: #e3161b; opacity: 0.75; }
+.giftcard.gcb .gcb-dot-k { background: #141416; opacity: 0.7; }
+.giftcard.gcb .gcb-dot-g { background: #b8913c; opacity: 0.8; }
+.giftcard.gcb .gcb-corner { position: absolute; width: 14cqw; height: 14cqw; border: 0 solid #e3161b; }
+.giftcard.gcb .gcb-corner-tl { left: 4cqw; top: 4cqw; border-left-width: 0.6cqw; border-top-width: 0.6cqw; }
+.giftcard.gcb .gcb-corner-br { right: 4cqw; bottom: 4cqw; border-right-width: 0.6cqw; border-bottom-width: 0.6cqw; }
+.giftcard.gcb .gcb-toast { width: 22cqw; height: auto; }
+.giftcard.gcb .gc-title { margin-top: 1cqw; font-size: 11cqw; white-space: nowrap; color: #141416; }
+.giftcard.gcb .gc-sub { margin-top: 2cqw; font-size: 6cqw; color: #e3161b; }
+.giftcard.gcb .gc-rule { background: linear-gradient(90deg, transparent, #b8913c, #e3161b, #b8913c, transparent); }
+.giftcard.gcb .gc-msg { color: #1b1b1f; }
+.giftcard.gcb .gc-foot { color: #141416; letter-spacing: 0.14em; }
