@@ -67,7 +67,7 @@ await db
   .onConflictDoNothing();
 
 // Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
-const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt" | "xmasde" | "xmasnlbe", { name: string; shortDescription: string; wines: WineItem[] }> = {
+const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt", { name: string; shortDescription: string; wines: WineItem[] }> = {
   burbujas: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
@@ -87,24 +87,6 @@ const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt"
       { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
     ],
   },
-  xmasde: {
-    name: "Natal · Trilogia 2160 · 3 garrafas · DE",
-    shortDescription: "Caixa de Natal Trilogia 2160 (branco, rosé e tinto, Douro DOC). Alemanha, armazém na Bélgica (UPS). 952 caixas.",
-    wines: [
-      { name: "2160 Onde Tudo Nasce Branco", vintage: "2025", type: "branco", producer: "Martin Boutique Wines" },
-      { name: "2160 Onde Tudo Nasce Rosé", vintage: "2024", type: "rose", producer: "Martin Boutique Wines" },
-      { name: "2160 Onde Tudo Nasce Tinto", vintage: "2023", type: "tinto", producer: "Martin Boutique Wines" },
-    ],
-  },
-  xmasnlbe: {
-    name: "Natal · D. Graça & Galhofa · 3 garrafas · NL/BE",
-    shortDescription: "Caixa de Natal: D. Graça Tinto 2024, D. Graça Branco 2025 e Galhofa Rosé 2025, Douro DOC. Países Baixos e Bélgica, armazém na Bélgica (UPS). 680 caixas.",
-    wines: [
-      { name: "D. Graça Tinto", vintage: "2024", type: "tinto", producer: "Douro" },
-      { name: "D. Graça Branco", vintage: "2025", type: "branco", producer: "Douro" },
-      { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
-    ],
-  },
   sekt: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas · DE",
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Alemanha, armazém na Bélgica (UPS). 336 caixas.",
@@ -116,7 +98,7 @@ const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt"
     wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
   },
 };
-for (const id of ["burbujas", "poco", "pocoeu", "galhofa", "sekt", "xmasde", "xmasnlbe"] as const) {
+for (const id of ["burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const) {
   const slug = BF_OFFERS[id].slug;
   let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
   if (!p) {
@@ -207,25 +189,6 @@ await db
     await db.insert(schema.settings).values({ key: "shiphero", value: shValue }).onConflictDoUpdate({ target: schema.settings.key, set: { value: shValue } });
     await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
     console.log("patch applied: Belgian warehouse stock and SKUs from the customs documents");
-  }
-}
-
-// One-time update, 19/11/2026 (David): the Christmas boxes from the Belgian warehouse. Stock per the customs documents
-// (Trilogia 2160 952 sets, D. Graça & Galhofa 680) and the ShipHero SKU of the D. Graça & Galhofa box.
-{
-  const MARK = "patch_xmas_boxes_be_20261119";
-  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
-  if (!done) {
-    const [bf] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
-    const cur = { ...DEFAULT_SETTINGS.black_friday, ...((bf?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.black_friday>) };
-    const value = { ...cur, stock: { ...cur.stock, xmasde: 952, xmasnlbe: 680 } };
-    await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
-    const [sh] = await db.select().from(schema.settings).where(eq(schema.settings.key, "shiphero"));
-    const shCur = { ...DEFAULT_SETTINGS.shiphero, ...((sh?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.shiphero>) };
-    const shValue = { ...shCur, skus: { ...shCur.skus, dgraca_trio_3: "DGRACA-TBR-3" } };
-    await db.insert(schema.settings).values({ key: "shiphero", value: shValue }).onConflictDoUpdate({ target: schema.settings.key, set: { value: shValue } });
-    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
-    console.log("patch applied: Christmas boxes stock and SKU (Belgian warehouse)");
   }
 }
 

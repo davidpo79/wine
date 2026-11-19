@@ -69,8 +69,3 @@ test("customer_account_id is left out unless set (ShipHero refuses null)", async
 test("the German sparkling box ships as the D. Graça ×3 SKU", () => {
   assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfk2", qtyBoxes: 2, country: "DE" })), [{ key: "dgraca_3", qty: 2 }]);
 });
-
-test("the Christmas boxes ship as Trilogia 2160 (DE) and the D. Graça & Galhofa trio (NL/BE)", () => {
-  assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfw4", qtyBoxes: 4, country: "DE" })), [{ key: "trilogia_2160", qty: 4 }]);
-  assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfv1", qtyBoxes: 1, country: "BE" })), [{ key: "dgraca_trio_3", qty: 1 }]);
-});

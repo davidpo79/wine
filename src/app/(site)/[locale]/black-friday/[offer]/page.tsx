@@ -8,7 +8,7 @@ import { dateFor, deliveryDaysFor, getDict } from "@/lib/i18n";
 import { fmt } from "@/lib/i18n/rich";
 import { LOCALE_INFO } from "@/lib/markets";
 import { getAdmin } from "@/lib/auth";
-import { BF_DOURO_ALIASES, bfCountryFor, bfCutoffFor, bfHref, bfOfferByPath, bfOpen, isBfLocale, type BfLocale, type BfOffer } from "@/lib/black-friday";
+import { BF_DOURO_ALIASES, bfCountryFor, bfHref, bfOfferByPath, bfOpen, isBfLocale, type BfLocale, type BfOffer } from "@/lib/black-friday";
 import DouroBox, { generateMetadata as douroMetadata } from "../page";
 import { bfCopyFor } from "@/components/black-friday/copy";
 import { BlackFridayPage } from "@/components/black-friday/BlackFridayPage";
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!r) return {};
   const c = bfCopyFor(r.offer.id, r.locale)!;
   const settings = await getSettings();
-  const description = fmt(c.metaDescription, { date: dateFor(r.locale, bfCutoffFor(settings.black_friday, r.offer)).slice(0, 5) });
+  const description = fmt(c.metaDescription, { date: dateFor(r.locale, settings.black_friday.cutoff_at).slice(0, 5) });
   return {
     title: c.metaTitle,
     description,
@@ -59,10 +59,9 @@ export default async function BlackFridayOffer({ params, searchParams }: { param
   const country = bfCountryFor(locale);
   // These offers show the reference price set on their bundles (Admin → Products), unlike the Douro box.
   const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, qty: b.qty, priceCents: b.priceCents, compareAtCents: b.compareAtCents }));
-  const cutoffIso = bfCutoffFor(bf, offer);
-  const cutoffLabel = dateFor(locale, cutoffIso).slice(0, 5);
+  const cutoffLabel = dateFor(locale, bf.cutoff_at).slice(0, 5);
   const sells = bf.countries.includes(country);
-  const open = sells && (bfOpen(bf, new Date(), offer) || (!!admin && new Date() <= new Date(cutoffIso))) && bundles.length > 0;
+  const open = sells && (bfOpen(bf) || (!!admin && new Date() <= new Date(bf.cutoff_at))) && bundles.length > 0;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -76,7 +75,7 @@ export default async function BlackFridayOffer({ params, searchParams }: { param
     <I18nProvider locale={locale} country={country} languages={[...offer.locales]} dict={getDict(locale)} guide={false}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <div lang={LOCALE_INFO[locale].htmlLang} data-locale={locale}>
-        <BlackFridayPage offer={offer.id} copy={copy} bundles={bundles} cutoffIso={cutoffIso} cutoffLabel={cutoffLabel} deliveryDays={deliveryDaysFor(locale, bf.delivery_days)} open={open} />
+        <BlackFridayPage offer={offer.id} copy={copy} bundles={bundles} cutoffIso={bf.cutoff_at} cutoffLabel={cutoffLabel} deliveryDays={deliveryDaysFor(locale, bf.delivery_days)} open={open} />
       </div>
     </I18nProvider>
   );

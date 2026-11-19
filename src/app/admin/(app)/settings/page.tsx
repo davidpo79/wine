@@ -114,7 +114,7 @@ export default async function SettingsPage() {
             <label>Delivery<input name="bf_c_delivery" defaultValue={eur(bf.costs.delivery_cents)} className="mt-1 block w-20 rounded border p-1.5 text-sm" /></label>
             <span className="self-end pb-2 font-semibold">= €{eur(bfBoxCost(bf))} / box</span>
           </div>
-          {(["burbujas", "poco", "pocoeu", "galhofa", "sekt", "xmasde", "xmasnlbe"] as const).map((id) => {
+          {(["burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const).map((id) => {
             const c = bfCostsFor(bf, id);
             const o = BF_OFFERS[id];
             return (
