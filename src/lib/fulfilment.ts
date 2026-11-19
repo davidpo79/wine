@@ -13,7 +13,7 @@ import { cttTrackingUrl } from "./shipping/ctt";
 import { MARKETS, isCountry } from "./markets";
 import { logOrderEvent, setStatus } from "./orders";
 import { purchaseComplete } from "./purchase-complete";
-import { BF_SLUGS } from "./black-friday";
+import { BF_OFFERS, BF_OFFER_IDS, BF_SLUGS, bottlesPerBox } from "./black-friday";
 import { sendShipped, sendShippingAlert } from "./email";
 
 /** CTT Expresso settings: keys from Railway, collection address from Admin → Settings. */
@@ -133,14 +133,20 @@ export async function createCttxLabel(o: Order, by: string) {
   if (s?.provider === "cttx" && s.objects.length && s.labelPdf && s.simulated === sandbox) return { ok: true as const, trackingId: s.trackingId };
   const paidAddons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, o.id), eq(schema.orderAddons.status, "paid")));
   // Extra boxes of the same kind, plus a Black Friday box bought after payment (Spain: its cross-offer, same parcel).
-  const boxes = o.qtyBoxes + paidAddons.reduce((n, x) => n + x.boxes + (x.kind === "product" && BF_SLUGS.includes(x.sku) ? x.qty : 0), 0);
-  const parcels = parcelsForBoxes(boxes, c.boxesPerParcel);
+  // Counted in bottles: a Trilogia box holds 3, a Black Friday box 3 or 6 (Poço do Canto, Douro mix...). Weight and
+  // parcels follow the bottles, so a 6-bottle box is one parcel of two Trilogia boxes' weight.
+  const perOrderBox = bottlesPerBox(o.bundleKey);
+  const bfBottles = (slug: string) => BF_OFFER_IDS.map((id) => BF_OFFERS[id]).find((f) => f.slug === slug)?.bottlesPerBox ?? 3;
+  const bottles =
+    o.qtyBoxes * perOrderBox + paidAddons.reduce((n, x) => n + x.boxes * perOrderBox + (x.kind === "product" && BF_SLUGS.includes(x.sku) ? x.qty * bfBottles(x.sku) : 0), 0);
+  const boxes = bottles / 3; // in Trilogia-box units: what boxWeightG and boxesPerParcel are set for
+  const parcels = parcelsForBoxes(Math.ceil(boxes), c.boxesPerParcel);
   try {
     const shipment = {
         reference: o.id,
         subProduct: c.subProduct,
         parcels,
-        weightG: boxes * c.boxWeightG,
+        weightG: Math.round(boxes * c.boxWeightG),
         observations: `Vinho em garrafas: frágil${parcels > 1 ? ` · ${parcels} volumes` : ""}`,
         receiver: { name: a.name || o.customerName || "", address: [a.line1, a.line2].filter(Boolean).join(", "), postalCode: a.postal_code ?? "", city: a.city ?? "", country, email: o.email, phone: o.phone },
       };

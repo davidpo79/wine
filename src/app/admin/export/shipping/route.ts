@@ -1,4 +1,5 @@
 import { getAdmin } from "@/lib/auth";
+import { bottlesPerBox } from "@/lib/black-friday";
 import { toCsv } from "@/lib/csv";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
       const mine = addons.filter((x) => x.orderId === o.id);
       const boxes = o.qtyBoxes + mine.reduce((n, x) => n + x.boxes, 0);
       const extras = mine.filter((x) => !x.boxes).map((x) => x.label).join(" + ");
-      return [o.id, a.name ?? o.customerName, a.line1, a.line2, a.postal_code, a.city, a.country, o.phone, o.email, boxes, boxes * 3, extras, o.isGift ? "sim" : "nao", o.giftMessage];
+      return [o.id, a.name ?? o.customerName, a.line1, a.line2, a.postal_code, a.city, a.country, o.phone, o.email, boxes, boxes * bottlesPerBox(o.bundleKey), extras, o.isGift ? "sim" : "nao", o.giftMessage];
     }),
   );
   return new Response(csv, {

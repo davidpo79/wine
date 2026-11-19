@@ -1,4 +1,5 @@
 import { sessionsOfOrder } from "@/lib/journey-stats";
+import { bottlesPerBox } from "@/lib/black-friday";
 import { loadCttxConfig, shipmentOf, shippingReady } from "@/lib/fulfilment";
 import { cttxConfigured, cttxMissing } from "@/lib/cttx";
 import { isBelgianOrder, shipheroConfigured } from "@/lib/shiphero";
@@ -50,7 +51,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
         <section className="rounded-lg border bg-white p-4 lg:col-span-2">
           <h2 className="font-semibold">Order</h2>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-            <Item k="Bundle" v={`${o.bundleKey} · ${o.qtyBoxes} boxes · ${o.qtyBoxes * 3} bottles`} />
+            <Item k="Bundle" v={`${o.bundleKey} · ${o.qtyBoxes} boxes · ${o.qtyBoxes * bottlesPerBox(o.bundleKey)} bottles`} />
             <Item k="Subtotal" v={eur(o.subtotalCents)} />
             {o.discountCents > 0 && <Item k="Discount" v={`−${eur(o.discountCents)} (${o.promoCode})`} />}
             <Item k="Shipping" v={eur(o.shippingCents)} />

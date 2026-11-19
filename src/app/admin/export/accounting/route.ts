@@ -1,4 +1,5 @@
 import { getAdmin } from "@/lib/auth";
+import { bfOfferFor, bottlesPerBox } from "@/lib/black-friday";
 import { euros, toCsv } from "@/lib/csv";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
       const main = [
         o.id, lisbonDateTime(o.paidAt), o.status, o.customerName, o.nif, o.email,
         [b.line1, b.line2].filter(Boolean).join(", "), b.postal_code, b.city,
-        `Trilogia 2160 (${o.bundleKey})`, o.qtyBoxes, o.qtyBoxes * 3,
+        `${bfOfferFor(o.bundleKey)?.contentName ?? "Trilogia 2160"} (${o.bundleKey})`, o.qtyBoxes, o.qtyBoxes * bottlesPerBox(o.bundleKey),
         euros(o.discountCents), o.promoCode, euros(o.subtotalCents), euros(o.shippingCents), euros(o.totalCents),
         o.paymentMethodType, refOf(o.id), o.invoiceNumber,
       ];
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
         .map((x) => [
           `${o.id}-A${x.id}`, lisbonDateTime(x.paidAt), "paid", o.customerName, o.nif, o.email,
           [b.line1, b.line2].filter(Boolean).join(", "), b.postal_code, b.city,
-          x.label, x.boxes, x.boxes * 3,
+          x.label, x.boxes, x.boxes * bottlesPerBox(o.bundleKey),
           "0,00", "", euros(x.amountCents), "0,00", euros(x.amountCents),
           o.paymentMethodType, refOf(o.id), o.invoiceNumber,
         ]);

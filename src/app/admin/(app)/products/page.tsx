@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
+import { bottlesPerBox } from "@/lib/black-friday";
 import { asc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { publicUrl, bucketConfigured } from "@/lib/bucket";
@@ -83,7 +84,7 @@ export default async function Products() {
                 <Submit>Save</Submit>
               </div>
               <p className="mt-1 text-xs text-muted">
-                {eur(perBottleCents(b.priceCents, b.qty * 3))}/bottle · {eur(Math.round(b.priceCents / b.qty))}/box · total incl. shipping {eur(b.priceCents + b.shippingCents)}
+                {eur(perBottleCents(b.priceCents, b.qty * bottlesPerBox(b.key)))}/bottle · {eur(Math.round(b.priceCents / b.qty))}/box · total incl. shipping {eur(b.priceCents + b.shippingCents)}
               </p>
             </ActionForm>
           ))}
