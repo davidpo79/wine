@@ -69,3 +69,40 @@ test("customer_account_id is left out unless set (ShipHero refuses null)", async
 test("the German sparkling box ships as the D. Graça ×3 SKU", () => {
   assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfk2", qtyBoxes: 2, country: "DE" })), [{ key: "dgraca_3", qty: 2 }]);
 });
+
+test("ShipHero: boxes added by a paid upsell ship in the same order (19/11/2026)", () => {
+  assert.deepEqual(shipheroItemsFor(order({ bundleKey: "x2", qtyBoxes: 2, country: "DE" }), 2), [{ key: "trilogia_2160", qty: 4 }]);
+  const s = { shiphero: { enabled: true, shop_name: "wine-portugal", skus: { trilogia_2160: "TRI-2160" } } };
+  const i = shipheroOrderInput(order({ bundleKey: "x2", qtyBoxes: 2, totalCents: 8990 }), s, { boxes: 2, cents: 5980 });
+  assert.equal(i.total_price, "149.70");
+  assert.deepEqual(i.line_items.map((l) => [l.sku, l.quantity]), [["TRI-2160", 4]]);
+});
+
+// The Trilogia waits for the thank-you page (its post-purchase offer joins the parcel); Black Friday boxes go at payment.
+const DB_URL = process.env.TEST_DATABASE_URL;
+test("ShipHero: Trilogia orders wait for the thank-you page, Black Friday boxes are sent when paid", { skip: !DB_URL && "TEST_DATABASE_URL not set" }, async () => {
+  process.env.DATABASE_URL = DB_URL;
+  process.env.SHIPHERO_ACCESS_TOKEN = "test-token";
+  process.env.SHIPHERO_API_URL = "http://127.0.0.1:9/graphql"; // nothing listens: a send attempt fails fast
+  const { db, schema } = await import("../src/db");
+  const { eq, inArray } = await import("drizzle-orm");
+  const { autoSendToShiphero } = await import("../src/lib/shiphero-fulfilment");
+  const run = `shw-${Date.now()}`;
+  const [tri] = await db.select().from(schema.bundles).where(eq(schema.bundles.key, "x2"));
+  const [bf] = await db.select().from(schema.bundles).where(eq(schema.bundles.key, "bf1"));
+  const mk = async (suffix: string, b: typeof tri) =>
+    (await db.insert(schema.orders).values({ id: `${run}-${suffix}`, bundleId: b.id, bundleKey: b.key, qtyBoxes: b.qty, subtotalCents: b.priceCents, shippingCents: 0, totalCents: b.priceCents, locale: "de", country: "DE", email: "t@example.com", status: "paid", paidAt: new Date() }).returning())[0];
+  const t = await mk("tri", tri);
+  const b = await mk("bf", bf);
+  await autoSendToShiphero(t, "paid");
+  await autoSendToShiphero(b, "paid");
+  const ships = await db.select().from(schema.shipments).where(inArray(schema.shipments.orderId, [t.id, b.id]));
+  assert.deepEqual(ships.map((x) => x.orderId), [b.id]); // only the Black Friday box was tried
+  await autoSendToShiphero(t, "thanks");
+  const after = await db.select().from(schema.shipments).where(eq(schema.shipments.orderId, t.id));
+  assert.equal(after.length, 1); // tried at the thank-you page
+  const ids = [t.id, b.id];
+  await db.delete(schema.shipments).where(inArray(schema.shipments.orderId, ids));
+  await db.delete(schema.orderEvents).where(inArray(schema.orderEvents.orderId, ids));
+  await db.delete(schema.orders).where(inArray(schema.orders.id, ids));
+});

@@ -9,7 +9,7 @@
 // warehouse) and SHIPHERO_WEBHOOK_SECRET (the shared_signature_secret printed by `npx tsx scripts/shiphero.ts webhooks`).
 // API: https://developer.shiphero.com (GraphQL at /graphql, tokens at /auth; access tokens last 28 days).
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Order } from "@/db/schema";
 import { bfOfferFor } from "./black-friday";
@@ -35,8 +35,8 @@ export const SHIPHERO_ITEM_LABEL: Record<ShipheroItemKey, string> = {
   trilogia_2160: "Trilogia 2160 Christmas box · 3 bottles",
 };
 
-/** What the warehouse picks for an order: one line per box type, quantity = boxes. */
-export function shipheroItemsFor(o: Pick<Order, "bundleKey" | "qtyBoxes" | "country">): { key: ShipheroItemKey; qty: number }[] {
+/** What the warehouse picks for an order: one line per box type, quantity = boxes (plus boxes added by a paid upsell). */
+export function shipheroItemsFor(o: Pick<Order, "bundleKey" | "qtyBoxes" | "country">, extraBoxes = 0): { key: ShipheroItemKey; qty: number }[] {
   const offer = bfOfferFor(o.bundleKey);
   const key: ShipheroItemKey = !offer
     ? "trilogia_2160"
@@ -49,7 +49,14 @@ export function shipheroItemsFor(o: Pick<Order, "bundleKey" | "qtyBoxes" | "coun
           : o.country === "ES" || o.country === "PT"
             ? "galhofa_mix_6" // the Douro box: Galhofa in Spain, Cheda from the Belgian warehouse (18/11/2026)
             : "cheda_mix_6";
-  return [{ key, qty: o.qtyBoxes }];
+  return [{ key, qty: o.qtyBoxes + extraBoxes }];
+}
+
+/** Boxes and money of an order's paid "more boxes" upsells (they ship in the same parcel). */
+export async function paidExtraBoxes(orderId: string): Promise<{ boxes: number; cents: number }> {
+  const rows = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, orderId), eq(schema.orderAddons.status, "paid")));
+  const boxes = rows.filter((a) => a.boxes > 0);
+  return { boxes: boxes.reduce((n, a) => n + a.boxes, 0), cents: boxes.reduce((n, a) => n + a.amountCents, 0) };
 }
 
 // --- tokens -------------------------------------------------------------------------------------------------------
@@ -136,16 +143,17 @@ async function findShipheroOrder(orderNumber: string): Promise<string | null> {
 const euros = (c: number) => (c / 100).toFixed(2);
 
 /** The order_create input for one of our orders (exported for the tests). */
-export function shipheroOrderInput(o: Order, s: Pick<Settings, "shiphero">) {
+export function shipheroOrderInput(o: Order, s: Pick<Settings, "shiphero">, extra: { boxes: number; cents: number } = { boxes: 0, cents: 0 }) {
   const a = o.shippingAddress ?? {};
   const name = (a.name ?? o.customerName ?? "").trim();
   const [first, ...rest] = name.split(/\s+/);
   const country = (a.country ?? o.country ?? "").toUpperCase();
   const address = { first_name: first ?? "", last_name: rest.join(" ") || first || "", address1: a.line1 ?? "", address2: a.line2 ?? "", city: a.city ?? "", state: a.state ?? "", zip: a.postal_code ?? "", country, country_code: country, email: o.email ?? "", phone: o.phone ?? "" };
-  const items = shipheroItemsFor(o);
+  const items = shipheroItemsFor(o, extra.boxes);
+  const totalCents = o.totalCents + extra.cents;
   const missing = items.filter((i) => !s.shiphero.skus[i.key]).map((i) => SHIPHERO_ITEM_LABEL[i.key]);
   if (missing.length) throw new ShipheroError(`No ShipHero SKU for ${missing.join(", ")} (Admin → Settings → ShipHero).`);
-  const lineTotal = Math.round(o.totalCents / Math.max(1, items.reduce((n, i) => n + i.qty, 0)));
+  const lineTotal = Math.round(totalCents / Math.max(1, items.reduce((n, i) => n + i.qty, 0)));
   const warehouse = process.env.SHIPHERO_WAREHOUSE_ID || s.shiphero.warehouse_id;
   return {
     ...customer(),
@@ -154,8 +162,8 @@ export function shipheroOrderInput(o: Order, s: Pick<Settings, "shiphero">) {
     shop_name: s.shiphero.shop_name,
     fulfillment_status: "pending",
     order_date: (o.paidAt ?? o.createdAt).toISOString().slice(0, 10),
-    total_price: euros(o.totalCents),
-    subtotal: euros(o.totalCents),
+    total_price: euros(totalCents),
+    subtotal: euros(totalCents),
     total_tax: "0.00",
     total_discounts: "0.00",
     email: o.email ?? "",
@@ -177,7 +185,7 @@ export function shipheroOrderInput(o: Order, s: Pick<Settings, "shiphero">) {
 
 /** Creates the order in ShipHero (once: an existing order with our number is reused) and records it as the shipment. */
 export async function pushOrderToShiphero(o: Order, s: Pick<Settings, "shiphero">): Promise<{ shipheroId: string; existed: boolean }> {
-  const input = shipheroOrderInput(o, s);
+  const input = shipheroOrderInput(o, s, await paidExtraBoxes(o.id));
   let id = await findShipheroOrder(o.id);
   const existed = !!id;
   if (!id) {
@@ -271,3 +279,20 @@ export function parseShipmentUpdate(body: unknown): ShipheroShipment | null {
 
 /** UPS tracking page when ShipHero sends no tracking URL. */
 export const upsTrackingUrl = (n: string) => `https://www.ups.com/track?tracknum=${encodeURIComponent(n)}`;
+
+/**
+ * A "more boxes" upsell paid after the order already went to ShipHero (rare: the order waits for the thank-you page):
+ * the boxes are added to the same ShipHero order, so they leave in the same parcel.
+ */
+export async function addBoxesToShipheroOrder(o: Order, addon: { id: number; boxes: number; amountCents: number }, s: Pick<Settings, "shiphero">) {
+  const [ship] = await db.select().from(schema.shipments).where(eq(schema.shipments.orderId, o.id));
+  const shipheroId = (ship?.objects as string[] | null)?.[0] ?? (await findShipheroOrder(o.id));
+  if (!shipheroId) return { added: false as const };
+  const [item] = shipheroItemsFor(o, 0);
+  const sku = s.shiphero.skus[item.key];
+  if (!sku) throw new ShipheroError(`No ShipHero SKU for ${SHIPHERO_ITEM_LABEL[item.key]} (Admin → Settings → ShipHero).`);
+  const warehouse = process.env.SHIPHERO_WAREHOUSE_ID || s.shiphero.warehouse_id;
+  const line = { sku, partner_line_item_id: `${o.id}-A${addon.id}`, quantity: addon.boxes, price: euros(Math.round(addon.amountCents / Math.max(1, addon.boxes))), product_name: SHIPHERO_ITEM_LABEL[item.key], fulfillment_status: "pending", quantity_pending_fulfillment: addon.boxes, ...(warehouse ? { warehouse_id: warehouse } : {}) };
+  await shipheroGql(`mutation($data: AddLineItemsInput!) { order_add_line_items(data: $data) { request_id } }`, { data: { ...customer(), order_id: shipheroId, line_items: [line] } });
+  return { added: true as const };
+}

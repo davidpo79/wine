@@ -232,7 +232,8 @@ export async function markOrderPaid(order: Order, p: Payment, source: string) {
   await snapshotCosts(paid.id, await getSettings()).catch((e) => console.error("[profit] snapshot", e));
   await sendAdminAlert(paid, addons).catch(() => {});
   // Belgian warehouse (DE/NL/BE): straight to ShipHero; a failure alerts the team, the payment is never affected.
-  await import("./shiphero-fulfilment").then((m) => m.autoSendToShiphero(paid)).catch((e) => console.error("[shiphero] auto", e));
+  // Black Friday boxes go now; the Trilogia waits for the thank-you page (its post-purchase offer joins the parcel).
+  await import("./shiphero-fulfilment").then((m) => m.autoSendToShiphero(paid, "paid")).catch((e) => console.error("[shiphero] auto", e));
 }
 
 /** Post-purchase add-on paid (its own charge): confirmation, its own Purchase event, cost snapshot. */
@@ -249,6 +250,8 @@ export async function markAddonPaid(addonId: number, p: Payment) {
   await snapshotCosts(order.id, await getSettings()).catch(() => {});
   await sendAddonConfirmation(order, addon).catch(() => {});
   await sendAdminAlert(order, [addon]).catch(() => {});
+  // Belgian warehouse: extra boxes join the ShipHero order when it was already sent.
+  await import("./shiphero-fulfilment").then((m) => m.shipheroAddonPaid(order, addon)).catch((e) => console.error("[shiphero] addon", e));
   const eventId = `purchase_addon_${addon.id}`;
   await logFunnel("Purchase", eventId, order.id);
   if (order.consentTracking) {

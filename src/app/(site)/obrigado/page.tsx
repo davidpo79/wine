@@ -55,6 +55,8 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
   const processing = !paid && !!p && p.status === "pending" && p.method !== "multibanco";
   const addons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, paid ? "paid" : "pending")));
   const addonsTotal = addons.reduce((n, a) => n + a.amountCents, 0);
+  // Belgian warehouse: the purchase is complete here (after the post-purchase offer), so the whole order goes to ShipHero now.
+  if (paid && order.status === "paid") await import("@/lib/shiphero-fulfilment").then((m) => m.autoSendToShiphero(order, "thanks")).catch((e) => console.error("[shiphero] thanks", e));
   const due = mb ? mb.amountCents : order.totalCents + addonsTotal;
   const guide = guideFor(settings, locale) && !isBfBundle(order.bundleKey); // the guide comes with the Trilogia only
   const link = paid && guide ? await ebookLink(locale).catch(() => null) : null;

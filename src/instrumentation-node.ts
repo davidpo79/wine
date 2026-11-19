@@ -30,4 +30,8 @@ if (process.env.RECOVERY_WORKER !== "0" && process.env.DATABASE_URL) {
   const ctt = () => import("./lib/fulfilment").then((m) => m.syncCttTracking()).catch((e) => console.error("[ctt] tracking", e));
   setTimeout(ctt, 90_000);
   setInterval(ctt, 2 * 3600_000);
+  // Belgian warehouse: paid DE/NL/BE orders whose buyer left before the thank-you page, 20 minutes after payment.
+  const shiphero = () => import("./lib/shiphero-fulfilment").then((m) => m.sendLateShipheroOrders()).catch((e) => console.error("[shiphero] late", e));
+  setTimeout(shiphero, 120_000);
+  setInterval(shiphero, 5 * 60_000);
 }
