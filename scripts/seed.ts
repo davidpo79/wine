@@ -192,6 +192,22 @@ await db
   }
 }
 
+// One-time update, 19/11/2026 (David): the Christmas Trilogia 2160 pages (/de, /nl, /fr) sell in Germany, the
+// Netherlands and Belgium, shipped from the Belgian warehouse (UPS, 2 working days), orders until the Christmas cutoff.
+{
+  const MARK = "patch_xmas_markets_de_nl_be_20261119";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "markets"));
+    const cur = { ...DEFAULT_SETTINGS.markets, ...((row?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.markets>) };
+    const value = { ...cur };
+    for (const c of ["DE", "NL", "BE"] as const) value[c] = { ...cur[c], enabled: true, delivery_days: cur[c]?.delivery_days || "2" };
+    await db.insert(schema.settings).values({ key: "markets", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
+    await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log("patch applied: Christmas pages open in DE, NL and BE");
+  }
+}
+
 // First admin bootstrap: only when no admin exists yet. Set ADMIN_EMAIL and ADMIN_INITIAL_PASSWORD in Railway,
 // deploy once, log in, then delete ADMIN_INITIAL_PASSWORD. Later changes go through `npm run admin:create`.
 const [anyAdmin] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).limit(1);
