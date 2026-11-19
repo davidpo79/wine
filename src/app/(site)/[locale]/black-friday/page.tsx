@@ -22,7 +22,7 @@ type Params = Promise<{ locale: string }>;
 
 /** The 6-bottle Douro box sells in German (Cheda) and Spanish (Galhofa); Dutch and French visitors get their Galhofa box. */
 const DOURO_LOCALES = BF_OFFERS.douro6.locales;
-const isDouroLocale = (l: unknown): l is "de" | "es" => l === "de" || l === "es";
+const isDouroLocale = (l: unknown): l is "de" | "es" | "ru" => l === "de" || l === "es" || l === "ru";
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale } = await params;
@@ -46,7 +46,8 @@ export default async function BlackFriday({ params, searchParams }: { params: Pa
   const [catalog, settings, v, admin, sp] = await Promise.all([getBfCatalog(), getSettings(), visitor(), getAdmin().catch(() => null), searchParams]);
   // Shown in the visitor's language: a German link opened on a Spanish phone goes to the Spanish page (and the other
   // way round), unless the visitor picked the language in the switcher (saved) or the link says ?lang=.
-  const guess = sp.lang ? null : bfLocaleForVisitor(v);
+  // The Russian page is reached only by its own link (the community in Germany): it is never switched to German.
+  const guess = sp.lang || locale === "ru" ? null : bfLocaleForVisitor(v);
   const wanted = isDouroLocale(guess) ? guess : null;
   if (wanted && wanted !== locale) {
     const qs = new URLSearchParams(Object.entries(sp).flatMap(([k, x]) => (Array.isArray(x) ? x.map((y) => [k, y]) : x != null ? [[k, x]] : [])) as [string, string][]).toString();

@@ -8,7 +8,8 @@ import type { BlackFridaySettings } from "./settings-defaults";
 export const BF_PRODUCT_SLUG = "black-friday-douro-6";
 export const BF_BOTTLES_PER_BOX = 6;
 /** Languages of the Black Friday pages: German and Spanish (all offers), Dutch and French (Poço do Canto for the Netherlands and Belgium, 18/11/2026). */
-export const BF_LOCALES = ["de", "es", "nl", "fr"] as const satisfies readonly Locale[];
+// Russian (19/11/2026): the Cheda page for the Russian-speaking community in Germany (delivery to Germany).
+export const BF_LOCALES = ["de", "es", "nl", "fr", "ru"] as const satisfies readonly Locale[];
 export type BfLocale = (typeof BF_LOCALES)[number];
 export const isBfLocale = (x: unknown): x is BfLocale => typeof x === "string" && (BF_LOCALES as readonly string[]).includes(x);
 
@@ -35,7 +36,7 @@ export type BfOffer = {
   productName: Partial<Record<BfLocale, string>>;
 };
 export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
-  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: ["de", "es"], countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine" } },
+  douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: ["de", "es", "ru"], countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine", ru: "Black Friday · 6 вин Cheda из Дору" } },
   burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
   poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
   galhofa: { id: "galhofa", slug: "black-friday-galhofa-mix-6", prefix: "bfg", bottlesPerBox: 6, path: "galhofa", locales: ["nl", "fr"], countries: ["NL", "BE"], contentName: "Black Friday Galhofa mix 6 NL BE", productName: { nl: "Black Friday · 6 Galhofa-wijnen uit de Douro", fr: "Black Friday · 6 vins Galhofa du Douro" } },
@@ -55,7 +56,7 @@ export const BF_SLUGS = BF_OFFER_IDS.map((id) => BF_OFFERS[id].slug);
  * Own address of every offer (David, 18/11/2026): the Douro box answers on its main page and also on /de/black-friday/cheda
  * and /es/black-friday/galhofa, so each ad can link to the name of its wine.
  */
-export const BF_DOURO_ALIASES: Partial<Record<BfLocale, string>> = { de: "cheda", es: "galhofa" };
+export const BF_DOURO_ALIASES: Partial<Record<BfLocale, string>> = { de: "cheda", es: "galhofa", ru: "cheda" };
 
 /** The offer of a page path, in a language (Poço do Canto has one page path for Spain and one offer for DE/NL/BE). */
 export const bfOfferByPath = (path: string, locale?: BfLocale) => BF_OFFER_IDS.map((id) => BF_OFFERS[id]).find((o) => o.path && o.path === path && (!locale || o.locales.includes(locale))) ?? null;
