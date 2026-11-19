@@ -60,7 +60,12 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             <Item k="Created" v={lisbonDateTime(o.createdAt)} />
             <Item k="Paid" v={lisbonDateTime(o.paidAt) || "·"} />
             <Item k="Shipped" v={lisbonDateTime(o.shippedAt) || "·"} />
-            <Item k="CTT" v={o.trackingNumber ? <a className="text-azulejo underline" href={ctTrackingUrl(o.trackingNumber)} target="_blank">{o.trackingNumber}</a> : "·"} />
+            {/* DE/NL/BE leave from the Belgian warehouse (ShipHero, its own carrier); only Portugal and Spain go by CTT. */}
+            {isBelgianOrder(o) ? (
+              <Item k="Tracking (Belgian warehouse)" v={o.trackingNumber ? (shipment?.trackingUrl ? <a className="text-azulejo underline" href={shipment.trackingUrl} target="_blank">{o.trackingNumber}</a> : o.trackingNumber) : "·"} />
+            ) : (
+              <Item k="CTT" v={o.trackingNumber ? <a className="text-azulejo underline" href={ctTrackingUrl(o.trackingNumber)} target="_blank">{o.trackingNumber}</a> : "·"} />
+            )}
             <Item k="Invoice" v={o.invoiceNumber ?? "·"} />
             <Item k="ifthenpay ref" v={paidPayment ? `${paidPayment.ref}${paidPayment.requestId ? ` · ${paidPayment.requestId}` : ""}` : "·"} />
             <Item k="UTM" v={o.utm ? Object.values(o.utm).join(" / ") : "·"} />
