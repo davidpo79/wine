@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { guideFor } from "@/lib/ebook";
 import { cookies } from "next/headers";
 import { getCatalog } from "@/lib/catalog";
-import { bfCountryFor, bfCutoffFor, bfHref, bfOfferCountries, bfOfferFor, bfOpenCountries, isBfLocale } from "@/lib/black-friday";
+import { bfCountryFor, bfHref, bfOfferCountries, bfOfferFor, bfOpenCountries, isBfLocale } from "@/lib/black-friday";
 import { bfCopyFor } from "@/components/black-friday/copy";
 import { getAdmin } from "@/lib/auth";
 import { fmt } from "@/lib/i18n/rich";
@@ -48,7 +48,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
     ? [...new Set([wanted, ...open])].filter((c) => open.includes(c) || c === wanted)
     : [...new Set([wanted, ...COUNTRIES_FOR_LOCALE[locale], ...open])].filter((c) => open.includes(c) || c === wanted);
   const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, label: b.label, qty: b.qty, priceCents: b.priceCents, compareAtCents: bf ? null : b.compareAtCents, shippingCents: b.shippingCents })); // Black Friday: no reference price
-  const cutoffIso = bf ? bfCutoffFor(settings.black_friday, offer) : (settings.markets?.[wanted]?.cutoff_at ?? settings.cutoff_at);
+  const cutoffIso = bf ? settings.black_friday.cutoff_at : (settings.markets?.[wanted]?.cutoff_at ?? settings.cutoff_at);
   const cutoffLabel = dateFor(locale, cutoffIso).slice(0, 5);
   const deliveryDays = deliveryDaysFor(locale, bf ? settings.black_friday.delivery_days : (settings.markets?.[wanted]?.delivery_days ?? ""));
   const bfCopy = offer && isBfLocale(locale) ? bfCopyFor(offer.id, locale) : null;

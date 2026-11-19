@@ -182,22 +182,3 @@ test("Sekt for Germany (19/11/2026): own page, bundles and Belgian warehouse box
   assert.deepEqual(BF_OFFER_BUNDLES.sekt.map((b) => [b.key, b.priceCents, b.compareAtCents]), [["bfk1", 9000, 18000], ["bfk2", 16900, 36000], ["bfk3", 23900, 54000]]);
   assert.ok(bfCopyFor("sekt", "de")?.bundles.bfk3);
 });
-
-test("Christmas boxes (19/11/2026): Trilogia 2160 for DE, D. Graça & Galhofa for NL/BE, orders until 30/11", async () => {
-  const { BF_OFFERS, BF_OFFER_BUNDLES, bfCutoffFor, bfOfferByPath, bfOfferFor, bfOpen } = await import("../src/lib/black-friday");
-  const { bfCopyFor } = await import("../src/components/black-friday/copy");
-  assert.equal(bfOfferByPath("geschenkbox", "de")?.id, "xmasde");
-  assert.equal(bfOfferByPath("kerstbox", "nl")?.id, "xmasnlbe");
-  assert.equal(bfOfferByPath("kerstbox", "fr")?.id, "xmasnlbe");
-  assert.equal(bfOfferFor("bfw4")?.id, "xmasde");
-  assert.equal(bfOfferFor("bfv2")?.id, "xmasnlbe");
-  for (const id of ["xmasde", "xmasnlbe"] as const) assert.deepEqual(BF_OFFER_BUNDLES[id].map((b) => [b.qty, b.priceCents]), [[1, 4990], [2, 8990], [4, 14970]]);
-  const bf = { ...DEFAULT_SETTINGS.black_friday, enabled: true, cutoff_at: "2026-11-27T22:59:00Z" };
-  const dec1 = new Date("2026-11-29T12:00:00Z");
-  assert.equal(bfCutoffFor(bf, BF_OFFERS.xmasde), "2026-11-30T22:59:00Z");
-  assert.equal(bfOpen(bf, dec1, BF_OFFERS.xmasnlbe), true); // the Christmas boxes outlive Black Friday
-  assert.equal(bfOpen(bf, dec1, BF_OFFERS.pocoeu), false);
-  assert.equal(bfOpen(bf, new Date("2026-12-01T00:00:00Z"), BF_OFFERS.xmasde), false);
-  assert.ok(bfCopyFor("xmasde", "de")?.bundles.bfw4);
-  assert.ok(bfCopyFor("xmasnlbe", "nl")?.bundles.bfv4 && bfCopyFor("xmasnlbe", "fr")?.bundles.bfv4);
-});

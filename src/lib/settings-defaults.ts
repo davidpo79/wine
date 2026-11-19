@@ -49,16 +49,16 @@ export type BlackFridaySettings = {
   vat_percent: Partial<Record<Country, number>>; // VAT included in the price, by delivery country (still wine, standard rate)
   costs: { wine_cents: number; shipping_box_cents: number; transport_cents: number; handling_cents: number; delivery_cents: number }; // per box, without recoverable VAT
   /** Costs per box of the other offers (sparkling, Poço do Canto); missing = the defaults in lib/black-friday.ts. */
-  offer_costs?: Partial<Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt" | "xmasde" | "xmasnlbe", BlackFridaySettings["costs"]>>;
+  offer_costs?: Partial<Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt", BlackFridaySettings["costs"]>>;
   /** Admin → Black Friday panels: share of the price kept for ads (David's panels: 20%) and boxes available per offer. */
   marketing_percent?: number;
   /** Payment fee used by the panels (David plans with 3%; Finance uses the real Stripe/ifthenpay price lists). */
   fee_percent?: number;
-  stock?: Partial<Record<"douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt" | "xmasde" | "xmasnlbe", number>>;
+  stock?: Partial<Record<"douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt", number>>;
 };
 
 /** What the warehouse ships for an order line; each maps to a ShipHero SKU in Admin → Settings → ShipHero. */
-export type ShipheroItemKey = "cheda_mix_6" | "galhofa_mix_6" | "poco_6" | "dgraca_3" | "trilogia_2160" | "dgraca_trio_3";
+export type ShipheroItemKey = "cheda_mix_6" | "galhofa_mix_6" | "poco_6" | "dgraca_3" | "trilogia_2160";
 export type ShipheroSettings = { enabled: boolean; shop_name: string; skus: Partial<Record<ShipheroItemKey, string>>; warehouse_id?: string };
 
 /** Net profit (after order costs, ads and other expenses) split between the two partners. null = not agreed yet. */
@@ -149,7 +149,7 @@ export const DEFAULT_SETTINGS: Settings = {
     vat_percent: { DE: 19, ES: 21, PT: 13, NL: 21, BE: 21 },
     marketing_percent: 20,
     fee_percent: 3,
-    stock: { douro6: 500, pocoeu: 360, galhofa: 360, sekt: 336, xmasde: 952, xmasnlbe: 680 }, // Belgian warehouse per the customs documents of 13/11/2026: Cheda 500, Poço do Canto 360, Galhofa 360, sparkling 336 boxes of 3 // Portugal: wine 13% (as the Christmas box)
+    stock: { douro6: 500, pocoeu: 360, galhofa: 360, sekt: 336 }, // Belgian warehouse per the customs documents of 13/11/2026: Cheda 500, Poço do Canto 360, Galhofa 360, sparkling 336 boxes of 3 // Portugal: wine 13% (as the Christmas box)
     costs: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 18/11/2026: Cheda to Germany, 30,50 €/box
   },
   // 18/11/2026 (David): automatic on payment. SKUs = the box codes of the producers' sheet of 18/11/2026 (to be checked
@@ -157,7 +157,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shiphero: {
     enabled: true,
     shop_name: "wine-portugal",
-    skus: { cheda_mix_6: "15604086390028", galhofa_mix_6: "65600320721899", poco_6: "65600320721882", dgraca_3: "35600320722376", trilogia_2160: "55604086420020", dgraca_trio_3: "DGRACA-TBR-3" },
+    skus: { cheda_mix_6: "15604086390028", galhofa_mix_6: "65600320721899", poco_6: "65600320721882", dgraca_3: "35600320722376", trilogia_2160: "55604086420020" },
     warehouse_id: "V2FyZWhvdXNlOjkwNzM3", // the Belgian warehouse ("Primary", BE); the account also has an empty one
   },
   ctt_fragile: false, // off (David, 16/11/2026): the CTT contract does not include "Fragil" for EMSF057.01
