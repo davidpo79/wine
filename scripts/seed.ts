@@ -7,7 +7,7 @@ import { DEFAULT_SETTINGS } from "../src/lib/settings-defaults";
 import { BF_BUNDLES, BF_OFFER_BUNDLES, BF_OFFERS, BF_PRODUCT_SLUG, BF_SLUGS } from "../src/lib/black-friday";
 import { hash } from "@node-rs/argon2";
 import { createHash } from "node:crypto";
-import { eq, notInArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 const [existing] = await db.select().from(schema.products).where(notInArray(schema.products.slug, BF_SLUGS)).limit(1);
 let productId = existing?.id;
@@ -205,6 +205,31 @@ await db
     await db.insert(schema.settings).values({ key: "markets", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
     await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
     console.log("patch applied: Christmas pages open in DE, NL and BE");
+  }
+}
+
+// One-time, 19/11/2026 (David): paid orders to Germany, the Netherlands and Belgium that never reached ShipHero (paid
+// before the integration went live on 18/11, or refused with "SKUs not found" before the products existed in ShipHero)
+// are sent now, as the admin's "Send to ShipHero" button does. An order already in ShipHero is found and not created
+// twice. The mark is set only when every order went through, so a failure is retried at the next deploy.
+{
+  const MARK = "patch_shiphero_resend_20261119";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  const { shipheroConfigured } = await import("../src/lib/shiphero");
+  if (!done && shipheroConfigured()) {
+    const { sendToShiphero } = await import("../src/lib/shiphero-fulfilment");
+    const rows = await db
+      .select()
+      .from(schema.orders)
+      .where(and(inArray(schema.orders.country, ["DE", "NL", "BE"]), eq(schema.orders.status, "paid")));
+    let failed = 0;
+    for (const o of rows) {
+      const r = await sendToShiphero(o, "resend 19/11");
+      if ("error" in r) failed++;
+      console.log(`shiphero resend ${o.id}: ${"error" in r ? r.error : r.ok}`);
+    }
+    if (!failed) await db.insert(schema.settings).values({ key: MARK, value: new Date().toISOString() });
+    console.log(`patch: ${rows.length} paid DE/NL/BE orders sent to ShipHero, ${failed} failed`);
   }
 }
 
