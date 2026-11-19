@@ -355,7 +355,9 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
         titleFirst: "Tus 6 Poço do Canto te esperan",
       },
     },
-  },  galhofa: {}, // filled below from the Dutch and French Poço do Canto pages
+  },
+  galhofa: {}, // filled below from the Dutch and French Poço do Canto pages
+  sekt: {}, // filled below from the Spanish sparkling page, in German
   // Germany, the Netherlands and Belgium (18/11/2026): the same box from the Belgian warehouse, 60 €, reference 120 €.
   pocoeu: {
     de: {
@@ -363,9 +365,9 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       images: { hero: "/lp/bf/poco-row.webp", heroW: 1100, heroH: 766, cut: "/lp/bf/poco-cut.webp", cutIsBox: true, who: "/lp/bf/story-douro.webp" },
       who: { ...DE.who, alt: "Das Douro-Tal" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 für 60 € mit Gratisversand",
-      metaDescription: "Box mit 6 Flaschen Poço do Canto Palhete 2019, Rotwein aus dem Douro. 60 € pro Box, inkl. MwSt. und Versand. Nur 440 Boxen, bis {date}.",
+      metaDescription: "Box mit 6 Flaschen Poço do Canto Palhete 2019, Rotwein aus dem Douro. 60 € pro Box, inkl. MwSt. und Versand. Nur 360 Boxen, bis {date}.",
       sub: "Poço do Canto Palhete 2019 · Rotwein aus dem Douro",
-      mix: ["6 Flaschen", "Jahrgang 2019", "Nur 440 Boxen"],
+      mix: ["6 Flaschen", "Jahrgang 2019", "Nur 360 Boxen"],
       bundles: {
         bfq1: { title: "1 Box", bottles: "6 Flaschen" },
         bfq2: { title: "2 Boxen", bottles: "12 Flaschen", badge: "Am beliebtesten" },
@@ -397,7 +399,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       why: [
         { h: "Direkt vom Erzeuger", p: "Kein Großhandel, kein Laden dazwischen. Der Wein kommt aus dem Douro direkt zu Ihnen nach Hause." },
         { h: "Jahrgang 2019", p: "Ein Rotwein aus 2019, trinkfertig." },
-        { h: "Nur 440 Boxen", p: "Eine begrenzte Menge zum Black Friday, Versand inklusive. Wenn sie ausverkauft sind oder der Countdown abläuft, endet das Angebot." },
+        { h: "Nur 360 Boxen", p: "Eine begrenzte Menge zum Black Friday, Versand inklusive. Wenn sie ausverkauft sind oder der Countdown abläuft, endet das Angebot." },
       ],
       faq: DE.faq.map((f) => (f.q === "Wohin liefern Sie?" ? { ...f, a: "Diese Box liefern wir zum Black Friday nach Deutschland, in die Niederlande und nach Belgien." } : f)),
       productName: "Black Friday · 6 Poço do Canto Palhete 2019",
@@ -407,13 +409,13 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
     nl: {
       images: { hero: "/lp/bf/poco-row.webp", heroW: 1100, heroH: 766, cut: "/lp/bf/poco-cut.webp", cutIsBox: true, who: "/lp/bf/story-douro.webp" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 voor 60 € met gratis verzending",
-      metaDescription: "Doos met 6 flessen Poço do Canto Palhete 2019, rode wijn uit de Douro. 60 € per doos, inclusief btw en verzending. Slechts 440 dozen, tot {date}.",
+      metaDescription: "Doos met 6 flessen Poço do Canto Palhete 2019, rode wijn uit de Douro. 60 € per doos, inclusief btw en verzending. Slechts 360 dozen, tot {date}.",
       topBar: "🔥 BLACK FRIDAY · GRATIS VERZENDING · INCL. BTW · TOT {date} 🔥",
       kicker: "Wine-Portugal.com",
       h1a: "BLACK",
       h1b: "FRIDAY",
       sub: "Poço do Canto Palhete 2019 · rode wijn uit de Douro",
-      mix: ["6 flessen", "Oogst 2019", "Slechts 440 dozen"],
+      mix: ["6 flessen", "Oogst 2019", "Slechts 360 dozen"],
       countdownTitle: "De aanbieding eindigt over",
       countdownUnits: ["dagen", "uur", "min", "sec"],
       countdownNote: "De aanbieding geldt voor bestellingen tot {date}. Levering in {days} werkdagen.",
@@ -470,7 +472,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       why: [
         { h: "Rechtstreeks van de producent", p: "Geen groothandel, geen winkel ertussen. De wijn komt uit de Douro rechtstreeks bij jou thuis." },
         { h: "Oogst 2019", p: "Een rode wijn uit 2019, klaar om te drinken." },
-        { h: "Slechts 440 dozen", p: "Een beperkte hoeveelheid voor Black Friday, verzending inbegrepen. Als ze op zijn of de teller op nul staat, eindigt de aanbieding." },
+        { h: "Slechts 360 dozen", p: "Een beperkte hoeveelheid voor Black Friday, verzending inbegrepen. Als ze op zijn of de teller op nul staat, eindigt de aanbieding." },
       ],
       howTitle: "Zo werkt het",
       how: ["Je kiest 1, 2 of 3 dozen en betaalt veilig.", "We pakken je bestelling in ons magazijn in België in.", "Je ontvangt ze in {days} werkdagen, met track & trace."],
@@ -503,13 +505,13 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
     fr: {
       images: { hero: "/lp/bf/poco-row.webp", heroW: 1100, heroH: 766, cut: "/lp/bf/poco-cut.webp", cutIsBox: true, who: "/lp/bf/story-douro.webp" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 pour 60 € livraison offerte",
-      metaDescription: "Caisse de 6 bouteilles de Poço do Canto Palhete 2019, vin rouge du Douro. 60 € la caisse, TVA et livraison comprises. Seulement 440 caisses, jusqu'au {date}.",
+      metaDescription: "Caisse de 6 bouteilles de Poço do Canto Palhete 2019, vin rouge du Douro. 60 € la caisse, TVA et livraison comprises. Seulement 360 caisses, jusqu'au {date}.",
       topBar: "🔥 BLACK FRIDAY · LIVRAISON OFFERTE · TVA COMPRISE · JUSQU'AU {date} 🔥",
       kicker: "Wine-Portugal.com",
       h1a: "BLACK",
       h1b: "FRIDAY",
       sub: "Poço do Canto Palhete 2019 · vin rouge du Douro",
-      mix: ["6 bouteilles", "Millésime 2019", "Seulement 440 caisses"],
+      mix: ["6 bouteilles", "Millésime 2019", "Seulement 360 caisses"],
       countdownTitle: "L'offre se termine dans",
       countdownUnits: ["jours", "h", "min", "s"],
       countdownNote: "Offre valable pour les commandes jusqu'au {date}. Livraison en {days} jours ouvrables.",
@@ -566,7 +568,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       why: [
         { h: "Du producteur à votre porte", p: "Ni grossiste ni magasin entre les deux. Le vin part du Douro et arrive chez vous." },
         { h: "Millésime 2019", p: "Un rouge de 2019, prêt à boire." },
-        { h: "Seulement 440 caisses", p: "Une quantité limitée pour le Black Friday, livraison comprise. Quand elles sont épuisées ou que le compte à rebours se termine, l'offre s'arrête." },
+        { h: "Seulement 360 caisses", p: "Une quantité limitée pour le Black Friday, livraison comprise. Quand elles sont épuisées ou que le compte à rebours se termine, l'offre s'arrête." },
       ],
       howTitle: "Comment ça marche",
       how: ["Vous choisissez 1, 2 ou 3 caisses et payez en toute sécurité.", "Nous préparons votre commande dans notre entrepôt en Belgique.", "Vous la recevez en {days} jours ouvrables, avec numéro de suivi."],
@@ -608,7 +610,7 @@ BF_OFFER_COPY.galhofa = {
     images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp", who: "/lp/bf/who-warehouse.webp" },
     who: { ...GALHOFA_NL.who, alt: "Wijn wordt ingepakt voor verzending" },
     metaTitle: "Black Friday · 6 Douro-wijnen Galhofa voor 68,50 € met gratis verzending",
-    metaDescription: "3 rode, 2 witte en 1 rosé Galhofa, Douro DOC, rechtstreeks van de producent. 68,50 € per doos van 6, inclusief btw en verzending. Slechts 440 dozen, tot {date}.",
+    metaDescription: "3 rode, 2 witte en 1 rosé Galhofa, Douro DOC, rechtstreeks van de producent. 68,50 € per doos van 6, inclusief btw en verzending. Slechts 360 dozen, tot {date}.",
     sub: "6 Galhofa-wijnen uit de Douro, van de producent naar je deur",
     mix: ["3 rode", "2 witte", "1 rosé"],
     bundles: {
@@ -636,7 +638,7 @@ BF_OFFER_COPY.galhofa = {
     why: [
       { h: "Rechtstreeks van de producent", p: "Geen groothandel, geen winkel ertussen. De wijnen komen van het wijnhuis in de Douro rechtstreeks bij jou thuis." },
       { h: "Douro DOC", p: "Wijnen met beschermde oorsprong uit de Douro-vallei, het oudste afgebakende wijngebied ter wereld." },
-      { h: "Slechts 440 dozen", p: "Een beperkte hoeveelheid voor Black Friday, verzending inbegrepen. Als ze op zijn of de teller op nul staat, eindigt de aanbieding." },
+      { h: "Slechts 360 dozen", p: "Een beperkte hoeveelheid voor Black Friday, verzending inbegrepen. Als ze op zijn of de teller op nul staat, eindigt de aanbieding." },
     ],
     faq: GALHOFA_NL.faq.map((f) => (f.q === "Waar leveren jullie?" ? { ...f, a: "Deze doos leveren we voor Black Friday in Nederland en België." } : f)),
     productName: "Black Friday · 6 Galhofa-wijnen uit de Douro",
@@ -648,7 +650,7 @@ BF_OFFER_COPY.galhofa = {
     images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp", who: "/lp/bf/who-warehouse.webp" },
     who: { ...GALHOFA_FR.who, alt: "Du vin préparé pour l'envoi" },
     metaTitle: "Black Friday · 6 vins du Douro Galhofa pour 68,50 € livraison offerte",
-    metaDescription: "3 rouges, 2 blancs et 1 rosé Galhofa, Douro DOC, directement du producteur. 68,50 € la caisse de 6, TVA et livraison comprises. Seulement 440 caisses, jusqu'au {date}.",
+    metaDescription: "3 rouges, 2 blancs et 1 rosé Galhofa, Douro DOC, directement du producteur. 68,50 € la caisse de 6, TVA et livraison comprises. Seulement 360 caisses, jusqu'au {date}.",
     sub: "6 vins Galhofa du Douro, du producteur à votre porte",
     mix: ["3 rouges", "2 blancs", "1 rosé"],
     bundles: {
@@ -676,12 +678,62 @@ BF_OFFER_COPY.galhofa = {
     why: [
       { h: "Du producteur à votre porte", p: "Ni grossiste ni magasin entre les deux. Les vins partent du domaine dans le Douro et arrivent chez vous." },
       { h: "Douro DOC", p: "Des vins d'appellation d'origine de la vallée du Douro, la plus ancienne région viticole délimitée au monde." },
-      { h: "Seulement 440 caisses", p: "Une quantité limitée pour le Black Friday, livraison comprise. Quand elles sont épuisées ou que le compte à rebours se termine, l'offre s'arrête." },
+      { h: "Seulement 360 caisses", p: "Une quantité limitée pour le Black Friday, livraison comprise. Quand elles sont épuisées ou que le compte à rebours se termine, l'offre s'arrête." },
     ],
     faq: GALHOFA_FR.faq.map((f) => (f.q === "Où livrez-vous ?" ? { ...f, a: "Pour le Black Friday, nous livrons cette caisse en Belgique et aux Pays-Bas." } : f)),
     productName: "Black Friday · 6 vins Galhofa du Douro",
     trust: ["🍷 3 rouges, 2 blancs, 1 rosé Galhofa · Douro DOC", ...GALHOFA_FR.trust.slice(1)],
     recovery: { ...GALHOFA_FR.recovery, titleFirst: "Vos 6 vins du Douro vous attendent" },
+  },
+};
+
+/** Germany (19/11/2026): the D. Graça sparkling box from the Belgian warehouse, 90 € (reference 180 €, as in the ad). */
+BF_OFFER_COPY.sekt = {
+  de: {
+    ...DE,
+    images: { hero: "/lp/bf/espumoso-hero.webp", heroW: 940, heroH: 591, cut: "/lp/bf/espumoso-bottle.webp", cutIsPhoto: true, who: "/lp/bf/story-douro.webp" },
+    who: { ...DE.who, alt: "Das Douro-Tal" },
+    metaTitle: "Black Friday · 3 Flaschen Douro-Schaumwein für 90 € mit Gratisversand",
+    metaDescription: "3 Flaschen D. Graça Espumante Bruto aus dem Douro, direkt vom Erzeuger. 90 € pro Box mit 3 Flaschen, inkl. MwSt. und Versand. Nur bis {date}.",
+    sub: "3 Flaschen Brut-Schaumwein aus dem Douro",
+    mix: ["3 Flaschen", "Brut", "Aus dem Douro"],
+    bundles: {
+      bfk1: { title: "1 Box", bottles: "3 Flaschen" },
+      bfk2: { title: "2 Boxen", bottles: "6 Flaschen", badge: "Am beliebtesten" },
+      bfk3: { title: "3 Boxen", bottles: "9 Flaschen", badge: "Bester Preis" },
+    },
+    winesTitle: "Das ist in der Box",
+    wines: [
+      {
+        type: "Schaumwein · Brut",
+        count: "× 3",
+        name: "D. Graça Espumante Bruto · Douro",
+        text: "Brut-Schaumwein aus dem Douro, von Reben auf Schiefer- und Granitböden. Frisch und elegant. Zum Anstoßen an Weihnachten und Silvester, als Aperitif oder zu Meeresfrüchten. Gut gekühlt bei 6 bis 8 °C servieren.",
+        img: "/lp/bf/espumoso-hero.webp",
+        photo: true,
+      },
+    ],
+    producer: null,
+    story: [
+      DE.story[0],
+      DE.story[1],
+      { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Aus den Trauben entsteht ein frischer Grundwein, der danach zum Schaumwein wird." },
+      { img: "/lp/bf/espumoso-hero.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
+    ],
+    eveningTitle: "Drei Momente zum Anstoßen",
+    evening: [
+      { when: "Black Friday", wine: "Die erste Flasche", icon: "🥂", p: "Zum Auspacken, mit einer Kleinigkeit zum Knabbern." },
+      { when: "Heiligabend", wine: "Die zweite", icon: "🎄", p: "Als Aperitif vor dem Essen oder zu Meeresfrüchten." },
+      { when: "Silvester", wine: "Die dritte", icon: "🎆", p: "Für den Countdown um Mitternacht." },
+    ],
+    why: [
+      { h: "Direkt vom Erzeuger", p: "Kein Großhandel, kein Laden dazwischen. Der Schaumwein kommt aus dem Douro direkt zu Ihnen nach Hause." },
+      { h: "Aus dem Douro", p: "Schaumwein aus dem Douro-Tal, dem ältesten abgegrenzten Weinbaugebiet der Welt." },
+      { h: "Nur zum Black Friday", p: "Die Hälfte des regulären Preises, Versand inklusive. Wenn der Countdown abläuft, endet das Angebot." },
+    ],
+    productName: "Black Friday · 3 D. Graça Sekt",
+    trust: ["🍾 3 Flaschen Brut-Schaumwein · Douro", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
+    recovery: { ...DE.recovery, titleFirst: "Ihre 3 Flaschen Douro-Schaumwein warten auf Sie" },
   },
 };
 

@@ -65,3 +65,7 @@ test("customer_account_id is left out unless set (ShipHero refuses null)", async
   assert.equal(customerArg().arg, "customer_account_id: $cid");
   delete process.env.SHIPHERO_CUSTOMER_ACCOUNT_ID;
 });
+
+test("the German sparkling box ships as the D. Graça ×3 SKU", () => {
+  assert.deepEqual(shipheroItemsFor(order({ bundleKey: "bfk2", qtyBoxes: 2, country: "DE" })), [{ key: "dgraca_3", qty: 2 }]);
+});

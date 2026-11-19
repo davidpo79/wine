@@ -22,6 +22,7 @@ export const BF_PANEL_ADS: Record<BfOfferId, Partial<Record<string, string>>> = 
   poco: { es: "/ads/bfp_es_55_4x5.jpg" },
   pocoeu: { de: "/ads/bfq_poco_de_4x5.jpg", nl: "/ads/bfq_poco_nl_4x5.jpg", fr: "/ads/bfq_poco_fr_4x5.jpg" },
   galhofa: { nl: "/ads/bfg_galhofa_box_nl_4x5.jpg", fr: "/ads/bfg_galhofa_box_fr_4x5.jpg" },
+  sekt: { de: "/ads/bfk_sekt_de_4x5.jpg" },
 };
 
 /** What each offer is, in the admin's words (the Douro box is two different wines by country). */
@@ -31,6 +32,7 @@ export const BF_PANEL_TITLE: Record<BfOfferId, string> = {
   poco: "6 Poço do Canto Palhete 2019 · Spain",
   pocoeu: "6 Poço do Canto Palhete 2019 · Germany, Netherlands, Belgium",
   galhofa: "6 Galhofa (3 red, 2 white, 1 rosé) · Netherlands, Belgium",
+  sekt: "3 sparkling D. Graça Bruto · Germany (Belgian warehouse)",
 };
 
 /** Page addresses of an offer: its own suffix in every language (and the main page for the Douro box). */

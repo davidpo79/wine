@@ -169,5 +169,16 @@ test("Black Friday panels reproduce David's numbers (3% fee, 20% marketing, VAT 
   assert.equal(profit("pocoeu", 6000, "DE"), 912); // Poço do Canto: 9,12 €
   assert.equal(profit("pocoeu", 6000, "NL"), 829); // 8,29 €
   assert.equal(profit("galhofa", 6850, "BE"), 1036); // Galhofa NL/BE: 10,36 €
-  assert.equal(Math.round(bfPanel("galhofa", s, 6850).ifAllSold!.profitMin), 455689); // 440 boxes: 4.556,89 €
+  assert.equal(Math.round(bfPanel("galhofa", s, 6850).ifAllSold!.profitMin), 372837); // 360 boxes (customs documents): 3.728,37 €
+});
+
+test("Sekt for Germany (19/11/2026): own page, bundles and Belgian warehouse box", async () => {
+  const { BF_OFFERS, BF_OFFER_BUNDLES, bfOfferByPath, bfOfferFor } = await import("../src/lib/black-friday");
+  const { bfCopyFor } = await import("../src/components/black-friday/copy");
+  assert.equal(bfOfferByPath("sekt", "de")?.id, "sekt");
+  assert.equal(bfOfferByPath("sekt", "es"), null);
+  assert.equal(bfOfferFor("bfk2")?.id, "sekt");
+  assert.deepEqual(BF_OFFERS.sekt.countries, ["DE"]);
+  assert.deepEqual(BF_OFFER_BUNDLES.sekt.map((b) => [b.key, b.priceCents, b.compareAtCents]), [["bfk1", 9000, 18000], ["bfk2", 16900, 36000], ["bfk3", 23900, 54000]]);
+  assert.ok(bfCopyFor("sekt", "de")?.bundles.bfk3);
 });
