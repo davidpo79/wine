@@ -182,3 +182,20 @@ test("Sekt for Germany (19/11/2026): own page, bundles and Belgian warehouse box
   assert.deepEqual(BF_OFFER_BUNDLES.sekt.map((b) => [b.key, b.priceCents, b.compareAtCents]), [["bfk1", 9000, 18000], ["bfk2", 16900, 36000], ["bfk3", 23900, 54000]]);
   assert.ok(bfCopyFor("sekt", "de")?.bundles.bfk3);
 });
+
+test("Black Friday boxes from the Belgian warehouse get one more box after paying (19/11/2026); Spain does not", async () => {
+  const { boxesOffer } = await import("../src/lib/upsell");
+  const { BF_BUNDLES } = await import("../src/lib/black-friday");
+  const bundles = BF_BUNDLES.map((b, i) => ({ ...b, id: i + 1, productId: 1, active: true })) as never;
+  const o = (over: Record<string, unknown>) => ({ id: "WP1", bundleKey: "bf1", qtyBoxes: 1, country: "DE", locale: "de", ...over }) as never;
+  const de = boxesOffer(o({}), bundles)!;
+  assert.equal(de.priceCents, 12900 - 6850); // 2 boxes 129 €: the 2nd box 60,50 €
+  assert.equal(de.boxes, 1);
+  assert.equal(de.sku, "black-friday-douro-6");
+  assert.ok(!de.title.includes("Trilogia") && !de.description.includes("Trilogia"));
+  assert.ok(de.label.includes("12") === false && de.label.includes("6")); // 1 box of 6 bottles
+  assert.equal(de.image, "/lp/bf/cheda-cut.webp");
+  const top = boxesOffer(o({ bundleKey: "bf3", qtyBoxes: 3, country: "NL", locale: "nl" }), bundles);
+  assert.equal(top?.priceCents, Math.round(18500 / 3)); // at 3 boxes: one more at the 3-box price per box
+  assert.equal(boxesOffer(o({ country: "ES", locale: "es" }), bundles), null);
+});

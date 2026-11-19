@@ -5,7 +5,6 @@ import type { Order } from "@/db/schema";
 import { getSettings } from "./settings";
 import { logOrderEvent, setStatus } from "./orders";
 import { sendShipped, sendShippingAlert } from "./email";
-import { isBfBundle } from "./black-friday";
 import { SHIPHERO_COUNTRIES, addBoxesToShipheroOrder, isBelgianOrder, pushOrderToShiphero, shipheroConfigured, upsTrackingUrl, type ShipheroShipment } from "./shiphero";
 
 /** Admin button and automatic push: creates the order in ShipHero and moves it to "preparing". */
@@ -32,18 +31,19 @@ export async function sendToShiphero(o: Order, by: string): Promise<{ ok: string
 /**
  * Orders for the Belgian warehouse go to ShipHero once the whole purchase is known (David, 19/11/2026): the Trilogia
  * boxes can get a "more boxes" offer right after paying, which must leave in the same parcel, so they wait for the
- * thank-you page ("thanks"), or for the worker 20 minutes after payment if the buyer never gets there ("late"). Black
- * Friday boxes have no offer after paying and go at once ("paid"). A failure alerts the team; the payment is never
- * affected. An order that already has a ShipHero record (sent, or failed once) is left to the admin button.
+ * thank-you page ("thanks"), or for the worker 20 minutes after payment if the buyer never gets there ("late"). With
+ * the offer switched off they go at payment ("paid"). A failure alerts the team; the payment is never affected. An order that already has a ShipHero record (sent, or failed once) is left to the admin button.
  */
 export async function autoSendToShiphero(o: Order, when: "paid" | "thanks" | "late" = "paid") {
   if (!isBelgianOrder(o) || !shipheroConfigured() || o.status !== "paid") return;
-  if (when === "paid" && !isBfBundle(o.bundleKey)) {
+  const settings = await getSettings();
+  if (!settings.shiphero.enabled) return;
+  // Every DE/NL/BE order can get the "more boxes" offer after paying (Trilogia and, since 19/11/2026, the Black Friday
+  // boxes), so it waits for the thank-you page while the offer is on.
+  if (when === "paid" && settings.upsell_enabled) {
     await logOrderEvent(o.id, "shiphero_waiting", { reason: "post-purchase offer" }).catch(() => {});
     return;
   }
-  const settings = await getSettings();
-  if (!settings.shiphero.enabled) return;
   const [ship] = await db.select().from(schema.shipments).where(eq(schema.shipments.orderId, o.id));
   if (ship && when !== "paid") return;
   const r = await sendToShiphero(o, `auto:${when}`);

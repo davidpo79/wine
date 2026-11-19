@@ -78,9 +78,9 @@ test("ShipHero: boxes added by a paid upsell ship in the same order (19/11/2026)
   assert.deepEqual(i.line_items.map((l) => [l.sku, l.quantity]), [["TRI-2160", 4]]);
 });
 
-// The Trilogia waits for the thank-you page (its post-purchase offer joins the parcel); Black Friday boxes go at payment.
+// DE/NL/BE orders wait for the thank-you page while the post-purchase offer is on (it joins the same parcel).
 const DB_URL = process.env.TEST_DATABASE_URL;
-test("ShipHero: Trilogia orders wait for the thank-you page, Black Friday boxes are sent when paid", { skip: !DB_URL && "TEST_DATABASE_URL not set" }, async () => {
+test("ShipHero: orders wait for the thank-you page (post-purchase offer), then go with their extra boxes", { skip: !DB_URL && "TEST_DATABASE_URL not set" }, async () => {
   process.env.DATABASE_URL = DB_URL;
   process.env.SHIPHERO_ACCESS_TOKEN = "test-token";
   process.env.SHIPHERO_API_URL = "http://127.0.0.1:9/graphql"; // nothing listens: a send attempt fails fast
@@ -97,10 +97,11 @@ test("ShipHero: Trilogia orders wait for the thank-you page, Black Friday boxes 
   await autoSendToShiphero(t, "paid");
   await autoSendToShiphero(b, "paid");
   const ships = await db.select().from(schema.shipments).where(inArray(schema.shipments.orderId, [t.id, b.id]));
-  assert.deepEqual(ships.map((x) => x.orderId), [b.id]); // only the Black Friday box was tried
+  assert.deepEqual(ships, []); // nothing sent at payment: the offer may still add boxes
   await autoSendToShiphero(t, "thanks");
-  const after = await db.select().from(schema.shipments).where(eq(schema.shipments.orderId, t.id));
-  assert.equal(after.length, 1); // tried at the thank-you page
+  await autoSendToShiphero(b, "thanks");
+  const after = await db.select().from(schema.shipments).where(inArray(schema.shipments.orderId, [t.id, b.id]));
+  assert.equal(after.length, 2); // both tried at the thank-you page
   const ids = [t.id, b.id];
   await db.delete(schema.shipments).where(inArray(schema.shipments.orderId, ids));
   await db.delete(schema.orderEvents).where(inArray(schema.orderEvents.orderId, ids));

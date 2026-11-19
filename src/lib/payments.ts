@@ -232,7 +232,7 @@ export async function markOrderPaid(order: Order, p: Payment, source: string) {
   await snapshotCosts(paid.id, await getSettings()).catch((e) => console.error("[profit] snapshot", e));
   await sendAdminAlert(paid, addons).catch(() => {});
   // Belgian warehouse (DE/NL/BE): straight to ShipHero; a failure alerts the team, the payment is never affected.
-  // Black Friday boxes go now; the Trilogia waits for the thank-you page (its post-purchase offer joins the parcel).
+  // DE/NL/BE: waits for the thank-you page, so the post-purchase offer joins the same ShipHero order.
   await import("./shiphero-fulfilment").then((m) => m.autoSendToShiphero(paid, "paid")).catch((e) => console.error("[shiphero] auto", e));
 }
 
