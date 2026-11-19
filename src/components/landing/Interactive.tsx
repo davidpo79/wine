@@ -162,6 +162,7 @@ export function StickyCta({ heroCtaId, finalId }: { heroCtaId: string; finalId: 
   const short = selected.label.split(" · ").slice(0, 2).join(" · ");
   return (
     <div
+      data-float-avoid
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-gold/40 bg-night/95 px-4 py-2.5 text-paper backdrop-blur transition-transform duration-300 lg:hidden ${show ? "translate-y-0" : "translate-y-full"}`}
       aria-hidden={!show}
     >

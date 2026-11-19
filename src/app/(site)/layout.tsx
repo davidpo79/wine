@@ -1,5 +1,6 @@
 import { Consent } from "@/components/tracking/Consent";
 import { Journey } from "@/components/tracking/Journey";
+import { FloatingWhatsApp } from "@/components/FloatingWhatsApp";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const ga4 = process.env.GA4_MEASUREMENT_ID || null;
@@ -15,6 +16,7 @@ try{var m=document.cookie.match(/(?:^|; )wp_consent=([^;]*)/);if(m){var c=JSON.p
     <>
       <script dangerouslySetInnerHTML={{ __html: consentDefaults }} />
       {children}
+      <FloatingWhatsApp />
       <Journey />
       <Consent pixelId={pixel} clarityId={clarity} ga4Id={ga4} />
     </>

@@ -182,7 +182,7 @@ export function Consent({ pixelId, clarityId, ga4Id }: { pixelId: string | null;
   const btn = "min-h-10 flex-1 rounded-md px-4 text-sm font-semibold";
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center p-2 sm:p-4">
-      <div role="dialog" aria-modal="false" aria-labelledby="wp-consent-title" className="pointer-events-auto w-full max-w-md rounded-xl border border-gold/40 bg-night px-4 pb-3 pt-3 text-paper shadow-2xl">
+      <div role="dialog" aria-modal="false" aria-labelledby="wp-consent-title" data-float-avoid className="pointer-events-auto w-full max-w-md rounded-xl border border-gold/40 bg-night px-4 pb-3 pt-3 text-paper shadow-2xl">
         <p id="wp-consent-title" className="sr-only">{c.title}</p>
         <p className="text-xs leading-snug text-paper/85">
           {c.text}{" "}

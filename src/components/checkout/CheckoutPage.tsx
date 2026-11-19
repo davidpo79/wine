@@ -14,6 +14,7 @@ import { GiftCard } from "@/components/GiftCard";
 import { dealOf, dealText } from "@/lib/offers";
 import { useI18n } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/rich";
+import { SITE } from "@/lib/site";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
 import { MARKETS, PHONE_OPTIONAL, type Country } from "@/lib/markets";
 import { contentIdFor } from "@/lib/black-friday";
@@ -34,6 +35,17 @@ type Amounts = {
   promo: string | null;
   addons: { key: string; label: string; amount: number }[];
 };
+/** A trust line that mentions WhatsApp becomes a link to the chat. */
+function waLine(line: string) {
+  return /whatsapp/i.test(line) ? (
+    <a href={SITE.whatsappLink} target="_blank" rel="noopener" className="underline underline-offset-2">
+      {line}
+    </a>
+  ) : (
+    line
+  );
+}
+
 type Method = "mbway" | "card" | "wallet" | "multibanco";
 type Fields = {
   email: string;
@@ -786,6 +798,15 @@ export function CheckoutPage({
       </div>
     );
 
+  // The delivery, payment and damaged-box lines (no product line, no WhatsApp: the floating button covers it).
+  const trustUnderPay = product?.trust
+    ? product.trust.filter((l) => /^(🚚|🔒|↩️)/u.test(l))
+    : [
+        fmt(country === "PT" ? t.trust.deliveryPT : t.trust.delivery, { days: deliveryDays ? fmt(t.trust.deliveryDays, { days: deliveryDays }) : "", date: cutoffLabel }),
+        country === "PT" ? t.trust.payPT : t.trust.pay,
+        t.trust.damaged,
+      ];
+
   const summary = (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
@@ -923,7 +944,7 @@ export function CheckoutPage({
 
       <ul className="space-y-2 rounded-lg border border-paper-2 bg-white p-4 text-sm">
         {product?.trust ? (
-          product.trust.map((line) => <li key={line}>{line}</li>)
+          product.trust.map((line) => <li key={line}>{waLine(line)}</li>)
         ) : (
         <>
         <li>{guide ? t.trust.gift : t.trust.giftNoGuide}</li>
@@ -937,7 +958,7 @@ export function CheckoutPage({
         </li>
         <li>{country === "PT" ? t.trust.payPT : t.trust.pay}</li>
         <li>{t.trust.damaged}</li>
-        <li>{t.trust.help}</li>
+        <li>{waLine(t.trust.help)}</li>
         </>
         )}
       </ul>
@@ -1356,6 +1377,23 @@ export function CheckoutPage({
                   total: amounts ? money(amounts.total) : "",
                 })}
           </button>
+          {/* Phones: the summary with its trust lines and reviews is folded away, so the reasons to trust the shop
+              sit right under the button (David, 19/11/2026). Desktop has them in the column on the right. */}
+          <ul data-testid="checkout-trust" className="space-y-1.5 rounded-md border border-paper-2 bg-paper/60 p-3 text-[13px] leading-snug text-ink/85 lg:hidden">
+            {trustUnderPay.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          {reviews[0] && (
+            <figure className="rounded-md border border-paper-2 bg-white p-3 text-[13px] lg:hidden">
+              <p aria-hidden className="text-gold">★★★★★</p>
+              <blockquote className="mt-1">“{reviews[0].text}”</blockquote>
+              <figcaption className="mt-1 text-xs text-muted">
+                {reviews[0].name}
+                {reviews[0].city ? `, ${reviews[0].city}` : ""}
+              </figcaption>
+            </figure>
+          )}
           <p className="text-center text-xs text-muted">
             {t.terms.split(/(<a1>.*?<\/a1>|<a2>.*?<\/a2>)/).map((part, i) =>
               part.startsWith("<a1>") ? (
