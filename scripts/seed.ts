@@ -67,7 +67,7 @@ await db
   .onConflictDoNothing();
 
 // Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
-const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa", { name: string; shortDescription: string; wines: WineItem[] }> = {
+const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt", { name: string; shortDescription: string; wines: WineItem[] }> = {
   burbujas: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
@@ -87,13 +87,18 @@ const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa", { name:
       { name: "Galhofa Rosé", vintage: "2025", type: "rose", producer: "Douro" },
     ],
   },
+  sekt: {
+    name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas · DE",
+    shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Alemanha, armazém na Bélgica (UPS). 336 caixas.",
+    wines: [{ name: "D. Graça Espumante Bruto", vintage: "2022", type: "branco", producer: "Douro" }],
+  },
   pocoeu: {
     name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas · DE/NL/BE",
     shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Alemanha, Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
     wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
   },
 };
-for (const id of ["burbujas", "poco", "pocoeu", "galhofa"] as const) {
+for (const id of ["burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const) {
   const slug = BF_OFFERS[id].slug;
   let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
   if (!p) {
@@ -176,7 +181,7 @@ await db
   if (!done) {
     const [bf] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
     const cur = { ...DEFAULT_SETTINGS.black_friday, ...((bf?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.black_friday>) };
-    const value = { ...cur, stock: { ...cur.stock, douro6: 500, pocoeu: 360, galhofa: 360 } };
+    const value = { ...cur, stock: { ...cur.stock, douro6: 500, pocoeu: 360, galhofa: 360, sekt: 336 } };
     await db.insert(schema.settings).values({ key: "black_friday", value }).onConflictDoUpdate({ target: schema.settings.key, set: { value } });
     const [sh] = await db.select().from(schema.settings).where(eq(schema.settings.key, "shiphero"));
     const shCur = { ...DEFAULT_SETTINGS.shiphero, ...((sh?.value ?? {}) as Partial<typeof DEFAULT_SETTINGS.shiphero>) };

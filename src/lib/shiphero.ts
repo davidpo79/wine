@@ -44,7 +44,7 @@ export function shipheroItemsFor(o: Pick<Order, "bundleKey" | "qtyBoxes" | "coun
       ? "poco_6"
       : offer.id === "galhofa"
         ? "galhofa_mix_6"
-        : offer.id === "burbujas"
+        : offer.id === "burbujas" || offer.id === "sekt"
           ? "dgraca_3"
           : o.country === "ES" || o.country === "PT"
             ? "galhofa_mix_6" // the Douro box: Galhofa in Spain, Cheda from the Belgian warehouse (18/11/2026)
