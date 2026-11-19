@@ -20,7 +20,9 @@ export const isBfLocale = (x: unknown): x is BfLocale => typeof x === "string" &
  */
 // "galhofa" (18/11/2026) is the Galhofa mix for the Netherlands and Belgium, with a reference price.
 // "sekt" (19/11/2026) is the D. Graça sparkling box for Germany, from the Belgian warehouse (UPS).
-export type BfOfferId = "douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt";
+// "xmasde" / "xmasnlbe" (19/11/2026) are the Christmas gift boxes of 3 bottles from the Belgian warehouse: Trilogia 2160
+// for Germany, D. Graça & Galhofa for the Netherlands and Belgium; orders until 30/11 (their own cutoff).
+export type BfOfferId = "douro6" | "burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt" | "xmasde" | "xmasnlbe";
 export type BfOffer = {
   id: BfOfferId;
   slug: string;
@@ -33,6 +35,8 @@ export type BfOffer = {
   countries: readonly Country[];
   contentName: string;
   productName: Partial<Record<BfLocale, string>>;
+  /** Last order time of this offer when it differs from Settings.black_friday.cutoff_at (the Christmas boxes). */
+  cutoffAt?: string;
 };
 export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
   douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: ["de", "es"], countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine" } },
@@ -40,11 +44,13 @@ export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
   poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
   galhofa: { id: "galhofa", slug: "black-friday-galhofa-mix-6", prefix: "bfg", bottlesPerBox: 6, path: "galhofa", locales: ["nl", "fr"], countries: ["NL", "BE"], contentName: "Black Friday Galhofa mix 6 NL BE", productName: { nl: "Black Friday · 6 Galhofa-wijnen uit de Douro", fr: "Black Friday · 6 vins Galhofa du Douro" } },
   sekt: { id: "sekt", slug: "black-friday-sekt-3-de", prefix: "bfk", bottlesPerBox: 3, path: "sekt", locales: ["de"], countries: ["DE"], contentName: "Black Friday Sekt D. Graca 3 DE", productName: { de: "Black Friday · 3 D. Graça Sekt" } },
+  xmasde: { id: "xmasde", slug: "christmas-box-2160-de", prefix: "bfw", bottlesPerBox: 3, path: "geschenkbox", locales: ["de"], countries: ["DE"], contentName: "Christmas Box Trilogia 2160 DE", productName: { de: "Weihnachtsbox Trilogia 2160 · 3 Douro-Weine" }, cutoffAt: "2026-11-30T22:59:00Z" },
+  xmasnlbe: { id: "xmasnlbe", slug: "christmas-box-dgraca-galhofa-nl-be", prefix: "bfv", bottlesPerBox: 3, path: "kerstbox", locales: ["nl", "fr"], countries: ["NL", "BE"], contentName: "Christmas Box D. Graca Galhofa NL BE", productName: { nl: "Kerstbox D. Graça & Galhofa · 3 Douro-wijnen", fr: "Coffret de Noël D. Graça & Galhofa · 3 vins du Douro" }, cutoffAt: "2026-11-30T22:59:00Z" },
   pocoeu: { id: "pocoeu", slug: "black-friday-poco-do-canto-6-eu", prefix: "bfq", bottlesPerBox: 6, path: "poco-do-canto", locales: ["de", "nl", "fr"], countries: ["DE", "NL", "BE"], contentName: "Black Friday Poco do Canto 6 DE NL BE", productName: { de: "Black Friday · 6 Poço do Canto Palhete 2019", nl: "Black Friday · 6 Poço do Canto Palhete 2019", fr: "Black Friday · 6 Poço do Canto Palhete 2019" } },
 };
 export const BF_OFFER_IDS = Object.keys(BF_OFFERS) as BfOfferId[];
 /** Short names in the admin (Orders, Funnel filters). */
-export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6 (ES)", pocoeu: "Poço do Canto ×6 (DE/NL/BE)", galhofa: "Galhofa mix ×6 (NL/BE)", sekt: "Sparkling ×3 (DE)" };
+export const BF_OFFER_ADMIN_LABEL: Record<BfOfferId, string> = { douro6: "6 Douro wines (DE Cheda · ES Galhofa)", burbujas: "Sparkling ×3", poco: "Poço do Canto ×6 (ES)", pocoeu: "Poço do Canto ×6 (DE/NL/BE)", galhofa: "Galhofa mix ×6 (NL/BE)", sekt: "Sparkling ×3 (DE)", xmasde: "Christmas box 2160 ×3 (DE)", xmasnlbe: "Christmas box D. Graça & Galhofa ×3 (NL/BE)" };
 /** Admin funnel filter "bf:<offer>" → the offer (null for "bf", every Black Friday offer). */
 export const bfOfferOfFilter = (f: string | null | undefined): BfOfferId | null => {
   const id = f?.startsWith("bf:") ? f.slice(3) : null;
@@ -116,6 +122,18 @@ export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed
     { key: "bfk2", label: "Black Friday · Espumante D. Graça DE · 2 caixas · 6 garrafas", qty: 2, priceCents: 16900, compareAtCents: 36000, shippingCents: 0, badge: "Mais escolhido", sort: 62 },
     { key: "bfk3", label: "Black Friday · Espumante D. Graça DE · 3 caixas · 9 garrafas", qty: 3, priceCents: 23900, compareAtCents: 54000, shippingCents: 0, badge: "Melhor preço", sort: 63 },
   ],
+  // Christmas gift boxes (David, 19/11/2026): the Portuguese Trilogia prices, 49,90 € a box, 2 boxes 89,90 €, 4 boxes
+  // 149,70 € (pay 3, get 4); the struck prices are the boxes bought one by one.
+  xmasde: [
+    { key: "bfw1", label: "Natal · Trilogia 2160 DE · 1 caixa · 3 garrafas", qty: 1, priceCents: 4990, compareAtCents: null, shippingCents: 0, badge: null, sort: 71 },
+    { key: "bfw2", label: "Natal · Trilogia 2160 DE · 2 caixas · 6 garrafas", qty: 2, priceCents: 8990, compareAtCents: 9980, shippingCents: 0, badge: "Mais escolhido", sort: 72 },
+    { key: "bfw4", label: "Natal · Trilogia 2160 DE · 4 caixas · 12 garrafas · pague 3, leve 4", qty: 4, priceCents: 14970, compareAtCents: 19960, shippingCents: 0, badge: "Pague 3, leve 4", sort: 73 },
+  ],
+  xmasnlbe: [
+    { key: "bfv1", label: "Natal · D. Graça & Galhofa NL/BE · 1 caixa · 3 garrafas", qty: 1, priceCents: 4990, compareAtCents: null, shippingCents: 0, badge: null, sort: 81 },
+    { key: "bfv2", label: "Natal · D. Graça & Galhofa NL/BE · 2 caixas · 6 garrafas", qty: 2, priceCents: 8990, compareAtCents: 9980, shippingCents: 0, badge: "Mais escolhido", sort: 82 },
+    { key: "bfv4", label: "Natal · D. Graça & Galhofa NL/BE · 4 caixas · 12 garrafas · pague 3, leve 4", qty: 4, priceCents: 14970, compareAtCents: 19960, shippingCents: 0, badge: "Pague 3, leve 4", sort: 83 },
+  ],
   pocoeu: [
     { key: "bfq1", label: "Black Friday · Poço do Canto DE/NL/BE · 1 caixa · 6 garrafas", qty: 1, priceCents: 6000, compareAtCents: 12000, shippingCents: 0, badge: null, sort: 41 },
     { key: "bfq2", label: "Black Friday · Poço do Canto DE/NL/BE · 2 caixas · 12 garrafas", qty: 2, priceCents: 11000, compareAtCents: 24000, shippingCents: 0, badge: "Mais escolhido", sort: 42 },
@@ -151,8 +169,11 @@ export function bfOpenCountries(s: BlackFridaySettings): Country[] {
   return s.enabled ? s.countries : [];
 }
 
-export function bfOpen(s: BlackFridaySettings, now = new Date()) {
-  return s.enabled && now.getTime() <= new Date(s.cutoff_at).getTime();
+/** Last order time of an offer: its own (the Christmas boxes) or the Black Friday one. */
+export const bfCutoffFor = (s: Pick<BlackFridaySettings, "cutoff_at">, offer?: Pick<BfOffer, "cutoffAt"> | null) => offer?.cutoffAt ?? s.cutoff_at;
+
+export function bfOpen(s: BlackFridaySettings, now = new Date(), offer?: BfOffer | null) {
+  return s.enabled && now.getTime() <= new Date(bfCutoffFor(s, offer)).getTime();
 }
 
 /** Costs of one box (cents, without recoverable VAT): wine, carton, transport to Belgium, handling, delivery. */
@@ -178,6 +199,8 @@ export const BF_DEFAULT_OFFER_COSTS: Record<Exclude<BfOfferId, "douro6">, BlackF
   // handling 2 €, delivery 8,50 € (confirmed for Germany, an estimate for NL and BE).
   // Galhofa mix to NL/BE (David, 18/11/2026): as the Douro box, 30,50 € (delivery 8,50 € is an estimate for NL and BE).
   galhofa: { wine_cents: 1500, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 },
+  xmasde: { wine_cents: 900, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 3 × 3 € (Lavradores FA 2026/416)
+  xmasnlbe: { wine_cents: 750, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 3 × 2,50 € (Vinilourenço FCT 2026/786)
   sekt: { wine_cents: 2100, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 }, // 3 × 7 € (Vinilourenço FCT 2026/786) + the Belgian warehouse costs
   pocoeu: { wine_cents: 1200, shipping_box_cents: 250, transport_cents: 250, handling_cents: 200, delivery_cents: 850 },
 };

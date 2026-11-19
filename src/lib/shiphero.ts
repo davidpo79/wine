@@ -33,6 +33,7 @@ export const SHIPHERO_ITEM_LABEL: Record<ShipheroItemKey, string> = {
   poco_6: "Poço do Canto Palhete 2019 · 6 bottles",
   dgraca_3: "D. Graça Espumante Bruto · 3 bottles",
   trilogia_2160: "Trilogia 2160 Christmas box · 3 bottles",
+  dgraca_trio_3: "D. Graça & Galhofa Christmas box · 3 bottles (D. Graça red, D. Graça white, Galhofa rosé)",
 };
 
 /** What the warehouse picks for an order: one line per box type, quantity = boxes. */
@@ -44,7 +45,11 @@ export function shipheroItemsFor(o: Pick<Order, "bundleKey" | "qtyBoxes" | "coun
       ? "poco_6"
       : offer.id === "galhofa"
         ? "galhofa_mix_6"
-        : offer.id === "burbujas" || offer.id === "sekt"
+        : offer.id === "xmasde"
+          ? "trilogia_2160" // the Christmas box for Germany (19/11/2026)
+          : offer.id === "xmasnlbe"
+            ? "dgraca_trio_3" // the D. Graça & Galhofa Christmas box for the Netherlands and Belgium
+            : offer.id === "burbujas" || offer.id === "sekt"
           ? "dgraca_3"
           : o.country === "ES" || o.country === "PT"
             ? "galhofa_mix_6" // the Douro box: Galhofa in Spain, Cheda from the Belgian warehouse (18/11/2026)

@@ -358,6 +358,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   },
   galhofa: {}, // filled below from the Dutch and French Poço do Canto pages
   sekt: {}, // filled below from the Spanish sparkling page, in German
+  xmasde: {}, // filled below: the Christmas boxes (19/11/2026)
+  xmasnlbe: {},
   // Germany, the Netherlands and Belgium (18/11/2026): the same box from the Belgian warehouse, 60 €, reference 120 €.
   pocoeu: {
     de: {
@@ -734,6 +736,220 @@ BF_OFFER_COPY.sekt = {
     productName: "Black Friday · 3 D. Graça Sekt",
     trust: ["🍾 3 Flaschen Brut-Schaumwein · Douro", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
     recovery: { ...DE.recovery, titleFirst: "Ihre 3 Flaschen Douro-Schaumwein warten auf Sie" },
+  },
+};
+
+/**
+ * Christmas gift boxes from the Belgian warehouse (David, 19/11/2026): Trilogia 2160 for Germany, D. Graça & Galhofa for
+ * the Netherlands and Belgium. 49,90 € a box, 2 boxes 89,90 €, 4 boxes 149,70 € (pay 3, get 4); orders until 30/11.
+ */
+const XMAS_DE_FAQ = DE.faq.map((f) =>
+  f.q === "Wohin liefern Sie?"
+    ? { ...f, a: "Diese Weihnachtsbox liefern wir innerhalb Deutschlands, aus unserem Lager in Belgien." }
+    : f.q === "Wann kommt meine Bestellung an?"
+      ? { ...f, a: "In {days} Werktagen nach Zahlungseingang, also rechtzeitig vor Weihnachten. Bestellungen bis {date}. Die Sendungsnummer erhalten Sie per E-Mail." }
+      : f,
+);
+BF_OFFER_COPY.xmasde = {
+  de: {
+    ...DE,
+    images: { hero: "/lp/giftbox.webp", heroW: 1190, heroH: 990, cut: "/lp/box-cutout.webp", cutIsBox: true, who: "/lp/who-warehouse-xmas.webp" },
+    metaTitle: "Weihnachtsbox Trilogia 2160 · 3 Douro-Weine für 49,90 € mit Gratisversand",
+    metaDescription: "Das Weingeschenk zu Weihnachten: Trilogia 2160 mit Weißwein, Rosé und Rotwein aus dem Douro DOC in der Geschenkbox. 49,90 €, 4 Boxen zum Preis von 3, inkl. MwSt. und Versand. Bestellungen bis {date}.",
+    topBar: "🎄 WEIHNACHTSBOX · 4 BOXEN ZUM PREIS VON 3 · GRATISVERSAND · BESTELLUNGEN BIS {date} 🎄",
+    h1a: "WEIN",
+    h1b: "GESCHENK",
+    sub: "Trilogia 2160: Weiß, Rosé und Rot aus dem Douro, fertig verpackt zum Verschenken",
+    mix: ["1 Rotwein", "1 Weißwein", "1 Rosé"],
+    countdownTitle: "Bestellen Sie rechtzeitig für Weihnachten",
+    closedTitle: "Die Weihnachtsbox ist nicht mehr bestellbar",
+    closedText: "Vielen Dank an alle! Schreiben Sie uns per WhatsApp, wenn Sie noch ein Geschenk brauchen.",
+    usual: "Einzeln",
+    bundles: {
+      bfw1: { title: "1 Box", bottles: "3 Flaschen" },
+      bfw2: { title: "2 Boxen", bottles: "6 Flaschen", badge: "Am beliebtesten" },
+      bfw4: { title: "4 Boxen", bottles: "12 Flaschen", badge: "4 zum Preis von 3" },
+    },
+    winesTitle: "Das ist in der Geschenkbox",
+    wines: [
+      { type: "Weißwein", count: "× 1", name: "2160 Branco 2025 · Douro DOC", text: "Frisch und aromatisch, mit Zitrus- und Blütennoten. Zu Fisch und Meeresfrüchten. Bei 8 bis 10 °C servieren.", img: "/lp/xmas/2160-branco.webp", photo: true },
+      { type: "Rosé", count: "× 1", name: "2160 Rosé 2024 · Douro DOC", text: "Rote Früchte, frisch und leicht. Zu Häppchen und Vorspeisen. Bei 10 °C servieren.", img: "/lp/xmas/2160-rose.webp", photo: true },
+      { type: "Rotwein", count: "× 1", name: "2160 Tinto 2023 · Douro DOC", text: "Rund und ausgewogen, mit reifen roten Früchten. Zu Braten und festlichen Gerichten. Bei 16 bis 18 °C servieren.", img: "/lp/xmas/2160-tinto.webp", photo: true },
+    ],
+    producer: null,
+    storyTitle: "Vom Douro unter Ihren Weihnachtsbaum",
+    story: [
+      DE.story[0],
+      { img: "/lp/table.webp", h: "Drei Weine, ein Ursprung", p: "Weiß, Rosé und Rot aus dem Douro DOC: eine Flasche von jedem Stil, in einer Geschenkbox." },
+      { img: "/lp/unboxing.webp", h: "Fertig zum Verschenken", p: "Die Box kommt geschenkfertig an. Sie müssen nichts mehr einpacken." },
+      { img: "/lp/box-cutout.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
+    ],
+    eveningTitle: "Ein Festessen, drei Weine",
+    evening: [
+      { when: "Zum Aperitif", wine: "Rosé", icon: "🥂", p: "Der 2160 Rosé, gut gekühlt, zu Häppchen und Käse." },
+      { when: "Zur Vorspeise", wine: "Weißwein", icon: "🐟", p: "Der 2160 Branco zu Fisch, Meeresfrüchten oder Salat." },
+      { when: "Zum Hauptgang", wine: "Rotwein", icon: "🍖", p: "Der 2160 Tinto zu Braten und Weihnachtsgans." },
+    ],
+    who: { ...DE.who, alt: "Weihnachtsboxen werden im Lager verpackt" },
+    whyTitle: "Warum diese Box",
+    why: [
+      { h: "Ein Geschenk, das ankommt", p: "Drei Weine aus Portugal in einer schönen Geschenkbox. Für Familie, Freunde und Kollegen." },
+      { h: "Douro DOC", p: "Weine mit geschützter Herkunft aus dem Douro-Tal, dem ältesten abgegrenzten Weinbaugebiet der Welt." },
+      { h: "4 Boxen zum Preis von 3", p: "Wer mehrere Geschenke braucht, bekommt die vierte Box gratis. Versand inklusive." },
+    ],
+    how: ["Sie wählen 1, 2 oder 4 Boxen und bezahlen sicher.", "Wir packen Ihre Bestellung in unserem Lager in Belgien.", "Sie erhalten sie in {days} Werktagen, mit Sendungsverfolgung."],
+    faq: XMAS_DE_FAQ,
+    productName: "Weihnachtsbox Trilogia 2160 · 3 Douro-Weine",
+    trust: ["🎁 Geschenkbox: 1 Weißwein, 1 Rosé, 1 Rotwein · Douro DOC", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
+    recovery: {
+      ...DE.recovery,
+      titleFirst: "Ihre Weihnachtsbox wartet auf Sie",
+      subjectFirst: "Ihre Weihnachtsbox wartet auf Sie",
+      subjectFinal: "Letzte Erinnerung: Bestellungen für Weihnachten bis {cutoff}",
+      textFirst: "Uns ist aufgefallen, dass Ihre Bestellung der Weihnachtsbox noch nicht abgeschlossen ist. Wir haben Ihre Auswahl gespeichert:",
+      textFinal: "Eine letzte Erinnerung: Ihre Bestellung der Weihnachtsbox ist noch nicht abgeschlossen.",
+      help: "Bestellungen bis {cutoff}, mit Gratisversand und inklusive MwSt. Fragen? Antworten Sie auf diese E-Mail oder schreiben Sie uns per WhatsApp: {whatsapp}.",
+      smsNamed: "Wine Portugal: Hallo {name}, Ihre Bestellung der Weihnachtsbox ({boxes}) ist noch nicht abgeschlossen. Hier geht es weiter: {link} Bestellungen bis {cutoff}. Keine Nachrichten mehr: {stop}",
+      smsAnon: "Wine Portugal: Ihre Bestellung der Weihnachtsbox ({boxes}) ist noch nicht abgeschlossen. Hier geht es weiter: {link} Bestellungen bis {cutoff}. Keine Nachrichten mehr: {stop}",
+    },
+  },
+};
+
+const XMAS_NL = BF_OFFER_COPY.pocoeu.nl!;
+const XMAS_FR = BF_OFFER_COPY.pocoeu.fr!;
+const XMAS_IMAGES = { hero: "/lp/xmas/dgraca-hero.webp", heroW: 1200, heroH: 800, cut: "/lp/xmas/dgraca-cut.webp", cutIsPhoto: true, who: "/lp/who-warehouse-xmas.webp" };
+BF_OFFER_COPY.xmasnlbe = {
+  nl: {
+    ...XMAS_NL,
+    images: XMAS_IMAGES,
+    metaTitle: "Kerstbox D. Graça & Galhofa · 3 Douro-wijnen voor 49,90 € met gratis verzending",
+    metaDescription: "Het wijncadeau voor Kerst: rood, wit en rosé uit de Douro in een cadeaudoos. 49,90 €, 4 dozen voor de prijs van 3, inclusief btw en verzending. Bestellen tot {date}.",
+    topBar: "🎄 KERSTBOX · 4 DOZEN VOOR DE PRIJS VAN 3 · GRATIS VERZENDING · BESTELLEN TOT {date} 🎄",
+    h1a: "KERST",
+    h1b: "CADEAU",
+    sub: "D. Graça & Galhofa: rood, wit en rosé uit de Douro, klaar om cadeau te geven",
+    mix: ["1 rode", "1 witte", "1 rosé"],
+    countdownTitle: "Bestel op tijd voor Kerst",
+    closedTitle: "De kerstbox is niet meer te bestellen",
+    closedText: "Bedankt allemaal! Stuur ons een WhatsApp als je nog een cadeau zoekt.",
+    usual: "Los",
+    bundles: {
+      bfv1: { title: "1 doos", bottles: "3 flessen" },
+      bfv2: { title: "2 dozen", bottles: "6 flessen", badge: "Meest gekozen" },
+      bfv4: { title: "4 dozen", bottles: "12 flessen", badge: "4 voor de prijs van 3" },
+    },
+    winesTitle: "Dit zit er in de cadeaudoos",
+    wines: [
+      { type: "Rood", count: "× 1", name: "D. Graça Tinto 2024 · Douro DOC", text: "Van wijngaarden op leisteen en graniet. Rood fruit, soepel en evenwichtig. Bij gebraad en feestelijke gerechten. Schenken op 16 °C.", img: "/lp/xmas/dgraca-tinto.webp", photo: true },
+      { type: "Wit", count: "× 1", name: "D. Graça Branco 2025 · Douro DOC", text: "Fris en aromatisch, met citrus en bloemen. Bij vis, zeevruchten en salades. Schenken op 8 tot 10 °C.", img: "/lp/xmas/dgraca-branco.webp", photo: true },
+      { type: "Rosé", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Kersenrode kleur en een delicaat aroma van framboos. Als aperitief of bij hapjes. Schenken op 10 °C.", img: "/lp/xmas/galhofa-rose.webp", photo: true },
+    ],
+    producer: null,
+    story: [
+      XMAS_NL.story[0],
+      XMAS_NL.story[1],
+      { img: "/lp/xmas/dgraca-cut.webp", h: "Klaar om te geven", p: "De wijnen komen in een feestelijke cadeaudoos. Je hoeft niets meer in te pakken." },
+      { img: "/lp/xmas/dgraca-hero.webp", h: "Naar jou", p: "Je doos wordt ingepakt in ons magazijn in België en komt in {days} werkdagen aan, met track & trace." },
+    ],
+    eveningTitle: "Eén kerstdiner, drie wijnen",
+    evening: [
+      { when: "Als aperitief", wine: "Rosé", img: "/lp/xmas/galhofa-rose.webp", p: "De Galhofa Rosé, goed gekoeld, bij hapjes en kaas." },
+      { when: "Als voorgerecht", wine: "Wit", img: "/lp/xmas/dgraca-branco.webp", p: "De D. Graça Branco bij vis, zeevruchten of salade." },
+      { when: "Als hoofdgerecht", wine: "Rood", img: "/lp/xmas/dgraca-tinto.webp", p: "De D. Graça Tinto bij gebraad en wild." },
+    ],
+    who: { ...XMAS_NL.who, alt: "Kerstboxen worden ingepakt in het magazijn" },
+    why: [
+      { h: "Een cadeau dat aankomt", p: "Drie wijnen uit Portugal in een mooie cadeaudoos. Voor familie, vrienden en collega's." },
+      { h: "Douro DOC", p: "Wijnen met beschermde oorsprong uit de Douro-vallei, het oudste afgebakende wijngebied ter wereld." },
+      { h: "4 dozen voor de prijs van 3", p: "Heb je meerdere cadeaus nodig? Dan krijg je de vierde doos gratis. Verzending inbegrepen." },
+    ],
+    how: ["Je kiest 1, 2 of 4 dozen en betaalt veilig.", "We pakken je bestelling in ons magazijn in België in.", "Je ontvangt ze in {days} werkdagen, met track & trace."],
+    faq: XMAS_NL.faq.map((f) =>
+      f.q === "Waar leveren jullie?"
+        ? { ...f, a: "Deze kerstbox leveren we in Nederland en België, vanuit ons magazijn in België." }
+        : f.q === "Wanneer komt mijn bestelling aan?"
+          ? { ...f, a: "In {days} werkdagen na betaling, ruim op tijd voor Kerst. Bestellen tot {date}. Je ontvangt het track & trace-nummer per e-mail." }
+          : f,
+    ),
+    productName: "Kerstbox D. Graça & Galhofa · 3 Douro-wijnen",
+    trust: ["🎁 Cadeaudoos: 1 rode, 1 witte, 1 rosé · Douro DOC", ...XMAS_NL.trust.slice(1)],
+    recovery: {
+      ...XMAS_NL.recovery,
+      titleFirst: "Je kerstbox wacht op je",
+      subjectFirst: "Je kerstbox wacht op je",
+      subjectFinal: "Laatste herinnering: bestellen voor Kerst kan tot {cutoff}",
+      textFirst: "We zagen dat je bestelling van de kerstbox nog niet is afgerond. We hebben je keuze bewaard:",
+      textFinal: "Een laatste herinnering: je bestelling van de kerstbox is nog niet afgerond.",
+      help: "Bestellen tot {cutoff}, met gratis verzending en inclusief btw. Vragen? Beantwoord deze e-mail of stuur ons een WhatsApp: {whatsapp}.",
+      smsNamed: "Wine Portugal: Hallo {name}, je bestelling van de kerstbox ({boxes}) is nog niet afgerond. Ga hier verder: {link} Bestellen tot {cutoff}. Geen berichten meer: {stop}",
+      smsAnon: "Wine Portugal: je bestelling van de kerstbox ({boxes}) is nog niet afgerond. Ga hier verder: {link} Bestellen tot {cutoff}. Geen berichten meer: {stop}",
+    },
+  },
+  fr: {
+    ...XMAS_FR,
+    images: XMAS_IMAGES,
+    metaTitle: "Coffret de Noël D. Graça & Galhofa · 3 vins du Douro pour 49,90 € livraison offerte",
+    metaDescription: "Le cadeau vin pour Noël : rouge, blanc et rosé du Douro dans un coffret cadeau. 49,90 €, 4 coffrets pour le prix de 3, TVA et livraison comprises. Commandes jusqu'au {date}.",
+    topBar: "🎄 COFFRET DE NOËL · 4 COFFRETS POUR LE PRIX DE 3 · LIVRAISON OFFERTE · JUSQU'AU {date} 🎄",
+    h1a: "CADEAU",
+    h1b: "DE NOËL",
+    sub: "D. Graça & Galhofa : rouge, blanc et rosé du Douro, prêts à offrir",
+    mix: ["1 rouge", "1 blanc", "1 rosé"],
+    countdownTitle: "Commandez à temps pour Noël",
+    closedTitle: "Le coffret de Noël n'est plus disponible",
+    closedText: "Merci à tous ! Écrivez-nous sur WhatsApp si vous cherchez encore un cadeau.",
+    usual: "À l'unité",
+    bundles: {
+      bfv1: { title: "1 coffret", bottles: "3 bouteilles" },
+      bfv2: { title: "2 coffrets", bottles: "6 bouteilles", badge: "Le plus choisi" },
+      bfv4: { title: "4 coffrets", bottles: "12 bouteilles", badge: "4 pour le prix de 3" },
+    },
+    winesTitle: "Dans le coffret",
+    wines: [
+      { type: "Rouge", count: "× 1", name: "D. Graça Tinto 2024 · Douro DOC", text: "De vignes sur schiste et granit. Fruits rouges, souple et équilibré. Avec les rôtis et les plats de fête. Servir à 16 °C.", img: "/lp/xmas/dgraca-tinto.webp", photo: true },
+      { type: "Blanc", count: "× 1", name: "D. Graça Branco 2025 · Douro DOC", text: "Frais et aromatique, notes d'agrumes et de fleurs. Avec poisson, fruits de mer et salades. Servir entre 8 et 10 °C.", img: "/lp/xmas/dgraca-branco.webp", photo: true },
+      { type: "Rosé", count: "× 1", name: "Galhofa Rosé 2025 · Douro DOC", text: "Couleur cerise et arôme délicat de framboise. À l'apéritif ou avec des amuse-bouches. Servir à 10 °C.", img: "/lp/xmas/galhofa-rose.webp", photo: true },
+    ],
+    producer: null,
+    story: [
+      XMAS_FR.story[0],
+      XMAS_FR.story[1],
+      { img: "/lp/xmas/dgraca-cut.webp", h: "Prêt à offrir", p: "Les vins arrivent dans un coffret cadeau festif. Rien à emballer." },
+      { img: "/lp/xmas/dgraca-hero.webp", h: "Chez vous", p: "Votre coffret est préparé dans notre entrepôt en Belgique et arrive en {days} jours ouvrables, avec suivi." },
+    ],
+    eveningTitle: "Un repas de Noël, trois vins",
+    evening: [
+      { when: "À l'apéritif", wine: "Rosé", img: "/lp/xmas/galhofa-rose.webp", p: "Le Galhofa Rosé, bien frais, avec amuse-bouches et fromage." },
+      { when: "En entrée", wine: "Blanc", img: "/lp/xmas/dgraca-branco.webp", p: "Le D. Graça Branco avec poisson, fruits de mer ou salade." },
+      { when: "En plat", wine: "Rouge", img: "/lp/xmas/dgraca-tinto.webp", p: "Le D. Graça Tinto avec rôtis et gibier." },
+    ],
+    who: { ...XMAS_FR.who, alt: "Des coffrets de Noël préparés dans l'entrepôt" },
+    why: [
+      { h: "Un cadeau qui fait plaisir", p: "Trois vins du Portugal dans un beau coffret. Pour la famille, les amis et les collègues." },
+      { h: "Douro DOC", p: "Des vins d'appellation d'origine de la vallée du Douro, la plus ancienne région viticole délimitée au monde." },
+      { h: "4 coffrets pour le prix de 3", p: "Plusieurs cadeaux à faire ? Le quatrième coffret est offert. Livraison comprise." },
+    ],
+    how: ["Vous choisissez 1, 2 ou 4 coffrets et payez en toute sécurité.", "Nous préparons votre commande dans notre entrepôt en Belgique.", "Vous la recevez en {days} jours ouvrables, avec numéro de suivi."],
+    faq: XMAS_FR.faq.map((f) =>
+      f.q === "Où livrez-vous ?"
+        ? { ...f, a: "Nous livrons ce coffret de Noël en Belgique et aux Pays-Bas, depuis notre entrepôt en Belgique." }
+        : f.q === "Quand arrive ma commande ?"
+          ? { ...f, a: "En {days} jours ouvrables après le paiement, bien avant Noël. Commandes jusqu'au {date}. Vous recevez le numéro de suivi par e-mail." }
+          : f,
+    ),
+    productName: "Coffret de Noël D. Graça & Galhofa · 3 vins du Douro",
+    trust: ["🎁 Coffret cadeau : 1 rouge, 1 blanc, 1 rosé · Douro DOC", ...XMAS_FR.trust.slice(1)],
+    recovery: {
+      ...XMAS_FR.recovery,
+      titleFirst: "Votre coffret de Noël vous attend",
+      subjectFirst: "Votre coffret de Noël vous attend",
+      subjectFinal: "Dernier rappel : commandes pour Noël jusqu'au {cutoff}",
+      textFirst: "Nous avons remarqué que votre commande du coffret de Noël n'est pas terminée. Nous avons gardé votre choix :",
+      textFinal: "Un dernier rappel : votre commande du coffret de Noël n'est pas encore terminée.",
+      help: "Commandes jusqu'au {cutoff}, livraison offerte et TVA comprise. Des questions ? Répondez à cet e-mail ou écrivez-nous sur WhatsApp : {whatsapp}.",
+      smsNamed: "Wine Portugal : Bonjour {name}, votre commande du coffret de Noël ({boxes}) n'est pas terminée. Continuez ici : {link} Commandes jusqu'au {cutoff}. Ne plus recevoir de messages : {stop}",
+      smsAnon: "Wine Portugal : votre commande du coffret de Noël ({boxes}) n'est pas terminée. Continuez ici : {link} Commandes jusqu'au {cutoff}. Ne plus recevoir de messages : {stop}",
+    },
   },
 };
 
