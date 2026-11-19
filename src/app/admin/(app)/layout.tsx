@@ -41,7 +41,24 @@ const ADMIN_NAV: NavGroup[] = [
   {
     title: "Admin",
     items: [
-      { href: "/admin/settings", label: "Settings", icon: "settings" },
+      {
+        href: "/admin/settings",
+        label: "Settings",
+        icon: "settings",
+        children: [
+          { href: "/admin/settings#delivery", label: "Delivery & sales" },
+          { href: "/admin/settings#countries", label: "Countries" },
+          { href: "/admin/settings#black-friday", label: "Black Friday costs" },
+          { href: "/admin/settings#offers", label: "Popups & offers" },
+          { href: "/admin/settings#reviews", label: "Reviews on checkout" },
+          { href: "/admin/settings#ebook", label: "Gift e-book" },
+          { href: "/admin/settings#shiphero", label: "Belgian warehouse" },
+          { href: "/admin/settings#ctt", label: "CTT shipping" },
+          { href: "/admin/settings#calls", label: "Outbound calls" },
+          { href: "/admin/settings#analytics", label: "Google Analytics" },
+          { href: "/admin/messages", label: "Email & messages" },
+        ],
+      },
       { href: "/admin/ebook", label: "E-book check", icon: "product" },
       { href: "/admin/messages", label: "Email & messages", icon: "mail" },
       { href: "/admin/team", label: "Team", icon: "team" },

@@ -23,6 +23,7 @@ export default async function SettingsPage() {
     <div className="max-w-2xl">
       <h1 className="font-serif text-3xl font-semibold">Settings</h1>
       <ActionForm action={settingsAction} className="mt-4 space-y-5 rounded-lg border bg-white p-5 text-sm">
+        <div id="delivery" className="scroll-mt-16" aria-hidden />
         <fieldset>
           <legend className="font-semibold">Christmas delivery cutoff (Lisbon time)</legend>
           <div className="mt-2 flex gap-3">
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
         <label className="block font-semibold">Delivery text (pt-PT)
           <input name="delivery_text" defaultValue={s.delivery_text} className="mt-1 w-full rounded border p-2 font-normal" />
         </label>
+        <div id="countries" className="scroll-mt-16" aria-hidden />
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Countries (markets)</legend>
           <p className="text-xs text-muted">
@@ -83,6 +85,7 @@ export default async function SettingsPage() {
           </table>
           <p className="mt-1 text-xs text-muted">Delivery days are inserted in the copy of that country&apos;s language (&quot;Delivery in 2-4 working days&quot;). Empty: no delivery time is shown. Own cutoff: 23:59 Lisbon time that day; empty = the cutoff above.</p>
         </fieldset>
+        <div id="black-friday" className="scroll-mt-16" aria-hidden />
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Black Friday · 6-bottle box (Germany, Spain)</legend>
           <p className="text-xs text-muted">
@@ -146,6 +149,7 @@ export default async function SettingsPage() {
         <label className="flex items-center gap-2 font-semibold">
           <input type="checkbox" name="recovery_enabled" defaultChecked={s.recovery_enabled} className="h-4 w-4" /> Abandoned-checkout follow-up (20 min message, AI call at 2 h in call hours, final email next day)
         </label>
+        <div id="offers" className="scroll-mt-16" aria-hidden />
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Exit popup and discount code</legend>
           <label className="flex items-center gap-2"><input type="checkbox" name="exit_popup_enabled" defaultChecked={s.exit_popup_enabled} className="h-4 w-4" /> Show exit-intent popup</label>
@@ -183,6 +187,7 @@ export default async function SettingsPage() {
           </div>
           <p className="mt-1 text-xs text-muted">Cards to print: Admin → Gift cards. Cost and VAT feed the profit in Finance.</p>
         </fieldset>
+        <div id="reviews" className="scroll-mt-16" aria-hidden />
         <label className="block font-semibold">Real customer reviews (one per line: Name | City | Text | Source)
           <textarea name="reviews" rows={4} defaultValue={(s.reviews ?? []).map((r) => [r.name, r.city ?? "", r.text, r.source ?? ""].join(" | ")).join("\n")} placeholder="Ana | Porto | Chegou impecável, a caixa é linda. | Google" className="mt-1 w-full rounded border p-2 font-normal" />
           <span className="block text-xs font-normal text-muted">Only real reviews (EU law). Shown on the checkout page; empty = hidden.</span>
@@ -191,6 +196,7 @@ export default async function SettingsPage() {
       </ActionForm>
 
       <section className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <div id="ebook" className="scroll-mt-16" aria-hidden />
         <h2 className="font-semibold">Gift e-book (Sabores de Portugal)</h2>
         <p className="text-xs text-muted">One PDF per language. Customers get the edition in their language (confirmation email and thank-you page), and the landing page shows the guide in that language. Portuguese is always offered. <a href="/admin/ebook" className="underline">E-book check</a> shows which PDF each language really gets.</p>
         <ActionForm action={ebookAction} className="flex flex-wrap items-end gap-2">
@@ -213,6 +219,7 @@ export default async function SettingsPage() {
       <ShipheroSection sh={s.shiphero} />
 
       <ActionForm action={cttSenderAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <div id="ctt" className="scroll-mt-16" aria-hidden />
         <h2 className="font-semibold">CTT: collection address</h2>
         <p className="text-xs text-muted">
           Where CTT collects the parcels (the sender on every transport guide). Leave address, postal code and town empty to use the sender address CTT has for
@@ -250,9 +257,11 @@ export default async function SettingsPage() {
         <Submit>Test CTT connection</Submit>
       </ActionForm>
 
+      <div id="calls" className="scroll-mt-16" aria-hidden />
       <OutboundCallsSection />
 
       <ActionForm action={ga4TestAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+        <div id="analytics" className="scroll-mt-16" aria-hidden />
         <h2 className="font-semibold">Google Analytics: server connection</h2>
         <p className="text-muted">
           Purchases reach GA4 from the server (Measurement Protocol). This sends one test event, <code>server_check</code>, the same way.
@@ -281,6 +290,7 @@ async function ShipheroSection({ sh }: { sh: Awaited<ReturnType<typeof getSettin
   return (
     <>
     <ActionForm action={shipheroSettingsAction} className="mt-6 space-y-3 rounded-lg border bg-white p-5 text-sm">
+      <div id="shiphero" className="scroll-mt-16" aria-hidden />
       <h2 className="font-semibold">Belgian warehouse (ShipHero)</h2>
       <p className="text-xs text-muted">
         Paid orders to Germany, the Netherlands and Belgium are created in ShipHero; when the warehouse ships, the order becomes “shipped” and the customer gets the tracking link.{" "}

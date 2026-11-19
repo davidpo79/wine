@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
+export type NavSub = { href: string; label: string };
+/** children: sub-items shown under the item (open on its page, or with the arrow); "#id" links jump to a section. */
+export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; children?: NavSub[] };
 export type NavGroup = { title?: string; items: NavItem[] };
 
 // Inline 20px outline icons (no icon library).
@@ -36,6 +38,7 @@ export function Icon({ name }: { name: keyof typeof ICONS }) {
 export function Sidebar({ groups, footer }: { groups: NavGroup[]; footer: React.ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   useEffect(() => setOpen(false), [path]);
   const hrefs = groups.flatMap((g) => g.items.map((x) => x.href));
   // A link is active on its own page and below it, unless a longer link in the menu matches better.
@@ -50,13 +53,39 @@ export function Sidebar({ groups, footer }: { groups: NavGroup[]; footer: React.
           <ul className="space-y-0.5">
             {g.items.map((it) => (
               <li key={it.href}>
-                <Link
-                  href={it.href}
-                  className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm ${active(it.href) ? "bg-white font-semibold text-ink shadow-sm" : "text-ink/80 hover:bg-white/60"}`}
-                >
-                  <Icon name={it.icon} />
-                  {it.label}
-                </Link>
+                <div className="flex items-center">
+                  <Link
+                    href={it.href}
+                    className={`flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-sm ${active(it.href) ? "bg-white font-semibold text-ink shadow-sm" : "text-ink/80 hover:bg-white/60"}`}
+                  >
+                    <Icon name={it.icon} />
+                    {it.label}
+                  </Link>
+                  {it.children?.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((e) => ({ ...e, [it.href]: !(e[it.href] ?? active(it.href)) }))}
+                      className="ml-0.5 rounded p-1 text-ink/60 hover:bg-white/60"
+                      aria-label={`${it.label}: sections`}
+                      aria-expanded={expanded[it.href] ?? active(it.href)}
+                    >
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden className={(expanded[it.href] ?? active(it.href)) ? "rotate-90" : ""}>
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
+                {it.children?.length && (expanded[it.href] ?? active(it.href)) ? (
+                  <ul className="mb-1 ml-7 mt-0.5 space-y-0.5 border-l pl-2">
+                    {it.children.map((c) => (
+                      <li key={c.href}>
+                        <Link href={c.href} onClick={() => setOpen(false)} className={`block rounded px-2 py-1 text-[13px] ${!c.href.includes("#") && active(c.href) ? "bg-white font-semibold text-ink" : "text-ink/70 hover:bg-white/60 hover:text-ink"}`}>
+                          {c.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </li>
             ))}
           </ul>
