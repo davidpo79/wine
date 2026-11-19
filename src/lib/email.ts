@@ -221,8 +221,8 @@ ${row("Origem", source || null)}
 </table>`;
 }
 
-/** Every paid order: to ADMIN_ALERT_EMAIL and to ORDER_ALERT_EMAILS (David, 18/11/2026), once per address. */
-export const ORDER_ALERT_EMAILS = ["dudi79@gmail.com"];
+/** Every paid order: to ADMIN_ALERT_EMAIL and to ORDER_ALERT_EMAILS (David 18/11/2026; Amir 19/11/2026), once per address. */
+export const ORDER_ALERT_EMAILS = ["dudi79@gmail.com", "amir@wine-portugal.com"];
 
 export async function sendAdminAlert(o: Order, addons: Pick<OrderAddon, "label" | "amountCents">[] = []) {
   const list = [...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean);
