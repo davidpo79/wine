@@ -26,6 +26,8 @@ export const JOURNEY_EVENTS = [
   "bump_toggle",
   "promo_apply",
   "pay_click",
+  "express_click", // Apple Pay / Google Pay at the top of the checkout (type)
+  "express_confirm", // wallet sheet approved, order being created
   "pay_invalid",
   "offer_shown", // one-time offer before payment
   "offer_accept",
