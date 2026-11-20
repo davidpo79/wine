@@ -443,6 +443,11 @@ export async function sendAddonConfirmation(o: Order, a: OrderAddon) {
   return send(o, o.email, fmt(t.addonSubject, { id: o.id }), html, "addon_confirmation");
 }
 
+/** Marketing e-mails with their own layout (Black Friday welcome sequence, lib/bf-welcome). */
+export async function sendMarketingEmail(to: string, subject: string, html: string, kind: string) {
+  return send(null, to, subject, html, kind);
+}
+
 /** Portugal HR callers: one offer e-mail written on the admin screen. Replies come back to the shop inbox. */
 export async function sendOfferEmail(to: string, subject: string, html: string, attachments: Attachment[] = []) {
   return send(null, to, subject, html, "pt_offer", attachments);

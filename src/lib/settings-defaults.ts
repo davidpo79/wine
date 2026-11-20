@@ -21,6 +21,8 @@ export type Settings = {
   lead_code_max_qty: number; // code applies to bundles up to this many boxes
   lead_plus_code: string; // step 2 (mobile number): same discount + free shipping
   recovery_enabled: boolean; // abandoned-checkout follow-ups (message, AI call, final email)
+  bf_welcome_enabled: boolean; // Black Friday welcome sequence: one email a day from signup until the cutoff (lib/bf-welcome)
+  bf_welcome_backfill: boolean; // also people who signed up in the last 10 days, before the sequence existed
   upsell_enabled: boolean;
   upsell_products: UpsellProduct[]; // shown with the one-time offer, before payment
   reviews: Review[]; // only real customer reviews; empty = section hidden
@@ -104,6 +106,8 @@ export const DEFAULT_SETTINGS: Settings = {
   lead_code_max_qty: 2,
   lead_plus_code: "NATALMAIS",
   recovery_enabled: true,
+  bf_welcome_enabled: true,
+  bf_welcome_backfill: true,
   upsell_enabled: true,
   upsell_products: [
     {
