@@ -1,11 +1,14 @@
 import { eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { assistantFor, decodeState, hangup, sendSms, startAssistant, telnyxConfigured, verifyTelnyxWebhook } from "@/lib/telnyx";
-import { marketCutoffIso, sendRecoveryEmail } from "@/lib/email";
+import { marketCutoffIso, orderCutoffIso, sendRecoveryEmail } from "@/lib/email";
+import { bfOfferFor } from "@/lib/black-friday";
+import { getCatalog } from "@/lib/catalog";
+import { deliveryDaysFor } from "@/lib/i18n";
 import { guideFor } from "@/lib/ebook";
 import { fmt, getDict } from "@/lib/i18n";
 import { isCountry, isLocale, LOCALE_INFO } from "@/lib/markets";
-import { callScript, resumeUrl, saidStop, stopRecovery, stopUrl } from "@/lib/recovery";
+import { callScript, resumeUrl, saidStop, stopRecovery, stopUrl, type BfCallInfo } from "@/lib/recovery";
 import { logOrderEvent } from "@/lib/orders";
 import { getSettings } from "@/lib/settings";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
@@ -42,7 +45,22 @@ export async function POST(req: Request) {
         // pt: "30/11/2026" as before; ru: "30.11.2026", de: "30.11.2026"... The assistant speaks the order's language.
         const cutoff = new Date(marketCutoffIso(settings, order.country)).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" });
         const days = isCountry(order.country) ? settings.markets?.[order.country]?.delivery_days ?? "" : "";
-        const script = callScript(order, cutoff, guideFor(settings, locale), telnyxConfigured("sms") ? "sms" : "email", days);
+        // Black Friday boxes: their own product, prices, date and delivery time.
+        const offer = bfOfferFor(order.bundleKey);
+        let bf: BfCallInfo | null = null;
+        let callCutoff = cutoff;
+        if (offer) {
+          const catalog = await getCatalog(offer.slug);
+          const name = (offer.productName as Partial<Record<string, string>>)[locale] ?? Object.values(offer.productName)[0] ?? offer.contentName;
+          bf = {
+            product: name.replace(/^Black Friday · /, ""),
+            bottlesPerBox: offer.bottlesPerBox,
+            bundles: (catalog?.bundles ?? []).map((b) => ({ qty: b.qty, priceCents: b.priceCents, compareAtCents: b.compareAtCents })),
+            deliveryDays: deliveryDaysFor(locale, settings.black_friday.delivery_days),
+          };
+          callCutoff = new Date(orderCutoffIso(settings, order)).toLocaleDateString(LOCALE_INFO[locale].intl, { timeZone: "Europe/Lisbon" });
+        }
+        const script = callScript(order, callCutoff, guideFor(settings, locale), telnyxConfigured("sms") ? "sms" : "email", days, bf);
         await startAssistant(p.call_control_id, { ...script, state, assistantId: assistantFor(locale) });
         await merge({ outcome: "assistant_started" });
       }
