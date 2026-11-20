@@ -183,6 +183,36 @@ export const THEMES: Theme[] = [
       bullets: TRILOGIA_BULLETS,
     },
   },
+  // Black Friday 2026 (David, 20/11/2026): the Poço do Canto offer for the past customers of the Portuguese shop.
+  {
+    key: "black_friday",
+    label: "Black Friday",
+    occasion: "Black Friday",
+    colors: { page: "#151515", header: "#0B0B0C", headerText: "#FFFFFF", accent: "#E3161B", accentText: "#FFFFFF", ink: "#1A1A1A", card: "#FFF3F3", cardBorder: "#E3161B", ornament: "#E3161B", footer: "#0B0B0C", footerText: "#BDBDBD" },
+    ornament: "●",
+    headlineFont: "Arial,Helvetica,sans-serif",
+    defaults: {
+      ...base,
+      subject: "Para os nossos clientes: 6 garrafas de Poço do Canto por 55 €",
+      preheader: "Black Friday: tinto do Douro a 9,17 € a garrafa, com envio grátis.",
+      eyebrow: "Black Friday · para os nossos clientes",
+      headline: "6 garrafas do Douro por 55 €",
+      body: "Obrigado por já ter comprado na Wine Portugal. Neste Black Friday guardámos uma oferta para quem já nos conhece: uma caixa de 6 garrafas de **Poço do Canto Palhete 2019**, tinto do Douro, por **55 €** em vez de 90 €.\n\nO palhete é um estilo tradicional do Douro: uvas tintas e brancas que fermentam juntas. Dá um tinto de cor clara, fresco e fácil de beber, para a refeição do dia a dia, petiscos, grelhados e a mesa de Natal.\n\nSão só 500 caixas.",
+      imageUrl: `${IMG}/bf-poco-garrafas.jpg`,
+      imageAlt: "Seis garrafas de Poço do Canto Palhete 2019",
+      offerTitle: "1 caixa · 6 garrafas",
+      offerPrice: "55 €",
+      offerOldPrice: "90 €",
+      offerNote: "9,17 € a garrafa · envio grátis para Portugal Continental · IVA incluído",
+      ctaLabel: "Quero a minha caixa",
+      ctaUrl: `${SITE}/pt/black-friday/poco-do-canto?utm_source=newsletter&utm_medium=email&utm_campaign=bf_pt_customers`,
+      ctaNote: "MB WAY, Multibanco ou cartão · 2 caixas por 104 € · 3 caixas por 149 €",
+      deadline: "",
+      bulletsTitle: "Porquê este preço",
+      bullets: "Do produtor para sua casa, sem intermediários\nColheita 2019, pronta a beber\nEnvio grátis com seguimento",
+      secondImageUrl: `${IMG}/bf-poco-caixa.jpg`,
+    },
+  },
   {
     key: "classico",
     label: "Clássico (todo o ano)",
@@ -278,10 +308,12 @@ export function withUtm(url: string, campaign: string, contentTag: string) {
   try {
     const p = new URL(u);
     if (p.hostname !== new URL(SITE).hostname) return u;
-    p.searchParams.set("utm_source", "email");
-    p.searchParams.set("utm_medium", "newsletter");
-    p.searchParams.set("utm_campaign", campaign);
-    p.searchParams.set("utm_content", contentTag);
+    // A link that already carries its own UTM (e.g. a campaign set up for an ad report) keeps it; the rest is filled.
+    const keep = (k: string, v: string) => p.searchParams.get(k) || p.searchParams.set(k, v);
+    keep("utm_source", "email");
+    keep("utm_medium", "newsletter");
+    keep("utm_campaign", campaign);
+    keep("utm_content", contentTag);
     return p.toString();
   } catch {
     return "";

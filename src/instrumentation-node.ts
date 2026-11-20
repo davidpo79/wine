@@ -18,6 +18,16 @@ setTimeout(() => {
   import("./lib/stripe").then((m) => m.ensurePaymentMethodDomain()).catch((e) => console.error("[stripe] payment method domain", e instanceof Error ? e.message : e));
 }, 20_000);
 
+// Black Friday: the draft campaign for the Portuguese shop's past customers (created once, then edited in the admin).
+if (process.env.DATABASE_URL) {
+  setTimeout(() => {
+    import("./lib/newsletter")
+      .then((m) => m.ensureBfPtCampaign())
+      .then((id) => id && console.log(`[newsletter] Black Friday PT campaign draft created (#${id})`))
+      .catch((e) => console.error("[newsletter] Black Friday PT campaign", e instanceof Error ? e.message : e));
+  }, 25_000);
+}
+
 if (process.env.RECOVERY_WORKER !== "0" && process.env.DATABASE_URL) {
   const tick = () => processDueRecovery().catch((e) => console.error("[recovery] worker", e));
   setTimeout(tick, 15_000);
