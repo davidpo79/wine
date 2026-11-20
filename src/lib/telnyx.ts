@@ -109,7 +109,7 @@ export function verifyTelnyxWebhook(rawBody: string, signatureB64: string | null
 const ES_ASSISTANT_NAME = "Wine Portugal · abandoned checkout · Spanish (Lucía)";
 const ES_VOICE = "Azure.es-ES-ElviraNeural";
 
-async function api(method: "GET" | "POST", path: string, body?: unknown) {
+async function api(method: "GET" | "POST" | "DELETE", path: string, body?: unknown) {
   const r = await fetch(`${API}${path}`, {
     method,
     headers: { Authorization: `Bearer ${E().TELNYX_API_KEY}`, "Content-Type": "application/json", Accept: "application/json" },
@@ -140,11 +140,20 @@ export async function ensureSpanishAssistant(save: (id: string) => Promise<void>
     const clone = await api("POST", `/ai/assistants/${encodeURIComponent(src)}/clone`);
     id = clone.id as string;
     if (!id) return `es assistant: clone returned no id (${JSON.stringify(clone).slice(0, 200)})`;
-    const voice = { ...((source.voice_settings as Record<string, unknown>) ?? {}), voice: ES_VOICE };
-    if ("language" in voice) voice.language = "es";
+    // voice_settings.language is only for Soniox / AssemblyAI voices (Telnyx 10015): the Azure voice carries the language.
+    const { language: _lang, ...sourceVoice } = (source.voice_settings as Record<string, unknown>) ?? {};
+    void _lang;
+    const voice = { ...sourceVoice, voice: ES_VOICE };
     const transcription = { ...((source.transcription as Record<string, unknown>) ?? {}), language: "es" };
-    await api("POST", `/ai/assistants/${encodeURIComponent(id)}`, { name: ES_ASSISTANT_NAME, voice_settings: voice, transcription });
+    try {
+      await api("POST", `/ai/assistants/${encodeURIComponent(id)}`, { name: ES_ASSISTANT_NAME, voice_settings: voice, transcription });
+    } catch (e) {
+      await api("DELETE", `/ai/assistants/${encodeURIComponent(id)}`).catch(() => null); // no half-made copies left behind
+      throw e;
+    }
   }
+  // The copy left by the first attempt (20/11/2026), whose update was refused.
+  await api("DELETE", "/ai/assistants/assistant-1b4c8285-7a10-4faf-a2c7-086bf234c7ff").catch(() => null);
   await save(id);
   return `es assistant ready (${id})`;
 }
