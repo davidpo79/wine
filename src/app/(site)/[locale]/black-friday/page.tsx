@@ -42,6 +42,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function BlackFriday({ params, searchParams }: { params: Params; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { locale } = await params;
   if (locale === "nl" || locale === "fr") redirect(bfHref(locale, BF_OFFERS.galhofa));
+  // Portugal (20/11/2026): the Portuguese Black Friday page is Poço do Canto.
+  if (locale === "pt") redirect(bfHref("pt", BF_OFFERS.poco));
   if (!isDouroLocale(locale)) notFound();
   const [catalog, settings, v, admin, sp] = await Promise.all([getBfCatalog(), getSettings(), visitor(), getAdmin().catch(() => null), searchParams]);
   // Shown in the visitor's language: a German link opened on a Spanish phone goes to the Spanish page (and the other
