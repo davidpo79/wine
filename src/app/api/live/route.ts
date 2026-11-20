@@ -1,4 +1,4 @@
-import { and, countDistinct, gte, inArray, isNotNull, like } from "drizzle-orm";
+import { and, count, countDistinct, gte, inArray, isNotNull, like } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { BF_DOURO_ALIASES, BF_OFFERS, bfHref, bfOfferFor, isBfLocale, type BfOfferId } from "@/lib/black-friday";
 
@@ -10,7 +10,7 @@ const PAID = ["paid", "preparing", "shipped", "delivered"] as const;
 // The same wine sold under two offers (Spain / DE-NL-BE) counts as one.
 const SAME: Partial<Record<BfOfferId, BfOfferId[]>> = { poco: ["poco", "pocoeu"], pocoeu: ["poco", "pocoeu"] };
 
-type Live = { now: number; today: number; sold24: number; recent: { city: string; boxes: number; at: string }[] };
+type Live = { now: number; today: number; sold24: number; customers: number; recent: { city: string; boxes: number; at: string }[] };
 const cache = new Map<string, { at: number; data: Live }>();
 
 /** Page paths of an offer in every language (with the Douro box's aliases). */
@@ -43,7 +43,7 @@ async function load(offerId: BfOfferId): Promise<Live> {
       .from(schema.journeyEvents)
       .where(and(inArray(schema.journeyEvents.path, paths), gte(schema.journeyEvents.createdAt, since(min))))
       .then((r) => Number(r[0]?.n ?? 0));
-  const [now, today, orders] = await Promise.all([
+  const [now, today, orders, customers] = await Promise.all([
     viewers(10),
     viewers(24 * 60),
     db
@@ -51,12 +51,19 @@ async function load(offerId: BfOfferId): Promise<Live> {
       .from(schema.orders)
       .where(and(inArray(schema.orders.status, [...PAID]), like(schema.orders.bundleKey, "bf%"), isNotNull(schema.orders.paidAt), gte(schema.orders.paidAt, since(7 * 24 * 60))))
       .orderBy(schema.orders.paidAt),
+    // Every paid Black Friday order, all offers and countries: "N customers have already bought this Black Friday".
+    db
+      .select({ n: count() })
+      .from(schema.orders)
+      .where(and(inArray(schema.orders.status, [...PAID]), like(schema.orders.bundleKey, "bf%")))
+      .then((r) => Number(r[0]?.n ?? 0)),
   ]);
   const mine = orders.filter((o) => ids.includes(bfOfferFor(o.bundleKey)?.id as BfOfferId)).reverse();
   const dayAgo = Date.now() - 24 * 3600_000;
   return {
     now,
     today,
+    customers,
     sold24: mine.filter((o) => o.paidAt!.getTime() >= dayAgo).reduce((s, o) => s + o.qty, 0),
     recent: mine
       .map((o) => ({ city: city(o.addr?.city), boxes: o.qty, at: o.paidAt!.toISOString() }))
@@ -76,7 +83,7 @@ export async function GET(req: Request) {
       cache.set(offer, { at: Date.now(), data });
     } catch (e) {
       console.error("[live] failed", e);
-      data = { now: 0, today: 0, sold24: 0, recent: [] };
+      data = { now: 0, today: 0, sold24: 0, customers: 0, recent: [] };
     }
   }
   return Response.json(data, { headers: { "Cache-Control": "public, max-age=30" } });

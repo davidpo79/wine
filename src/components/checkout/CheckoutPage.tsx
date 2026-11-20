@@ -13,6 +13,8 @@ import { OfferDialog } from "./OfferDialog";
 import { GiftCard } from "@/components/GiftCard";
 import { dealOf, dealText } from "@/lib/offers";
 import { useI18n } from "@/lib/i18n/client";
+import { bfOfferFor } from "@/lib/black-friday";
+import { LiveCustomers } from "@/components/black-friday/LiveActivity";
 import { fmt } from "@/lib/i18n/rich";
 import { SITE } from "@/lib/site";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
@@ -808,6 +810,41 @@ export function CheckoutPage({
         t.trust.damaged,
       ];
 
+  // Black Friday: the reasons to trust the shop at the top of the form, before the first field (David, 20/11/2026: 3
+  // of 4 buyers left the form). Icon + the short part of each delivery / payment / damaged-box line.
+  const bfOfferId = bf ? bfOfferFor(bundleKey)?.id : undefined;
+  const trustTiles = bf
+    ? trustUnderPay.map((l) => {
+        const m = /^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u.exec(l);
+        const parts = (m?.[2] ?? l).split(" · ");
+        // Delivery: "free shipping with tracking · 2 working days" (the days are what reassure); the others: first part.
+        return { icon: m?.[1] ?? "✓", text: l.startsWith("🚚") ? parts.slice(0, 2).join(" · ") : parts[0] };
+      })
+    : [];
+  const trustTop = bf ? (
+    <div data-testid="checkout-trust-top" className="space-y-2">
+      {bfOfferId && <LiveCustomers offer={bfOfferId} locale={locale} className="text-center text-[13px] font-semibold text-[#2f7d4f]" />}
+      <ul className="grid grid-cols-3 gap-2 text-center text-[11.5px] leading-tight text-ink/85 sm:text-xs">
+        {trustTiles.map((x) => (
+          <li key={x.text} className="flex flex-col items-center gap-1 rounded-lg border border-paper-2 bg-paper/60 px-1.5 py-2.5">
+            <span aria-hidden="true" className="text-xl leading-none">{x.icon}</span>
+            <span>{x.text}</span>
+          </li>
+        ))}
+      </ul>
+      {reviews[0] && (
+        <figure className="rounded-lg border border-paper-2 bg-white p-3 text-[13px] lg:hidden">
+          <p aria-hidden className="text-gold">★★★★★</p>
+          <blockquote className="mt-1">“{reviews[0].text}”</blockquote>
+          <figcaption className="mt-1 text-xs text-muted">
+            {reviews[0].name}
+            {reviews[0].city ? `, ${reviews[0].city}` : ""}
+          </figcaption>
+        </figure>
+      )}
+    </div>
+  ) : null;
+
   const summary = (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
@@ -1076,6 +1113,7 @@ export function CheckoutPage({
           autoComplete="on"
           className="space-y-8 px-4 pb-28 pt-8 lg:border-r lg:border-paper-2 lg:py-10 lg:pr-12"
         >
+          {trustTop}
           <section className="space-y-3">
             <div className="flex items-baseline justify-between">
               <h2 className="text-lg font-bold">{t.contact}</h2>
@@ -1385,7 +1423,7 @@ export function CheckoutPage({
               <li key={line}>{line}</li>
             ))}
           </ul>
-          {reviews[0] && (
+          {reviews[0] && !bf && (
             <figure className="rounded-md border border-paper-2 bg-white p-3 text-[13px] lg:hidden">
               <p aria-hidden className="text-gold">★★★★★</p>
               <blockquote className="mt-1">“{reviews[0].text}”</blockquote>
