@@ -5,6 +5,8 @@ import {
   loadStripe,
   type Stripe,
   type StripeElements,
+  type StripeElementsOptionsMode,
+  type StripeExpressCheckoutElementConfirmEvent,
 } from "@stripe/stripe-js";
 import { pixelEvent, visit } from "@/lib/track-client";
 import { flushJourney, jlog } from "@/lib/journey-client";
@@ -18,7 +20,7 @@ import { LiveCustomers } from "@/components/black-friday/LiveActivity";
 import { fmt } from "@/lib/i18n/rich";
 import { SITE } from "@/lib/site";
 import { homeHref, legalHref } from "@/lib/i18n/paths";
-import { MARKETS, PHONE_OPTIONAL, type Country } from "@/lib/markets";
+import { MARKETS, PHONE_OPTIONAL, isCountry, type Country } from "@/lib/markets";
 import { contentIdFor } from "@/lib/black-friday";
 
 type BundleOpt = {
@@ -77,6 +79,17 @@ export type CheckoutProduct = {
   trust: string[] | null; // replaces the default trust list
   /** Black Friday: the offer's top bar, so the checkout looks like the page the buyer came from. */
   banner?: string;
+};
+
+/** Express checkout (Apple Pay / Google Pay at the top of the Black Friday checkout). */
+const EXPRESS_TEXT: Record<string, { title: string; or: string; shipping: string }> = {
+  es: { title: "Pago exprés", or: "o rellena tus datos", shipping: "Envío gratis" },
+  de: { title: "Express-Zahlung", or: "oder Daten eingeben", shipping: "Gratisversand" },
+  nl: { title: "Snel betalen", or: "of vul je gegevens in", shipping: "Gratis verzending" },
+  fr: { title: "Paiement express", or: "ou remplissez vos coordonnées", shipping: "Livraison gratuite" },
+  ru: { title: "Быстрая оплата", or: "или заполните данные", shipping: "Бесплатная доставка" },
+  pt: { title: "Pagamento rápido", or: "ou preencha os seus dados", shipping: "Envio grátis" },
+  en: { title: "Express checkout", or: "or fill in your details", shipping: "Free shipping" },
 };
 
 const EMPTY: Fields = {
@@ -459,6 +472,158 @@ export function CheckoutPage({
     queue({ consentMessages: v, consentCalls: v }, true);
   };
 
+  // Elements options shared by the Payment Element and the express buttons: they must match the PaymentIntent the
+  // server creates (lib/payments): PayPal is offered, only the card is saved.
+  const elementsOptions = (amount: number): StripeElementsOptionsMode => ({
+    mode: "payment",
+    amount,
+    currency: "eur",
+    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, "paypal"],
+    ...(market.stripeRedirectMethods.length
+      ? {}
+      : { paymentMethodOptions: { card: { setup_future_usage: "on_session" as const } } }),
+    locale: locale === "fr" ? "fr" : locale,
+    appearance: {
+      theme: "stripe",
+      variables: {
+        colorPrimary: "#184b36",
+        colorText: "#202b25",
+        colorDanger: "#a72d39",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        borderRadius: "6px",
+      },
+    },
+  } as StripeElementsOptionsMode);
+
+  // ---- Express checkout: Apple Pay / Google Pay at the top (Black Friday, David 20/11/2026) ----
+  // The wallet gives the name, delivery address, email and phone: no form to fill in. Shown only when the device has
+  // Apple Pay or Google Pay ready; otherwise the block stays hidden.
+  const ex = EXPRESS_TEXT[locale] ?? EXPRESS_TEXT.en;
+  const expressOn = bf && stripeCard && methods.includes("card");
+  const expressDivRef = useRef<HTMLDivElement>(null);
+  const expressStripeRef = useRef<Stripe | null>(null);
+  const expressElementsRef = useRef<StripeElements | null>(null);
+  const [expressReady, setExpressReady] = useState(false);
+  const expressConfirmRef = useRef<(ev: StripeExpressCheckoutElementConfirmEvent) => Promise<void>>(async () => {});
+  useEffect(() => {
+    if (!expressOn || !amounts || !expressDivRef.current) return;
+    if (expressElementsRef.current) {
+      void expressElementsRef.current.update({ amount: amounts.total });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const stripe = await loadStripe(publishableKey!);
+      if (!stripe || cancelled || !expressDivRef.current || expressElementsRef.current) return;
+      expressStripeRef.current = stripe;
+      const elements = stripe.elements(elementsOptions(amounts.total));
+      expressElementsRef.current = elements;
+      const ece = elements.create("expressCheckout", {
+        buttonType: { applePay: "buy", googlePay: "buy" },
+        buttonHeight: 48,
+        paymentMethods: { applePay: "auto", googlePay: "auto", link: "never", paypal: "never", amazonPay: "never", klarna: "never" },
+        layout: { maxColumns: 2, maxRows: 1, overflow: "never" },
+      });
+      ece.on("ready", (ev) => setExpressReady(Object.values(ev.availablePaymentMethods ?? {}).some(Boolean)));
+      ece.on("click", (ev) => {
+        jlog("express_click", { type: ev.expressPaymentType }, draftRef.current?.o);
+        ev.resolve({
+          emailRequired: true,
+          phoneNumberRequired: true,
+          shippingAddressRequired: true,
+          // Only countries with the same Stripe set-up as this page (Belgium adds Bancontact): the payment form was
+          // built for it, and the server's PaymentIntent must match it.
+          allowedShippingCountries: countries.filter((c) => MARKETS[c].stripeRedirectMethods.join() === market.stripeRedirectMethods.join()),
+          shippingRates: [{ id: "free", displayName: ex.shipping, amount: 0 }],
+        });
+      });
+      ece.on("confirm", (ev) => void expressConfirmRef.current(ev));
+      ece.mount(expressDivRef.current);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expressOn, amounts?.total]);
+
+  // The wallet sheet was approved: save its details on the order, validate, create the payment and confirm it.
+  expressConfirmRef.current = async (ev) => {
+    const d = draftRef.current;
+    const stripe = expressStripeRef.current;
+    const elements = expressElementsRef.current;
+    if (!d || !stripe || !elements) {
+      ev.paymentFailed({ reason: "fail" });
+      return;
+    }
+    setFormError(null);
+    setPaying(true);
+    const fail = (msg: string, reason: "fail" | "invalid_shipping_address" = "fail") => {
+      ev.paymentFailed({ reason });
+      setFormError(msg);
+      setPaying(false);
+    };
+    const sub = await elements.submit();
+    if (sub.error) return fail(sub.error.message ?? t.notCompleted);
+    const sa = ev.shippingAddress;
+    const bd = ev.billingDetails;
+    const [first = "", ...rest] = (sa?.name || bd?.name || "").trim().split(/\s+/);
+    const patch: Partial<Fields> = {
+      ...(bd?.email ? { email: bd.email } : {}),
+      ...(bd?.phone ? { phone: bd.phone } : {}),
+      ...(first ? { firstName: first, lastName: rest.join(" ") || first } : {}),
+      ...(sa?.address
+        ? { address1: sa.address.line1 ?? "", address2: sa.address.line2 ?? "", postalCode: sa.address.postal_code ?? "", city: sa.address.city ?? "" }
+        : {}),
+    };
+    const c = sa?.address?.country;
+    const newCountry = c && isCountry(c) && c !== country && countries.includes(c) ? c : null;
+    setFields((f) => ({ ...f, ...patch }));
+    if (newCountry) setCountry(newCountry);
+    dirty.current = { ...dirty.current, ...patch, ...(newCountry ? { country: newCountry } : {}) };
+    jlog("express_confirm", { type: ev.expressPaymentType, country: c ?? "" }, d.o);
+    await flush();
+    const r = await fetch("/api/checkout/prepare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...d, method: "card" }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 422 && data.errors) {
+      ev.paymentFailed({ reason: "invalid_shipping_address" });
+      setPaying(false);
+      showFieldErrors(data.errors, d.o);
+      return;
+    }
+    if (!r.ok) {
+      jlog("payment_error", { stage: "prepare", method: "express", status: r.status, msg: String(data.error ?? "").slice(0, 100) }, d.o);
+      return fail(data.error ?? t.cannotContinue);
+    }
+    pixelEvent("InitiateCheckout", { value: data.value, currency: "EUR", num_items: data.num_items, content_ids: [contentId], content_type: "product" }, data.initiate_event_id);
+    window.gtag?.("event", "begin_checkout", { currency: "EUR", value: data.value });
+    // No pre-payment offer here: the wallet sheet is waiting. The one-click offer after payment still shows.
+    const pr = await fetch("/api/pay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...d, method: "card" }),
+    });
+    const pd = await pr.json().catch(() => ({}));
+    if (!pr.ok || pd.kind !== "stripe") {
+      jlog("payment_error", { stage: "pay", method: "express", status: pr.status, msg: String(pd.error ?? "").slice(0, 100) }, d.o);
+      return fail(pd.error ?? t.notStarted);
+    }
+    jlog("payment_start", { method: "express", kind: "stripe" }, d.o);
+    const doneUrl = `${location.origin}/checkout/concluido?o=${encodeURIComponent(d.o)}&t=${encodeURIComponent(d.t)}`;
+    const { error } = await stripe.confirmPayment({ elements, clientSecret: pd.clientSecret, redirect: "if_required", confirmParams: { return_url: doneUrl } });
+    if (error) {
+      jlog("payment_error", { stage: "stripe", method: "express", type: error.type ?? "", code: error.code ?? error.decline_code ?? "", msg: (error.message ?? "").slice(0, 100) }, d.o);
+      setFormError(error.message ?? t.notCompleted);
+      setPaying(false);
+      return;
+    }
+    flushJourney();
+    location.assign(doneUrl);
+  };
+
   // ---- Stripe Payment Element (card + Apple Pay + Google Pay + PayPal), deferred intent: created on "Pagar" ----
   useEffect(() => {
     if (!stripeCard || method !== "card" || !amounts || !cardDivRef.current)
@@ -472,27 +637,7 @@ export function CheckoutPage({
       const stripe = await loadStripe(publishableKey!);
       if (!stripe || cancelled || !cardDivRef.current) return;
       stripeRef.current = stripe;
-      const elements = stripe.elements({
-        mode: "payment",
-        amount: amounts.total,
-        currency: "eur",
-        // Must match the PaymentIntent the server creates (lib/payments): PayPal is offered, only the card is saved.
-        allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, "paypal"],
-        ...(market.stripeRedirectMethods.length
-          ? {}
-          : { paymentMethodOptions: { card: { setup_future_usage: "on_session" as const } } }),
-        locale: locale === "fr" ? "fr" : locale,
-        appearance: {
-          theme: "stripe",
-          variables: {
-            colorPrimary: "#184b36",
-            colorText: "#202b25",
-            colorDanger: "#a72d39",
-            fontFamily: "Arial, Helvetica, sans-serif",
-            borderRadius: "6px",
-          },
-        },
-      });
+      const elements = stripe.elements(elementsOptions(amounts.total));
       elementsRef.current = elements;
       const pe = elements.create("payment", {
         layout: { type: "tabs" },
@@ -1113,6 +1258,13 @@ export function CheckoutPage({
           autoComplete="on"
           className="space-y-8 px-4 pb-28 pt-8 lg:border-r lg:border-paper-2 lg:py-10 lg:pr-12"
         >
+          {expressOn && (
+            <section data-testid="checkout-express" className={expressReady ? "space-y-3" : "hidden"} aria-label={ex.title}>
+              <p className="text-center text-xs font-semibold uppercase tracking-wide text-muted">{ex.title}</p>
+              <div ref={expressDivRef} />
+              <p className="flex items-center gap-3 text-xs text-muted before:h-px before:flex-1 before:bg-paper-2 after:h-px after:flex-1 after:bg-paper-2">{ex.or}</p>
+            </section>
+          )}
           {trustTop}
           <section className="space-y-3">
             <div className="flex items-baseline justify-between">
