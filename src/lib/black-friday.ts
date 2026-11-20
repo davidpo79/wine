@@ -9,7 +9,8 @@ export const BF_PRODUCT_SLUG = "black-friday-douro-6";
 export const BF_BOTTLES_PER_BOX = 6;
 /** Languages of the Black Friday pages: German and Spanish (all offers), Dutch and French (Poço do Canto for the Netherlands and Belgium, 18/11/2026). */
 // Russian (19/11/2026): the Cheda page for the Russian-speaking community in Germany (delivery to Germany).
-export const BF_LOCALES = ["de", "es", "nl", "fr", "ru"] as const satisfies readonly Locale[];
+// Portuguese (20/11/2026): the Poço do Canto page for Portugal (past customers of the Portuguese shop).
+export const BF_LOCALES = ["de", "es", "nl", "fr", "ru", "pt"] as const satisfies readonly Locale[];
 export type BfLocale = (typeof BF_LOCALES)[number];
 export const isBfLocale = (x: unknown): x is BfLocale => typeof x === "string" && (BF_LOCALES as readonly string[]).includes(x);
 
@@ -38,7 +39,7 @@ export type BfOffer = {
 export const BF_OFFERS: Record<BfOfferId, BfOffer> = {
   douro6: { id: "douro6", slug: BF_PRODUCT_SLUG, prefix: "bf", bottlesPerBox: 6, path: "", locales: ["de", "es", "ru"], countries: ["DE", "ES", "PT"], contentName: "Black Friday 6 Douro", productName: { es: "Black Friday · 6 vinos del Douro", de: "Black Friday · 6 Cheda Douro-Weine", ru: "Black Friday · 6 вин Cheda из Дору" } },
   burbujas: { id: "burbujas", slug: "black-friday-espumoso-3", prefix: "bfs", bottlesPerBox: 3, path: "espumoso", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Espumoso D. Graca 3", productName: { es: "Black Friday · 3 espumosos D. Graça Bruto", de: "Black Friday · 3 D. Graça Sekt" } },
-  poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019" } },
+  poco: { id: "poco", slug: "black-friday-poco-do-canto-6", prefix: "bfp", bottlesPerBox: 6, path: "poco-do-canto", locales: ["es", "pt"], countries: ["ES", "PT"], contentName: "Black Friday Poco do Canto 6", productName: { es: "Black Friday · 6 Poço do Canto Palhete 2019", de: "Black Friday · 6 Poço do Canto Palhete 2019", pt: "Black Friday · 6 Poço do Canto Palhete 2019" } },
   galhofa: { id: "galhofa", slug: "black-friday-galhofa-mix-6", prefix: "bfg", bottlesPerBox: 6, path: "galhofa", locales: ["nl", "fr"], countries: ["NL", "BE"], contentName: "Black Friday Galhofa mix 6 NL BE", productName: { nl: "Black Friday · 6 Galhofa-wijnen uit de Douro", fr: "Black Friday · 6 vins Galhofa du Douro" } },
   sekt: { id: "sekt", slug: "black-friday-sekt-3-de", prefix: "bfk", bottlesPerBox: 3, path: "sekt", locales: ["de"], countries: ["DE"], contentName: "Black Friday Sekt D. Graca 3 DE", productName: { de: "Black Friday · 3 D. Graça Sekt" } },
   pocoeu: { id: "pocoeu", slug: "black-friday-poco-do-canto-6-eu", prefix: "bfq", bottlesPerBox: 6, path: "poco-do-canto", locales: ["de", "nl", "fr"], countries: ["DE", "NL", "BE"], contentName: "Black Friday Poco do Canto 6 DE NL BE", productName: { de: "Black Friday · 6 Poço do Canto Palhete 2019", nl: "Black Friday · 6 Poço do Canto Palhete 2019", fr: "Black Friday · 6 Poço do Canto Palhete 2019" } },
@@ -145,7 +146,7 @@ export const bfLocaleFor = (country: string | null | undefined): BfLocale | null
   country === "ES" ? "es" : country === "DE" || country === "AT" || country === "LU" || country === "CH" ? "de" : country === "NL" || country === "BE" ? "nl" : null;
 
 /** Default delivery country of a language (French: Belgium; the checkout lets the buyer pick the other countries). */
-export const bfCountryFor = (locale: BfLocale): Country => (locale === "es" ? "ES" : locale === "nl" ? "NL" : locale === "fr" ? "BE" : "DE");
+export const bfCountryFor = (locale: BfLocale): Country => (locale === "pt" ? "PT" : locale === "es" ? "ES" : locale === "nl" ? "NL" : locale === "fr" ? "BE" : "DE");
 
 /** Countries taking Black Friday orders right now (none once switched off). */
 export function bfOpenCountries(s: BlackFridaySettings): Country[] {

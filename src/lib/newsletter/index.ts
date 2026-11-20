@@ -395,3 +395,36 @@ export async function recordEmailEvent(type: string, emailId: string) {
   else if (type === "email.complained") await db.update(C).set({ status: "complained", statusAt: now }).where(eq(C.id, s.contactId));
   return true;
 }
+
+// ---- Black Friday 2026: the Portuguese past customers (David, 20/11/2026) ---------------------------------------
+
+/** Tag to give the WooCommerce customer list when importing it (Admin → Newsletter → Import). */
+export const BF_PT_TAG = "clientes-loja-pt";
+export const BF_PT_CAMPAIGN = "Black Friday · Poço do Canto · clientes loja PT";
+
+/**
+ * Creates, once, the draft of the Black Friday campaign for the past customers of the Portuguese shop: the
+ * "black_friday" template with the Poço do Canto offer, the cutoff date and delivery days of Settings → Black Friday,
+ * and the audience "clientes-loja-pt" minus anyone who already bought on the site since Black Friday opened. No
+ * contacts here: David imports the list in the admin. Never touches the campaign again once it exists.
+ */
+export async function ensureBfPtCampaign() {
+  const [have] = await db.select({ id: K.id }).from(K).where(eq(K.name, BF_PT_CAMPAIGN)).limit(1);
+  if (have) return null;
+  const { getSettings } = await import("../settings");
+  const bf = (await getSettings()).black_friday;
+  const date = new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", timeZone: "Europe/Lisbon" }).format(new Date(bf.cutoff_at));
+  const days = (bf.delivery_days ?? "").trim();
+  const d = themeOf("black_friday").defaults;
+  const content: NewsletterContent = {
+    ...d,
+    preheader: `${d.preheader} Só até ${date}.`,
+    deadline: `Oferta válida até ${date} ou enquanto houver stock (500 caixas).`,
+    bullets: d.bullets.replace("Envio grátis com seguimento", `Envio grátis com seguimento${days ? `, entrega em ${days} dias úteis` : ""}`),
+  };
+  const [row] = await db
+    .insert(K)
+    .values({ name: BF_PT_CAMPAIGN, template: "black_friday", content, audience: { tags: [BF_PT_TAG], excludeBuyersSince: "2026-11-16" }, status: "draft", createdBy: "system" })
+    .returning({ id: K.id });
+  return row?.id ?? null;
+}

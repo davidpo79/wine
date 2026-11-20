@@ -52,6 +52,15 @@ const TEXT: Record<string, T> = {
     verified: "Achat vérifié",
     rtf: "fr",
   },
+  pt: {
+    customers: (n) => `${n} clientes já compraram neste Black Friday`,
+    now: (n) => `${n} pessoas estão a ver esta oferta agora`,
+    today: (n) => `${n} pessoas viram esta oferta hoje`,
+    sold: (n) => `${n} caixas vendidas nas últimas 24 h`,
+    bought: (c, n) => `Alguém de ${c} comprou ${n} ${n === 1 ? "caixa" : "caixas"}`,
+    verified: "Compra verificada",
+    rtf: "pt-PT",
+  },
   ru: {
     customers: (n) => `Уже ${n} покупателей в эту Чёрную пятницу`,
     now: (n) => `${n} чел. сейчас смотрят это предложение`,
