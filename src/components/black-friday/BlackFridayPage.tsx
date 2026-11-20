@@ -11,6 +11,7 @@ import { BF_OFFERS, bfHref, isBfLocale, type BfOfferId } from "@/lib/black-frida
 import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
 import { SITE } from "@/lib/site";
+import { LivePill, LiveToasts } from "./LiveActivity";
 
 const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", paypal: "PayPal", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
 
@@ -210,6 +211,7 @@ export function BlackFridayPage({
                 ))}
               </ul>
               {picker}
+              <LivePill offer={offerId} locale={locale} />
               <button type="button" className="bf-cta" onClick={buy} disabled={going}>
                 {fmt(copy.cta, { price: priceLabel })}
               </button>
@@ -389,6 +391,8 @@ export function BlackFridayPage({
           <p className="bf-small">© Wine Portugal · wine-portugal.com</p>
         </div>
       </footer>
+
+      {open && <LiveToasts offer={offerId} locale={locale} />}
 
       {open && selected && (
         <div className="bf-sticky">
