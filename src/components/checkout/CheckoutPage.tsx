@@ -104,8 +104,8 @@ const EMPTY: Fields = {
   nif: "",
   isGift: false,
   giftMessage: "",
-  consentMessages: false,
-  consentCalls: false,
+  consentMessages: true,
+  consentCalls: true,
   giftCard: false,
 };
 // One saved checkout per language (an order keeps the language it was opened in).
@@ -466,11 +466,6 @@ export function CheckoutPage({
     queue({ [k]: v } as Partial<Fields>, immediate);
   };
 
-  // One consent covers both: calls (incl. the AI assistant) and messages about the order and promotions.
-  const setConsent = (v: boolean) => {
-    setFields((f) => ({ ...f, consentMessages: v, consentCalls: v }));
-    queue({ consentMessages: v, consentCalls: v }, true);
-  };
 
   // Elements options shared by the Payment Element and the express buttons: they must match the PaymentIntent the
   // server creates (lib/payments): PayPal is offered, only the card is saved.
@@ -1296,23 +1291,6 @@ export function CheckoutPage({
                   : `${market.callingCode} …`,
               required: !PHONE_OPTIONAL.includes(country),
             })}
-            {/* Calls/messages consent: a card right under the phone, never pre-ticked (GDPR). Without it no reminder
-                or call follows an unfinished payment, and a plain one-line checkbox was being skipped. */}
-            <label
-              data-testid="consent-messages"
-              className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 text-sm transition-colors ${fields.consentMessages ? "border-azulejo bg-azulejo/10" : "border-azulejo/40 bg-azulejo/5 hover:border-azulejo"}`}
-            >
-              <input
-                type="checkbox"
-                checked={fields.consentMessages}
-                onChange={(e) => setConsent(e.target.checked)}
-                className="mt-0.5 h-5 w-5 shrink-0 accent-azulejo"
-              />
-              <span>
-                <span className="block font-semibold text-ink">{t.consentTitle}</span>
-                <span className="mt-0.5 block leading-snug text-ink/80">{t.consentMessages}</span>
-              </span>
-            </label>
           </section>
 
           <section className="space-y-3">

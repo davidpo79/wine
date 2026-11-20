@@ -65,6 +65,11 @@ export async function createDraft(input: { bundleKey: string; promo?: string; is
       isGift: !!input.isGift,
       giftMessage: input.isGift ? (input.giftMessage ?? "").slice(0, 200) || null : null,
       consentTracking: ctx.consentTracking,
+      // Reminders by message and calls about this unfinished order are on by default (David, 20/11/2026: the
+      // checkbox is gone; the note under the email field says so, and "stop" in any message turns them off).
+      // Newsletter / offers (consent_marketing) still need an explicit opt-in.
+      consentMessages: true,
+      consentCalls: true,
       utm: ctx.utm,
       fbp: ctx.fbp,
       fbc: ctx.fbc,
