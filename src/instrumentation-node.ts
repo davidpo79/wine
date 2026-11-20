@@ -31,6 +31,10 @@ if (process.env.RECOVERY_WORKER !== "0" && process.env.DATABASE_URL) {
   const rev = () => reviews().catch((e) => console.error("[reviews] worker", e));
   setTimeout(rev, 60_000);
   setInterval(rev, 15 * 60_000);
+  // Black Friday welcome sequence: new signups enrolled, then the emails that are due (one a day per person).
+  const welcome = () => import("./lib/bf-welcome").then((m) => m.processBfWelcome()).catch((e) => console.error("[bf-welcome] worker", e));
+  setTimeout(welcome, 75_000);
+  setInterval(welcome, 60_000);
   // CTT tracking safety net (pushes are the main path): shipped / delivered for open shipments.
   const ctt = () => import("./lib/fulfilment").then((m) => m.syncCttTracking()).catch((e) => console.error("[ctt] tracking", e));
   setTimeout(ctt, 90_000);

@@ -775,3 +775,22 @@ export const emailTemplates = pgTable(
   },
   (t) => [index("email_templates_owner_idx").on(t.ownerId)],
 );
+
+// Black Friday welcome sequence (lib/bf-welcome): one row per person per day, so a restart never sends twice.
+export const bfWelcomeEmails = pgTable(
+  "bf_welcome_emails",
+  {
+    id: serial("id").primaryKey(),
+    email: text("email").notNull(), // lower case
+    name: text("name"),
+    locale: text("locale").notNull(),
+    day: integer("day").notNull(), // 0 = right after signup
+    kind: text("kind").notNull(), // welcome | gifting | producer | offer2 | pairing | gift_guide | storage | last_chance
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("pending"), // pending | running | sent | skipped | failed
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    result: jsonb("result").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("bf_welcome_email_day").on(t.email, t.day), index("bf_welcome_due_idx").on(t.status, t.scheduledAt)],
+);
