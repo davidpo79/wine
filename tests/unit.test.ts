@@ -338,3 +338,14 @@ test("checkout accepts phone numbers typed with dashes, dots, invisible marks or
   for (const p of ["0151 2345678", "+49 (0)151/2345678".replace("(0)", ""), "49 151 2345678", "0151–2345678"]) assert.equal(normalizePhoneFor(p, "DE"), "+491512345678", JSON.stringify(p));
   assert.equal(normalizePhoneFor("12", "ES"), null);
 });
+
+test("Stripe form: PayPal offered in every market, card-only fallback, bank redirects kept", async () => {
+  const { stripeTypes, stripeSavesCard, isPaypalUnavailable } = await import("../src/lib/payments");
+  assert.deepEqual(stripeTypes("DE"), ["card", "paypal"]);
+  assert.deepEqual(stripeTypes("NL"), ["card", "ideal", "paypal"]);
+  assert.deepEqual(stripeTypes("BE", false), ["card", "bancontact"]);
+  assert.equal(stripeSavesCard("DE"), true);
+  assert.equal(stripeSavesCard("NL"), false);
+  assert.equal(isPaypalUnavailable(new Error("The payment method type \"paypal\" is invalid. Please ensure it is activated")), true);
+  assert.equal(isPaypalUnavailable(new Error("Your card was declined.")), false);
+});

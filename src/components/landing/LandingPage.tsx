@@ -25,7 +25,7 @@ import { aboutHref, legalHref } from "@/lib/i18n/paths";
 import { ABOUT_COPY } from "@/components/about/copy";
 
 const WA = "351910348577";
-const PAY_NAMES: Record<string, string> = { mbway: "MB WAY", multibanco: "Multibanco", ideal: "iDEAL", bancontact: "Bancontact", visa: "Visa", mastercard: "Mastercard", "apple-pay": "Apple Pay", "google-pay": "Google Pay" };
+const PAY_NAMES: Record<string, string> = { mbway: "MB WAY", multibanco: "Multibanco", ideal: "iDEAL", bancontact: "Bancontact", visa: "Visa", mastercard: "Mastercard", paypal: "PayPal", "apple-pay": "Apple Pay", "google-pay": "Google Pay" };
 
 type Offer = {
   b: PublicBundle;
@@ -422,7 +422,7 @@ export function LandingPage({
             </p>
             <p className="fine">{fmt(t.securePayment, { delivery: buy.mode === "after_christmas" ? fmt(t.afterChristmasDelivery, { country: m.area }) : deliveryText })}</p>
             <div className="payrow">
-              {(country === "PT" ? ["mbway", "multibanco"] : country === "NL" ? ["ideal"] : country === "BE" ? ["bancontact"] : []).concat(["visa", "mastercard", "apple-pay", "google-pay"]).map((x) => (
+              {(country === "PT" ? ["mbway", "multibanco"] : country === "NL" ? ["ideal"] : country === "BE" ? ["bancontact"] : []).concat(["visa", "mastercard", "paypal", "apple-pay", "google-pay"]).map((x) => (
                 <span key={x} className={`pay-${x}`}>
                   <img src={`/pay/${x}.${x === "bancontact" ? "png" : "svg"}`} alt={PAY_NAMES[x]} title={PAY_NAMES[x]} loading="lazy" />
                 </span>
