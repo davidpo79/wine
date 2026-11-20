@@ -51,7 +51,7 @@
 .bf-cta{display:flex;align-items:center;justify-content:center;width:100%;margin-top:16px;border:0;border-radius:12px;background:var(--bf-red);color:#fff;font:900 20px/1 Arial,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.02em;padding:20px 14px;cursor:pointer;box-shadow:0 5px 0 var(--bf-red-dark);text-decoration:none;animation:bf-pulse 2.2s ease-in-out infinite}
 .bf-cta:hover{background:#f12a2f}.bf-cta:disabled{opacity:.7;cursor:wait}
 @keyframes bf-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
-.bf-pay{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}.bf-pay span{background:#fff;border-radius:6px;height:32px;padding:4px 8px;display:flex;align-items:center}.bf-pay img{height:22px;width:auto;display:block}
+.bf-pay{display:flex;justify-content:center;flex-wrap:wrap;gap:4px;margin-top:16px}.bf-pay span{background:#fff;border-radius:6px;height:28px;padding:4px 3px;display:flex;align-items:center}.bf-pay img{height:16px;width:auto;display:block}
 .bf-section{padding:56px 0;border-top:1px solid var(--bf-line)}
 .bf-section h2{font:900 clamp(30px,7vw,48px)/1.05 Impact,"Arial Black",Arial,sans-serif;text-transform:uppercase;text-align:center;margin-bottom:26px}
 .bf-winegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}

@@ -12,7 +12,7 @@ import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
 import { SITE } from "@/lib/site";
 
-const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
+const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", paypal: "PayPal", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
 
 export type BfBundle = { key: string; qty: number; priceCents: number; compareAtCents: number | null };
 
@@ -214,7 +214,7 @@ export function BlackFridayPage({
                 {fmt(copy.cta, { price: priceLabel })}
               </button>
               <div className="bf-pay">
-                {(["visa", "mastercard", "apple-pay", "google-pay"] as const).map((x) => (
+                {(["visa", "mastercard", "paypal", "apple-pay", "google-pay"] as const).map((x) => (
                   <span key={x}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/pay/${x}.svg`} alt={PAY_NAMES[x]} title={PAY_NAMES[x]} loading="lazy" />

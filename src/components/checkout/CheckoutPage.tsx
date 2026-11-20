@@ -457,7 +457,7 @@ export function CheckoutPage({
     queue({ consentMessages: v, consentCalls: v }, true);
   };
 
-  // ---- Stripe Payment Element (card + Apple Pay + Google Pay), deferred intent: created on "Pagar" ----
+  // ---- Stripe Payment Element (card + Apple Pay + Google Pay + PayPal), deferred intent: created on "Pagar" ----
   useEffect(() => {
     if (!stripeCard || method !== "card" || !amounts || !cardDivRef.current)
       return;
@@ -474,10 +474,11 @@ export function CheckoutPage({
         mode: "payment",
         amount: amounts.total,
         currency: "eur",
-        allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods],
+        // Must match the PaymentIntent the server creates (lib/payments): PayPal is offered, only the card is saved.
+        allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, "paypal"],
         ...(market.stripeRedirectMethods.length
           ? {}
-          : { setupFutureUsage: "on_session" as const }),
+          : { paymentMethodOptions: { card: { setup_future_usage: "on_session" as const } } }),
         locale: locale === "fr" ? "fr" : locale,
         appearance: {
           theme: "stripe",

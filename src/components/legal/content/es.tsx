@@ -45,7 +45,7 @@ export function Privacy() {
       <ul>
         <li><strong>Pedido:</strong> nombre, correo electrónico, teléfono, dirección de entrega y de facturación, mensaje de regalo. Finalidad: ejecución del contrato y obligaciones fiscales. Base jurídica: contrato y obligación legal (art. 6.1.b y c del RGPD).</li>
         <li><strong>Datos antes del pago:</strong> nombre, correo electrónico y móvil, para la entrega y para contactar con usted sobre su pedido. Solo con su consentimiento específico y voluntario: recordatorios por correo electrónico, SMS o WhatsApp. Puede darse de baja con el enlace incluido en cada mensaje. [[TODO: revisión legal]]</li>
-        <li><strong>Pago:</strong> gestionado por Stripe (tarjeta, Apple Pay, Google Pay). Los datos de su tarjeta se introducen en la página segura de Stripe; nosotros no los recibimos ni los guardamos.</li>
+        <li><strong>Pago:</strong> gestionado por Stripe (tarjeta, PayPal, Apple Pay, Google Pay). Los datos de su tarjeta se introducen en la página segura de Stripe; nosotros no los recibimos ni los guardamos.</li>
         <li><strong>Novedades por correo electrónico:</strong> solo si lo indica al pagar. Base jurídica: consentimiento, que puede retirar en cualquier momento.</li>
         <li><strong>Medición de anuncios (Meta Pixel y Conversions API):</strong> activa desde que accede a la web; puede desactivarla en cualquier momento con «Rechazar» o en las preferencias de cookies. Enviamos a Meta datos de eventos y, en caso de compra, datos de contacto cifrados (hash SHA-256) para medir la eficacia de nuestros anuncios.</li>
         <li><strong>Estadística (Google Analytics 4):</strong> solo con su consentimiento a las cookies de estadística.</li>

@@ -45,7 +45,7 @@ export function Privacy() {
       <ul>
         <li><strong>Bestellung:</strong> Name, E-Mail-Adresse, Telefonnummer, Liefer- und Rechnungsadresse, Geschenknachricht. Zweck: Vertragserfüllung und steuerliche Pflichten. Rechtsgrundlage: Vertrag und rechtliche Verpflichtung (Art. 6 Abs. 1 lit. b und c DSGVO).</li>
         <li><strong>Angaben vor der Zahlung:</strong> Name, E-Mail-Adresse und Mobilnummer, für die Lieferung und um Sie zu Ihrer Bestellung zu kontaktieren. Nur mit Ihrer gesonderten, freiwilligen Einwilligung: Erinnerungen per E-Mail, SMS oder WhatsApp. Sie können sich über den Link in jeder Nachricht abmelden. [[TODO: Rechtsprüfung]]</li>
-        <li><strong>Zahlung:</strong> abgewickelt über Stripe (Karte, Apple Pay, Google Pay). Ihre Kartendaten werden auf der sicheren Seite von Stripe eingegeben; wir erhalten und speichern sie nicht.</li>
+        <li><strong>Zahlung:</strong> abgewickelt über Stripe (Karte, PayPal, Apple Pay, Google Pay). Ihre Kartendaten werden auf der sicheren Seite von Stripe eingegeben; wir erhalten und speichern sie nicht.</li>
         <li><strong>Neuigkeiten per E-Mail:</strong> nur, wenn Sie dies bei der Zahlung angeben. Rechtsgrundlage: Einwilligung, die Sie jederzeit widerrufen können.</li>
         <li><strong>Anzeigenmessung (Meta Pixel und Conversions API):</strong> aktiv ab dem Aufruf der Website; Sie können sie jederzeit über „Ablehnen“ oder die Cookie-Einstellungen abwählen. Wir übermitteln Meta Ereignisdaten und bei einem Kauf verschlüsselte Kontaktdaten (SHA-256-Hash), um die Wirksamkeit unserer Anzeigen zu messen.</li>
         <li><strong>Statistik (Google Analytics 4):</strong> nur mit Ihrer Einwilligung in Statistik-Cookies.</li>
