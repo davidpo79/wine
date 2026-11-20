@@ -257,6 +257,8 @@ export async function settingsAction(_: FormState, fd: FormData): Promise<FormSt
   if (plus && (!/^[A-Z0-9]{3,20}$/.test(plus) || plus === code)) return { error: "Step-2 code must be 3-20 letters/digits and different from the main code." };
   await setSetting("lead_plus_code", plus);
   await setSetting("recovery_enabled", fd.get("recovery_enabled") === "on");
+  await setSetting("bf_welcome_enabled", fd.get("bf_welcome_enabled") === "on");
+  await setSetting("bf_welcome_backfill", fd.get("bf_welcome_backfill") === "on");
   await setSetting("upsell_enabled", fd.get("upsell_enabled") === "on");
   const prev = (await getSettings()).upsell_products;
   const products = [];

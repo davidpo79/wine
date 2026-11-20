@@ -8,6 +8,7 @@ import { whatsappConfigured, whatsappMissing } from "@/lib/whatsapp";
 import { loadOutboundSettings } from "@/lib/outbound-settings";
 import { STEPS, type StepKey } from "@/lib/recovery";
 import { lisbonDateTime } from "@/lib/time";
+import { welcomeOverview } from "@/lib/bf-welcome";
 import { testEmailAction } from "../../actions";
 import { ActionForm, Submit } from "../../ui";
 
@@ -37,7 +38,9 @@ export default async function MessagesPage() {
     ["SMS (fallback when WhatsApp fails)", telnyxConfigured("sms"), telnyxConfigured("sms") ? "Telnyx" : "not configured (TELNYX_API_KEY, TELNYX_FROM_NUMBER)"],
     ["AI phone call (abandoned checkout)", telnyxConfigured("voice"), telnyxConfigured("voice") ? "Telnyx" : "not configured"],
     ["Abandoned-checkout follow-up", settings.recovery_enabled, settings.recovery_enabled ? "on (Settings)" : "off in Settings"],
+    ["Black Friday welcome sequence", settings.bf_welcome_enabled, settings.bf_welcome_enabled ? `on (Settings)${settings.bf_welcome_backfill ? ", incl. signups of the last 10 days" : ""}` : "off in Settings"],
   ];
+  const welcome = await welcomeOverview(40);
   const stepLabel = (k: string) => STEPS[k as StepKey]?.label ?? k;
 
   return (
@@ -57,6 +60,35 @@ export default async function MessagesPage() {
         <p className="mt-2 text-xs text-muted">
           Messages and calls only go to customers who ticked the consent box in the checkout. Email reminders need an email address only.
         </p>
+      </section>
+
+      <section className="rounded-lg border bg-white p-4">
+        <h2 className="font-semibold">Black Friday welcome sequence</h2>
+        <p className="mt-1 text-sm text-muted">
+          {welcome.people} people · sent {welcome.counts.sent ?? 0} · pending {welcome.counts.pending ?? 0} · skipped {welcome.counts.skipped ?? 0} · failed {welcome.counts.failed ?? 0}
+        </p>
+        <div className="mt-2 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="text-left text-xs text-muted">
+              <tr><th className="py-1">When</th><th>Email</th><th>Lang</th><th>Day</th><th>Email type</th><th>Status</th></tr>
+            </thead>
+            <tbody className="divide-y">
+              {welcome.recent.map((r) => (
+                <tr key={r.id}>
+                  <td className="py-1 whitespace-nowrap">{lisbonDateTime(r.sentAt ?? r.scheduledAt)}</td>
+                  <td>{r.email}</td>
+                  <td>{r.locale}</td>
+                  <td>{r.day}</td>
+                  <td>{r.kind}</td>
+                  <td title={r.result ? JSON.stringify(r.result) : undefined}>
+                    {r.status}
+                    {r.result && typeof r.result.reason === "string" ? ` · ${r.result.reason}` : ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <ActionForm action={testEmailAction} className="space-y-3 rounded-lg border bg-white p-4 text-sm">

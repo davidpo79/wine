@@ -149,6 +149,12 @@ export default async function SettingsPage() {
         <label className="flex items-center gap-2 font-semibold">
           <input type="checkbox" name="recovery_enabled" defaultChecked={s.recovery_enabled} className="h-4 w-4" /> Abandoned-checkout follow-up (20 min message, AI call at 2 h in call hours, final email next day)
         </label>
+        <label className="flex items-center gap-2 font-semibold">
+          <input type="checkbox" name="bf_welcome_enabled" defaultChecked={s.bf_welcome_enabled} className="h-4 w-4" /> Black Friday welcome sequence (one email a day from signup until the Black Friday cutoff; Admin → Messages)
+        </label>
+        <label className="flex items-center gap-2 pl-6">
+          <input type="checkbox" name="bf_welcome_backfill" defaultChecked={s.bf_welcome_backfill} className="h-4 w-4" /> Also people who signed up in the last 10 days (with marketing consent)
+        </label>
         <div id="offers" className="scroll-mt-16" aria-hidden />
         <fieldset className="rounded border p-3">
           <legend className="px-1 font-semibold">Exit popup and discount code</legend>
