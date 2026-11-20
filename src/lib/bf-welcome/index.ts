@@ -11,7 +11,7 @@ import { getCatalog } from "../catalog";
 import { SITE } from "../site";
 import { unsubscribeUrl } from "../leads";
 import { zonedDate, zonedToUtc } from "../time";
-import { dayMonthFor, moneyFor } from "../i18n";
+import { dayMonthFor, moneyFor, moneyShortFor } from "../i18n";
 import { fmt } from "../i18n/rich";
 import { BF_OFFERS, bfHref, isBfLocale, type BfOffer } from "../black-friday";
 import { sendMarketingEmail } from "../email";
@@ -174,7 +174,8 @@ export function renderWelcome(locale: WelcomeLocale, kind: Kind, day: number, v:
     .map((p) => `<p style="margin:0 0 14px">${strong(p)}</p>`)
     .join("\n");
   const greeting = v.name ? fmt(c.hello, { name: esc(v.name.split(/\s+/)[0]) }) : c.helloAnon;
-  const offerLine = v.regular ? fmt(c.offerLine, { price: v.price, regular: `<s style="color:#888">${v.regular}</s>` }) : v.price;
+  const nb = (s: string) => `<span style="white-space:nowrap">${s}</span>`;
+  const offerLine = v.regular ? fmt(c.offerLine, { price: nb(v.price), regular: `<s style="color:#888;white-space:nowrap">${v.regular}</s>` }) : nb(v.price);
   const btn = (label: string) =>
     `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px auto 4px"><tr><td style="background:#e3161b;border-radius:6px"><a href="${esc(href)}" style="display:inline-block;padding:14px 26px;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none">${esc(label)}</a></td></tr></table>`;
   const offerBox = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 6px;border:2px solid #e3161b;border-radius:10px"><tr><td style="padding:18px;text-align:center;font-family:Arial,Helvetica,sans-serif">
@@ -230,13 +231,14 @@ export async function varsFor(locale: WelcomeLocale, email: string, name: string
   const b2 = cat?.bundles.find((b) => b.qty === 2);
   if (!b1) return null;
   const money = moneyFor(locale);
+  const short = moneyShortFor(locale);
   return {
     name,
     product: productNameOf(offer, locale),
-    price: money(b1.priceCents),
-    regular: b1.compareAtCents && b1.compareAtCents > b1.priceCents ? money(b1.compareAtCents) : null,
+    price: short(b1.priceCents),
+    regular: b1.compareAtCents && b1.compareAtCents > b1.priceCents ? short(b1.compareAtCents) : null,
     perBottle: money(Math.round(b1.priceCents / offer.bottlesPerBox)),
-    two: money(b2?.priceCents ?? b1.priceCents * 2),
+    two: short(b2?.priceCents ?? b1.priceCents * 2),
     date: dayMonthFor(locale, settings.black_friday.cutoff_at).replace(/\.$/, ""),
     stats,
     palhete: offer.id === "poco" || offer.id === "pocoeu",
