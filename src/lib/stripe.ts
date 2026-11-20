@@ -30,3 +30,22 @@ export function stripeConfigured() {
 export function stripePublishableKey(): string | null {
   return stripeConfigured() ? (process.env["NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"] ?? null) : null;
 }
+
+/**
+ * Apple Pay (and Google Pay) on the web only show on domains registered in Stripe (Payment method domains). Apple
+ * verifies the domain with the file public/.well-known/apple-developer-merchantid-domain-association (Stripe's own).
+ * Run at server start: registers the site's domain if missing, re-validates it while Apple Pay is not active.
+ */
+export async function ensurePaymentMethodDomain() {
+  if (!stripeConfigured() || stripeMode() === "unset" || process.env.STRIPE_API_BASE) return;
+  const host = new URL(process.env.SITE_URL ?? "http://localhost").hostname;
+  if (!host || host === "localhost") return;
+  const s = getStripe();
+  const found = await s.paymentMethodDomains.list({ domain_name: host, limit: 1 });
+  let d = found.data[0] ?? (await s.paymentMethodDomains.create({ domain_name: host, enabled: true }));
+  if (!d.enabled) d = await s.paymentMethodDomains.update(d.id, { enabled: true });
+  if (d.apple_pay.status !== "active") d = await s.paymentMethodDomains.validate(d.id);
+  console.log(
+    `[stripe] payment method domain ${host}: apple_pay=${d.apple_pay.status}${d.apple_pay.status_details?.error_message ? ` (${d.apple_pay.status_details.error_message})` : ""} google_pay=${d.google_pay.status}`,
+  );
+}

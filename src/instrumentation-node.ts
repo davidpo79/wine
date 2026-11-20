@@ -6,6 +6,11 @@ import { loadOutboundSettings } from "./lib/outbound-settings";
 // Admin → Settings → Outbound calls: loaded once at boot, then refreshed on every save and at request entry points.
 if (process.env.DATABASE_URL) void loadOutboundSettings(true);
 
+// Apple Pay / Google Pay buttons need the site's domain registered in Stripe (once per start, idempotent).
+setTimeout(() => {
+  import("./lib/stripe").then((m) => m.ensurePaymentMethodDomain()).catch((e) => console.error("[stripe] payment method domain", e instanceof Error ? e.message : e));
+}, 20_000);
+
 if (process.env.RECOVERY_WORKER !== "0" && process.env.DATABASE_URL) {
   const tick = () => processDueRecovery().catch((e) => console.error("[recovery] worker", e));
   setTimeout(tick, 15_000);
