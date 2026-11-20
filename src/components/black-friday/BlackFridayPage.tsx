@@ -12,6 +12,7 @@ import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
 import { SITE } from "@/lib/site";
 import { LivePill, LiveToasts } from "./LiveActivity";
+import { BfSignup } from "./BfSignup";
 
 const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", paypal: "PayPal", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
 
@@ -393,6 +394,7 @@ export function BlackFridayPage({
       </footer>
 
       {open && <LiveToasts offer={offerId} locale={locale} />}
+      {open && <BfSignup locale={locale} />}
 
       {open && selected && (
         <div className="bf-sticky">
