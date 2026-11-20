@@ -522,7 +522,7 @@ export function CheckoutPage({
         buttonType: { applePay: "buy", googlePay: "buy" },
         buttonHeight: 48,
         paymentMethods: { applePay: "auto", googlePay: "auto", link: "never", paypal: "never", amazonPay: "never", klarna: "never" },
-        layout: { maxColumns: 2, maxRows: 1, overflow: "never" },
+        layout: { maxColumns: 2, maxRows: 1, overflow: "auto" },
       });
       ece.on("ready", (ev) => setExpressReady(Object.values(ev.availablePaymentMethods ?? {}).some(Boolean)));
       ece.on("click", (ev) => {
