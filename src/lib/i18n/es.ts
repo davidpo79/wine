@@ -369,7 +369,7 @@ export const es: Dict = {
     saved: "✓ Guardado",
     offline: "Sin conexión, volviendo a intentarlo",
     email: "Correo electrónico",
-    emailReminderNote: "Si no finaliza su pedido, es posible que le enviemos un recordatorio por correo electrónico. Puede darse de baja desde el propio correo.",
+    emailReminderNote: "Si no finaliza su pedido, es posible que le recordemos por correo, mensaje o llamada. Puede pedirnos que paremos en cualquier momento.",
     phone: "Móvil",
     phoneOptional: "Móvil (opcional, para la entrega)",
     phonePlaceholder: "612 345 678",

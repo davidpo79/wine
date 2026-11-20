@@ -369,7 +369,7 @@ export const en: Dict = {
     saved: "✓ Saved",
     offline: "No connection, trying again",
     email: "Email",
-    emailReminderNote: "If you do not finish your order, we may send you a reminder by email. You can stop it from the email itself.",
+    emailReminderNote: "If you do not finish your order, we may remind you by email, message or phone call. You can stop it at any time.",
     phone: "Mobile phone",
     phoneOptional: "Mobile phone (optional)",
     phonePlaceholder: "912 345 678",
