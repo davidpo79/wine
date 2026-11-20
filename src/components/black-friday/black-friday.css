@@ -153,7 +153,7 @@
 @media (prefers-reduced-motion:reduce){.bf-toast{transition:none}.bf-live i{animation:none}}
 
 /* Black Friday signup box (BfSignup.tsx) */
-.bf-signup{width:min(420px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:26px 22px 20px;border:2px solid var(--bf-red);border-radius:16px;background:#111114;color:#fff;font:16px/1.45 Arial,Helvetica,sans-serif;text-align:center;box-shadow:0 20px 60px #000a}
+.bf-signup{position:fixed;inset:0;margin:auto;height:fit-content;width:min(420px,calc(100vw - 32px));box-sizing:border-box;max-height:calc(100dvh - 32px);padding:26px 22px 20px;border:2px solid var(--bf-red);border-radius:16px;background:#111114;color:#fff;font:16px/1.45 Arial,Helvetica,sans-serif;text-align:center;box-shadow:0 20px 60px #000a}
 .bf-signup::backdrop{background:#000b}
 .bf-signup-x{position:absolute;top:8px;right:10px;border:0;background:none;color:#aaa;font-size:26px;line-height:1;cursor:pointer;padding:4px}
 .bf-signup-kicker{margin:0;color:var(--bf-red);font-weight:900;letter-spacing:.14em;font-size:13px}
