@@ -476,7 +476,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       },
       cta: "Comprar agora · {price}",
       ctaSticky: "Comprar · {price}",
-      checks: ["IVA incluído", "Envio grátis", "Entrega em {days} dias úteis", "Pagamento seguro: MB WAY, Multibanco, cartão, Apple Pay, Google Pay"],
+      checks: ["IVA incluído", "Envio grátis", "Entrega em {days} dias úteis", "Pagamento seguro: MB WAY, Multibanco ou cartão"],
       freeShip: { big: "Envio grátis", small: "Entrega em {days} dias úteis" },
       winesTitle: "O que vem na caixa",
       wines: [
