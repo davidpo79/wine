@@ -7,15 +7,17 @@ import type { BfOfferId } from "@/lib/black-friday";
 // the buy box, and small pop-ups of recent real purchases (city, boxes, when) at the bottom. Below the thresholds
 // nothing is shown: no invented numbers (EU consumer law).
 
-type Live = { now: number; today: number; sold24: number; recent: { city: string; boxes: number; at: string }[] };
+type Live = { now: number; today: number; sold24: number; customers: number; recent: { city: string; boxes: number; at: string }[] };
 
 const MIN_NOW = 3; // "viewing now" from 3 visits on the offer's pages in the last 10 minutes
 const MIN_TODAY = 15; // else "viewed today" from 15
 const MIN_SOLD = 3; // "N boxes sold in the last 24 h" from 3
+const MIN_CUSTOMERS = 10; // checkout: "N customers have already bought" from 10
 
-type T = { now: (n: number) => string; today: (n: number) => string; sold: (n: number) => string; bought: (city: string, n: number) => string; verified: string; rtf: string };
+type T = { customers: (n: number) => string; now: (n: number) => string; today: (n: number) => string; sold: (n: number) => string; bought: (city: string, n: number) => string; verified: string; rtf: string };
 const TEXT: Record<string, T> = {
   es: {
+    customers: (n) => `${n} clientes ya han comprado en este Black Friday`,
     now: (n) => `${n} personas están viendo esta oferta ahora`,
     today: (n) => `${n} personas han visto esta oferta hoy`,
     sold: (n) => `${n} cajas vendidas en las últimas 24 h`,
@@ -24,6 +26,7 @@ const TEXT: Record<string, T> = {
     rtf: "es",
   },
   de: {
+    customers: (n) => `${n} Kunden haben an diesem Black Friday schon bestellt`,
     now: (n) => `${n} Personen sehen sich dieses Angebot gerade an`,
     today: (n) => `${n} Personen haben dieses Angebot heute angesehen`,
     sold: (n) => `${n} Boxen in den letzten 24 Std. verkauft`,
@@ -32,6 +35,7 @@ const TEXT: Record<string, T> = {
     rtf: "de",
   },
   nl: {
+    customers: (n) => `${n} klanten bestelden al deze Black Friday`,
     now: (n) => `${n} mensen bekijken deze aanbieding nu`,
     today: (n) => `${n} mensen bekeken deze aanbieding vandaag`,
     sold: (n) => `${n} dozen verkocht in de laatste 24 uur`,
@@ -40,6 +44,7 @@ const TEXT: Record<string, T> = {
     rtf: "nl",
   },
   fr: {
+    customers: (n) => `${n} clients ont déjà commandé ce Black Friday`,
     now: (n) => `${n} personnes regardent cette offre en ce moment`,
     today: (n) => `${n} personnes ont vu cette offre aujourd'hui`,
     sold: (n) => `${n} caisses vendues ces dernières 24 h`,
@@ -48,6 +53,7 @@ const TEXT: Record<string, T> = {
     rtf: "fr",
   },
   ru: {
+    customers: (n) => `Уже ${n} покупателей в эту Чёрную пятницу`,
     now: (n) => `${n} чел. сейчас смотрят это предложение`,
     today: (n) => `${n} чел. посмотрели это предложение сегодня`,
     sold: (n) => `Продано коробок за 24 ч: ${n}`,
@@ -147,4 +153,12 @@ export function LiveToasts({ offer, locale }: { offer: BfOfferId; locale: string
       </button>
     </div>
   );
+}
+
+/** Checkout: the real number of Black Friday customers so far (from 10), else nothing. */
+export function LiveCustomers({ offer, locale, className }: { offer: BfOfferId; locale: string; className?: string }) {
+  const live = useLive(offer);
+  const tx = TEXT[locale] ?? TEXT.es;
+  if (!live || live.customers < MIN_CUSTOMERS) return null;
+  return <p className={className}>{tx.customers(live.customers)}</p>;
 }
