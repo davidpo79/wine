@@ -20,6 +20,7 @@ export const OUTBOUND_FIELDS = [
   { key: "TELNYX_ASSISTANT_ID_DE", group: "telnyx", label: "AI assistant id, German (abandoned-checkout call)", kind: "text", hint: "German voice. Empty = German-page orders get messages only, no AI call." },
   { key: "TELNYX_ASSISTANT_ID_NL", group: "telnyx", label: "AI assistant id, Dutch (abandoned-checkout call)", kind: "text", hint: "Dutch voice. Empty = Dutch-page orders get messages only, no AI call." },
   { key: "TELNYX_ASSISTANT_ID_FR", group: "telnyx", label: "AI assistant id, French (abandoned-checkout call)", kind: "text", hint: "French voice. Empty = French-page orders get messages only, no AI call." },
+  { key: "TELNYX_ASSISTANT_ID_ES", group: "telnyx", label: "AI assistant id, Spanish (abandoned-checkout call)", kind: "text", hint: "Spanish voice (Spain). Created automatically at server start from the French assistant when empty." },
   // WhatsApp abandoned-checkout message (the template is created and approved in WhatsApp Manager / Telnyx first)
   { key: "WHATSAPP_PROVIDER", group: "whatsapp", label: "WhatsApp provider", kind: "select", options: ["telnyx", "meta"], hint: "telnyx (default): sent through Telnyx with TELNYX_API_KEY. meta: Meta Cloud API with WHATSAPP_TOKEN (Railway)." },
   { key: "TELNYX_WHATSAPP_FROM", group: "whatsapp", label: "WhatsApp number (sender)", kind: "text", hint: "E.164, the number connected in Telnyx → Messaging → WhatsApp, e.g. +351910348577" },

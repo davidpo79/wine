@@ -241,7 +241,6 @@ export async function recoveryTemplateStatus(): Promise<{ ok: boolean; message: 
 export const BF_RECOVERY_TEMPLATE_NAME = "blackfriday_retomar";
 export const BF_TEMPLATE_LANGS = { de: "de", es: "es" } as const;
 export type BfTemplateLocale = keyof typeof BF_TEMPLATE_LANGS;
-const isBfTemplateLocale = (l: string): l is BfTemplateLocale => l in BF_TEMPLATE_LANGS;
 
 // Same variables as the Trilogia template: {{1}} first name, {{2}} boxes; URL button {{1}} = "retomar/<token>".
 const BF_RECOVERY_COPY: Record<BfTemplateLocale, { body: string; example: [string, string]; button: string }> = {
@@ -256,6 +255,53 @@ const BF_RECOVERY_COPY: Record<BfTemplateLocale, { body: string; example: [strin
     button: "Completar mi pedido",
   },
 };
+
+// Version 2 (20/11/2026): no date in the text (the cutoff moved from 25/11 to 27/11) and every Black Friday language.
+// Version 1 above is never sent any more: its "until 25/11" is wrong.
+export const BF2_TEMPLATE_NAME = "blackfriday_pedido";
+export const BF2_TEMPLATE_LANGS = { es: "es", de: "de", nl: "nl", fr: "fr", pt: "pt_PT" } as const;
+export type Bf2TemplateLocale = keyof typeof BF2_TEMPLATE_LANGS;
+const isBf2Locale = (l: string): l is Bf2TemplateLocale => l in BF2_TEMPLATE_LANGS;
+const BF2_COPY: Record<Bf2TemplateLocale, { body: string; example: [string, string]; button: string }> = {
+  es: {
+    body: "¡Hola {{1}}! Tu pedido de Black Friday ({{2}}) te espera: aún no está completo. Envío gratis y precio de Black Friday solo por tiempo limitado. Para no recibir más mensajes, responde STOP.",
+    example: ["Ana", "2 cajas"],
+    button: "Completar mi pedido",
+  },
+  de: {
+    body: "Hallo {{1}}! Ihre Black-Friday-Bestellung ({{2}}) wartet auf Sie: Sie ist noch nicht abgeschlossen. Gratisversand und Black-Friday-Preis nur für kurze Zeit. Wenn Sie keine Nachrichten mehr erhalten möchten, antworten Sie STOPP.",
+    example: ["Anna", "2 Boxen"],
+    button: "Bestellung abschließen",
+  },
+  nl: {
+    body: "Hallo {{1}}! Uw Black Friday-bestelling ({{2}}) wacht op u: ze is nog niet afgerond. Gratis verzending en Black Friday-prijs slechts voor korte tijd. Wilt u geen berichten meer ontvangen, antwoord dan STOP.",
+    example: ["Anna", "2 dozen"],
+    button: "Bestelling afronden",
+  },
+  fr: {
+    body: "Bonjour {{1}} ! Votre commande Black Friday ({{2}}) vous attend : elle n'est pas encore finalisée. Livraison gratuite et prix Black Friday pour peu de temps. Pour ne plus recevoir de messages, répondez STOP.",
+    example: ["Anne", "2 caisses"],
+    button: "Finaliser ma commande",
+  },
+  pt: {
+    body: "Olá {{1}}! A sua encomenda de Black Friday ({{2}}) está à sua espera: ainda não foi concluída. Envio grátis e preço de Black Friday só por pouco tempo. Para não receber mais mensagens, responda PARAR.",
+    example: ["Ana", "2 caixas"],
+    button: "Concluir a encomenda",
+  },
+};
+
+export function bf2TemplateDefinition(locale: Bf2TemplateLocale, siteUrl = SITE.url) {
+  const c = BF2_COPY[locale];
+  return {
+    name: BF2_TEMPLATE_NAME,
+    category: "MARKETING" as const,
+    language: BF2_TEMPLATE_LANGS[locale],
+    components: [
+      { type: "BODY", text: c.body, example: { body_text: [[...c.example]] } },
+      { type: "BUTTONS", buttons: [{ type: "URL", text: c.button, url: `${siteUrl}/{{1}}`, example: [`${siteUrl}/retomar/abc123`] }] },
+    ],
+  };
+}
 
 export function bfRecoveryTemplateDefinition(locale: BfTemplateLocale, siteUrl = SITE.url) {
   const c = BF_RECOVERY_COPY[locale];
@@ -275,24 +321,24 @@ export function bfRecoveryTemplateDefinition(locale: BfTemplateLocale, siteUrl =
  * caller sends the SMS instead, so nothing is lost while it is pending.
  */
 export async function sendBfRecoveryTemplate(toE164: string, firstName: string, bundleLabel: string, resumePath: string, locale: Locale) {
-  if (!isBfTemplateLocale(locale)) return { skipped: "no_black_friday_template_in_this_language" as const, locale };
+  if (!isBf2Locale(locale)) return { skipped: "no_black_friday_template_in_this_language" as const, locale };
   const env = E();
   const components = [
     { type: "body", parameters: [{ type: "text", text: firstName }, { type: "text", text: bundleLabel }] },
     { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: resumePath }] },
   ];
-  const code = BF_TEMPLATE_LANGS[locale];
+  const code = BF2_TEMPLATE_LANGS[locale];
   const r = viaTelnyx()
     ? await fetch("https://api.telnyx.com/v2/messages/whatsapp", {
         method: "POST",
         headers: { Authorization: `Bearer ${env.TELNYX_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: env.TELNYX_WHATSAPP_FROM, to: toE164, whatsapp_message: { type: "template", template: { name: BF_RECOVERY_TEMPLATE_NAME, language: { policy: "deterministic", code }, components } } }),
+        body: JSON.stringify({ from: env.TELNYX_WHATSAPP_FROM, to: toE164, whatsapp_message: { type: "template", template: { name: BF2_TEMPLATE_NAME, language: { policy: "deterministic", code }, components } } }),
         signal: AbortSignal.timeout(15000),
       })
     : await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ messaging_product: "whatsapp", to: toE164.replace("+", ""), type: "template", template: { name: BF_RECOVERY_TEMPLATE_NAME, language: { code }, components } }),
+        body: JSON.stringify({ messaging_product: "whatsapp", to: toE164.replace("+", ""), type: "template", template: { name: BF2_TEMPLATE_NAME, language: { code }, components } }),
         signal: AbortSignal.timeout(15000),
       });
   const json = await r.json().catch(() => ({}));
@@ -300,24 +346,24 @@ export async function sendBfRecoveryTemplate(toE164: string, firstName: string, 
   return json;
 }
 
-/** Submits the Black Friday template (German, Spanish) to Meta through Telnyx; a language already there is left alone. */
+/** Submits the Black Friday template (version 2: es, de, nl, fr, pt) to Meta through Telnyx; a language already there is left alone. */
 export async function createBfRecoveryTemplate(): Promise<{ ok: boolean; message: string }> {
   const env = E();
   if (!env.TELNYX_API_KEY) return { ok: false, message: "TELNYX_API_KEY is not set in Railway." };
   if (!env.WHATSAPP_WABA_ID) return { ok: false, message: "Save the WhatsApp Business Account id (WABA) first." };
   if (!/^https:\/\//.test(SITE.url)) return { ok: false, message: `SITE_URL must be the public https address (now ${SITE.url}).` };
-  const existing = await existingTemplates(BF_RECOVERY_TEMPLATE_NAME);
+  const existing = await existingTemplates(BF2_TEMPLATE_NAME);
   if (!existing.ok) return { ok: false, message: `Could not list the existing templates, nothing was submitted. ${existing.message}` };
   const have = new Map(existing.list.map((t) => [t.language ?? "", t.status ?? "?"]));
   const lines: string[] = [];
   let ok = true;
-  for (const l of Object.keys(BF_TEMPLATE_LANGS) as BfTemplateLocale[]) {
-    const code = BF_TEMPLATE_LANGS[l];
+  for (const l of Object.keys(BF2_TEMPLATE_LANGS) as Bf2TemplateLocale[]) {
+    const code = BF2_TEMPLATE_LANGS[l];
     if (have.has(code)) {
       lines.push(`${code}: already there (${have.get(code)}), not submitted`);
       continue;
     }
-    const r = await telnyx("POST", "/whatsapp/message_templates", { waba_id: env.WHATSAPP_WABA_ID, ...bfRecoveryTemplateDefinition(l) });
+    const r = await telnyx("POST", "/whatsapp/message_templates", { waba_id: env.WHATSAPP_WABA_ID, ...bf2TemplateDefinition(l) });
     const data = (r.body as { data?: { status?: string } } | null)?.data;
     if (r.ok) lines.push(`${code}: submitted to Meta (status: ${data?.status ?? "submitted"})`);
     else {
@@ -325,14 +371,14 @@ export async function createBfRecoveryTemplate(): Promise<{ ok: boolean; message
       lines.push(`${code}: Telnyx answered HTTP ${r.status}: ${JSON.stringify(r.body).slice(0, 400)}`);
     }
   }
-  return { ok, message: `Template ${BF_RECOVERY_TEMPLATE_NAME}: ${lines.join(" · ")}.` };
+  return { ok, message: `Template ${BF2_TEMPLATE_NAME}: ${lines.join(" · ")}.` };
 }
 
 /** Review status of the Black Friday template, one line. */
 export async function bfRecoveryTemplateStatus(): Promise<string> {
-  const existing = await existingTemplates(BF_RECOVERY_TEMPLATE_NAME);
+  const existing = await existingTemplates(BF2_TEMPLATE_NAME);
   if (!existing.ok) return `Black Friday template: ${existing.message}`;
-  if (!existing.list.length) return `Black Friday template ${BF_RECOVERY_TEMPLATE_NAME}: not created yet.`;
+  if (!existing.list.length) return `Black Friday template ${BF2_TEMPLATE_NAME}: not created yet.`;
   return `Black Friday: ${existing.list.map((t) => `${t.name} (${t.language}): ${t.status}${t.rejected_reason ? `, reason: ${t.rejected_reason}` : ""}`).join(" · ")}.`;
 }
 

@@ -142,8 +142,8 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
     if (step.step === "reminder_20m" && order.phone && order.consentMessages) {
       let whatsappSent = false;
       if (whatsappConfigured() && isBfBundle(order.bundleKey)) {
-        // Black Friday has its own template (German, Spanish). While Meta has not approved it the send fails and
-        // the SMS below goes out instead.
+        // Black Friday has its own template (es, de, nl, fr, pt). While Meta has not approved a language the send
+        // fails and the SMS below goes out instead.
         channels.push("whatsapp");
         result.whatsapp = await sendBfRecoveryTemplate(order.phone, first || getDict(locale).messages.recovery.waNameFallback, bundleLabel(order), resumePath(order.id), locale).then(
           (r) => (r && typeof r === "object" && "skipped" in r ? `skipped: ${r.skipped}` : ((whatsappSent = true), "sent")),
@@ -219,6 +219,7 @@ export async function processDueRecovery(limit = 20) {
         .set({ status: r.status, result: r.result, channels: r.channels, ...("reschedule" in r && r.reschedule ? { scheduledAt: r.reschedule } : {}) })
         .where(eq(schema.recoverySteps.id, step.id));
       if (r.status !== "pending") await logOrderEvent(order.id, `recovery:${step.step}:${r.status}`, { channels: r.channels, ...r.result });
+      console.log(`[recovery] ${order.id} ${step.step} ${r.status} ${r.channels.join("+") || "-"} ${JSON.stringify(r.result).slice(0, 300)}`);
     } catch (e) {
       await db.update(schema.recoverySteps).set({ status: "failed", result: { error: String(e) } }).where(eq(schema.recoverySteps.id, step.id));
     }
@@ -248,13 +249,15 @@ export async function stopRecovery(orderId: string) {
  * say it is an AI. guide: whether this language's edition of the recipe guide is offered (Portuguese always is).
  * linkBy: how the payment link reaches the customer after the call (SMS when Telnyx SMS is set up, otherwise email).
  */
-export function callScript(order: Order, cutoffLabel: string, guide = true, linkBy: "sms" | "email" = "sms", deliveryDays = "") {
+export function callScript(order: Order, cutoffLabel: string, guide = true, linkBy: "sms" | "email" = "sms", deliveryDays = "", bf: BfCallInfo | null = null) {
   const first = (order.customerName ?? "").split(" ")[0];
   const total = (order.totalCents / 100).toFixed(2).replace(".", ",");
   const locale = orderLocale(order);
+  // Black Friday boxes: their own product, prices and date (the scripts below are about the Christmas Trilogia).
+  if (bf) return bfCallScript(order, locale, first, total, cutoffLabel, linkBy, bf);
   if (locale === "ru") return callScriptRu(order, first, total, cutoffLabel, guide, linkBy);
   if (locale === "en") return callScriptEn(order, first, total, cutoffLabel, guide, linkBy, deliveryDays);
-  if (locale !== "pt") return callScriptIntl(order, locale, first, total, cutoffLabel, guide, linkBy, deliveryDays);
+  if (locale !== "pt") return locale in INTL ? callScriptIntl(order, locale, first, total, cutoffLabel, guide, linkBy, deliveryDays) : callScriptEn(order, first, total, cutoffLabel, guide, linkBy, deliveryDays);
   return {
     greeting: `Olá${first ? `, ${first}` : ""}! Fala a Madalena, assistente virtual da Wine Portugal. Esta chamada pode ser gravada. Reparei que a sua Trilogia 2160 ficou a meio no nosso site e quis saber se ficou alguma dúvida. Tem um minutinho?`,
     instructions: `És a Madalena, assistente virtual da Wine Portugal. Falas português de Portugal, com simpatia e frases curtas. Já te apresentaste como assistente virtual; se perguntarem se és uma pessoa, diz com honestidade que és uma assistente virtual automática.
@@ -297,6 +300,68 @@ Context: ${order.customerName ?? "The customer"} started an order on the shop's 
 Product: a Christmas gift box with three Douro DOC wines, 2160 Onde Tudo Nasce by Martin Boutique Wines: Branco 2025, Rosé 2024 and Tinto 2023${guide ? ", plus the free digital recipe guide Sabores de Portugal" : ""}. Prices with shipping included: 1 box 49,90 euros, 2 boxes 89,90 euros (the second for 40 euros), 4 boxes 149,70 euros (pay 3, get 4). Shipped from our warehouse in Belgium${deliveryDays ? `, delivery in ${deliveryDays} working days` : ""}; orders paid by ${cutoffLabel} arrive before Christmas. Payment on the site: ${payment}.
 Goal: find out whether there was a question or a problem, and help them finish. If they want to finish, ${linkBy === "email" ? "say we will email them the payment link right after the call, to the address they left on the site" : "say we will text them the link now and it takes a minute"}.
 Rules: never ask for card details or take a payment by phone. Never invent information that is not here; if you do not know, say the team answers on WhatsApp at +351 910 348 577. If they are not interested or ask not to be called, apologise, confirm we will not call again and say goodbye. Never pressure. At most 3 minutes. Sales only to adults over 18.`,
+  };
+}
+
+/** What the call says about a Black Friday box (built by the Telnyx webhook from the offer and its bundles). */
+export type BfCallInfo = { product: string; bottlesPerBox: number; bundles: { qty: number; priceCents: number; compareAtCents: number | null }[]; deliveryDays: string };
+
+// One persona per language for the Black Friday call; the greeting names the product the customer left.
+const BF_PERSONA: Record<Locale, { name: string; language: string; greeting: (first: string, product: string) => string }> = {
+  es: {
+    name: "Lucía",
+    language: "Spanish from Spain (informal tú, warm)",
+    greeting: (f, p) => `¡Hola${f ? `, ${f}` : ""}! Soy Lucía, la asistente virtual de Wine Portugal. Esta llamada puede ser grabada. He visto que tu pedido de Black Friday, ${p}, se quedó a medias en nuestra web y quería saber si te quedó alguna duda. ¿Tienes un minuto?`,
+  },
+  de: {
+    name: "Miriam",
+    language: "German (formal Sie)",
+    greeting: (f, p) => `Hallo${f ? ` ${f}` : ""}! Hier ist Miriam, die virtuelle Assistentin von Wine Portugal. Dieses Gespräch kann aufgezeichnet werden. Ich habe gesehen, dass Ihre Black-Friday-Bestellung, ${p}, auf unserer Website nicht abgeschlossen wurde, und wollte fragen, ob noch etwas offen ist. Haben Sie kurz eine Minute?`,
+  },
+  nl: {
+    name: "Katrien",
+    language: "Dutch (formal u)",
+    greeting: (f, p) => `Hallo${f ? ` ${f}` : ""}! U spreekt met Katrien, de virtuele assistent van Wine Portugal. Dit gesprek kan worden opgenomen. Ik zag dat uw Black Friday-bestelling, ${p}, op onze website niet is afgerond en wilde even vragen of u nog vragen heeft. Heeft u een minuutje?`,
+  },
+  fr: {
+    name: "Hélène",
+    language: "French (formal vous)",
+    greeting: (f, p) => `Bonjour${f ? ` ${f}` : ""} ! Ici Hélène, l'assistante virtuelle de Wine Portugal. Cet appel peut être enregistré. J'ai vu que votre commande Black Friday, ${p}, n'a pas été finalisée sur notre site, et je voulais savoir s'il vous restait une question. Vous avez une petite minute ?`,
+  },
+  ru: {
+    name: "Olga",
+    language: "Russian (polite Вы, speaking of yourself in the feminine)",
+    greeting: (f, p) => `Здравствуйте${f ? `, ${f}` : ""}! Это Ольга, виртуальный ассистент Wine Portugal. Этот звонок может записываться. Я вижу, что Ваш заказ Black Friday, ${p}, на нашем сайте остался незавершённым, и хотела узнать, не осталось ли вопросов. У Вас есть минутка?`,
+  },
+  pt: {
+    name: "Madalena",
+    language: "European Portuguese (not Brazilian)",
+    greeting: (f, p) => `Olá${f ? `, ${f}` : ""}! Fala a Madalena, assistente virtual da Wine Portugal. Esta chamada pode ser gravada. Reparei que a sua encomenda de Black Friday, ${p}, ficou a meio no nosso site e quis saber se ficou alguma dúvida. Tem um minutinho?`,
+  },
+  en: {
+    name: "Emma",
+    language: "English",
+    greeting: (f, p) => `Hello${f ? ` ${f}` : ""}! This is Emma, the virtual assistant of Wine Portugal. This call may be recorded. I saw that your Black Friday order, ${p}, was not finished on our site, and I wanted to ask if you had any question. Do you have a minute?`,
+  },
+};
+
+const eur = (c: number) => (c / 100).toFixed(2).replace(".", ",");
+
+function bfCallScript(order: Order, locale: Locale, first: string, total: string, cutoffLabel: string, linkBy: "sms" | "email", bf: BfCallInfo) {
+  const l = BF_PERSONA[locale] ?? BF_PERSONA.en;
+  const country = isCountry(order.country) ? order.country : "ES";
+  const extra = MARKETS[country].stripeRedirectMethods.map((m) => (m === "ideal" ? "iDEAL" : "Bancontact"));
+  const payment = (country === "PT" ? ["MB WAY", "Multibanco", "card", "PayPal", "Apple Pay", "Google Pay"] : ["card", "Apple Pay", "Google Pay", "PayPal", ...extra]).join(", ");
+  const prices = bf.bundles
+    .map((b) => `${b.qty} ${b.qty === 1 ? "box" : "boxes"} (${b.qty * bf.bottlesPerBox} bottles) ${eur(b.priceCents)} euros${b.compareAtCents && b.compareAtCents > b.priceCents ? ` instead of the regular ${eur(b.compareAtCents)} euros` : ""}`)
+    .join("; ");
+  return {
+    greeting: l.greeting(first, bf.product),
+    instructions: `You are ${l.name}, the virtual assistant of Wine Portugal (a woman). Speak ${l.language}, warmly, in short sentences. You already introduced yourself as a virtual assistant; if asked whether you are a person, say honestly that you are an automated virtual assistant.
+Context: ${order.customerName ?? "The customer"} started a Black Friday order on the shop's site (in ${LANGUAGE_NAMES[locale]}): ${bf.product}, ${order.qtyBoxes} ${order.qtyBoxes === 1 ? "box" : "boxes"} (${order.qtyBoxes * bf.bottlesPerBox} bottles), total ${total} euros including VAT and free delivery. The order was not paid.
+Black Friday prices, delivery and taxes included: ${prices}. Free delivery with tracking${bf.deliveryDays ? `, in ${bf.deliveryDays} working days` : ""}. The Black Friday price is only for orders paid by ${cutoffLabel}. Wines from the Douro, Portugal, straight from the producer. Payment on the site: ${payment}.
+Goal: find out whether there was a question or a problem, and help them finish. If they want to finish, ${linkBy === "email" ? "say we will email them the payment link right after the call, to the address they left on the site" : "say we will text them the link now and it takes a minute"}.
+Rules: never ask for card details or take a payment by phone. Never invent information that is not here (no other wines, prices or discounts); if you do not know, say the team answers on WhatsApp at +351 910 348 577. If they are not interested or ask not to be called, apologise, confirm we will not call again and say goodbye. Never pressure. At most 3 minutes. Sales only to adults over 18.`,
   };
 }
 

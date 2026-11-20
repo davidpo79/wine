@@ -61,7 +61,7 @@ export async function dialCall(to: string, state: CallState) {
 export function assistantFor(locale: string): string | null {
   const env = E();
   if (locale === "pt") return env.TELNYX_ASSISTANT_ID || null;
-  if (locale === "ru" || locale === "en" || locale === "de" || locale === "nl" || locale === "fr") return env[`TELNYX_ASSISTANT_ID_${locale.toUpperCase()}`] || null;
+  if (locale === "ru" || locale === "en" || locale === "de" || locale === "nl" || locale === "fr" || locale === "es") return env[`TELNYX_ASSISTANT_ID_${locale.toUpperCase()}`] || null;
   return null;
 }
 
@@ -102,4 +102,49 @@ export function verifyTelnyxWebhook(rawBody: string, signatureB64: string | null
   } catch {
     return false;
   }
+}
+
+// --- Spanish assistant -----------------------------------------------------------------------------------------------
+
+const ES_ASSISTANT_NAME = "Wine Portugal · abandoned checkout · Spanish (Lucía)";
+const ES_VOICE = "Azure.es-ES-ElviraNeural";
+
+async function api(method: "GET" | "POST", path: string, body?: unknown) {
+  const r = await fetch(`${API}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${E().TELNYX_API_KEY}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(20000),
+  });
+  const json = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!r.ok) throw new Error(`Telnyx ${method} ${path} ${r.status}: ${JSON.stringify(json).slice(0, 300)}`);
+  return ((json.data as Record<string, unknown>) ?? json) as Record<string, unknown>;
+}
+
+/**
+ * Spain is the main Black Friday market but had no assistant: no abandoned-checkout call in Spanish. At server start,
+ * if TELNYX_ASSISTANT_ID_ES is empty, copy the French (else German, else Portuguese) assistant with a Spanish voice and
+ * Spanish speech recognition, and save its id in Admin → Settings → Outbound calls. Reuses one with the same name.
+ */
+export async function ensureSpanishAssistant(save: (id: string) => Promise<void>): Promise<string> {
+  const env = E();
+  if (env.TELNYX_ASSISTANT_ID_ES) return `es assistant set (${env.TELNYX_ASSISTANT_ID_ES})`;
+  if (!env.TELNYX_API_KEY) return "es assistant: no TELNYX_API_KEY";
+  const list = await api("GET", "/ai/assistants?page[size]=250").catch(() => null);
+  const rows = Array.isArray(list) ? (list as Record<string, unknown>[]) : [];
+  let id = rows.find((a) => a.name === ES_ASSISTANT_NAME)?.id as string | undefined;
+  if (!id) {
+    const src = env.TELNYX_ASSISTANT_ID_FR || env.TELNYX_ASSISTANT_ID_DE || env.TELNYX_ASSISTANT_ID;
+    if (!src) return "es assistant: no assistant to copy";
+    const source = await api("GET", `/ai/assistants/${encodeURIComponent(src)}`);
+    const clone = await api("POST", `/ai/assistants/${encodeURIComponent(src)}/clone`);
+    id = clone.id as string;
+    if (!id) return `es assistant: clone returned no id (${JSON.stringify(clone).slice(0, 200)})`;
+    const voice = { ...((source.voice_settings as Record<string, unknown>) ?? {}), voice: ES_VOICE };
+    if ("language" in voice) voice.language = "es";
+    const transcription = { ...((source.transcription as Record<string, unknown>) ?? {}), language: "es" };
+    await api("POST", `/ai/assistants/${encodeURIComponent(id)}`, { name: ES_ASSISTANT_NAME, voice_settings: voice, transcription });
+  }
+  await save(id);
+  return `es assistant ready (${id})`;
 }

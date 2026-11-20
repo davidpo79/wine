@@ -6,6 +6,13 @@ import { loadOutboundSettings } from "./lib/outbound-settings";
 // Admin → Settings → Outbound calls: loaded once at boot, then refreshed on every save and at request entry points.
 if (process.env.DATABASE_URL) void loadOutboundSettings(true);
 
+// Abandoned checkout: Spanish call assistant, Black Friday WhatsApp template, and a log line per channel.
+if (process.env.DATABASE_URL) {
+  setTimeout(() => {
+    import("./lib/recovery-boot").then((m) => m.recoveryBoot()).catch((e) => console.error("[recovery-boot]", e instanceof Error ? e.message : e));
+  }, 25_000);
+}
+
 // Apple Pay / Google Pay buttons need the site's domain registered in Stripe (once per start, idempotent).
 setTimeout(() => {
   import("./lib/stripe").then((m) => m.ensurePaymentMethodDomain()).catch((e) => console.error("[stripe] payment method domain", e instanceof Error ? e.message : e));
