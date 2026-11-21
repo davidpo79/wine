@@ -54,7 +54,7 @@ export async function createAndSendContract(applicationId: number, terms: Contra
       .catch((e) => console.error("[contract] sms", e instanceof Error ? e.message : e));
   }
   await db.update(schema.creatorContracts).set({ sentAt: new Date(), sentVia: via.join("+") || "none" }).where(eq(schema.creatorContracts.id, c.id));
-  if (app.status === "new") await db.update(schema.creatorApplications).set({ status: "contacted" }).where(eq(schema.creatorApplications.id, app.id));
+  if (app.status !== "signed") await db.update(schema.creatorApplications).set({ status: "contract_sent" }).where(eq(schema.creatorApplications.id, app.id));
   return { id: c.id, link, via };
 }
 
@@ -121,7 +121,7 @@ export async function signContract(
     .where(and(eq(schema.creatorContracts.id, c.id), ne(schema.creatorContracts.status, "signed")))
     .returning({ id: schema.creatorContracts.id });
   if (!done.length) return { ok: false, error: "No se ha podido guardar la firma.", status: 500 };
-  if (c.applicationId) await db.update(schema.creatorApplications).set({ status: "chosen" }).where(eq(schema.creatorApplications.id, c.applicationId));
+  if (c.applicationId) await db.update(schema.creatorApplications).set({ status: "signed" }).where(eq(schema.creatorApplications.id, c.applicationId));
   await sendSignedContract(c.email, input.fields.name, c.id, pdf, token).catch((e) => console.error("[contract] signed email", e));
   return { ok: true, id: c.id };
 }

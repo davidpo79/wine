@@ -323,7 +323,7 @@ export const creatorApplications = pgTable("creator_applications", {
   message: text("message"),
   locale: text("locale").notNull().default("es"),
   utm: jsonb("utm").$type<Utm>(),
-  status: text("status").notNull().default("new"), // new | contacted | chosen | rejected
+  status: text("status").notNull().default("new"), // new | contacted | contract_sent | signed | chosen | rejected (contract_sent/signed are automatic)
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
