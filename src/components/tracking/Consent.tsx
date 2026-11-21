@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouteLocale } from "@/lib/i18n/route-locale";
 import { CONSENT_COPY, privacyHref } from "@/lib/i18n/consent";
 import type { Locale } from "@/lib/markets";
-import { newEventId, pixelEvent, track, visit } from "@/lib/track-client";
+import { externalId, newEventId, pixelEvent, track, visit } from "@/lib/track-client";
 import { isBotUa } from "@/lib/bots";
 
 const COOKIE = "wp_consent";
@@ -69,7 +69,10 @@ function loadPixel(pixelId: string) {
   s.async = true;
   s.src = "https://connect.facebook.net/en_US/fbevents.js";
   document.head.appendChild(s);
-  window.fbq!("init", pixelId);
+  // external_id: the same first-party visitor id the server sends hashed with every CAPI event (lib/track-client.ts).
+  const xid = externalId();
+  if (xid) window.fbq!("init", pixelId, { external_id: xid });
+  else window.fbq!("init", pixelId);
 }
 
 /** Microsoft Clarity (session recordings and heatmaps), only with consent for statistics. Typed text is masked. */

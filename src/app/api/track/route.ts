@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { funnelSource } from "@/lib/bots";
-import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
+import { CONSENT_COOKIE, XID_COOKIE, fbcFromUrl, logFunnel, parseConsent, sendCapi, validFbc, validFbp } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { SITE } from "@/lib/site";
 
@@ -13,6 +13,9 @@ const Body = z.object({
   url: z.string().max(1000).optional(),
   sid: z.string().regex(/^[A-Za-z0-9_.-]{8,64}$/).optional(),
   src: z.string().max(60).optional(),
+  // The browser's _fbp/_fbc when the request went out before the Pixel wrote its cookies (first page view).
+  fbp: z.string().max(100).optional(),
+  fbc: z.string().max(600).optional(),
   custom_data: z
     .object({
       value: z.number().min(0).max(10000).optional(),
@@ -43,8 +46,9 @@ export async function POST(req: Request) {
       user: {
         ip: clientIp(h),
         userAgent: h.get("user-agent"),
-        fbp: jar.get("_fbp")?.value,
-        fbc: jar.get("_fbc")?.value,
+        fbp: validFbp(jar.get("_fbp")?.value) ?? validFbp(ev.fbp),
+        fbc: validFbc(jar.get("_fbc")?.value) ?? validFbc(ev.fbc) ?? fbcFromUrl(ev.url),
+        externalId: jar.get(XID_COOKIE)?.value,
       },
       customData: ev.custom_data,
     });

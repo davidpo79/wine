@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       eventId,
       sourceUrl: `${SITE.url}/checkout`,
       orderId: order.id,
-      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: a.city, zip: a.postal_code, country: order.country, ip: clientIp(h), userAgent: h.get("user-agent"), fbp: order.fbp, fbc: order.fbc },
+      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: a.city, zip: a.postal_code, country: order.country, ip: clientIp(h), userAgent: h.get("user-agent"), fbp: order.fbp, fbc: order.fbc, externalId: order.externalId },
       customData: { value: order.totalCents / 100, currency: "EUR", num_items: order.qtyBoxes, content_ids: [contentIdFor(order.bundleKey)], content_type: "product" },
     });
   }

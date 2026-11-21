@@ -99,17 +99,53 @@ export function visit(): { sid?: string; src?: string } {
   }
 }
 
+function cookie(name: string) {
+  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** First-party visitor id (cookie wp_xid, 400 days), only once marketing is allowed. The Pixel gets it as external_id
+ * and the server sends it hashed with every CAPI event, so Meta can tie together the visits of the same person. */
+export function externalId() {
+  if (!window.__wpConsent?.m) return null;
+  try {
+    let id = cookie("wp_xid");
+    if (!id || !/^x_[A-Za-z0-9]{12,40}$/.test(id)) {
+      id = newEventId("x");
+      const secure = location.protocol === "https:" ? "; Secure" : "";
+      document.cookie = `wp_xid=${id}; Max-Age=${60 * 60 * 24 * 400}; Path=/; SameSite=Lax${secure}`;
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 function mirror(name: TrackName, data: TrackData, eventId: string) {
   if (!SERVER_MIRROR.has(name)) return;
   const { order_id: _o, ...custom } = data;
-  try {
-    fetch("/api/track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_name: name, event_id: eventId, url: location.href, custom_data: custom, ...visit() }),
-      keepalive: true,
-    }).catch(() => {});
-  } catch {}
+  const send = () => {
+    try {
+      fetch("/api/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_name: name, event_id: eventId, url: location.href, custom_data: custom, fbp: cookie("_fbp") ?? undefined, fbc: cookie("_fbc") ?? undefined, ...visit() }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+  };
+  // The first page view goes out before the Pixel script has written _fbp: wait for it (up to 2 s) so the server
+  // event carries the same browser id as the Pixel's (Meta: "fbp coverage" of the CAPI PageView / ViewContent).
+  // (No wait once marketing was refused, or for automated browsers, which never load the Pixel.)
+  if (cookie("_fbp") || (window.__wpConsent && !window.__wpConsent.m) || navigator.webdriver) return send();
+  let waited = 0;
+  const t = setInterval(() => {
+    waited += 200;
+    if (cookie("_fbp") || waited >= 2000) {
+      clearInterval(t);
+      send();
+    }
+  }, 200);
 }
 
 /** Fires an event in the browser (Pixel/GA4, consent permitting) and mirrors it to the server with the same event_id. */

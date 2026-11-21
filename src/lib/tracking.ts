@@ -57,7 +57,25 @@ export type UserData = {
   userAgent?: string | null;
   fbp?: string | null;
   fbc?: string | null;
+  /** First-party visitor id (cookie wp_xid), the same value the Pixel gets as external_id. */
+  externalId?: string | null;
 };
+
+/** First-party visitor id cookie, set by the browser once marketing is allowed (lib/track-client.ts). */
+export const XID_COOKIE = "wp_xid";
+const XID_RE = /^x_[A-Za-z0-9]{12,40}$/;
+export const validXid = (v?: string | null) => (v && XID_RE.test(v) ? v : null);
+export const validFbp = (v?: string | null) => (v && /^fb\.\d\.\d{10,14}\.\d{5,25}$/.test(v) ? v : null);
+export const validFbc = (v?: string | null) => (v && /^fb\.\d\.\d{10,14}\.[A-Za-z0-9_-]{10,500}$/.test(v) ? v : null);
+/** _fbc built from the fbclid in the page URL, for a first page view whose cookie isn't written yet. */
+export function fbcFromUrl(url?: string | null) {
+  try {
+    const id = url ? new URL(url).searchParams.get("fbclid") : null;
+    return id && /^[A-Za-z0-9_-]{10,500}$/.test(id) ? `fb.1.${Date.now()}.${id}` : null;
+  } catch {
+    return null;
+  }
+}
 
 export function buildUserData(u: UserData) {
   const out: Record<string, unknown> = {
@@ -72,6 +90,7 @@ export function buildUserData(u: UserData) {
     client_user_agent: u.userAgent || undefined,
     fbp: u.fbp || undefined,
     fbc: u.fbc || undefined,
+    external_id: hashed(validXid(u.externalId)),
   };
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
@@ -203,6 +222,7 @@ export async function reportPurchase(o: Order, valueCents = o.totalCents) {
         userAgent: o.userAgent,
         fbp: o.fbp,
         fbc: o.fbc,
+        externalId: o.externalId,
       },
       customData: {
         value,
