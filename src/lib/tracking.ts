@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Order } from "@/db/schema";
 import { isBotUa } from "./bots";
@@ -186,6 +186,68 @@ export function gaClientIdFromCookie(v?: string | null) {
   return parts.length >= 4 ? `${parts[2]}.${parts[3]}` : null;
 }
 
+
+/** Purchase to Meta CAPI. */
+async function purchaseCapi(o: Order, value: number, eventTime?: number) {
+  // Every paid order goes to Meta, also when the buyer refused marketing cookies (David, 21/11/2026: Meta brings all
+  // the traffic, so it must see every sale). Without consent the order holds no IP, user agent, fbp or fbc, so the
+  // event carries only the order's own customer data.
+  const [first, ...rest] = (o.customerName ?? "").trim().split(/\s+/);
+  await sendCapi({
+    eventName: "Purchase",
+    eventId: purchaseEventId(o.id),
+    sourceUrl: `${process.env.SITE_URL ?? ""}/obrigado`,
+    orderId: o.id,
+    user: {
+      email: o.email,
+      phone: o.phone,
+      firstName: first,
+      lastName: rest.join(" "),
+      city: o.shippingAddress?.city,
+      zip: o.shippingAddress?.postal_code,
+      country: o.shippingAddress?.country ?? "PT",
+      ip: o.clientIp,
+      userAgent: o.userAgent,
+      fbp: o.fbp,
+      fbc: o.fbc,
+      externalId: o.externalId,
+    },
+    eventTime,
+    customData: {
+      value,
+      currency: "EUR",
+      content_ids: [contentIdFor(o.bundleKey)],
+      content_type: "product",
+      num_items: o.qtyBoxes,
+      order_id: o.id,
+    },
+  });
+}
+
+/** One-off at boot: paid orders of the last 6 days whose Purchase was skipped for lack of cookie consent (before
+ * 21/11/2026) are sent now with their payment time; Meta accepts events up to 7 days old and dedupes on event_id. */
+export async function backfillSkippedPurchases() {
+  const since = new Date(Date.now() - 6 * 24 * 3600_000);
+  const skipped = await db
+    .select({ orderId: schema.trackingEvents.orderId })
+    .from(schema.trackingEvents)
+    .where(and(eq(schema.trackingEvents.eventName, "Purchase"), eq(schema.trackingEvents.sentTo, "capi"), eq(schema.trackingEvents.status, "skipped"), gte(schema.trackingEvents.createdAt, since)));
+  let sent = 0;
+  for (const id of new Set(skipped.map((r) => r.orderId).filter((x): x is string => !!x))) {
+    const done = await db
+      .select({ id: schema.trackingEvents.id })
+      .from(schema.trackingEvents)
+      .where(and(eq(schema.trackingEvents.orderId, id), eq(schema.trackingEvents.eventName, "Purchase"), eq(schema.trackingEvents.sentTo, "capi"), eq(schema.trackingEvents.status, "ok")))
+      .limit(1);
+    if (done.length) continue;
+    const [o] = await db.select().from(schema.orders).where(eq(schema.orders.id, id)).limit(1);
+    if (!o?.paidAt || o.paidAt < since) continue;
+    await purchaseCapi(o, o.totalCents / 100, Math.floor(o.paidAt.getTime() / 1000));
+    sent++;
+  }
+  console.log(`[tracking] purchase backfill: ${sent} sent`);
+}
+
 export function purchaseEventId(orderId: string) {
   return `purchase_${orderId}`;
 }
@@ -203,39 +265,7 @@ export async function reportPurchase(o: Order, valueCents = o.totalCents) {
 
   const value = valueCents / 100;
   await logFunnel("Purchase", purchaseEventId(o.id), o.id);
-  if (o.consentTracking) {
-    const [first, ...rest] = (o.customerName ?? "").trim().split(/\s+/);
-    await sendCapi({
-      eventName: "Purchase",
-      eventId: purchaseEventId(o.id),
-      sourceUrl: `${process.env.SITE_URL ?? ""}/obrigado`,
-      orderId: o.id,
-      user: {
-        email: o.email,
-        phone: o.phone,
-        firstName: first,
-        lastName: rest.join(" "),
-        city: o.shippingAddress?.city,
-        zip: o.shippingAddress?.postal_code,
-        country: o.shippingAddress?.country ?? "PT",
-        ip: o.clientIp,
-        userAgent: o.userAgent,
-        fbp: o.fbp,
-        fbc: o.fbc,
-        externalId: o.externalId,
-      },
-      customData: {
-        value,
-        currency: "EUR",
-        content_ids: [contentIdFor(o.bundleKey)],
-        content_type: "product",
-        num_items: o.qtyBoxes,
-        order_id: o.id,
-      },
-    });
-  } else {
-    await logTracking({ eventName: "Purchase", eventId: purchaseEventId(o.id), orderId: o.id, sentTo: "capi", status: "skipped", response: { reason: "no_marketing_consent" } });
-  }
+  await purchaseCapi(o, value);
   await sendGa4(
     o.gaClientId,
     [

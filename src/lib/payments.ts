@@ -266,7 +266,8 @@ export async function markAddonPaid(addonId: number, p: Payment) {
   await import("./shiphero-fulfilment").then((m) => m.shipheroAddonPaid(order, addon)).catch((e) => console.error("[shiphero] addon", e));
   const eventId = `purchase_addon_${addon.id}`;
   await logFunnel("Purchase", eventId, order.id);
-  if (order.consentTracking) {
+  {
+    // Every paid add-on goes to Meta, with or without cookie consent (as reportPurchase in lib/tracking.ts).
     const [first, ...rest] = (order.customerName ?? "").split(" ");
     await sendCapi({
       eventName: "Purchase",
