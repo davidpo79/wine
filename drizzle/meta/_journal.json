@@ -253,6 +253,13 @@
       "when": 1795288283224,
       "tag": "0035_creator_applications",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795294274812,
+      "tag": "0036_creator_contracts",
+      "breakpoints": true
     }
   ]
 }

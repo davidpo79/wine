@@ -252,6 +252,45 @@ ${button(`${SITE.url}/admin/creators`, "Open in the admin")}`,
   for (const to of new Set(list)) await send(null, to, `[UGC] ${a.name} · ${a.handle}`, html, "creator_alert").catch((e) => console.error("[email] creator alert", to, e));
 }
 
+// ---------- UGC creator contracts (Spanish, no shop header) ----------
+const creatorLayout = (title: string, body: string) => layout(title, body, "es").replace(/Wine Portugal <span style="color:#C8A253">·<\/span> Trilogia 2160/, "Wine Portugal");
+
+/** The personal link to read and sign the collaboration contract. */
+export async function sendContractLink(to: string, name: string, link: string) {
+  const html = creatorLayout(
+    "Tu contrato de colaboración",
+    `<p>Hola ${esc(name.split(" ")[0])},</p>
+<p>¡Gracias por querer colaborar con Wine Portugal! Aquí tienes tu contrato de colaboración para la creación de contenido. Puedes leerlo y firmarlo desde el móvil en un par de minutos.</p>
+${button(link, "Revisar y firmar el contrato")}
+<p style="font-size:13px;color:#55606e">Si tienes cualquier duda, responde a este email.</p>`,
+  );
+  return send(null, to, "Wine Portugal · Tu contrato de colaboración para firmar", html, "creator_contract");
+}
+
+/** One-time code that confirms the signer's email. */
+export async function sendContractCode(to: string, code: string) {
+  const html = creatorLayout(
+    "Código de firma",
+    `<p>Tu código para firmar el contrato de colaboración con Wine Portugal es:</p>
+<p style="font-size:30px;font-weight:bold;letter-spacing:6px;margin:18px 0">${esc(code)}</p>
+<p style="font-size:13px;color:#55606e">Caduca en 15 minutos. Si no has solicitado este código, ignora este email.</p>`,
+  );
+  return send(null, to, `Wine Portugal · Código de firma ${code}`, html, "creator_contract_code");
+}
+
+/** The signed PDF, to the creator and to the order-alert addresses. */
+export async function sendSignedContract(to: string, name: string, contractId: number, pdf: Buffer) {
+  const file = { filename: `Contrato_UGC_Wine_Portugal_${contractId}.pdf`, content: pdf };
+  const html = creatorLayout(
+    "Contrato firmado",
+    `<p>Hola ${esc(name.split(" ")[0])},</p><p>Tu contrato de colaboración n.º ${contractId} está firmado. Te adjuntamos una copia en PDF. Muy pronto te escribiremos con el briefing y el envío del vino.</p>`,
+  );
+  await send(null, to, "Wine Portugal · Contrato firmado", html, "creator_contract_signed", [file]);
+  const admins = [...new Set([...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean))];
+  const ah = layout("Contrato UGC firmado", `<p>${esc(name)} signed UGC contract #${contractId}. The PDF is attached.</p>${button(`${SITE.url}/admin/creators`, "Open in the admin")}`, "pt");
+  for (const a of admins) await send(null, a, `[UGC] Contract #${contractId} signed · ${name}`, ah, "creator_contract_signed_admin", [file]).catch((e) => console.error("[email] contract admin", a, e));
+}
+
 /** Login details for a new team member (temporary password, changed at first login). Admin UI is in English. */
 export async function sendTeamInvite(to: string, role: string, tempPassword: string, invitedBy: string) {
   const html = layout(
