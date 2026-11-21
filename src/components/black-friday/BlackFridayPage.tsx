@@ -50,6 +50,79 @@ function Countdown({ cutoffIso, units, onEnd }: { cutoffIso: string; units: BfCo
   );
 }
 
+const PRODUCER: Record<string, string> = {
+  es: "Directo del productor, Douro",
+  pt: "Direto do produtor, Douro",
+  de: "Direkt vom Erzeuger, Douro",
+  nl: "Rechtstreeks van de producent, Douro",
+  fr: "En direct du producteur, Douro",
+  ru: "Напрямую от производителя, Дору",
+};
+
+const ico = { width: 34, height: 34, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+const TRUST_ICONS = {
+  truck: (
+    <svg {...ico}>
+      <path d="M4 12h24v20H4z" />
+      <path d="M28 18h8l6 7v7h-14" />
+      <circle cx="12" cy="35" r="4" />
+      <circle cx="35" cy="35" r="4" />
+      <path d="M8 18h10M8 23h7" />
+    </svg>
+  ),
+  shield: (
+    <svg {...ico}>
+      <path d="M24 4l16 6v12c0 10-7 18-16 22C15 40 8 32 8 22V10z" />
+      <path d="M17 24l5 5 9-10" />
+    </svg>
+  ),
+  bottle: (
+    <svg {...ico}>
+      <path d="M20 4h8v8c4 2 6 6 6 10v20a2 2 0 0 1-2 2H16a2 2 0 0 1-2-2V22c0-4 2-8 6-10z" />
+      <path d="M14 28h20" />
+      <path d="M39 8a8 8 0 0 1 3 11M42 19l-4-1M39 8l-1 4" />
+    </svg>
+  ),
+  grapes: (
+    <svg {...ico}>
+      <path d="M24 10c0-4 3-6 7-6" />
+      <circle cx="18" cy="17" r="4" />
+      <circle cx="28" cy="17" r="4" />
+      <circle cx="23" cy="25" r="4" />
+      <circle cx="13" cy="25" r="4" />
+      <circle cx="33" cy="25" r="4" />
+      <circle cx="18" cy="33" r="4" />
+      <circle cx="28" cy="33" r="4" />
+      <circle cx="23" cy="41" r="4" />
+    </svg>
+  ),
+};
+
+/** Four reasons to trust the shop as icons, under the price (like the checkout tiles): from the offer's own lines. */
+function TrustIcons({ trust, locale, vars }: { trust: string[]; locale: string; vars: Record<string, string> }) {
+  const part = (emoji: string, n = 1) => {
+    const l = trust.find((x) => x.startsWith(emoji));
+    return l ? fmt(l.replace(/^\S+\s*/u, ""), vars).split(" · ").slice(0, n).join(" · ") : null;
+  };
+  const items = [
+    { icon: TRUST_ICONS.truck, text: part("🚚", 2) },
+    { icon: TRUST_ICONS.shield, text: part("🔒") },
+    { icon: TRUST_ICONS.grapes, text: PRODUCER[locale] ?? PRODUCER.es },
+    { icon: TRUST_ICONS.bottle, text: part("↩️") },
+  ].filter((x): x is { icon: React.JSX.Element; text: string } => !!x.text);
+  if (items.length < 2) return null;
+  return (
+    <ul className="bf-trusticons">
+      {items.map((x) => (
+        <li key={x.text}>
+          <span className="bf-trusticon">{x.icon}</span>
+          <span>{x.text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function BlackFridayPage({
   offer: offerId = "douro6",
   copy,
@@ -193,6 +266,7 @@ export function BlackFridayPage({
               })()}
             </div>
           )}
+          <TrustIcons trust={copy.trust} locale={locale} vars={v} />
           <p className="bf-mix">
             {copy.mix.map((m, i) => (
               <span key={m}>
