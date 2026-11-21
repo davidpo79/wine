@@ -12,6 +12,7 @@ import { LanguageSwitcher } from "@/components/landing/LanguageSwitcher";
 import type { BfCopy } from "./copy";
 import { SITE } from "@/lib/site";
 import { LivePill, LiveToasts } from "./LiveActivity";
+import { Gallery } from "./Gallery";
 import { BfSignup } from "./BfSignup";
 
 const PAY_NAMES = { visa: "Visa", mastercard: "Mastercard", paypal: "PayPal", "apple-pay": "Apple Pay", "google-pay": "Google Pay" } as const;
@@ -49,6 +50,14 @@ function Countdown({ cutoffIso, units, onEnd }: { cutoffIso: string; units: BfCo
     </div>
   );
 }
+
+// More real photos of an offer for the gallery (after the hero); the page's own story and pairing photos follow.
+const GALLERY_EXTRA: Partial<Record<BfOfferId, string[]>> = {
+  poco: ["/lp/bf/poco-hero.webp", "/lp/bf/poco-bottle.webp"],
+  pocoeu: ["/lp/bf/poco-hero.webp", "/lp/bf/poco-bottle.webp"],
+  burbujas: ["/lp/bf/espumoso-bottle.webp"],
+  sekt: ["/lp/bf/espumoso-bottle.webp"],
+};
 
 const PRODUCER: Record<string, string> = {
   es: "Directo del productor, Douro",
@@ -153,6 +162,13 @@ export function BlackFridayPage({
   const selectedBundle = selected;
   const single = bundles.find((b) => b.qty === 1);
   const v = { date: cutoffLabel, days: deliveryDays };
+  const gallery = [
+    ...new Set(
+      [img.hero, ...(GALLERY_EXTRA[offerId] ?? []), img.cutIsBox ? img.cut : null, ...copy.story.map((x) => x.img), ...copy.evening.map((x) => x.img ?? null), img.who ?? null].filter(
+        (x): x is string => !!x && x.startsWith("/"),
+      ),
+    ),
+  ].slice(0, 9);
   const t = (s: string) => fmt(s, v);
 
   useEffect(() => {
@@ -277,13 +293,13 @@ export function BlackFridayPage({
           </p>
           <div className="bf-herogrid">
           <div className="bf-heroimg">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className={`bf-bottles${img.heroH > img.heroW ? " bf-bottles-tall" : ""}`} src={img.hero} alt={copy.productName} width={img.heroW} height={img.heroH} fetchPriority="high" />
-            <div className="bf-shipstamp">
-              <span aria-hidden="true">🚚</span>
-              <b>{copy.freeShip.big}</b>
-              <small>{t(copy.freeShip.small)}</small>
-            </div>
+            <Gallery images={gallery} alt={copy.productName} ratio={img.heroW / img.heroH}>
+              <div className="bf-shipstamp">
+                <span aria-hidden="true">🚚</span>
+                <b>{copy.freeShip.big}</b>
+                <small>{t(copy.freeShip.small)}</small>
+              </div>
+            </Gallery>
             <ul className="bf-checks bf-checks-hero">
               {copy.checks.map((c) => (
                 <li key={c}>{t(c)}</li>
