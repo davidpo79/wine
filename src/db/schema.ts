@@ -10,6 +10,7 @@ import {
   index,
   pgEnum,
   pgSequence,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -357,9 +358,27 @@ export const creatorContracts = pgTable("creator_contracts", {
   docHash: text("doc_hash"),
   signaturePng: text("signature_png"), // base64
   signedPdf: text("signed_pdf"), // base64
+  paidAt: timestamp("paid_at", { withTimezone: true }), // fee paid (on delivery of the videos)
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 export type CreatorContract = typeof creatorContracts.$inferSelect;
+
+/** Videos a creator uploaded at /es/creadores/subir/[token] (stored in the bucket under private/ugc/). */
+export const creatorUploads = pgTable("creator_uploads", {
+  id: serial("id").primaryKey(),
+  contractId: integer("contract_id").notNull(),
+  applicationId: integer("application_id"),
+  key: text("key").notNull(),
+  fileName: text("file_name").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+  contentType: text("content_type"),
+  uploadId: text("upload_id"), // S3 multipart upload id while uploading
+  status: text("status").notNull().default("uploading"), // uploading | new | approved | rejected
+  note: text("note"),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const leads = pgTable(
   "leads",

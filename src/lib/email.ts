@@ -267,6 +267,15 @@ ${button(link, "Revisar y firmar el contrato")}
   return send(null, to, "Wine Portugal · Tu contrato de colaboración para firmar", html, "creator_contract");
 }
 
+/** The personal page where a creator uploads their videos. */
+export async function sendUploadLink(to: string, name: string, link: string) {
+  const html = creatorLayout(
+    "Sube tus vídeos",
+    `<p>Hola ${esc(name.split(" ")[0])},</p><p>Cuando tengas los vídeos listos, súbelos desde tu página personal. No hay límite de tamaño: puedes subir los archivos originales del móvil.</p>${button(link, "Subir mis vídeos")}`,
+  );
+  return send(null, to, "Wine Portugal · Sube tus vídeos", html, "creator_upload_link");
+}
+
 /** One-time code that confirms the signer's email. */
 export async function sendContractCode(to: string, code: string) {
   const html = creatorLayout(
@@ -279,16 +288,26 @@ export async function sendContractCode(to: string, code: string) {
 }
 
 /** The signed PDF, to the creator and to the order-alert addresses. */
-export async function sendSignedContract(to: string, name: string, contractId: number, pdf: Buffer) {
+export async function sendSignedContract(to: string, name: string, contractId: number, pdf: Buffer, uploadToken: string) {
   const file = { filename: `Contrato_UGC_Wine_Portugal_${contractId}.pdf`, content: pdf };
   const html = creatorLayout(
     "Contrato firmado",
-    `<p>Hola ${esc(name.split(" ")[0])},</p><p>Tu contrato de colaboración n.º ${contractId} está firmado. Te adjuntamos una copia en PDF. Muy pronto te escribiremos con el briefing y el envío del vino.</p>`,
+    `<p>Hola ${esc(name.split(" ")[0])},</p><p>Tu contrato de colaboración n.º ${contractId} está firmado. Te adjuntamos una copia en PDF. Muy pronto te escribiremos con el briefing y el envío del vino.</p>
+<p>Cuando tengas los vídeos listos, súbelos aquí (sin límite de tamaño):</p>${button(`${SITE.url}/es/creadores/subir/${uploadToken}`, "Subir mis vídeos")}`,
   );
   await send(null, to, "Wine Portugal · Contrato firmado", html, "creator_contract_signed", [file]);
   const admins = [...new Set([...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean))];
   const ah = layout("Contrato UGC firmado", `<p>${esc(name)} signed UGC contract #${contractId}. The PDF is attached.</p>${button(`${SITE.url}/admin/creators`, "Open in the admin")}`, "pt");
   for (const a of admins) await send(null, a, `[UGC] Contract #${contractId} signed · ${name}`, ah, "creator_contract_signed_admin", [file]).catch((e) => console.error("[email] contract admin", a, e));
+}
+
+/** A creator finished uploading a video: alert to the order-alert addresses, with a link to the creator's card. */
+export async function sendCreatorUploadAlert(name: string, applicationId: number | null, fileName: string, bytes: number) {
+  const admins = [...new Set([...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean))];
+  const mb = (bytes / 1024 / 1024).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1);
+  const href = `${SITE.url}/admin/creators${applicationId ? `/${applicationId}` : ""}`;
+  const html = layout("Novo vídeo UGC", `<p>${esc(name)} uploaded a video for review: <b>${esc(fileName)}</b> (${mb} MB).</p>${button(href, "Review in the admin")}`, "pt");
+  for (const a of admins) await send(null, a, `[UGC] New video from ${name}`, html, "creator_upload_admin").catch((e) => console.error("[email] upload alert", a, e));
 }
 
 /** Login details for a new team member (temporary password, changed at first login). Admin UI is in English. */

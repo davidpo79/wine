@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { sendContractCode, sendContractLink, sendSignedContract } from "./email";
+import { sendContractCode, sendContractLink, sendSignedContract, sendUploadLink } from "./email";
 import { normalizePhoneFor } from "./markets";
 import { sendSms } from "./telnyx";
 import { SITE } from "./site";
@@ -17,6 +17,22 @@ import {
 } from "./creator-contract";
 
 export const contractLink = (token: string) => `${SITE.url}/es/creadores/contrato/${token}`;
+export const uploadLink = (token: string) => `${SITE.url}/es/creadores/subir/${token}`;
+
+/** Email + SMS with the contract link (not signed yet) or the upload link (signed). */
+export async function sendCreatorLink(contractId: number) {
+  const [c] = await db.select().from(schema.creatorContracts).where(eq(schema.creatorContracts.id, contractId)).limit(1);
+  if (!c) return;
+  const signed = c.status === "signed";
+  const link = signed ? uploadLink(c.token) : contractLink(c.token);
+  const first = c.creatorName.split(" ")[0];
+  if (signed) await sendUploadLink(c.email, c.creatorName, link).catch((e) => console.error("[contract] upload email", e));
+  else await sendContractLink(c.email, c.creatorName, link).catch((e) => console.error("[contract] email", e));
+  if (c.phone)
+    await sendSms(c.phone, signed ? `Hola ${first}, sube aquí tus vídeos para Wine Portugal (sin límite de tamaño): ${link}` : `Hola ${first}, aquí tienes tu contrato de colaboración con Wine Portugal para revisar y firmar: ${link}`).catch((e) =>
+      console.error("[contract] sms", e instanceof Error ? e.message : e),
+    );
+}
 
 /** Admin, one click next to the creator's name: create the contract and send its link by email and by SMS. */
 export async function createAndSendContract(applicationId: number, terms: ContractTerms, companySigner: string) {
@@ -106,7 +122,7 @@ export async function signContract(
     .returning({ id: schema.creatorContracts.id });
   if (!done.length) return { ok: false, error: "No se ha podido guardar la firma.", status: 500 };
   if (c.applicationId) await db.update(schema.creatorApplications).set({ status: "chosen" }).where(eq(schema.creatorApplications.id, c.applicationId));
-  await sendSignedContract(c.email, input.fields.name, c.id, pdf).catch((e) => console.error("[contract] signed email", e));
+  await sendSignedContract(c.email, input.fields.name, c.id, pdf, token).catch((e) => console.error("[contract] signed email", e));
   return { ok: true, id: c.id };
 }
 

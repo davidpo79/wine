@@ -154,7 +154,10 @@ export function ContractSign(p: { token: string; id: number; email: string; sign
             <p className="text-3xl">✅</p>
             <h2 className="mt-2 font-serif text-2xl font-semibold">Contrato firmado</h2>
             <p className="mt-1 text-muted">Te hemos enviado una copia en PDF a {p.email}.</p>
-            <a href={`/api/creadores/contrato/${p.token}/pdf`} className="mt-4 inline-block rounded-full bg-azulejo px-6 py-3 font-semibold text-white">Descargar el PDF</a>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <a href={`/es/creadores/subir/${p.token}`} className="inline-block rounded-full bg-azulejo px-6 py-3 font-semibold text-white">Subir mis vídeos</a>
+              <a href={`/api/creadores/contrato/${p.token}/pdf`} className="inline-block rounded-full border border-azulejo px-6 py-3 font-semibold text-azulejo">Descargar el PDF</a>
+            </div>
           </div>
         ) : (
           <section className="mt-6 rounded-xl border border-paper-2 bg-white p-5 sm:p-7">

@@ -260,6 +260,13 @@
       "when": 1795294274812,
       "tag": "0036_creator_contracts",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1795294580451,
+      "tag": "0037_creator_uploads",
+      "breakpoints": true
     }
   ]
 }

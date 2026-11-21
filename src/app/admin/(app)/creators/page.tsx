@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -40,6 +41,20 @@ export default async function Creators() {
   const contracts = await db.select().from(schema.creatorContracts).orderBy(desc(schema.creatorContracts.createdAt));
   const byApp = new Map<number, typeof contracts>();
   for (const c of contracts) if (c.applicationId) byApp.set(c.applicationId, [...(byApp.get(c.applicationId) ?? []), c]);
+  const uploads = (await db.select({ applicationId: schema.creatorUploads.applicationId, contractId: schema.creatorUploads.contractId, status: schema.creatorUploads.status }).from(schema.creatorUploads)).filter((u) => u.status !== "uploading");
+  const toReview = new Map<number, number>();
+  for (const u of uploads) if (u.status === "new" && u.applicationId) toReview.set(u.applicationId, (toReview.get(u.applicationId) ?? 0) + 1);
+  const approvedBy = new Set(uploads.filter((u) => u.status === "approved").map((u) => u.contractId));
+  const signed = contracts.filter((c) => c.status === "signed");
+  const toPay = signed.filter((c) => !c.paidAt && approvedBy.has(c.id));
+  const stats: [string, number, string][] = [
+    ["Videos waiting for review", uploads.filter((u) => u.status === "new").length, "bg-amber-50 border-amber-300 text-amber-900"],
+    ["To pay (approved, not paid)", toPay.length, "bg-blue-50 border-blue-300 text-blue-900"],
+    ["New applications", rows.filter((r) => r.status === "new").length, "bg-white"],
+    ["Contracts waiting for signature", contracts.filter((c) => c.status === "sent").length, "bg-white"],
+    ["Signed contracts", signed.length, "bg-white"],
+    ["Approved videos", uploads.filter((u) => u.status === "approved").length, "bg-white"],
+  ];
   const inTwoWeeks = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
   return (
     <div>
@@ -48,20 +63,29 @@ export default async function Creators() {
         Applications from <a href="/es/creadores" target="_blank" className="underline">/es/creadores</a> · {rows.length} total · {rows.filter((r) => r.status === "new").length} new ·{" "}
         {rows.filter((r) => r.status === "chosen").length} chosen
       </p>
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="ugc-dashboard">
+        {stats.map(([label, n, cls]) => (
+          <div key={label} className={`rounded-lg border p-3 ${cls}`}>
+            <p className="text-3xl font-semibold">{n}</p>
+            <p className="text-xs">{label}</p>
+          </div>
+        ))}
+      </div>
       <div className="mt-4 overflow-x-auto rounded-lg border bg-white">
         <table className="w-full min-w-[1000px] text-sm">
           <thead className="bg-paper text-left text-xs uppercase tracking-wider text-muted">
             <tr><th className="p-2">Date</th><th>Name</th><th>Contact</th><th>Profile</th><th>Examples / message</th><th>Status / notes</th></tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {[...rows].sort((a, b) => (toReview.get(b.id) ?? 0) - (toReview.get(a.id) ?? 0)).map((r) => {
               const profile = link(r.handle);
               const wa = r.phone ? `https://wa.me/${r.phone.replace(/\D/g, "").replace(/^(?!34)(\d{9})$/, "34$1")}` : null;
               return (
                 <tr key={r.id} className="border-t align-top">
                   <td className="p-2 text-xs">{lisbonDateTime(r.createdAt)}</td>
                   <td className="min-w-[260px] p-2">
-                    <span className="font-medium">{r.name}</span>
+                    <Link href={`/admin/creators/${r.id}`} className="font-medium text-azulejo underline">{r.name}</Link>
+                    {toReview.get(r.id) ? <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">🎬 {toReview.get(r.id)} to review</span> : null}
                     <span className="block text-xs text-muted">{r.city}</span>
                     {(byApp.get(r.id) ?? []).map((c) => (
                       <span key={c.id} className="mt-1 block text-xs">
