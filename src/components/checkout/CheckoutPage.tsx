@@ -311,6 +311,11 @@ export function CheckoutPage({
               setBundleKey(wantedBundle);
               patch.bundleKey = wantedBundle;
             }
+            // A code got later (Black Friday popup): apply it to the saved checkout too.
+            try {
+              const pc = localStorage.getItem("wp_promo");
+              if (pc && !(d.amounts as { promo?: string | null } | undefined)?.promo) patch.promo = pc;
+            } catch {}
             try {
               const g = JSON.parse(sessionStorage.getItem("wp_gift") ?? "{}");
               if (g.msg && !(d.fields?.giftMessage ?? "")) {

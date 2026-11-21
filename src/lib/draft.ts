@@ -26,7 +26,13 @@ export type Amounts = { subtotal: number; discount: number; shipping: number; to
 
 export function computeAmounts(bundle: Bundle, settings: Settings, promo: string | null | undefined): Amounts {
   // Black Friday prices are final: the Christmas codes (exit popup, lead emails) do not apply to them.
-  if (isBfBundle(bundle.key)) return { subtotal: bundle.priceCents, discount: 0, shipping: bundle.shippingCents, total: bundle.priceCents + bundle.shippingCents, promoCode: null };
+  // Only the Black Friday popup code (a fixed amount off the order) applies to them.
+  if (isBfBundle(bundle.key)) {
+    const ok = !!settings.bf_lead_code && settings.bf_lead_amount_cents > 0 && normalizeCode(promo) === normalizeCode(settings.bf_lead_code);
+    const discount = ok ? Math.max(0, Math.min(settings.bf_lead_amount_cents, bundle.priceCents - 100)) : 0;
+    const subtotal = bundle.priceCents - discount;
+    return { subtotal, discount, shipping: bundle.shippingCents, total: subtotal + bundle.shippingCents, promoCode: discount ? normalizeCode(promo) : null };
+  }
   const cfg = { code: settings.lead_code, percent: settings.lead_discount_percent, maxQty: settings.lead_code_max_qty, plusCode: settings.lead_plus_code };
   const discount = promoDiscountCents(bundle, cfg, promo);
   const shipping = promoShippingCents(bundle, cfg, promo);

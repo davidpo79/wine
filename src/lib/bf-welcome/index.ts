@@ -134,6 +134,17 @@ export type WelcomeVars = {
   link: string;
   image: string;
   unsubscribe: string;
+  /** The Black Friday popup code this person got (shown in every email), else null. */
+  code?: { code: string; amount: string } | null;
+};
+
+const CODE_LINE: Record<string, string> = {
+  es: "Tu código: {code} · {amount} menos en tu pedido. Escríbelo en el pago (o abre el enlace y se aplica solo).",
+  de: "Ihr Code: {code} · {amount} weniger auf Ihre Bestellung. Bei der Zahlung eingeben (oder Link öffnen, er wird automatisch angewendet).",
+  nl: "Je code: {code} · {amount} korting op je bestelling. Vul hem in bij het betalen (of open de link, dan gaat het vanzelf).",
+  fr: "Votre code : {code} · {amount} de moins sur votre commande. Saisissez-le au paiement (ou ouvrez le lien, il s'applique tout seul).",
+  pt: "O seu código: {code} · menos {amount} na sua encomenda. Escreva-o no pagamento (ou abra o link e é aplicado sozinho).",
+  ru: "Ваш код: {code} · скидка {amount} на заказ. Введите его при оплате (или откройте ссылку, он применится сам).",
 };
 
 const IMAGE: Record<Kind, "product" | "gift" | "douro"> = {
@@ -164,7 +175,7 @@ export function renderWelcome(locale: WelcomeLocale, kind: Kind, day: number, v:
   };
   const subject = fmt(m.subject, vars);
   const pre = fmt(m.pre, vars);
-  const utm = `utm_source=email&utm_medium=welcome&utm_campaign=bf_welcome&utm_content=day${day}_${kind}`;
+  const utm = `utm_source=email&utm_medium=welcome&utm_campaign=bf_welcome&utm_content=day${day}_${kind}${v.code ? `&promo=${encodeURIComponent(v.code.code)}` : ""}`;
   const href = `${v.link}${v.link.includes("?") ? "&" : "?"}${utm}`;
   const imgKey = IMAGE[kind];
   const img = imgKey === "product" ? v.image : imgKey === "gift" ? "/email/bf/gift.jpg" : "/email/bf/story-douro.jpg";
@@ -183,6 +194,7 @@ ${imgKey === "product" ? "" : `<img src="${SITE.url}${v.image}" width="480" alt=
 <div style="font-size:14px;font-weight:bold;color:#111">${esc(v.product)}</div>
 <div style="margin-top:6px;font-size:24px;font-weight:bold;color:#e3161b">${offerLine}</div>
 <div style="margin-top:4px;font-size:13px;color:#444">${esc(fmt(c.offerSub, { perBottle: v.perBottle, date: v.date }))}</div>
+${v.code ? `<div style="margin:14px auto 0;max-width:420px;padding:10px 12px;border:2px dashed #e3161b;border-radius:8px;font-size:14px;color:#111;background:#fff6f6">${esc(fmt(CODE_LINE[locale] ?? CODE_LINE.es, { code: v.code.code, amount: v.code.amount }))}</div>` : ""}
 ${btn(kind === "last_chance" ? c.ctaLast : c.cta)}
 </td></tr></table>`;
   const html = `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(subject)}</title></head>
@@ -284,6 +296,11 @@ export async function processBfWelcome(limit = 40) {
       if (!v) {
         await done("skipped", { reason: "offer_unavailable" });
         continue;
+      }
+      if (settings.bf_lead_code && settings.bf_lead_amount_cents > 0) {
+        const [lead] = await db.select({ promo: schema.leads.promoCode }).from(schema.leads).where(eq(schema.leads.email, row.email)).limit(1);
+        if (lead?.promo && lead.promo.toUpperCase() === settings.bf_lead_code.toUpperCase())
+          v.code = { code: settings.bf_lead_code, amount: `${(settings.bf_lead_amount_cents / 100).toLocaleString(locale === "pt" ? "pt-PT" : locale, { maximumFractionDigits: 2 })} €` };
       }
       const { subject, html } = renderWelcome(locale, kind, row.day, v);
       const r = (await sendMarketingEmail(row.email, subject, html, `bf_welcome_${kind}`)) as { skipped?: boolean; error?: unknown; id?: string; data?: { id?: string } } | undefined;

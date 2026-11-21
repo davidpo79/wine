@@ -74,7 +74,7 @@ export default async function BlackFriday({ params, searchParams }: { params: Pa
     <I18nProvider locale={locale} country={country} languages={[...DOURO_LOCALES]} dict={getDict(locale)} guide={false}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <div lang={LOCALE_INFO[locale].htmlLang} data-locale={locale}>
-        <BlackFridayPage copy={BF_COPY[locale]} bundles={bundles} cutoffIso={bf.cutoff_at} cutoffLabel={cutoffLabel} deliveryDays={deliveryDaysFor(locale, bf.delivery_days)} open={open} />
+        <BlackFridayPage copy={BF_COPY[locale]} bundles={bundles} cutoffIso={bf.cutoff_at} cutoffLabel={cutoffLabel} deliveryDays={deliveryDaysFor(locale, bf.delivery_days)} open={open} leadAmountCents={settings.bf_lead_code ? settings.bf_lead_amount_cents : 0} />
       </div>
     </I18nProvider>
   );
