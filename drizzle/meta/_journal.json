@@ -239,6 +239,13 @@
       "when": 1793890725380,
       "tag": "0033_bf_welcome",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795278210901,
+      "tag": "0034_external_id",
+      "breakpoints": true
     }
   ]
 }

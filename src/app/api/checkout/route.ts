@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { createDraft, draftToken, loadDraft, PAID_STATUSES as PAID, publicAmounts, publicDraft, updateDraft } from "@/lib/draft";
 import { checkoutMethods, orderAddons } from "@/lib/payments";
-import { CONSENT_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent } from "@/lib/tracking";
+import { CONSENT_COOKIE, XID_COOKIE, gaClientIdFromCookie, logFunnel, parseConsent, validXid } from "@/lib/tracking";
 import { clientIp } from "@/lib/request";
 import { funnelSource } from "@/lib/bots";
 import { UTM_COOKIE, parseUtmCookie, sourceFromUtm } from "@/lib/utm";
@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       utm: parseUtmCookie(jar.get(UTM_COOKIE)?.value),
       fbp: consent.marketing ? jar.get("_fbp")?.value ?? null : null,
       fbc: consent.marketing ? jar.get("_fbc")?.value ?? null : null,
+      externalId: consent.marketing ? validXid(jar.get(XID_COOKIE)?.value) : null,
       gaClientId: consent.statistics ? gaClientIdFromCookie(jar.get("_ga")?.value) : null,
       ip: clientIp(h),
       ua: h.get("user-agent")?.slice(0, 400) ?? null,

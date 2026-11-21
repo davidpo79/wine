@@ -273,7 +273,7 @@ export async function markAddonPaid(addonId: number, p: Payment) {
       eventId,
       sourceUrl: `${SITE.url}/oferta`,
       orderId: order.id,
-      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: order.shippingAddress?.city, zip: order.shippingAddress?.postal_code, country: countryOf(order), ip: order.clientIp, userAgent: order.userAgent, fbp: order.fbp, fbc: order.fbc },
+      user: { email: order.email, phone: order.phone, firstName: first, lastName: rest.join(" "), city: order.shippingAddress?.city, zip: order.shippingAddress?.postal_code, country: countryOf(order), ip: order.clientIp, userAgent: order.userAgent, fbp: order.fbp, fbc: order.fbc, externalId: order.externalId },
       customData: { value: addon.amountCents / 100, currency: "EUR", content_ids: [addon.sku], content_type: "product", num_items: addon.qty, order_id: `${order.id}-A${addon.id}` },
     }).catch(() => {});
   }

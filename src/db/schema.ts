@@ -110,6 +110,7 @@ export const orders = pgTable(
     utm: jsonb("utm").$type<Utm>(),
     fbp: text("fbp"),
     fbc: text("fbc"),
+    externalId: text("external_id"), // first-party visitor id (cookie wp_xid), sent hashed to Meta CAPI as external_id
     eventId: text("event_id"),
     clientIp: text("client_ip"),
     userAgent: text("user_agent"),

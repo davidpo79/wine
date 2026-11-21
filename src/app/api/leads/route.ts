@@ -6,7 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { clientIp } from "@/lib/request";
 import { hashIp, leadToken, LEAD_CONSENT_TEXT } from "@/lib/leads";
 import { sendLeadCode } from "@/lib/email";
-import { CONSENT_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
+import { CONSENT_COOKIE, XID_COOKIE, logFunnel, parseConsent, sendCapi } from "@/lib/tracking";
 import { UTM_COOKIE, parseUtmCookie } from "@/lib/utm";
 import { SITE } from "@/lib/site";
 import { LOCALES } from "@/lib/markets";
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       eventName: "Lead",
       eventId,
       sourceUrl: req.headers.get("referer") ?? SITE.url,
-      user: { email: input.email, firstName: first, lastName: rest.join(" "), ip: clientIp(h), userAgent: h.get("user-agent"), fbp: jar.get("_fbp")?.value, fbc: jar.get("_fbc")?.value },
+      user: { email: input.email, firstName: first, lastName: rest.join(" "), ip: clientIp(h), userAgent: h.get("user-agent"), fbp: jar.get("_fbp")?.value, fbc: jar.get("_fbc")?.value, externalId: jar.get(XID_COOKIE)?.value },
       customData: { content_name: "exit_popup_code" },
     });
   }

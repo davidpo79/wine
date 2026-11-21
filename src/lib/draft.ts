@@ -41,7 +41,7 @@ export function computeAmounts(bundle: Bundle, settings: Settings, promo: string
   return { subtotal, discount, shipping, total: subtotal + shipping, promoCode };
 }
 
-export type DraftCtx = { utm: Utm | null; fbp: string | null; fbc: string | null; gaClientId: string | null; ip: string | null; ua: string | null; consentTracking: boolean };
+export type DraftCtx = { utm: Utm | null; fbp: string | null; fbc: string | null; externalId?: string | null; gaClientId: string | null; ip: string | null; ua: string | null; consentTracking: boolean };
 
 export async function createDraft(input: { bundleKey: string; promo?: string; isGift?: boolean; giftMessage?: string; eventId?: string; locale?: Locale; country?: Country }, ctx: DraftCtx) {
   const bf = isBfBundle(input.bundleKey);
@@ -79,6 +79,7 @@ export async function createDraft(input: { bundleKey: string; promo?: string; is
       utm: ctx.utm,
       fbp: ctx.fbp,
       fbc: ctx.fbc,
+      externalId: ctx.externalId ?? null,
       eventId: input.eventId ?? null,
       clientIp: ctx.consentTracking ? ctx.ip : null,
       userAgent: ctx.consentTracking ? ctx.ua : null,
