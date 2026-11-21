@@ -7,7 +7,8 @@ import { lisbonDateTime } from "@/lib/time";
 import { contractLink, createAndSendContract } from "@/lib/creator-contract-service";
 
 // UGC creators who applied through /es/creadores (David, 21/11/2026).
-const STATUS: Record<string, string> = { new: "New", contacted: "Contacted", chosen: "Chosen", rejected: "Not a fit" };
+// contract_sent and signed are set automatically when the contract is sent / signed.
+const STATUS: Record<string, string> = { new: "New", contacted: "Contacted", contract_sent: "Contract sent", signed: "Contract signed", chosen: "Chosen", rejected: "Not a fit" };
 
 async function setStatus(f: FormData) {
   "use server";
@@ -61,7 +62,7 @@ export default async function Creators() {
       <h1 className="font-serif text-3xl font-semibold">UGC creators</h1>
       <p className="mt-1 text-sm text-muted">
         Applications from <a href="/es/creadores" target="_blank" className="underline">/es/creadores</a> · {rows.length} total · {rows.filter((r) => r.status === "new").length} new ·{" "}
-        {rows.filter((r) => r.status === "chosen").length} chosen
+        {rows.filter((r) => r.status === "signed").length} signed
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="ugc-dashboard">
         {stats.map(([label, n, cls]) => (
