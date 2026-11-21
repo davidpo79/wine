@@ -13,6 +13,13 @@ if (process.env.DATABASE_URL) {
   }, 25_000);
 }
 
+// Meta CAPI: Purchase events of the last 6 days skipped for lack of cookie consent are sent once (idempotent).
+if (process.env.DATABASE_URL) {
+  setTimeout(() => {
+    import("./lib/tracking").then((m) => m.backfillSkippedPurchases()).catch((e) => console.error("[tracking] purchase backfill", e instanceof Error ? e.message : e));
+  }, 35_000);
+}
+
 // Apple Pay / Google Pay buttons need the site's domain registered in Stripe (once per start, idempotent).
 setTimeout(() => {
   import("./lib/stripe").then((m) => m.ensurePaymentMethodDomain()).catch((e) => console.error("[stripe] payment method domain", e instanceof Error ? e.message : e));
