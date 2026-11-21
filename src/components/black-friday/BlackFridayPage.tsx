@@ -141,6 +141,7 @@ export function BlackFridayPage({
   cutoffLabel,
   deliveryDays,
   open: openAtLoad,
+  leadAmountCents = 0,
 }: {
   offer?: BfOfferId;
   copy: BfCopy;
@@ -149,6 +150,8 @@ export function BlackFridayPage({
   cutoffLabel: string;
   deliveryDays: string;
   open: boolean;
+  /** The exit popup's code value (Settings: bf_lead_amount_cents); 0 = no popup. */
+  leadAmountCents?: number;
 }) {
   const { locale, country, money, moneyShort } = useI18n();
   const offer = BF_OFFERS[offerId];
@@ -195,6 +198,13 @@ export function BlackFridayPage({
     flushJourney();
     location.assign(`/checkout?b=${encodeURIComponent(selected.key)}&l=${locale}&c=${country}`);
   };
+
+  useEffect(() => {
+    try {
+      const pc = new URLSearchParams(location.search).get("promo");
+      if (pc && /^[A-Za-z0-9-]{3,20}$/.test(pc)) localStorage.setItem("wp_promo", pc.toUpperCase());
+    } catch {}
+  }, []);
 
   const hrefFor = useMemo(() => (l: string) => (isBfLocale(l) ? bfHref(l, offer) : `/${l}`), [offer]);
   const priceLabel = selected ? money(selected.priceCents) : "";
@@ -517,7 +527,7 @@ export function BlackFridayPage({
       </footer>
 
       {open && <LiveToasts offer={offerId} locale={locale} />}
-      {open && <BfSignup locale={locale} />}
+      {open && <BfSignup locale={locale} amountCents={leadAmountCents} />}
 
       {open && selected && (
         <div className="bf-sticky">
