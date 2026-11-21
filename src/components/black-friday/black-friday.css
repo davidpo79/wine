@@ -164,3 +164,13 @@
 .bf-signup-small{margin:12px 0 0;color:#9a9aa1;font-size:12px}
 .bf-signup-error{margin:10px 0 0;color:#ff8a8a;font-size:13px}
 .bf-signup .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Price and button at the top of the hero */
+.bf-topbuy{margin:14px auto 4px;max-width:440px;padding:14px 16px 12px;border:2px solid var(--bf-red);border-radius:14px;background:#120a0c}
+.bf-topbuy-price{display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin:0}
+.bf-topbuy-usual{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--bf-gray)}
+.bf-topbuy-usual s{margin-left:4px;font-size:22px;color:#ddd;text-decoration-color:var(--bf-red);text-decoration-thickness:3px}
+.bf-topbuy-price b{font:900 clamp(46px,13vw,64px)/1 Impact,"Arial Black",Arial,sans-serif;color:#fff}
+.bf-topbuy-meta{margin:6px 0 0;font-size:13px;font-weight:700;color:#e8e8e8}
+.bf-topbuy .bf-cta{margin-top:12px;padding:17px 12px;font-size:18px}
+.bf-topbuy-more{display:inline-block;margin-top:10px;font-size:13px;font-weight:700;color:#fff;text-decoration:underline;text-underline-offset:3px}

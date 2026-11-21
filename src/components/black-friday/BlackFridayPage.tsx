@@ -77,6 +77,7 @@ export function BlackFridayPage({
   const [key, setKey] = useState(bundles.find((b) => b.qty === 2)?.key ?? bundles[0]?.key);
   const [going, setGoing] = useState(false);
   const selected = bundles.find((b) => b.key === key) ?? bundles[0];
+  const selectedBundle = selected;
   const single = bundles.find((b) => b.qty === 1);
   const v = { date: cutoffLabel, days: deliveryDays };
   const t = (s: string) => fmt(s, v);
@@ -94,7 +95,9 @@ export function BlackFridayPage({
     jlog("bundle_select", { bundle: k, where: `black_friday${offer.path ? `_${offer.path}` : ""}` });
   };
 
-  const buy = () => {
+  // key: a bundle bought straight from a button (the 1-box button at the top); else the chosen bundle.
+  const buy = (key?: string) => {
+    const selected = (key && bundles.find((b) => b.key === key)) || selectedBundle;
     if (!selected || !open || going) return;
     setGoing(true);
     track("AddToCart", { content_ids: [offer.slug], content_type: "product", value: selected.priceCents / 100, currency: "EUR", num_items: selected.qty, bundle_key: selected.key }, newEventId("atc"));
@@ -161,6 +164,35 @@ export function BlackFridayPage({
             <span className="bf-red">{copy.h1a}</span> <span>{copy.h1b}</span>
           </h1>
           <p className="bf-sub">{copy.sub}</p>
+          {/* Price and button at the top (David, 21/11/2026: only ~3 of 100 visitors clicked Buy, the price was below
+              the fold). 1 box straight to the checkout; the bundles stay further down. */}
+          {open && single && (
+            <div className="bf-topbuy">
+              <p className="bf-topbuy-price">
+                {single.compareAtCents && single.compareAtCents > single.priceCents ? (
+                  <span className="bf-topbuy-usual">
+                    {copy.usual} <s>{moneyShort(single.compareAtCents)}</s>
+                  </span>
+                ) : null}
+                <b>{money(single.priceCents)}</b>
+              </p>
+              <p className="bf-topbuy-meta">
+                {copy.bundles[single.key]?.title ?? ""} · {copy.bundles[single.key]?.bottles ?? ""} · {fmt(copy.perBottle, { per: money(Math.round(single.priceCents / (single.qty * perBoxBottles))) })}
+              </p>
+              <button type="button" className="bf-cta" onClick={() => buy(single.key)} disabled={going}>
+                {fmt(copy.cta, { price: money(single.priceCents) })}
+              </button>
+              {(() => {
+                const two = bundles.find((b) => b.qty === 2);
+                const c = two && copy.bundles[two.key];
+                return two && c ? (
+                  <a href="#offer" className="bf-topbuy-more" onClick={() => setKey(two.key)}>
+                    {c.title} · {money(two.priceCents)}{c.badge ? ` · ${c.badge}` : ""} ↓
+                  </a>
+                ) : null;
+              })()}
+            </div>
+          )}
           <p className="bf-mix">
             {copy.mix.map((m, i) => (
               <span key={m}>
@@ -213,7 +245,7 @@ export function BlackFridayPage({
               </ul>
               {picker}
               <LivePill offer={offerId} locale={locale} />
-              <button type="button" className="bf-cta" onClick={buy} disabled={going}>
+              <button type="button" className="bf-cta" onClick={() => buy()} disabled={going}>
                 {fmt(copy.cta, { price: priceLabel })}
               </button>
               <div className="bf-pay">
@@ -402,7 +434,7 @@ export function BlackFridayPage({
             <b>{copy.bundles[selected.key]?.title ?? ""} · {copy.bundles[selected.key]?.bottles ?? ""}</b>
             <small>{t(copy.checks[1])}</small>
           </div>
-          <button type="button" className="bf-cta" onClick={buy} disabled={going}>
+          <button type="button" className="bf-cta" onClick={() => buy()} disabled={going}>
             {fmt(copy.ctaSticky, { price: priceLabel })}
           </button>
         </div>
