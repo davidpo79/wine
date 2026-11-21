@@ -377,7 +377,7 @@ export async function sendLeadReminder(lead: Lead, code: string, percent: number
 }
 
 /** Subject and HTML of an abandoned-checkout email, in the order's language. cutoff: "30/11" style (dayMonthFor). */
-export function recoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string, cutoff: string) {
+export function recoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string, cutoff: string, offer?: { subject: string; line: string }) {
   const locale = localeOf(o);
   const t = recoveryCopy(o);
   const first = (o.customerName ?? "").split(" ")[0];
@@ -385,19 +385,20 @@ export function recoveryEmail(o: Order, kind: "first" | "final", link: string, s
     kind === "first" ? t.titleFirst : t.titleFinal,
     `<p>${fmt(getDict(locale).email.hello, { name: esc(first) })}</p>
 <p>${kind === "first" ? t.textFirst : t.textFinal}</p>
+${offer ? `<p style="margin:16px 0;padding:12px 14px;border:2px dashed #e3161b;border-radius:8px;background:#fff6f6;font-weight:bold;color:#111">${esc(offer.line)}</p>` : ""}
 ${orderSummary(o)}
 ${button(link, t.button)}
 <p>${fmt(t.help, { cutoff: esc(cutoff), whatsapp: esc(SITE.whatsapp) })}</p>
 <p style="font-size:12px;color:#55606e"><a href="${esc(stopLink)}" style="color:#55606e">${t.stop}</a>.</p>`,
     locale,
   );
-  return { subject: kind === "first" ? t.subjectFirst : t.subjectFinal, html };
+  return { subject: offer?.subject ?? (kind === "first" ? t.subjectFirst : t.subjectFinal), html };
 }
 
-export async function sendRecoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string) {
+export async function sendRecoveryEmail(o: Order, kind: "first" | "final", link: string, stopLink: string, offer?: { subject: string; line: string }) {
   if (!o.email) return;
   const cutoff = dayMonthFor(localeOf(o), orderCutoffIso(await getSettings(), o));
-  const { subject, html } = recoveryEmail(o, kind, link, stopLink, cutoff);
+  const { subject, html } = recoveryEmail(o, kind, link, stopLink, cutoff, offer);
   return send(o, o.email, subject, html, `recovery_${kind}`);
 }
 

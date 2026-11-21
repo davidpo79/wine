@@ -41,7 +41,7 @@ export default async function MessagesPage() {
     ["Black Friday welcome sequence", settings.bf_welcome_enabled, settings.bf_welcome_enabled ? `on (Settings)${settings.bf_welcome_backfill ? ", incl. signups of the last 10 days" : ""}` : "off in Settings"],
   ];
   const welcome = await welcomeOverview(40);
-  const stepLabel = (k: string) => STEPS[k as StepKey]?.label ?? k;
+  const stepLabel = (k: string) => (k === "offer_expire" ? "Black Friday discount ends (24 h after the final email)" : STEPS[k as StepKey]?.label ?? k);
 
   return (
     <div className="space-y-5">
