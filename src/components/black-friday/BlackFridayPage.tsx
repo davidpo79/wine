@@ -53,8 +53,9 @@ function Countdown({ cutoffIso, units, onEnd }: { cutoffIso: string; units: BfCo
 
 // More real photos of an offer for the gallery (after the hero); the page's own story and pairing photos follow.
 const GALLERY_EXTRA: Partial<Record<BfOfferId, string[]>> = {
-  poco: ["/lp/bf/poco-hero.webp", "/lp/bf/poco-bottle.webp"],
-  pocoeu: ["/lp/bf/poco-hero.webp", "/lp/bf/poco-bottle.webp"],
+  // poco-life-*: lifestyle photos made with Higgsfield from the real bottle and box photos (21/11/2026).
+  poco: ["/lp/bf/poco-life-pour.webp", "/lp/bf/poco-hero.webp", "/lp/bf/poco-life-dinner.webp", "/lp/bf/poco-bottle.webp", "/lp/bf/poco-life-unbox.webp", "/lp/bf/poco-life-gift.webp"],
+  pocoeu: ["/lp/bf/poco-life-pour.webp", "/lp/bf/poco-hero.webp", "/lp/bf/poco-life-dinner.webp", "/lp/bf/poco-bottle.webp", "/lp/bf/poco-life-unbox.webp", "/lp/bf/poco-life-gift.webp"],
   burbujas: ["/lp/bf/espumoso-bottle.webp"],
   sekt: ["/lp/bf/espumoso-bottle.webp"],
 };
@@ -168,7 +169,7 @@ export function BlackFridayPage({
         (x): x is string => !!x && x.startsWith("/"),
       ),
     ),
-  ].slice(0, 9);
+  ].slice(0, 12);
   const t = (s: string) => fmt(s, v);
 
   useEffect(() => {
