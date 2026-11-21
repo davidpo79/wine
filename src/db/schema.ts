@@ -309,6 +309,24 @@ export const creatives = pgTable("creatives", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** UGC creators who applied through /es/creadores (David, 21/11/2026): video for the ads, paid + a box of wine. */
+export const creatorApplications = pgTable("creator_applications", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  city: text("city"),
+  handle: text("handle").notNull(), // Instagram / TikTok profile
+  followers: text("followers"),
+  portfolio: text("portfolio"), // link to example videos
+  message: text("message"),
+  locale: text("locale").notNull().default("es"),
+  utm: jsonb("utm").$type<Utm>(),
+  status: text("status").notNull().default("new"), // new | contacted | chosen | rejected
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const leads = pgTable(
   "leads",
   {
