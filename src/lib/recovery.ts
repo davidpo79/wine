@@ -24,6 +24,19 @@ export const STEPS = {
 } as const;
 export type StepKey = keyof typeof STEPS;
 
+// Black Friday (David, 21/11/2026): the final email puts the popup's discount on the unfinished order for 24 hours;
+// a step 24 hours later takes it off again if the order is still unpaid, so "24 hours" is true.
+export const OFFER_HOURS = 24;
+const OFFER: Record<Locale, { subject: string; line: string }> = {
+  es: { subject: "Te reservamos {amount} de descuento durante 24 horas", line: "Hemos aplicado {amount} de descuento a tu pedido. Es tuyo durante 24 horas, hasta el {until}: solo tienes que completarlo." },
+  pt: { subject: "Reservámos-lhe {amount} de desconto durante 24 horas", line: "Aplicámos {amount} de desconto à sua encomenda. É seu durante 24 horas, até {until}: só tem de a concluir." },
+  de: { subject: "Für Sie reserviert: {amount} Rabatt, 24 Stunden lang", line: "Wir haben {amount} Rabatt auf Ihre Bestellung angewendet. Er gilt 24 Stunden, bis {until}: Sie müssen sie nur noch abschließen." },
+  nl: { subject: "Voor jou gereserveerd: {amount} korting, 24 uur lang", line: "We hebben {amount} korting op je bestelling gezet. Die is 24 uur van jou, tot {until}: je hoeft alleen nog af te ronden." },
+  fr: { subject: "{amount} de remise réservés pour vous pendant 24 heures", line: "Nous avons appliqué {amount} de remise à votre commande. Elle est à vous pendant 24 heures, jusqu'au {until} : il ne reste qu'à la finaliser." },
+  ru: { subject: "Для вас: скидка {amount} на 24 часа", line: "Мы применили к вашему заказу скидку {amount}. Она действует 24 часа, до {until}: осталось только завершить заказ." },
+  en: { subject: "We saved you {amount} off for 24 hours", line: "We applied {amount} off to your order. It is yours for 24 hours, until {until}: you only need to finish it." },
+};
+
 const PAID = ["paid", "preparing", "shipped", "delivered", "refunded"] as const;
 
 function secret() {
@@ -132,9 +145,28 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
     // e-mail: the checkout says so under the e-mail field, and every reminder has a stop link. WhatsApp and SMS go
     // only to customers who ticked the consent box.
     if (!order.consentMessages && !order.email) return { status: "skipped", result: { reason: "no_message_consent" }, channels };
+    let offer: { subject: string; line: string } | undefined;
+    if (step.step === "final_email" && order.email && isBfBundle(order.bundleKey) && !order.promoCode) {
+      const settings = await getSettings();
+      if (settings.bf_lead_code && settings.bf_lead_amount_cents > 0) {
+        const { updateDraft } = await import("./draft");
+        const updated = await updateDraft(order, { promo: settings.bf_lead_code });
+        if (updated?.discountCents) {
+          Object.assign(order, updated);
+          const until = new Date(Date.now() + OFFER_HOURS * 3600_000);
+          const tz = CALL_TZ[isCountry(order.country) ? order.country : "PT"];
+          const untilLabel = until.toLocaleString(locale === "pt" ? "pt-PT" : locale, { timeZone: tz, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+          const amount = `${(updated.discountCents / 100).toLocaleString(locale === "pt" ? "pt-PT" : locale, { maximumFractionDigits: 2 })} €`;
+          const o = OFFER[locale] ?? OFFER.en;
+          offer = { subject: fmt(o.subject, { amount }), line: fmt(o.line, { amount, until: untilLabel }) };
+          await db.insert(schema.recoverySteps).values({ orderId: order.id, step: "offer_expire", scheduledAt: until });
+          result.offer = { code: settings.bf_lead_code, discount_cents: updated.discountCents, until: until.toISOString() };
+        }
+      }
+    }
     if (order.email) {
       channels.push("email");
-      result.email = await sendRecoveryEmail(order, step.step === "final_email" ? "final" : "first", link, stopUrl(order.id)).then(
+      result.email = await sendRecoveryEmail(order, step.step === "final_email" ? "final" : "first", link, stopUrl(order.id), offer).then(
         (r) => (r && "skipped" in r ? "not_configured" : "sent"),
         (e) => `error: ${e}`,
       );
@@ -171,6 +203,12 @@ export async function runStep(step: Pick<typeof schema.recoverySteps.$inferSelec
         );
       }
     }
+  } else if (step.step === "offer_expire") {
+    // The 24 hours of the final email's discount are over: take it off the unpaid order (paid orders were skipped).
+    if (!order.promoCode) return { status: "skipped", result: { reason: "no_discount" }, channels };
+    const { updateDraft } = await import("./draft");
+    await updateDraft(order, { promo: "" });
+    return { status: "done", result: { removed: order.promoCode }, channels: ["discount"] };
   } else if (step.step === "ai_call") {
     if (!order.consentCalls) return { status: "skipped", result: { reason: "no_call_consent" }, channels };
     if (!order.phone) return { status: "skipped", result: { reason: "no_phone" }, channels };
