@@ -1,4 +1,5 @@
-import { and, countDistinct, gte, inArray } from "drizzle-orm";
+import { and, countDistinct, gte, inArray, sql } from "drizzle-orm";
+import { PAID_STATUSES } from "@/lib/stats";
 import { requireAdmin } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { getCatalog } from "@/lib/catalog";
@@ -33,6 +34,38 @@ async function visits(paths: string[]) {
   return m;
 }
 
+/**
+ * Paid orders per landing page (last 24 h and 7 days, by payment time). An order belongs to the page its buyer's visit
+ * came through: the visit (one browser tab) that carries the order's checkout events, and in it the last of these
+ * pages seen before paying. Orders with no visit on record (blocked tracking, other device) are not counted.
+ */
+async function purchases(paths: string[]) {
+  const m = new Map<string, { day: number; week: number; revenue: number }>();
+  for (const p of paths) m.set(p, { day: 0, week: 0, revenue: 0 });
+  const rows = await db.execute<{ path: string; day: number; week: number; revenue: number }>(sql`
+    with paid as (
+      select id, paid_at, total_cents from orders
+      where status in (${sql.join(PAID_STATUSES.map((x) => sql`${x}`), sql`, `)}) and paid_at >= now() - interval '7 days'
+    ),
+    visit as (
+      select distinct je.order_id, je.session_id from journey_events je join paid on paid.id = je.order_id
+    ),
+    page as (
+      select distinct on (v.order_id) v.order_id, j2.path
+      from visit v join journey_events j2 on j2.session_id = v.session_id
+      where j2.path in (${sql.join(paths.map((x) => sql`${x}`), sql`, `)})
+      order by v.order_id, j2.created_at desc
+    )
+    select page.path,
+      count(*) filter (where paid.paid_at >= now() - interval '24 hours')::int as day,
+      count(*)::int as week,
+      coalesce(sum(paid.total_cents), 0)::int as revenue
+    from page join paid on paid.id = page.order_id
+    group by page.path`);
+  for (const r of rows) if (m.has(r.path)) m.set(r.path, { day: Number(r.day), week: Number(r.week), revenue: Number(r.revenue) });
+  return m;
+}
+
 /** Admin → All pages & links: every landing page ("panel") of the shop in one place, with its checkout links. */
 export default async function LinksPage() {
   await requireAdmin({ role: "admin" });
@@ -53,14 +86,18 @@ export default async function LinksPage() {
     });
   }
   groups.push({ title: "Christmas · Trilogia 2160 (main site)", rows: LOCALES.map((l) => ({ locale: l, href: homeHref(l) })) });
-  const v = await visits(groups.flatMap((g) => g.rows.map((r) => r.href)));
+  const allPaths = groups.flatMap((g) => g.rows.map((r) => r.href));
+  const [v, buys] = await Promise.all([visits(allPaths), purchases(allPaths)]);
+  const conv = (b: number, n: number) => (n ? `${((b / n) * 100).toFixed(1).replace(".", ",")}%` : "—");
   const full = (href: string) => `${SITE.url}${href}`;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-serif text-3xl font-semibold">All pages & links</h1>
-        <p className="text-sm text-muted">Every landing page of the shop, by offer and language, with direct checkout links. Visits are distinct visitors on that exact page (last 24 h / 7 days).</p>
+        <p className="text-sm text-muted">
+          Every landing page of the shop, by offer and language, with direct checkout links. Visitors: distinct visits on that exact page. Purchases: paid orders whose buyer came through that page (the same browser visit), by payment time. Conversion: purchases ÷ visitors over 7 days. Figures are 24 h / 7 days.
+        </p>
       </div>
       {groups.map((g) => (
         <section key={g.title} className="overflow-hidden rounded-lg border bg-white">
@@ -69,6 +106,15 @@ export default async function LinksPage() {
             <span className="text-xs text-muted">{[g.note, g.rows[0]?.prices].filter(Boolean).join(" · ")}</span>
           </div>
           <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted">
+                <th className="px-4 py-1.5" colSpan={2}>Page</th>
+                <th className="px-2 py-1.5 text-right">Visitors</th>
+                <th className="px-2 py-1.5 text-right">Purchases</th>
+                <th className="px-2 py-1.5 text-right">Conv. 7d</th>
+                <th className="px-4 py-1.5" />
+              </tr>
+            </thead>
             <tbody>
               {g.rows.map((r) => (
                 <tr key={r.href} className="border-b last:border-0 align-top">
@@ -91,6 +137,11 @@ export default async function LinksPage() {
                   <td className="whitespace-nowrap px-2 py-2 text-right text-xs text-muted" title="Visitors in the last 24 h / 7 days">
                     {v.get(r.href)?.day ?? 0} / {v.get(r.href)?.week ?? 0}
                   </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-right text-xs" title={`Paid orders in the last 24 h / 7 days · ${eur(buys.get(r.href)?.revenue ?? 0)} in 7 days`}>
+                    <b>{buys.get(r.href)?.day ?? 0}</b> / <b>{buys.get(r.href)?.week ?? 0}</b>
+                    {buys.get(r.href)?.revenue ? <div className="text-muted">{eur(buys.get(r.href)!.revenue)}</div> : null}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold">{conv(buys.get(r.href)?.week ?? 0, v.get(r.href)?.week ?? 0)}</td>
                   <td className="whitespace-nowrap px-4 py-2 text-right">
                     <div className="flex justify-end gap-1">
                       <a href={r.href} target="_blank" rel="noopener" className="rounded border px-2 py-1 text-xs hover:bg-paper">
