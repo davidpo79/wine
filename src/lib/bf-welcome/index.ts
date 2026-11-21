@@ -138,6 +138,16 @@ export type WelcomeVars = {
   code?: { code: string; amount: string } | null;
 };
 
+// The first email of someone who got the popup code: the subject says it (opened more than a plain welcome).
+const CODE_SUBJECT: Record<string, { subject: string; pre: string }> = {
+  es: { subject: "Tu código {code}: {amount} de descuento", pre: "Ya está aplicado: ábrelo y elige tu caja de Black Friday." },
+  pt: { subject: "O seu código {code}: {amount} de desconto", pre: "Já está aplicado: abra e escolha a sua caixa de Black Friday." },
+  de: { subject: "Ihr Code {code}: {amount} Rabatt", pre: "Schon angewendet: öffnen und Ihre Black-Friday-Box wählen." },
+  nl: { subject: "Je code {code}: {amount} korting", pre: "Al toegepast: open en kies je Black Friday-doos." },
+  fr: { subject: "Votre code {code} : {amount} de remise", pre: "Déjà appliqué : ouvrez et choisissez votre caisse Black Friday." },
+  ru: { subject: "Ваш код {code}: скидка {amount}", pre: "Код уже применён: откройте и выберите коробку Black Friday." },
+};
+
 const CODE_LINE: Record<string, string> = {
   es: "Tu código: {code} · {amount} menos en tu pedido. Escríbelo en el pago (o abre el enlace y se aplica solo).",
   de: "Ihr Code: {code} · {amount} weniger auf Ihre Bestellung. Bei der Zahlung eingeben (oder Link öffnen, er wird automatisch angewendet).",
@@ -173,8 +183,9 @@ export function renderWelcome(locale: WelcomeLocale, kind: Kind, day: number, v:
     palhete: v.palhete ? c.palhete : "",
     stats: v.stats ? fmt(c.stats, { orders: String(v.stats.orders), multi: String(v.stats.multi), gift: String(v.stats.gift) }) : "",
   };
-  const subject = fmt(m.subject, vars);
-  const pre = fmt(m.pre, vars);
+  const cs = v.code && kind === "welcome" ? CODE_SUBJECT[locale] : null;
+  const subject = cs ? fmt(cs.subject, { code: v.code!.code, amount: v.code!.amount }) : fmt(m.subject, vars);
+  const pre = cs ? cs.pre : fmt(m.pre, vars);
   const utm = `utm_source=email&utm_medium=welcome&utm_campaign=bf_welcome&utm_content=day${day}_${kind}${v.code ? `&promo=${encodeURIComponent(v.code.code)}` : ""}`;
   const href = `${v.link}${v.link.includes("?") ? "&" : "?"}${utm}`;
   const imgKey = IMAGE[kind];
