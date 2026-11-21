@@ -101,7 +101,7 @@ export default async function Creators() {
                       <summary className="cursor-pointer font-semibold text-azulejo">📝 Send contract (email + SMS)</summary>
                       <form action={sendContract} className="mt-1 grid grid-cols-2 gap-1">
                         <input type="hidden" name="id" value={r.id} />
-                        <label>Fee €<input name="fee" required inputMode="decimal" placeholder="60" className="w-full rounded border px-1 py-0.5" /></label>
+                        <label>Total fee € (all videos)<input name="fee" required inputMode="decimal" placeholder="60" className="w-full rounded border px-1 py-0.5" /></label>
                         <label>Videos<input name="videos" type="number" min={1} max={20} defaultValue={1} className="w-full rounded border px-1 py-0.5" /></label>
                         <label>Seconds<input name="seconds" type="number" min={5} max={180} defaultValue={30} className="w-full rounded border px-1 py-0.5" /></label>
                         <label>Delivery by<input name="delivery" type="date" required defaultValue={inTwoWeeks} className="w-full rounded border px-1 py-0.5" /></label>
