@@ -238,6 +238,20 @@ ${button(`${SITE.url}/admin/orders/${o.id}`, "Abrir no admin")}`,
   for (const to of recipients) await send(o, to, subject, html, "admin_alert").catch((e) => console.error("[email] admin alert", to, e));
 }
 
+/** A UGC creator applied through /es/creadores: alert to the same addresses as paid orders. */
+export async function sendCreatorAlert(a: { id: number; name: string; email: string; phone: string | null; city: string | null; handle: string; followers: string | null; portfolio: string | null; message: string | null }) {
+  const list = [...(process.env.ADMIN_ALERT_EMAIL ?? "").split(","), ...ORDER_ALERT_EMAILS].map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const html = layout(
+    "Nova candidatura UGC",
+    `<p>New UGC creator application (Spain).</p>
+<p><strong>${esc(a.name)}</strong><br>${esc(a.email)}${a.phone ? `<br>${esc(a.phone)}` : ""}${a.city ? `<br>${esc(a.city)}` : ""}<br>Profile: ${esc(a.handle)}${a.followers ? ` · ${esc(a.followers)} followers` : ""}${a.portfolio ? `<br>Examples: ${esc(a.portfolio)}` : ""}</p>
+${a.message ? `<p style="white-space:pre-wrap">${esc(a.message)}</p>` : ""}
+${button(`${SITE.url}/admin/creators`, "Open in the admin")}`,
+    "pt",
+  );
+  for (const to of new Set(list)) await send(null, to, `[UGC] ${a.name} · ${a.handle}`, html, "creator_alert").catch((e) => console.error("[email] creator alert", to, e));
+}
+
 /** Login details for a new team member (temporary password, changed at first login). Admin UI is in English. */
 export async function sendTeamInvite(to: string, role: string, tempPassword: string, invitedBy: string) {
   const html = layout(
