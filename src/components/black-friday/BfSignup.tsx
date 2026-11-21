@@ -159,6 +159,7 @@ export function BfSignup({ locale, amountCents }: { locale: string; amountCents:
         // The checkout fills these in by itself (the same store the exit popup of the main site uses).
         localStorage.setItem("wp_customer", JSON.stringify({ email, phone, name }));
       } catch {}
+      window.dispatchEvent(new Event("wp-promo")); // the page shows its prices with the code
       setCode(String(d.code));
       setStep("done");
       setState("idle");

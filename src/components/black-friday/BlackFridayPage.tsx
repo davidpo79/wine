@@ -60,6 +60,15 @@ const GALLERY_EXTRA: Partial<Record<BfOfferId, string[]>> = {
   sekt: ["/lp/bf/espumoso-bottle.webp"],
 };
 
+const PROMO_ON: Record<string, string> = {
+  es: "✓ Código {code} aplicado: {amount} menos en tu pedido",
+  pt: "✓ Código {code} aplicado: menos {amount} na sua encomenda",
+  de: "✓ Code {code} aktiv: {amount} weniger auf Ihre Bestellung",
+  nl: "✓ Code {code} actief: {amount} korting op je bestelling",
+  fr: "✓ Code {code} appliqué : {amount} de moins sur votre commande",
+  ru: "✓ Код {code} применён: скидка {amount} на заказ",
+};
+
 const PRODUCER: Record<string, string> = {
   es: "Directo del productor, Douro",
   pt: "Direto do produtor, Douro",
@@ -136,12 +145,13 @@ function TrustIcons({ trust, locale, vars }: { trust: string[]; locale: string; 
 export function BlackFridayPage({
   offer: offerId = "douro6",
   copy,
-  bundles,
+  bundles: bundlesIn,
   cutoffIso,
   cutoffLabel,
   deliveryDays,
   open: openAtLoad,
   leadAmountCents = 0,
+  leadCode = "",
 }: {
   offer?: BfOfferId;
   copy: BfCopy;
@@ -152,6 +162,8 @@ export function BlackFridayPage({
   open: boolean;
   /** The exit popup's code value (Settings: bf_lead_amount_cents); 0 = no popup. */
   leadAmountCents?: number;
+  /** The exit popup's code (Settings: bf_lead_code): once the visitor has it, the page shows the prices with it. */
+  leadCode?: string;
 }) {
   const { locale, country, money, moneyShort } = useI18n();
   const offer = BF_OFFERS[offerId];
@@ -159,6 +171,21 @@ export function BlackFridayPage({
   const img = copy.images;
   // The About page opened from here shows this offer (its wine and photos), not the Douro box.
   const aboutFrom = offer.path ? `bf-${offer.path}` : "bf";
+  // The popup code saved in this browser (popup, SMS or email link): every price on the page shows it taken off.
+  const [promoOn, setPromoOn] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      try {
+        setPromoOn(!!leadCode && leadAmountCents > 0 && (localStorage.getItem("wp_promo") ?? "").toUpperCase() === leadCode.toUpperCase());
+      } catch {}
+    };
+    check();
+    window.addEventListener("wp-promo", check);
+    return () => window.removeEventListener("wp-promo", check);
+  }, [leadCode, leadAmountCents]);
+  const off = promoOn ? leadAmountCents : 0;
+  const bundles = useMemo(() => (off ? bundlesIn.map((b) => ({ ...b, priceCents: Math.max(100, b.priceCents - off) })) : bundlesIn), [bundlesIn, off]);
+  const listPrice = (k: string) => bundlesIn.find((b) => b.key === k)?.priceCents ?? 0;
   const [open, setOpen] = useState(openAtLoad);
   const [key, setKey] = useState(bundles.find((b) => b.qty === 2)?.key ?? bundles[0]?.key);
   const [going, setGoing] = useState(false);
@@ -202,7 +229,10 @@ export function BlackFridayPage({
   useEffect(() => {
     try {
       const pc = new URLSearchParams(location.search).get("promo");
-      if (pc && /^[A-Za-z0-9-]{3,20}$/.test(pc)) localStorage.setItem("wp_promo", pc.toUpperCase());
+      if (pc && /^[A-Za-z0-9-]{3,20}$/.test(pc)) {
+        localStorage.setItem("wp_promo", pc.toUpperCase());
+        window.dispatchEvent(new Event("wp-promo"));
+      }
     } catch {}
   }, []);
 
@@ -214,7 +244,7 @@ export function BlackFridayPage({
       {bundles.map((b) => {
         const info = copy.bundles[b.key] ?? { title: `${b.qty}×`, bottles: `${b.qty * perBoxBottles}` };
         const perBox = Math.round(b.priceCents / b.qty);
-        const vsOne = single && b.qty > 1 ? single.priceCents * b.qty - b.priceCents : 0;
+        const vsOne = single && b.qty > 1 ? listPrice(single.key) * b.qty - listPrice(b.key) : 0;
         return (
           <button key={b.key} type="button" role="radio" aria-checked={b.key === key} className="bf-bundle" data-qty={b.qty} onClick={() => choose(b.key)}>
             {info.badge ? <span className="bf-badge">{info.badge}</span> : <span className="bf-badge bf-badge-empty" aria-hidden="true" />}
@@ -233,7 +263,10 @@ export function BlackFridayPage({
             ) : (
               <span className="bf-was" />
             )}
-            <span className="bf-price">{money(b.priceCents)}</span>
+            <span className="bf-price">
+              {off ? <s className="bf-price-was">{moneyShort(listPrice(b.key))}</s> : null}
+              {money(b.priceCents)}
+            </span>
             <span className="bf-per">
               {b.qty > 1 ? fmt(copy.perBox, { per: money(perBox) }) + " · " : ""}
               {fmt(copy.perBottle, { per: money(Math.round(b.priceCents / (b.qty * perBoxBottles))) })}
@@ -266,6 +299,7 @@ export function BlackFridayPage({
           <p className="bf-sub">{copy.sub}</p>
           {/* Price and button at the top (David, 21/11/2026: only ~3 of 100 visitors clicked Buy, the price was below
               the fold). 1 box straight to the checkout; the bundles stay further down. */}
+          {open && promoOn && <p className="bf-promo-on">{fmt(PROMO_ON[locale] ?? PROMO_ON.es, { code: leadCode, amount: money(off) })}</p>}
           {open && single && (
             <div className="bf-topbuy">
               <p className="bf-topbuy-price">
@@ -339,6 +373,7 @@ export function BlackFridayPage({
                 </p>
               ) : null}
               <p className="bf-bigprice">{single ? money(single.priceCents) : priceLabel}</p>
+              {promoOn && <p className="bf-promo-on bf-promo-on-light">{fmt(PROMO_ON[locale] ?? PROMO_ON.es, { code: leadCode, amount: money(off) })}</p>}
               <ul className="bf-checks bf-checks-offer">
                 {copy.checks.map((c) => (
                   <li key={c}>{t(c)}</li>
