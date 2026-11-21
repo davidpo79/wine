@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 
-// What a creator gets for one video. Change here (and in the ads) if the offer changes.
-export const FEE = "60 €";
-
 const STEPS = [
   ["Te apuntas", "Rellena el formulario con tu perfil y, si tienes, ejemplos de vídeos."],
   ["Te enviamos el vino", "Si encajas, te escribimos y te mandamos gratis una caja de 6 botellas del Douro a casa."],
-  ["Grabas y cobras", `Grabas un vídeo vertical de 20 a 40 s con tu móvil, nos lo mandas y te pagamos ${FEE}.`],
+  ["Grabas y cobras", "Grabas un vídeo vertical de 20 a 40 s con tu móvil, nos lo mandas y recibes tu remuneración."],
 ];
 
 const WANT = [
@@ -59,7 +56,7 @@ export function CreatorsPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-gold-soft">Wine Portugal · Creadores UGC</p>
           <h1 className="mt-3 font-serif text-4xl font-semibold leading-tight sm:text-5xl">¿Grabas vídeos? Buscamos creadores de contenido en España</h1>
           <p className="mt-4 max-w-xl text-lg text-white/90">
-            Te enviamos una caja de 6 vinos del Douro y te pagamos <strong>{FEE} por vídeo</strong>. Un vídeo corto y natural, grabado con tu móvil.
+            <strong>Colaboración remunerada:</strong> te enviamos una caja de 6 vinos del Douro y te pagamos por cada vídeo. Un vídeo corto y natural, grabado con tu móvil.
           </p>
           <a href="#form" className="mt-7 inline-block rounded-full bg-gold px-7 py-3 font-semibold text-night">Quiero participar</a>
         </div>
