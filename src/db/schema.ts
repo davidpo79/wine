@@ -10,6 +10,7 @@ import {
   index,
   pgEnum,
   pgSequence,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -324,6 +325,58 @@ export const creatorApplications = pgTable("creator_applications", {
   utm: jsonb("utm").$type<Utm>(),
   status: text("status").notNull().default("new"), // new | contacted | chosen | rejected
   notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** UGC creator contracts signed online at /es/creadores/contrato/[token] (lib/creator-contract.ts). */
+export const creatorContracts = pgTable("creator_contracts", {
+  id: serial("id").primaryKey(),
+  token: text("token").notNull().unique(),
+  applicationId: integer("application_id"),
+  creatorName: text("creator_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  idNumber: text("id_number"),
+  address: text("address"),
+  city: text("city"),
+  iban: text("iban"),
+  videos: integer("videos").notNull(),
+  seconds: integer("seconds").notNull(),
+  feeCents: integer("fee_cents").notNull(),
+  deliveryDate: text("delivery_date").notNull(), // YYYY-MM-DD
+  companySigner: text("company_signer").notNull(),
+  status: text("status").notNull().default("sent"), // sent | signed | void
+  otpHash: text("otp_hash"),
+  otpExpiresAt: timestamp("otp_expires_at", { withTimezone: true }),
+  otpAttempts: integer("otp_attempts").notNull().default(0),
+  otpSentAt: timestamp("otp_sent_at", { withTimezone: true }),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  sentVia: text("sent_via"),
+  signedAt: timestamp("signed_at", { withTimezone: true }),
+  signerIp: text("signer_ip"),
+  signerUa: text("signer_ua"),
+  docHash: text("doc_hash"),
+  signaturePng: text("signature_png"), // base64
+  signedPdf: text("signed_pdf"), // base64
+  paidAt: timestamp("paid_at", { withTimezone: true }), // fee paid (on delivery of the videos)
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type CreatorContract = typeof creatorContracts.$inferSelect;
+
+/** Videos a creator uploaded at /es/creadores/subir/[token] (stored in the bucket under private/ugc/). */
+export const creatorUploads = pgTable("creator_uploads", {
+  id: serial("id").primaryKey(),
+  contractId: integer("contract_id").notNull(),
+  applicationId: integer("application_id"),
+  key: text("key").notNull(),
+  fileName: text("file_name").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull().default(0),
+  contentType: text("content_type"),
+  uploadId: text("upload_id"), // S3 multipart upload id while uploading
+  status: text("status").notNull().default("uploading"), // uploading | new | approved | rejected
+  note: text("note"),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

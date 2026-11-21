@@ -1,4 +1,13 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+  UploadPartCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let client: S3Client | null = null;
@@ -69,4 +78,21 @@ export async function presignedGet(key: string, expiresInSeconds: number, downlo
 export function publicUrl(key: string) {
   if (key.startsWith("/")) return key; // static file in /public
   return `/media/${key.replace(/^public\//, "")}`;
+}
+
+// Multipart uploads (UGC creator videos, any size): the browser sends each part to the app, which streams it on.
+export async function startMultipart(key: string, contentType: string) {
+  if (!key.startsWith("private/")) throw new Error("multipart key must start with private/");
+  const r = await s3().send(new CreateMultipartUploadCommand({ Bucket: Bucket(), Key: key, ContentType: contentType }));
+  return r.UploadId!;
+}
+export async function uploadPart(key: string, uploadId: string, partNumber: number, body: Uint8Array) {
+  const r = await s3().send(new UploadPartCommand({ Bucket: Bucket(), Key: key, UploadId: uploadId, PartNumber: partNumber, Body: body, ContentLength: body.byteLength }));
+  return r.ETag!;
+}
+export async function completeMultipart(key: string, uploadId: string, parts: { PartNumber: number; ETag: string }[]) {
+  await s3().send(new CompleteMultipartUploadCommand({ Bucket: Bucket(), Key: key, UploadId: uploadId, MultipartUpload: { Parts: [...parts].sort((a, b) => a.PartNumber - b.PartNumber) } }));
+}
+export async function abortMultipart(key: string, uploadId: string) {
+  await s3().send(new AbortMultipartUploadCommand({ Bucket: Bucket(), Key: key, UploadId: uploadId })).catch(() => {});
 }
