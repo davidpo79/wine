@@ -15,14 +15,56 @@ export function boxEconomics(price: number, costs: number, vatPercent: number, f
   return { country, vatPercent, vat, fee, marketing, costs, profit, margin: price ? profit / price : 0 };
 }
 
-/** The ad shown for each offer and language (public/ads). */
-export const BF_PANEL_ADS: Record<BfOfferId, Partial<Record<string, string>>> = {
-  douro6: { de: "/ads/bf10_cheda_box_de_4x5.jpg", es: "/ads/bf9_box_es_50_4x5.jpg" },
-  burbujas: { es: "/ads/bfs_es_dark_4x5.jpg" },
-  poco: { es: "/ads/bfp_es_55_4x5.jpg" },
-  pocoeu: { de: "/ads/bfq_poco_de_4x5.jpg", nl: "/ads/bfq_poco_nl_4x5.jpg", fr: "/ads/bfq_poco_fr_4x5.jpg" },
-  galhofa: { nl: "/ads/bfg_galhofa_box_nl_4x5.jpg", fr: "/ads/bfg_galhofa_box_fr_4x5.jpg" },
-  sekt: { de: "/ads/bfk_sekt_de_4x5.jpg" },
+/** The ads running for each offer (public/ads), as in Meta on 22/11/2026. */
+export const BF_PANEL_ADS: Record<BfOfferId, { locale: string; src: string; label: string }[]> = {
+  douro6: [
+    { locale: "es", src: "/ads/bf7_galhofa_es_2711_4x5.jpg", label: "Galhofa box v7 (the winner of 6–10/11, relaunched 21/11)" },
+    { locale: "es", src: "/ads/bf7_galhofa_video_es_2711_4x5.jpg", label: "Galhofa harvest video v7" },
+    { locale: "de", src: "/ads/bf10_cheda_box_de_4x5.jpg", label: "Cheda box · paused" },
+  ],
+  burbujas: [
+    { locale: "es", src: "/ads/bfs_es_dark_4x5.jpg", label: "Dark · 90 € instead of 180 €" },
+    { locale: "es", src: "/ads/bfs_es_cream_4x5.jpg", label: "Cream · 90 € instead of 180 €" },
+  ],
+  poco: [
+    { locale: "es", src: "/ads/bf12_poco_es_new3_55_4x5.jpg", label: "3 boxes · 55 €" },
+    { locale: "es", src: "/ads/bf12_poco_es_new2_55_4x5.jpg", label: "Fireplace · 55 €" },
+    { locale: "es", src: "/ads/bf12_poco_es_fixed_55.jpg", label: "Wood · 55 €" },
+    { locale: "es", src: "/ads/bf13_poco_es_new3_55_9x16.jpg", label: "3 boxes · story 9:16" },
+    { locale: "es", src: "/ads/bfp_es_55_4x5.jpg", label: "Barrels · 55 € (first ad)" },
+  ],
+  pocoeu: [
+    { locale: "nl", src: "/ads/bf12_poco_winner_nl_4x5.jpg", label: "Winner style · 60 € · NL + BE" },
+    { locale: "fr", src: "/ads/bf12_poco_winner_fr_4x5.jpg", label: "Winner style · 60 € · BE (FR)" },
+    { locale: "nl", src: "/ads/bfq_poco_nl_4x5.jpg", label: "1 / 2 boxes · 60 € / 110 € · BE (NL)" },
+    { locale: "fr", src: "/ads/bfq_poco_fr_4x5.jpg", label: "1 / 2 boxes · 60 € / 110 € · BE (FR)" },
+    { locale: "de", src: "/ads/bf12_poco_winner_de_4x5.jpg", label: "Germany · paused" },
+  ],
+  galhofa: [
+    { locale: "nl", src: "/ads/bfg_galhofa_box_nl_4x5.jpg", label: "Box · NL" },
+    { locale: "fr", src: "/ads/bfg_galhofa_box_fr_4x5.jpg", label: "Box · BE (FR) · paused" },
+  ],
+  sekt: [{ locale: "de", src: "/ads/bf13_sekt_winner_de_4x5.jpg", label: "Winner style · paused" }],
+};
+
+/** Meta campaigns per offer on 22/11/2026: status and daily budget (spend and purchases are in Ads Manager). */
+export const BF_PANEL_CAMPAIGNS: Record<BfOfferId, { country: string; active: boolean; budget: number; note?: string }[]> = {
+  douro6: [
+    { country: "ES", active: true, budget: 50, note: "Galhofa, own campaign since 21/11" },
+    { country: "DE", active: false, budget: 60, note: "paused 21/11 (cost per sale too high)" },
+  ],
+  burbujas: [{ country: "ES", active: true, budget: 0, note: "inside the main Spain campaign (250 €/day shared)" }],
+  poco: [{ country: "ES", active: true, budget: 250, note: "main Spain campaign, shared with the sparkling" }],
+  pocoeu: [
+    { country: "BE", active: true, budget: 250 },
+    { country: "NL", active: true, budget: 100 },
+    { country: "DE", active: false, budget: 60, note: "paused 21/11" },
+  ],
+  galhofa: [
+    { country: "NL", active: true, budget: 100 },
+    { country: "BE", active: false, budget: 100, note: "paused 21/11, budget moved to Poço BE" },
+  ],
+  sekt: [{ country: "DE", active: false, budget: 40, note: "paused 21/11" }],
 };
 
 /** What each offer is, in the admin's words (the Douro box is two different wines by country). */
@@ -45,7 +87,8 @@ export type Panel = {
   id: BfOfferId;
   title: string;
   links: { locale: string; href: string }[];
-  ads: { locale: string; src: string }[];
+  ads: { locale: string; src: string; label: string }[];
+  campaigns: (typeof BF_PANEL_CAMPAIGNS)[BfOfferId];
   costs: ReturnType<typeof bfCostsFor>;
   boxCost: number;
   price: number | null;
@@ -68,7 +111,8 @@ export function bfPanel(id: BfOfferId, s: Pick<Settings, "black_friday" | "cost_
     id,
     title: BF_PANEL_TITLE[id],
     links: bfPanelLinks(id),
-    ads: Object.entries(BF_PANEL_ADS[id]).map(([locale, src]) => ({ locale, src: src! })),
+    ads: BF_PANEL_ADS[id],
+    campaigns: BF_PANEL_CAMPAIGNS[id],
     costs: bfCostsFor(bf, id),
     boxCost,
     price,

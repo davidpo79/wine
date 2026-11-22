@@ -45,6 +45,7 @@ export default async function BlackFridayPanels() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-serif text-3xl font-semibold">Black Friday panels</h1>
+          <p className="text-xs text-muted">Ads and campaign status as in Meta on 22/11/2026.</p>
           <p className="text-sm text-muted">
             Each offer as in the panels: price with VAT and delivery, costs per box, {bf.fee_percent ?? 3}% payment fee, {bf.marketing_percent ?? 20}% marketing and the VAT of the delivery country. Orders until {new Date(bf.cutoff_at).toLocaleString("en-GB", { timeZone: "Europe/Berlin", dateStyle: "medium", timeStyle: "short" })} (Berlin).
           </p>
@@ -85,16 +86,25 @@ export default async function BlackFridayPanels() {
               <span className="text-xs text-muted">options {offer.prefix}1 · {offer.prefix}2 · {offer.prefix}3 · {offer.bottlesPerBox} bottles a box</span>
             </div>
             <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,260px)_1fr]">
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2 self-start">
                 {p.ads.map((a) => (
-                  <a key={a.src} href={a.src} target="_blank" rel="noreferrer" className="block">
+                  <a key={a.src} href={a.src} target="_blank" rel="noreferrer" className={`block ${a.label.includes("paused") ? "opacity-50" : ""}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={a.src} alt={`Ad ${a.locale}`} className="w-full rounded border" loading="lazy" />
-                    <span className="text-xs text-muted">Ad · {a.locale.toUpperCase()}</span>
+                    <span className="block text-[11px] leading-tight text-muted">{a.locale.toUpperCase()} · {a.label}</span>
                   </a>
                 ))}
               </div>
               <div className="space-y-4 text-sm">
+                <div className="flex flex-wrap gap-2">
+                  {p.campaigns.map((c) => (
+                    <span key={c.country} className={`rounded-full px-3 py-1 text-xs font-medium ${c.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-500"}`}>
+                      {FLAG[c.country]} {c.country} · {c.active ? "running" : "paused"}
+                      {c.budget ? ` · ${c.budget} €/day` : ""}
+                      {c.note ? ` · ${c.note}` : ""}
+                    </span>
+                  ))}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {p.links.map((l) => (
                     <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="rounded-full border px-3 py-1 text-xs hover:bg-paper-2">
