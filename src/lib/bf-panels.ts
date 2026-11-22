@@ -41,7 +41,7 @@ export const BF_PANEL_ADS: Record<BfOfferId, { locale: string; src: string; labe
     { locale: "de", src: "/ads/bf12_poco_winner_de_4x5.jpg", label: "Germany · paused" },
   ],
   galhofa: [
-    { locale: "nl", src: "/ads/bfg_galhofa_box_nl_4x5.jpg", label: "Box · NL" },
+    { locale: "nl", src: "/ads/bfg_galhofa_box_nl_4x5.jpg", label: "Box · NL · paused" },
     { locale: "fr", src: "/ads/bfg_galhofa_box_fr_4x5.jpg", label: "Box · BE (FR) · paused" },
   ],
   sekt: [{ locale: "de", src: "/ads/bf13_sekt_winner_de_4x5.jpg", label: "Winner style · paused" }],
@@ -61,7 +61,7 @@ export const BF_PANEL_CAMPAIGNS: Record<BfOfferId, { country: string; active: bo
     { country: "DE", active: false, budget: 60, note: "paused 21/11" },
   ],
   galhofa: [
-    { country: "NL", active: true, budget: 100 },
+    { country: "NL", active: false, budget: 100, note: "its only ad paused 20/11 (197 € for 1 sale), spends nothing" },
     { country: "BE", active: false, budget: 100, note: "paused 21/11, budget moved to Poço BE" },
   ],
   sekt: [{ country: "DE", active: false, budget: 40, note: "paused 21/11" }],
