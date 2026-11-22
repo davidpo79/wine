@@ -5,7 +5,9 @@ import { CONDUCT_RULE } from "./inbound-agent";
 const API = "https://api.telnyx.com/v2";
 
 export function telnyxConfigured(kind: "sms" | "voice") {
-  if (!E().TELNYX_API_KEY || !E().TELNYX_FROM_NUMBER) return false;
+  if (!E().TELNYX_API_KEY) return false;
+  if (kind === "sms") return Boolean(E().TELNYX_SMS_FROM || E().TELNYX_FROM_NUMBER);
+  if (!E().TELNYX_FROM_NUMBER) return false;
   if (kind === "voice") return Boolean(E().TELNYX_CONNECTION_ID && E().TELNYX_ASSISTANT_ID);
   return true;
 }
@@ -23,7 +25,8 @@ async function call(path: string, body: Record<string, unknown>) {
 }
 
 export async function sendSms(to: string, text: string) {
-  const body: Record<string, unknown> = { from: E().TELNYX_FROM_NUMBER, to, text };
+  // SMS sender (Admin → Settings): a name such as "WinePortugal" or an SMS-capable mobile; falls back to the Caller ID.
+  const body: Record<string, unknown> = { from: E().TELNYX_SMS_FROM || E().TELNYX_FROM_NUMBER, to, text };
   if (E().TELNYX_MESSAGING_PROFILE_ID) body.messaging_profile_id = E().TELNYX_MESSAGING_PROFILE_ID;
   return call("/messages", body);
 }
