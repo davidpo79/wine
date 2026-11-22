@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npm run db:migrate && npm run db:seed && next start -p ${PORT:-3000}",
+    "start": "npm run db:migrate && npm run db:seed && NODE_ENV=production node server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "e2e": "playwright test",
