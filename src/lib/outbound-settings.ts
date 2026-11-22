@@ -8,6 +8,8 @@ import { db, schema } from "@/db";
 export const OUTBOUND_FIELDS = [
   // Telnyx, shared by the admin browser phone (#4), the Portugal callers and the AI recovery call
   { key: "TELNYX_FROM_NUMBER", group: "telnyx", label: "Caller ID (from number)", kind: "text", hint: "E.164, e.g. +351210000000" },
+  { key: "TELNYX_SMS_FROM", group: "telnyx", label: "SMS sender", kind: "text", hint: "Who the SMS comes from: a name of up to 11 letters/digits (e.g. WinePortugal, alphanumeric sender enabled on the messaging profile) or an SMS-capable mobile number in E.164. Empty = the Caller ID, which only works if that number can send SMS (a Lisbon 21x landline cannot)." },
+  { key: "TELNYX_MESSAGING_PROFILE_ID", group: "telnyx", label: "Messaging profile id", kind: "text", hint: "Telnyx → Messaging → Messaging Profiles → the profile's id (a UUID). Needed for an SMS sender name; the sender number must belong to this profile." },
   { key: "TELNYX_INBOUND_FORWARD_TO", group: "telnyx", label: "Forward incoming calls to", kind: "text", hint: "E.164, e.g. +351916926644. A call to our Telnyx number rings this phone (shown as our number). Empty = incoming calls are not answered." },
   { key: "TELNYX_CONNECTION_ID", group: "telnyx", label: "Call Control application id", kind: "text", hint: "Places every call (Telnyx → Voice → Call Control)" },
   { key: "TELNYX_WEBRTC_CONNECTION_ID", group: "telnyx", label: "WebRTC credential connection id", kind: "text", hint: "Holds the admins' browser phones (a Credential Connection, not the Call Control app)" },
@@ -106,6 +108,8 @@ export function validateOutbound(input: Record<string, string>): { values: Recor
   const e = (k: string, ok: (v: string) => boolean, msg: string) => (values[k] !== undefined && !ok(values[k]) ? msg : null);
   const error =
     e("TELNYX_FROM_NUMBER", (v) => /^\+\d{7,15}$/.test(v), "Caller ID must be E.164, e.g. +351210000000.") ??
+    e("TELNYX_SMS_FROM", (v) => /^\+\d{7,15}$/.test(v) || (/^[A-Za-z0-9 ]{1,11}$/.test(v) && /[A-Za-z]/.test(v)), "SMS sender: a name of up to 11 letters/digits (at least one letter), or a number in E.164.") ??
+    e("TELNYX_MESSAGING_PROFILE_ID", (v) => /^[0-9a-f-]{36}$/i.test(v), "Messaging profile id: the UUID shown in Telnyx, e.g. 4001a1df-c8ac-4d21-b70d-ed6df0d8d762.") ??
     e("TELNYX_INBOUND_FORWARD_TO", (v) => /^\+\d{7,15}$/.test(v), "Forward incoming calls to: E.164, e.g. +351916926644.") ??
     e("TELNYX_WHATSAPP_FROM", (v) => /^\+\d{7,15}$/.test(v), "WhatsApp number must be E.164, e.g. +351910348577.") ??
     e("WHATSAPP_WABA_ID", (v) => /^\d{6,20}$/.test(v), "WABA id: digits only, as shown in Telnyx.") ??
