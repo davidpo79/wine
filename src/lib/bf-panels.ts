@@ -45,6 +45,10 @@ export const BF_PANEL_ADS: Record<BfOfferId, { locale: string; src: string; labe
     { locale: "fr", src: "/ads/bfg_galhofa_box_fr_4x5.jpg", label: "Box · BE (FR) · paused" },
   ],
   sekt: [{ locale: "de", src: "/ads/bf13_sekt_winner_de_4x5.jpg", label: "Winner style · paused" }],
+  chedade: [
+    { locale: "de", src: "/ads/bfc_cheda_de_55_gold.jpg", label: "Cheda · 55 € · gold (price test)" },
+    { locale: "de", src: "/ads/bfc_cheda_de_55_dark.jpg", label: "Cheda · 55 € · dark (price test)" },
+  ],
 };
 
 /** Meta campaigns per offer on 22/11/2026: status and daily budget (spend and purchases are in Ads Manager). */
@@ -65,6 +69,7 @@ export const BF_PANEL_CAMPAIGNS: Record<BfOfferId, { country: string; active: bo
     { country: "BE", active: false, budget: 100, note: "paused 21/11, budget moved to Poço BE" },
   ],
   sekt: [{ country: "DE", active: false, budget: 40, note: "paused 21/11" }],
+  chedade: [{ country: "DE", active: true, budget: 25, note: "price test from 23/11: Cheda at 55 € instead of 68,50 €" }],
 };
 
 /** What each offer is, in the admin's words (the Douro box is two different wines by country). */
@@ -75,6 +80,7 @@ export const BF_PANEL_TITLE: Record<BfOfferId, string> = {
   pocoeu: "6 Poço do Canto Palhete 2019 · Germany, Netherlands, Belgium",
   galhofa: "6 Galhofa (3 red, 2 white, 1 rosé) · Netherlands, Belgium",
   sekt: "3 sparkling D. Graça Bruto · Germany (Belgian warehouse)",
+  chedade: "6 Cheda (3 red, 2 white, 1 rosé) at 55 € · Germany price test (Belgian warehouse)",
 };
 
 /** Page addresses of an offer: its own suffix in every language (and the main page for the Douro box). */

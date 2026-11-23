@@ -548,6 +548,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   },
   galhofa: {}, // filled below from the Dutch and French Poço do Canto pages
   sekt: {}, // filled below from the Spanish sparkling page, in German
+  chedade: {}, // filled below from the German Cheda page
   // Germany, the Netherlands and Belgium (18/11/2026): the same box from the Belgian warehouse, 60 €, reference 120 €.
   pocoeu: {
     de: {
@@ -924,6 +925,20 @@ BF_OFFER_COPY.sekt = {
     productName: "Black Friday · 3 D. Graça Sekt",
     trust: ["🍾 3 Flaschen Brut-Schaumwein · Douro", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
     recovery: { ...DE.recovery, titleFirst: "Ihre 3 Flaschen Douro-Schaumwein warten auf Sie" },
+  },
+};
+
+/** Germany price test (23/11/2026): the Cheda page at 55 € (/de/black-friday/cheda-55), Spain keeps 68,50 €. */
+BF_OFFER_COPY.chedade = {
+  de: {
+    ...DE,
+    metaTitle: "Black Friday · 6 Cheda Douro-Weine für 55 € mit Gratisversand",
+    metaDescription: "Cheda: 3 Rotweine, 2 Weißweine und 1 Rosé aus dem Douro DOC, direkt vom Erzeuger. 55 € für 6 Flaschen, inkl. MwSt. und Versand. Nur bis {date}.",
+    bundles: {
+      bfc1: { title: "1 Box", bottles: "6 Flaschen" },
+      bfc2: { title: "2 Boxen", bottles: "12 Flaschen", badge: "Am beliebtesten" },
+      bfc3: { title: "3 Boxen", bottles: "18 Flaschen", badge: "Bester Preis" },
+    },
   },
 };
 
