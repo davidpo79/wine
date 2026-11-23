@@ -280,5 +280,17 @@ if (resetEmail && resetPw) {
   }
 }
 
+// One-time update, 23/11/2026 (David): the German 55 € test page sells one box only (does a single clear price convert
+// better?). 2 and 3 boxes are switched off once, so they can be switched back on in Admin → Products.
+{
+  const MARK = "patch_bf_cheda55_single_20261123";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    await db.update(schema.bundles).set({ active: false }).where(inArray(schema.bundles.key, ["bfc2", "bfc3"]));
+    await db.insert(schema.settings).values({ key: MARK, value: true }).onConflictDoNothing();
+    console.log("patch applied: German 55 € page sells one box only");
+  }
+}
+
 console.log("seed done");
 await pg.end();

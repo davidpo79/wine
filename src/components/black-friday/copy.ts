@@ -939,6 +939,8 @@ BF_OFFER_COPY.chedade = {
       bfc2: { title: "2 Boxen", bottles: "12 Flaschen", badge: "Am beliebtesten" },
       bfc3: { title: "3 Boxen", bottles: "18 Flaschen", badge: "Bester Preis" },
     },
+    // One box only on this page (23/11/2026); 2 and 3 boxes are switched off in Admin → Products.
+    how: ["Sie bestellen Ihre Box mit 6 Flaschen und bezahlen sicher.", ...DE.how.slice(1)],
   },
 };
 
