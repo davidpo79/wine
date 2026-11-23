@@ -238,6 +238,15 @@ export function BlackFridayPage({
 
   const hrefFor = useMemo(() => (l: string) => (isBfLocale(l) ? bfHref(l, offer) : `/${l}`), [offer]);
   const priceLabel = selected ? money(selected.priceCents) : "";
+  // What the chosen bundle saves: against its usual price when the offer has one (Spain's Poço do Canto),
+  // else against buying single boxes.
+  const selectedSave = !selected
+    ? 0
+    : selected.compareAtCents && selected.compareAtCents > selected.priceCents
+      ? selected.compareAtCents - selected.priceCents
+      : single && selected.qty > 1
+        ? single.priceCents * selected.qty - selected.priceCents
+        : 0;
 
   const picker = (
     <div className="bf-bundles" role="radiogroup" aria-label={copy.cta.replace(" · {price}", "")}>
@@ -374,6 +383,11 @@ export function BlackFridayPage({
               ) : null}
               <p className="bf-bigprice">{single ? money(single.priceCents) : priceLabel}</p>
               {promoOn && <p className="bf-promo-on bf-promo-on-light">{fmt(PROMO_ON[locale] ?? PROMO_ON.es, { code: leadCode, amount: money(off) })}</p>}
+              {single && (
+                <p className="bf-bigper">
+                  {fmt(copy.perBottle, { per: money(Math.round(single.priceCents / perBoxBottles)) })} · {t(copy.checks[1])}
+                </p>
+              )}
               <ul className="bf-checks bf-checks-offer">
                 {copy.checks.map((c) => (
                   <li key={c}>{t(c)}</li>
@@ -568,7 +582,10 @@ export function BlackFridayPage({
         <div className="bf-sticky">
           <div>
             <b>{copy.bundles[selected.key]?.title ?? ""} · {copy.bundles[selected.key]?.bottles ?? ""}</b>
-            <small>{t(copy.checks[1])}</small>
+            <small>
+              {fmt(copy.perBottle, { per: money(Math.round(selected.priceCents / (selected.qty * perBoxBottles))) })}
+              {selectedSave > 0 ? ` · ${fmt(copy.youSave, { save: moneyShort(selectedSave) })}` : ` · ${t(copy.checks[1])}`}
+            </small>
           </div>
           <button type="button" className="bf-cta" onClick={() => buy()} disabled={going}>
             {fmt(copy.ctaSticky, { price: priceLabel })}
