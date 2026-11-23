@@ -78,8 +78,28 @@ const PRODUCER: Record<string, string> = {
   ru: "Напрямую от производителя, Дору",
 };
 
+// "All taxes included" in the trust icons (David, 23/11/2026).
+const TAXES: Record<string, string> = {
+  es: "Todos los impuestos incluidos",
+  pt: "Todos os impostos incluídos",
+  de: "Alle Steuern inklusive",
+  nl: "Alle belastingen inbegrepen",
+  fr: "Toutes taxes comprises",
+  ru: "Все налоги включены",
+  en: "All taxes included",
+};
+
 const ico = { width: 34, height: 34, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 2.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
 const TRUST_ICONS = {
+  receipt: (
+    <svg {...ico}>
+      <path d="M12 5h24v38l-4-3-4 3-4-3-4 3-4-3-4 3z" />
+      <path d="M18 15h12M18 21h12" />
+      <path d="M19 33l10-8" />
+      <circle cx="19.5" cy="26.5" r="1.5" />
+      <circle cx="28.5" cy="31.5" r="1.5" />
+    </svg>
+  ),
   truck: (
     <svg {...ico}>
       <path d="M4 12h24v20H4z" />
@@ -128,6 +148,7 @@ function TrustIcons({ trust, locale, vars }: { trust: string[]; locale: string; 
     { icon: TRUST_ICONS.shield, text: part("🔒") },
     { icon: TRUST_ICONS.grapes, text: PRODUCER[locale] ?? PRODUCER.es },
     { icon: TRUST_ICONS.bottle, text: part("↩️") },
+    { icon: TRUST_ICONS.receipt, text: TAXES[locale] ?? TAXES.es },
   ].filter((x): x is { icon: React.JSX.Element; text: string } => !!x.text);
   if (items.length < 2) return null;
   return (
