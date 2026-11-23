@@ -162,7 +162,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     kicker: "Wine-Portugal.com",
     h1a: "BLACK",
     h1b: "FRIDAY",
-    sub: "6 Cheda-Weine aus dem Douro, direkt vom Erzeuger zu Ihnen",
+    sub: "6 Cheda-Weine aus dem Douro‑Tal in Portugal 🇵🇹\nDirekt vom Erzeuger", // two lines (David, 23/11/2026); a non-breaking hyphen keeps "Douro-Tal" whole
     mix: ["3 Rotweine", "2 Weißweine", "1 Rosé"],
     countdownTitle: "Das Angebot endet in",
     countdownUnits: ["Tage", "Std.", "Min.", "Sek."],

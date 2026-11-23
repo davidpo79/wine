@@ -231,3 +231,5 @@
 .bf-bundles-one .bf-bbottles{grid-area:bottles;font-size:15px}
 .bf-bundles-one .bf-price{grid-area:price;font-size:clamp(26px,7vw,34px);margin-top:4px}
 .bf-bundles-one .bf-per{grid-area:per;font-size:13px}
+/* A headline may have a second line ("\n" in the copy). */
+.bf-sub{white-space:pre-line}
