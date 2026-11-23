@@ -197,7 +197,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
       { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Entrappen, sortieren, vergären: So entstehen Rotwein, Weißwein und Rosé aus traditionellen Douro-Rebsorten." },
       { img: "/lp/bf/cheda-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
     ],
-    eveningTitle: "Ein Abend, sechs Weine",
+    eveningTitle: "Drei Weine, sechs Flaschen", // 3 red, 2 white, 1 rosé (David, 23/11/2026)
     evening: [
       { when: "Zum Aperitif", wine: "Rosé", img: "/lp/bf/cheda-rose.webp", p: "Der Cheda Rosé, gut gekühlt, zu Oliven, Käse und kleinen Häppchen." },
       { when: "Zur Vorspeise", wine: "Weißwein", img: "/lp/bf/cheda-white.webp", p: "Der Cheda Branco zu Meeresfrüchten, Fisch oder Salat." },
