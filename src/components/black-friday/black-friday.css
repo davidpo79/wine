@@ -221,3 +221,13 @@
 .bf-promo-on{display:block;max-width:440px;margin:14px auto 0;padding:9px 12px;border-radius:10px;background:#1f7a3d;color:#fff;font-weight:800;font-size:14px;line-height:1.3}
 .bf-promo-on-light{margin-top:10px}
 .bf-price-was{display:block;font-size:.6em;color:#888;text-decoration-color:var(--bf-red);text-decoration-thickness:2px}
+/* One box only (the German 55 € page, 23/11/2026): the card fills the row, photo on the left, text on the right. */
+.bf-bundles-one{grid-template-columns:1fr}
+.bf-bundles-one .bf-bundle{display:grid;grid-template-columns:44% 1fr;grid-template-areas:"img title" "img bottles" "img price" "img per";align-items:center;justify-items:start;column-gap:14px;row-gap:2px;padding:14px 16px;text-align:left;transform:none}
+.bf-bundles-one .bf-bundle[aria-checked=true]{transform:none}
+.bf-bundles-one .bf-badge,.bf-bundles-one .bf-radio,.bf-bundles-one .bf-was:empty,.bf-bundles-one .bf-save:empty{display:none}
+.bf-bundles-one .bf-bimg{grid-area:img;width:100%;max-width:none;margin:0}
+.bf-bundles-one .bf-btitle{grid-area:title;margin-top:0;font-size:26px}
+.bf-bundles-one .bf-bbottles{grid-area:bottles;font-size:15px}
+.bf-bundles-one .bf-price{grid-area:price;font-size:clamp(26px,7vw,34px);margin-top:4px}
+.bf-bundles-one .bf-per{grid-area:per;font-size:13px}

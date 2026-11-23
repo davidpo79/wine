@@ -261,7 +261,7 @@ export function BlackFridayPage({
   const priceLabel = selected ? money(selected.priceCents) : "";
 
   const picker = (
-    <div className="bf-bundles" role="radiogroup" aria-label={copy.cta.replace(" · {price}", "")}>
+    <div className={`bf-bundles${bundles.length === 1 ? " bf-bundles-one" : ""}`} role="radiogroup" aria-label={copy.cta.replace(" · {price}", "")}>
       {bundles.map((b) => {
         const info = copy.bundles[b.key] ?? { title: `${b.qty}×`, bottles: `${b.qty * perBoxBottles}` };
         const perBox = Math.round(b.priceCents / b.qty);
