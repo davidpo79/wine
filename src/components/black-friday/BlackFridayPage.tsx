@@ -406,7 +406,8 @@ export function BlackFridayPage({
                 {fmt(copy.cta, { price: priceLabel })}
               </button>
               <div className="bf-pay">
-                {(["visa", "mastercard", "paypal", "apple-pay", "google-pay"] as const).map((x) => (
+                {/* No PayPal logo for Germany: German buyers do not get PayPal at checkout (David, 23/11/2026). */}
+                {(["visa", "mastercard", "paypal", "apple-pay", "google-pay"] as const).filter((x) => !(x === "paypal" && country === "DE")).map((x) => (
                   <span key={x}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/pay/${x}.svg`} alt={PAY_NAMES[x]} title={PAY_NAMES[x]} loading="lazy" />

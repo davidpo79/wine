@@ -182,7 +182,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     cta: "Jetzt kaufen · {price}",
     ctaSticky: "Kaufen · {price}",
     freeShip: { big: "Gratis-versand", small: "Lieferung in {days} Werktagen" },
-    checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in {days} Werktagen", "Sicher bezahlen: Karte, PayPal, Apple Pay, Google Pay"],
+    checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in {days} Werktagen", "Sicher bezahlen: Karte, Apple Pay, Google Pay"],
     winesTitle: "Das ist in der Box",
     wines: [
       { type: "Rotwein", count: "× 3", name: "Cheda Tinto · Douro DOC", text: "Touriga Franca, Tinta Roriz und Touriga Nacional, die klassischen Rebsorten des Douro. Rote Früchte, rund und ausgewogen. Zu Braten, Pasta und gereiftem Käse. Bei 16 bis 18 °C servieren.", img: "/lp/bf/cheda-red.webp" },
@@ -274,7 +274,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     cta: "Купить сейчас · {price}",
     ctaSticky: "Купить · {price}",
     freeShip: { big: "Бесплатная доставка", small: "Доставка за {days} рабочих дня" },
-    checks: ["НДС включён", "Бесплатная доставка", "Доставка за {days} рабочих дня", "Безопасная оплата: карта, PayPal, Apple Pay, Google Pay"],
+    checks: ["НДС включён", "Бесплатная доставка", "Доставка за {days} рабочих дня", "Безопасная оплата: карта, Apple Pay, Google Pay"],
     winesTitle: "Что в коробке",
     wines: [
       { type: "Красное", count: "× 3", name: "Cheda Tinto · Douro DOC", text: "Турига Франка, Тинта Рориш и Турига Насьонал, классические сорта Дору. Красные ягоды, мягкое и сбалансированное. К жаркому, пасте и выдержанным сырам. Подавать при 16–18 °C.", img: "/lp/bf/cheda-red.webp" },
