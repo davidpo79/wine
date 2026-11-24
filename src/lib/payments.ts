@@ -96,7 +96,7 @@ export type StartResult =
   | { ok: false; error: string; status: number };
 
 /** Starts a payment attempt for the full amount due. One pending attempt per order at a time. */
-export async function startPayment(order: Order, method: ifp.PayMethod, opts: { phone?: string; token: string }): Promise<StartResult> {
+export async function startPayment(order: Order, method: ifp.PayMethod, opts: { phone?: string; token: string; pmType?: string; noPaypal?: boolean }): Promise<StartResult> {
   const t = errorsOf(order);
   const country = countryOf(order);
   if (!checkoutMethods(country).includes(method)) return { ok: false, status: 400, error: t.methodUnavailable };
@@ -132,14 +132,14 @@ export async function startPayment(order: Order, method: ifp.PayMethod, opts: { 
       });
       let pi: Stripe.PaymentIntent;
       try {
-        pi = await stripe.paymentIntents.create(params(true), { idempotencyKey: `pi_${ref}` });
+        pi = await stripe.paymentIntents.create(params(!opts.noPaypal), { idempotencyKey: `pi_${ref}` });
       } catch (e) {
         if (!isPaypalUnavailable(e)) throw e;
         console.error("[stripe] PayPal not available, card only:", e instanceof Error ? e.message : e);
         pi = await stripe.paymentIntents.create(params(false), { idempotencyKey: `pi_${ref}_card` });
       }
       await db.insert(schema.payments).values({ orderId: order.id, provider: "stripe", method: "card", ref, requestId: pi.id, amountCents: amount });
-      await logOrderEvent(order.id, "payment_started", { method: "card", provider: "stripe", ref, amount_cents: amount });
+      await logOrderEvent(order.id, "payment_started", { method: "card", provider: "stripe", ref, amount_cents: amount, ...(opts.pmType ? { pm_type: opts.pmType.slice(0, 30) } : {}) });
       return { ok: true, kind: "stripe", clientSecret: pi.client_secret! };
     }
     if (method === "mbway") {
@@ -303,7 +303,7 @@ export async function applyStripePi(pi: Stripe.PaymentIntent, source: string) {
     return "paid";
   }
   if (pi.status === "canceled" || (pi.status === "requires_payment_method" && pi.last_payment_error)) {
-    await logOrderEvent(p.orderId, "payment_failed", { provider: "stripe", ref: p.ref, code: pi.last_payment_error?.code ?? pi.status });
+    await logOrderEvent(p.orderId, "payment_failed", { provider: "stripe", ref: p.ref, code: pi.last_payment_error?.code ?? pi.status, pm_type: pi.last_payment_error?.payment_method?.type ?? null });
     if (p.addonId) await db.update(schema.orderAddons).set({ status: "failed" }).where(and(eq(schema.orderAddons.id, p.addonId), eq(schema.orderAddons.status, "pending")));
   }
   return pi.status;
