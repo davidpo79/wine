@@ -135,6 +135,17 @@ const TEXT_FIELDS = [
   "nif",
 ] as const;
 
+/** Shown when a PayPal payment fails: the form comes back with card, Apple Pay and Google Pay. */
+const PAYPAL_FAILED: Record<string, string> = {
+  pt: "O PayPal não está disponível neste momento. Pague com cartão, Apple Pay ou Google Pay: a sua encomenda está guardada.",
+  es: "PayPal no está disponible en este momento. Paga con tarjeta, Apple Pay o Google Pay: tu pedido está guardado.",
+  de: "PayPal ist gerade nicht verfügbar. Bitte zahlen Sie mit Karte, Apple Pay oder Google Pay – Ihre Bestellung ist gespeichert.",
+  nl: "PayPal is op dit moment niet beschikbaar. Betaal met kaart, Apple Pay of Google Pay: je bestelling is bewaard.",
+  fr: "PayPal n'est pas disponible pour le moment. Payez par carte, Apple Pay ou Google Pay : votre commande est conservée.",
+  ru: "PayPal сейчас недоступен. Оплатите картой, Apple Pay или Google Pay — ваш заказ сохранён.",
+  en: "PayPal is not available right now. Pay by card, Apple Pay or Google Pay: your order is saved.",
+};
+
 export function CheckoutPage({
   bundles,
   reviews,
@@ -222,6 +233,11 @@ export function CheckoutPage({
   const [wantsNif, setWantsNif] = useState(false);
 
   const stripeRef = useRef<Stripe | null>(null);
+  // The Stripe tab the buyer has open (card, paypal, apple_pay, google_pay, ideal, bancontact), logged with the payment.
+  const pmTypeRef = useRef<string>("card");
+  // After a failed PayPal payment the form shows card only (PayPal failing at Stripe, 21-24/11/2026).
+  const [paypalOff, setPaypalOff] = useState(false);
+  const paymentElRef = useRef<{ destroy: () => void } | null>(null);
   const elementsRef = useRef<StripeElements | null>(null);
   const cardDivRef = useRef<HTMLDivElement>(null);
   const [cardReady, setCardReady] = useState(false);
@@ -474,11 +490,11 @@ export function CheckoutPage({
 
   // Elements options shared by the Payment Element and the express buttons: they must match the PaymentIntent the
   // server creates (lib/payments): PayPal is offered, only the card is saved.
-  const elementsOptions = (amount: number): StripeElementsOptionsMode => ({
+  const elementsOptions = (amount: number, withPaypal = true): StripeElementsOptionsMode => ({
     mode: "payment",
     amount,
     currency: "eur",
-    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, "paypal"],
+    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, ...(withPaypal ? ["paypal"] : [])],
     ...(market.stripeRedirectMethods.length
       ? {}
       : { paymentMethodOptions: { card: { setup_future_usage: "on_session" as const } } }),
@@ -604,7 +620,7 @@ export function CheckoutPage({
     const pr = await fetch("/api/pay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...d, method: "card" }),
+      body: JSON.stringify({ ...d, method: "card", pmType: "express_wallet" }),
     });
     const pd = await pr.json().catch(() => ({}));
     if (!pr.ok || pd.kind !== "stripe") {
@@ -637,7 +653,7 @@ export function CheckoutPage({
       const stripe = await loadStripe(publishableKey!);
       if (!stripe || cancelled || !cardDivRef.current) return;
       stripeRef.current = stripe;
-      const elements = stripe.elements(elementsOptions(amounts.total));
+      const elements = stripe.elements(elementsOptions(amounts.total, !paypalOff));
       elementsRef.current = elements;
       const pe = elements.create("payment", {
         layout: { type: "tabs" },
@@ -652,13 +668,17 @@ export function CheckoutPage({
         wallets: { applePay: "auto", googlePay: "auto" },
       });
       pe.on("ready", () => setCardReady(true));
+      pe.on("change", (e: { value?: { type?: string } }) => {
+        if (e.value?.type) pmTypeRef.current = e.value.type;
+      });
       pe.mount(cardDivRef.current);
+      paymentElRef.current = pe;
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripeCard, method, amounts?.total, country]);
+  }, [stripeCard, method, amounts?.total, country, paypalOff]);
 
   // Another delivery country can change the Stripe methods (iDEAL, Bancontact): rebuild the payment form.
   const changeCountry = (c: Country) => {
@@ -825,6 +845,7 @@ export function CheckoutPage({
         ...draft,
         method,
         phone: method === "mbway" ? mbwayPhone || fields.phone : undefined,
+        ...(method === "card" ? { pmType: pmTypeRef.current, noPaypal: paypalOff } : {}),
       }),
     });
     const data = await r.json().catch(() => ({}));
@@ -871,7 +892,21 @@ export function CheckoutPage({
         },
       });
       if (error) {
-        jlog("payment_error", { stage: "stripe", method, type: error.type ?? "", code: error.code ?? error.decline_code ?? "", msg: (error.message ?? "").slice(0, 100) }, draft.o);
+        const pm = pmTypeRef.current;
+        jlog("payment_error", { stage: "stripe", method, pm_type: pm, type: error.type ?? "", code: error.code ?? error.decline_code ?? "", msg: (error.message ?? "").slice(0, 100) }, draft.o);
+        if (pm === "paypal" && !paypalOff) {
+          // PayPal failed: show the form again with card / Apple Pay / Google Pay only, and say so.
+          paymentElRef.current?.destroy();
+          paymentElRef.current = null;
+          elementsRef.current = null;
+          pmTypeRef.current = "card";
+          setCardReady(false);
+          if (cardDivRef.current) cardDivRef.current.innerHTML = "";
+          setPaypalOff(true);
+          setFormError(PAYPAL_FAILED[locale] ?? PAYPAL_FAILED.en);
+          setPaying(false);
+          return;
+        }
         setFormError(error.message ?? t.notCompleted);
         setPaying(false);
         return;
