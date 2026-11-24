@@ -43,6 +43,7 @@ export function FloatingWhatsApp() {
   const [hidden, setHidden] = useState(false);
   const typing = useRef(false);
   const spacer = useRef<HTMLDivElement>(null);
+  const self = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     setLang(langOf());
@@ -63,6 +64,18 @@ export function FloatingWhatsApp() {
     paintSpacer();
     const paintLater = setTimeout(paintSpacer, 1500);
     let raf = 0;
+    // Whether a button, link or field sits under the button's spot (its centre and four edges), the button aside.
+    const overInteractive = (cy: number) => {
+      const cx = window.innerWidth - 16 - SIZE / 2;
+      const pts = [[cx, cy], [cx - SIZE / 2 + 4, cy], [cx + SIZE / 2 - 4, cy], [cx, cy - SIZE / 2 + 4], [cx, cy + SIZE / 2 - 4]];
+      for (const [x, y] of pts) {
+        for (const el of document.elementsFromPoint(x, y)) {
+          if (self.current && (el === self.current || self.current.contains(el))) continue;
+          if (el.closest('button, a[href], input:not([type="hidden"]), select, textarea, label, [role="button"], iframe')) return true;
+        }
+      }
+      return false;
+    };
     const measure = () => {
       raf = 0;
       const vh = window.innerHeight;
@@ -78,7 +91,9 @@ export function FloatingWhatsApp() {
       }
       setLift(Math.max(0, Math.round(vh - top)));
       const popup = !!document.querySelector('dialog[open], [aria-modal="true"]');
-      setHidden(popup || (typing.current && window.innerWidth < 1024));
+      // Never on top of something to tap or type in (a buy button, a form field): fade out while one is under it.
+      const covers = overInteractive(vh - Math.max(0, Math.round(vh - top)) - GAP - SIZE / 2);
+      setHidden(popup || covers || (typing.current && window.innerWidth < 1024));
     };
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(measure);
@@ -122,6 +137,7 @@ export function FloatingWhatsApp() {
       {/* Room at the end of every page so its last line can scroll above the button. */}
       <div ref={spacer} aria-hidden style={{ height: SIZE + GAP }} />
       <a
+        ref={self}
         href={href}
         target="_blank"
         rel="noopener"

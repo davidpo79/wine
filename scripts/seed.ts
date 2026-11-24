@@ -67,7 +67,7 @@ await db
   .onConflictDoNothing();
 
 // Black Friday in Spain (16/11/2026): 3 bottles of D. Graça sparkling and 6 bottles of Poço do Canto Palhete 2019.
-const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt", { name: string; shortDescription: string; wines: WineItem[] }> = {
+const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt" | "chedade", { name: string; shortDescription: string; wines: WineItem[] }> = {
   burbujas: {
     name: "Black Friday · Espumante D. Graça Bruto · 3 garrafas",
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Espanha.",
@@ -92,13 +92,22 @@ const OFFER_PRODUCTS: Record<"burbujas" | "poco" | "pocoeu" | "galhofa" | "sekt"
     shortDescription: "Caixa de 3 garrafas de espumante bruto D. Graça, Douro. Alemanha, armazém na Bélgica (UPS). 336 caixas.",
     wines: [{ name: "D. Graça Espumante Bruto", vintage: "2022", type: "branco", producer: "Douro" }],
   },
+  chedade: {
+    name: "Black Friday · Cheda mix · 6 garrafas · DE 55 €",
+    shortDescription: "Caixa de 6 vinhos Cheda, Douro DOC: 3 tintos, 2 brancos e 1 rosé. Alemanha a 55 € (teste de preço), armazém na Bélgica (UPS).",
+    wines: [
+      { name: "Cheda Tinto", vintage: "", type: "tinto", producer: "Douro" },
+      { name: "Cheda Branco", vintage: "", type: "branco", producer: "Douro" },
+      { name: "Cheda Rosé", vintage: "", type: "rose", producer: "Douro" },
+    ],
+  },
   pocoeu: {
     name: "Black Friday · Poço do Canto Palhete 2019 · 6 garrafas · DE/NL/BE",
     shortDescription: "Caixa de 6 garrafas de Poço do Canto Palhete 2019, tinto do Douro. Alemanha, Países Baixos e Bélgica, armazém na Bélgica (UPS). 440 caixas.",
     wines: [{ name: "Poço do Canto Palhete", vintage: "2019", type: "tinto", producer: "Douro" }],
   },
 };
-for (const id of ["burbujas", "poco", "pocoeu", "galhofa", "sekt"] as const) {
+for (const id of ["burbujas", "poco", "pocoeu", "galhofa", "sekt", "chedade"] as const) {
   const slug = BF_OFFERS[id].slug;
   let [p] = await db.select().from(schema.products).where(eq(schema.products.slug, slug)).limit(1);
   if (!p) {
@@ -268,6 +277,18 @@ if (resetEmail && resetPw) {
     await db.delete(schema.loginAttempts).where(eq(schema.loginAttempts.success, false));
     await db.insert(schema.settings).values({ key: "admin_reset_applied", value: fingerprint }).onConflictDoUpdate({ target: schema.settings.key, set: { value: fingerprint } });
     console.log(`admin password reset: ${resetEmail} (must change it at first login)`);
+  }
+}
+
+// One-time update, 23/11/2026 (David): the German 55 € test page sells one box only (does a single clear price convert
+// better?). 2 and 3 boxes are switched off once, so they can be switched back on in Admin → Products.
+{
+  const MARK = "patch_bf_cheda55_single_20261123";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    await db.update(schema.bundles).set({ active: false }).where(inArray(schema.bundles.key, ["bfc2", "bfc3"]));
+    await db.insert(schema.settings).values({ key: MARK, value: true }).onConflictDoNothing();
+    console.log("patch applied: German 55 € page sells one box only");
   }
 }
 

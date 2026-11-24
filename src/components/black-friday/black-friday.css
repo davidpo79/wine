@@ -179,6 +179,7 @@
 .bf-trusticons{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:14px 0;max-width:520px;margin:18px auto 18px;padding:0;text-align:left}
 .bf-trusticons li{display:flex;align-items:center;gap:10px;padding:0 12px;font-size:13.5px;font-weight:800;line-height:1.25;color:#fff}
 .bf-trusticons li:nth-child(odd){border-right:1px solid #ffffff40}
+.bf-trusticons li:last-child:nth-child(odd){grid-column:1/-1;justify-content:center;border-right:0}
 .bf-trusticon{flex:none;display:grid;place-items:center;color:#fff}
 .bf-trusticon svg{display:block}
 @media(min-width:900px){.bf-trusticons li{font-size:15px}}
@@ -222,3 +223,15 @@
 .bf-price-was{display:block;font-size:.6em;color:#888;text-decoration-color:var(--bf-red);text-decoration-thickness:2px}
 .bf-bigper{font-weight:800;font-size:clamp(15px,4vw,19px);color:#1f7a3e;margin-top:6px}
 .bf-sticky small{display:block;color:#7fd99a;font-weight:700;font-size:11px;white-space:nowrap}
+/* One box only (the German 55 € page, 23/11/2026): the card fills the row, photo on the left, text on the right. */
+.bf-bundles-one{grid-template-columns:1fr}
+.bf-bundles-one .bf-bundle{display:grid;grid-template-columns:44% 1fr;grid-template-areas:"img title" "img bottles" "img price" "img per";align-items:center;justify-items:start;column-gap:14px;row-gap:2px;padding:14px 16px;text-align:left;transform:none}
+.bf-bundles-one .bf-bundle[aria-checked=true]{transform:none}
+.bf-bundles-one .bf-badge,.bf-bundles-one .bf-radio,.bf-bundles-one .bf-was:empty,.bf-bundles-one .bf-save:empty{display:none}
+.bf-bundles-one .bf-bimg{grid-area:img;width:100%;max-width:none;margin:0}
+.bf-bundles-one .bf-btitle{grid-area:title;margin-top:0;font-size:26px}
+.bf-bundles-one .bf-bbottles{grid-area:bottles;font-size:15px}
+.bf-bundles-one .bf-price{grid-area:price;font-size:clamp(26px,7vw,34px);margin-top:4px}
+.bf-bundles-one .bf-per{grid-area:per;font-size:13px}
+/* A headline may have a second line ("\n" in the copy). */
+.bf-sub{white-space:pre-line}

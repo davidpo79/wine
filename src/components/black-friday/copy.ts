@@ -162,7 +162,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     kicker: "Wine-Portugal.com",
     h1a: "BLACK",
     h1b: "FRIDAY",
-    sub: "6 Cheda-Weine aus dem Douro, direkt vom Erzeuger zu Ihnen",
+    sub: "6 Cheda-Weine aus dem Douro‑Tal in Portugal 🇵🇹\nDirekt vom Erzeuger", // two lines (David, 23/11/2026); a non-breaking hyphen keeps "Douro-Tal" whole
     mix: ["3 Rotweine", "2 Weißweine", "1 Rosé"],
     countdownTitle: "Das Angebot endet in",
     countdownUnits: ["Tage", "Std.", "Min.", "Sek."],
@@ -182,7 +182,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     cta: "Jetzt kaufen · {price}",
     ctaSticky: "Kaufen · {price}",
     freeShip: { big: "Gratis-versand", small: "Lieferung in {days} Werktagen" },
-    checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in {days} Werktagen", "Sicher bezahlen: Karte, PayPal, Apple Pay, Google Pay"],
+    checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in {days} Werktagen", "Sicher bezahlen: Karte, Apple Pay, Google Pay"],
     winesTitle: "Das ist in der Box",
     wines: [
       { type: "Rotwein", count: "× 3", name: "Cheda Tinto · Douro DOC", text: "Touriga Franca, Tinta Roriz und Touriga Nacional, die klassischen Rebsorten des Douro. Rote Früchte, rund und ausgewogen. Zu Braten, Pasta und gereiftem Käse. Bei 16 bis 18 °C servieren.", img: "/lp/bf/cheda-red.webp" },
@@ -197,7 +197,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
       { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Entrappen, sortieren, vergären: So entstehen Rotwein, Weißwein und Rosé aus traditionellen Douro-Rebsorten." },
       { img: "/lp/bf/cheda-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
     ],
-    eveningTitle: "Ein Abend, sechs Weine",
+    eveningTitle: "Drei Weine, sechs Flaschen", // 3 red, 2 white, 1 rosé (David, 23/11/2026)
     evening: [
       { when: "Zum Aperitif", wine: "Rosé", img: "/lp/bf/cheda-rose.webp", p: "Der Cheda Rosé, gut gekühlt, zu Oliven, Käse und kleinen Häppchen." },
       { when: "Zur Vorspeise", wine: "Weißwein", img: "/lp/bf/cheda-white.webp", p: "Der Cheda Branco zu Meeresfrüchten, Fisch oder Salat." },
@@ -274,7 +274,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     cta: "Купить сейчас · {price}",
     ctaSticky: "Купить · {price}",
     freeShip: { big: "Бесплатная доставка", small: "Доставка за {days} рабочих дня" },
-    checks: ["НДС включён", "Бесплатная доставка", "Доставка за {days} рабочих дня", "Безопасная оплата: карта, PayPal, Apple Pay, Google Pay"],
+    checks: ["НДС включён", "Бесплатная доставка", "Доставка за {days} рабочих дня", "Безопасная оплата: карта, Apple Pay, Google Pay"],
     winesTitle: "Что в коробке",
     wines: [
       { type: "Красное", count: "× 3", name: "Cheda Tinto · Douro DOC", text: "Турига Франка, Тинта Рориш и Турига Насьонал, классические сорта Дору. Красные ягоды, мягкое и сбалансированное. К жаркому, пасте и выдержанным сырам. Подавать при 16–18 °C.", img: "/lp/bf/cheda-red.webp" },
@@ -548,6 +548,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
   },
   galhofa: {}, // filled below from the Dutch and French Poço do Canto pages
   sekt: {}, // filled below from the Spanish sparkling page, in German
+  chedade: {}, // filled below from the German Cheda page
   // Germany, the Netherlands and Belgium (18/11/2026): the same box from the Belgian warehouse, 60 €, reference 120 €.
   pocoeu: {
     de: {
@@ -924,6 +925,22 @@ BF_OFFER_COPY.sekt = {
     productName: "Black Friday · 3 D. Graça Sekt",
     trust: ["🍾 3 Flaschen Brut-Schaumwein · Douro", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
     recovery: { ...DE.recovery, titleFirst: "Ihre 3 Flaschen Douro-Schaumwein warten auf Sie" },
+  },
+};
+
+/** Germany price test (23/11/2026): the Cheda page at 55 € (/de/black-friday/cheda-55), Spain keeps 68,50 €. */
+BF_OFFER_COPY.chedade = {
+  de: {
+    ...DE,
+    metaTitle: "Black Friday · 6 Cheda Douro-Weine für 55 € mit Gratisversand",
+    metaDescription: "Cheda: 3 Rotweine, 2 Weißweine und 1 Rosé aus dem Douro DOC, direkt vom Erzeuger. 55 € für 6 Flaschen, inkl. MwSt. und Versand. Nur bis {date}.",
+    bundles: {
+      bfc1: { title: "1 Box", bottles: "6 Flaschen" },
+      bfc2: { title: "2 Boxen", bottles: "12 Flaschen", badge: "Am beliebtesten" },
+      bfc3: { title: "3 Boxen", bottles: "18 Flaschen", badge: "Bester Preis" },
+    },
+    // One box only on this page (23/11/2026); 2 and 3 boxes are switched off in Admin → Products.
+    how: ["Sie bestellen Ihre Box mit 6 Flaschen und bezahlen sicher.", ...DE.how.slice(1)],
   },
 };
 
