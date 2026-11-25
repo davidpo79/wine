@@ -243,3 +243,8 @@
 .bf-topimg{display:block;width:auto;max-width:100%;height:190px;margin:12px auto 0;object-fit:contain;filter:drop-shadow(0 14px 22px #000c)}
 @media(min-width:900px){.bf-topgrid{display:grid;grid-template-columns:auto 440px;justify-content:center;align-items:center;gap:28px;margin-top:10px}.bf-topgrid .bf-topimg{height:330px;margin:0}.bf-topgrid .bf-topbuy{margin:0}}
 .bf-hero .bf-h1-product{margin-left:auto;margin-right:auto;text-wrap:balance}
+/* Desktop: the gallery's thumbnail strip no longer squeezes the buy box (it was ~350px, so "€ 60,00" broke in two
+   and the bundle prices overflowed); prices never break between "€" and the amount (25/11/2026). */
+@media(min-width:900px){.bf-herogrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.bf-heroimg{min-width:0}}
+.bf-bigprice,.bf-price,.bf-topbuy-price b{white-space:nowrap}
+.bf-price{font-size:clamp(18px,5vw,28px)}
