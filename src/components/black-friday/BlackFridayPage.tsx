@@ -208,7 +208,8 @@ export function BlackFridayPage({
   const bundles = useMemo(() => (off ? bundlesIn.map((b) => ({ ...b, priceCents: Math.max(100, b.priceCents - off) })) : bundlesIn), [bundlesIn, off]);
   const listPrice = (k: string) => bundlesIn.find((b) => b.key === k)?.priceCents ?? 0;
   const [open, setOpen] = useState(openAtLoad);
-  const [key, setKey] = useState(bundles.find((b) => b.qty === 2)?.key ?? bundles[0]?.key);
+  // 1 box selected by default: the big price and the Buy button always show the same price (David, 25/11/2026).
+  const [key, setKey] = useState(bundles.find((b) => b.qty === 1)?.key ?? bundles[0]?.key);
   const [going, setGoing] = useState(false);
   const selected = bundles.find((b) => b.key === key) ?? bundles[0];
   const selectedBundle = selected;
@@ -322,10 +323,22 @@ export function BlackFridayPage({
 
       <section className="bf-hero">
         <div className="bf-wrap">
-          <p className="bf-kicker">{copy.kicker}</p>
-          <h1 className="bf-h1">
-            <span className="bf-red">{copy.h1a}</span> <span>{copy.h1b}</span>
-          </h1>
+          {copy.headline && single ? (
+            <>
+              <p className="bf-kicker bf-kicker-bf">
+                {copy.h1a} {copy.h1b}
+              </p>
+              <h1 className="bf-h1-product">{fmt(copy.headline, { price: moneyShort(single.priceCents) })}</h1>
+              {copy.headlineNote && <p className="bf-headnote">{copy.headlineNote}</p>}
+            </>
+          ) : (
+            <>
+              <p className="bf-kicker">{copy.kicker}</p>
+              <h1 className="bf-h1">
+                <span className="bf-red">{copy.h1a}</span> <span>{copy.h1b}</span>
+              </h1>
+            </>
+          )}
           <p className="bf-sub">{copy.sub}</p>
           {/* Price and button at the top (David, 21/11/2026: only ~3 of 100 visitors clicked Buy, the price was below
               the fold). 1 box straight to the checkout; the bundles stay further down. */}
@@ -397,16 +410,18 @@ export function BlackFridayPage({
 
           {open && bundles.length > 0 && (
             <div className="bf-offer" id="offer">
-              {single?.compareAtCents && single.compareAtCents > single.priceCents ? (
+              {selected?.compareAtCents && selected.compareAtCents > selected.priceCents ? (
                 <p className="bf-usual">
-                  {copy.usual} <s>{moneyShort(single.compareAtCents)}</s>
+                  {copy.usual} <s>{moneyShort(selected.compareAtCents)}</s>
                 </p>
               ) : null}
-              <p className="bf-bigprice">{single ? money(single.priceCents) : priceLabel}</p>
+              {/* The price of the chosen bundle, the same as the Buy button below. */}
+              <p className="bf-bigprice">{priceLabel}</p>
               {promoOn && <p className="bf-promo-on bf-promo-on-light">{fmt(PROMO_ON[locale] ?? PROMO_ON.es, { code: leadCode, amount: money(off) })}</p>}
-              {single && (
+              {selected && (
                 <p className="bf-bigper">
-                  {fmt(copy.perBottle, { per: money(Math.round(single.priceCents / perBoxBottles)) })} · {t(copy.checks[1])}
+                  {selected.qty > 1 ? `${copy.bundles[selected.key]?.title ?? ""} · ${fmt(copy.perBox, { per: money(Math.round(selected.priceCents / selected.qty)) })} · ` : ""}
+                  {fmt(copy.perBottle, { per: money(Math.round(selected.priceCents / (selected.qty * perBoxBottles))) })} · {t(copy.checks[1])}
                 </p>
               )}
               <ul className="bf-checks bf-checks-offer">

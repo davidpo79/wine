@@ -235,3 +235,7 @@
 .bf-bundles-one .bf-per{grid-area:per;font-size:13px}
 /* A headline may have a second line ("\n" in the copy). */
 .bf-sub{white-space:pre-line}
+/* Product and price as the headline (Poço do Canto DE/NL/FR, 25/11/2026) */
+.bf-kicker-bf{color:var(--bf-red);font-weight:900;font-size:clamp(18px,5vw,26px);letter-spacing:.08em}
+.bf-h1-product{margin:6px auto 0;max-width:720px;font:900 clamp(26px,7.2vw,46px)/1.12 Arial,Helvetica,sans-serif;color:#fff;text-transform:none}
+.bf-headnote{margin-top:8px;font-weight:800;font-size:clamp(15px,4vw,19px);color:#7fd99a}
