@@ -12,6 +12,9 @@ export type BfCopy = {
   kicker: string;
   h1a: string;
   h1b: string;
+  /** Product and price as the main headline ({price} = 1 box), with a line under it; "BLACK FRIDAY" moves to the kicker. */
+  headline?: string;
+  headlineNote?: string;
   sub: string;
   mix: [string, string, string];
   countdownTitle: string;
@@ -166,7 +169,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     mix: ["3 Rotweine", "2 Weißweine", "1 Rosé"],
     countdownTitle: "Das Angebot endet in",
     countdownUnits: ["Tage", "Std.", "Min.", "Sek."],
-    countdownNote: "Das Angebot gilt für Bestellungen bis {date}. Lieferung in {days} Werktagen.",
+    countdownNote: "Das Angebot gilt für Bestellungen bis {date}. Voraussichtliche Lieferung in {days} Werktagen nach Versand.",
     closedTitle: "Das Black-Friday-Angebot ist beendet",
     closedText: "Vielen Dank an alle! Schreiben Sie uns per WhatsApp, wenn Sie wissen möchten, wann es wiederkommt.",
     usual: "Normalpreis",
@@ -181,8 +184,8 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
     },
     cta: "Jetzt kaufen · {price}",
     ctaSticky: "Kaufen · {price}",
-    freeShip: { big: "Gratis-versand", small: "Lieferung in {days} Werktagen" },
-    checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in {days} Werktagen", "Sicher bezahlen: Karte, Apple Pay, Google Pay"],
+    freeShip: { big: "Gratis-versand", small: "ca. {days} Werktage nach Versand" },
+    checks: ["Inklusive MwSt.", "Gratisversand", "Lieferung in ca. {days} Werktagen nach Versand", "Sicher bezahlen: Karte, Apple Pay, Google Pay"],
     winesTitle: "Das ist in der Box",
     wines: [
       { type: "Rotwein", count: "× 3", name: "Cheda Tinto · Douro DOC", text: "Touriga Franca, Tinta Roriz und Touriga Nacional, die klassischen Rebsorten des Douro. Rote Früchte, rund und ausgewogen. Zu Braten, Pasta und gereiftem Käse. Bei 16 bis 18 °C servieren.", img: "/lp/bf/cheda-red.webp" },
@@ -195,7 +198,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
       { img: "/lp/bf/story-douro.webp", h: "Das Douro-Tal", p: "Steile Terrassen, heiße Sommer, kalte Winter: das älteste abgegrenzte Weinbaugebiet der Welt, im Nordosten Portugals." },
       { img: "/lp/bf/story-harvest.webp", h: "Die Lese", p: "Die Trauben werden im Spätsommer gelesen und in kleinen Kisten direkt in den Keller gebracht." },
       { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Entrappen, sortieren, vergären: So entstehen Rotwein, Weißwein und Rosé aus traditionellen Douro-Rebsorten." },
-      { img: "/lp/bf/cheda-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
+      { img: "/lp/bf/cheda-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt voraussichtlich {days} Werktage nach dem Versand mit Sendungsverfolgung bei Ihnen an." },
     ],
     eveningTitle: "Drei Weine, sechs Flaschen", // 3 red, 2 white, 1 rosé (David, 23/11/2026)
     evening: [
@@ -218,11 +221,11 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
       { h: "Nur zum Black Friday", p: "Ein Kennenlernpreis mit Versand inklusive. Wenn der Countdown abläuft, endet das Angebot." },
     ],
     howTitle: "So funktioniert es",
-    how: ["Sie wählen 1, 2 oder 3 Boxen und bezahlen sicher.", "Wir packen Ihre Bestellung in unserem Lager in Belgien.", "Sie erhalten sie in {days} Werktagen, mit Sendungsverfolgung."],
+    how: ["Sie wählen 1, 2 oder 3 Boxen und bezahlen sicher.", "Wir packen Ihre Bestellung in unserem Lager in Belgien.", "Sie erhalten sie voraussichtlich in {days} Werktagen nach Versand, mit Sendungsverfolgung."],
     faqTitle: "Häufige Fragen",
     faq: [
       { q: "Ist der Versand wirklich gratis?", a: "Ja. Der Preis enthält den Versand innerhalb Deutschlands und die Mehrwertsteuer. Es kommen keine weiteren Kosten hinzu." },
-      { q: "Wann kommt meine Bestellung an?", a: "In {days} Werktagen nach Zahlungseingang. Das Angebot gilt für Bestellungen bis {date}. Die Sendungsnummer erhalten Sie per E-Mail." },
+      { q: "Wann kommt meine Bestellung an?", a: "Voraussichtlich in {days} Werktagen nach dem Versand aus unserem Lager in Belgien. Das Angebot gilt für Bestellungen bis {date}. Die Sendungsnummer erhalten Sie per E-Mail." },
       { q: "Wohin liefern Sie?", a: "Diese Box liefern wir zum Black Friday innerhalb Deutschlands." },
       { q: "Wie kann ich bezahlen?", a: "Mit Kredit- oder Debitkarte, Apple Pay oder Google Pay auf der sicheren Seite von Stripe. Wir speichern Ihre Kartendaten nicht." },
       { q: "Und wenn eine Flasche kaputt ankommt?", a: "Schicken Sie uns ein Foto per WhatsApp oder E-Mail, wir ersetzen sie kostenlos. Außerdem haben Sie 14 Tage Widerrufsrecht." },
@@ -231,7 +234,7 @@ export const BF_COPY: Record<"de" | "es" | "ru", BfCopy> = {
       { q: "Bekomme ich eine Rechnung?", a: "Ja. Die Rechnung kommt per E-Mail." },
     ],
     productName: "Black Friday · 6 Cheda Douro-Weine",
-    trust: ["🍷 Cheda: 3 Rotweine, 2 Weißweine, 1 Rosé · Douro DOC", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
+    trust: ["🍷 Cheda: 3 Rotweine, 2 Weißweine, 1 Rosé · Douro DOC", "🚚 Gratisversand mit Sendungsverfolgung · ca. {days} Werktage nach Versand · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
     footer18: "Verkauf nur an Personen ab 18 Jahren. Bitte genießen Sie verantwortungsvoll.",
     legal: { terms: "AGB", privacy: "Datenschutz", shipping: "Versand und Rückgabe", about: "Über uns" },
     recovery: {
@@ -557,6 +560,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       who: { ...DE.who, alt: "Das Douro-Tal" },
       metaTitle: "Black Friday · 6 Poço do Canto Palhete 2019 für 60 € mit Gratisversand",
       metaDescription: "Box mit 6 Flaschen Poço do Canto Palhete 2019, Rotwein aus dem Douro. 60 € pro Box, inkl. MwSt. und Versand. Nur 360 Boxen, bis {date}.",
+      headline: "6 Flaschen Rotwein aus dem Douro, Portugal – {price}",
+      headlineNote: "Inkl. MwSt. und Gratisversand",
       sub: "Poço do Canto Palhete 2019 · Rotwein aus dem Douro",
       mix: ["6 Flaschen", "Jahrgang 2019", "Nur 360 Boxen"],
       bundles: {
@@ -579,7 +584,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
         DE.story[0],
         DE.story[1],
         { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Rote und weiße Trauben gären zusammen, so wie Palhete im Douro schon immer gemacht wird." },
-        { img: "/lp/bf/poco-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
+        { img: "/lp/bf/poco-cut.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt voraussichtlich {days} Werktage nach dem Versand mit Sendungsverfolgung bei Ihnen an." },
       ],
       eveningTitle: "Für jede Gelegenheit",
       evening: [
@@ -594,7 +599,7 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       ],
       faq: DE.faq.map((f) => (f.q === "Wohin liefern Sie?" ? { ...f, a: "Diese Box liefern wir zum Black Friday nach Deutschland, in die Niederlande und nach Belgien." } : f)),
       productName: "Black Friday · 6 Poço do Canto Palhete 2019",
-      trust: ["🍷 6 Flaschen Poço do Canto Palhete 2019 · Douro", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
+      trust: ["🍷 6 Flaschen Poço do Canto Palhete 2019 · Douro", "🚚 Gratisversand mit Sendungsverfolgung · ca. {days} Werktage nach Versand · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
       recovery: { ...DE.recovery, titleFirst: "Ihre 6 Poço do Canto warten auf Sie" },
     },
     nl: {
@@ -605,6 +610,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       kicker: "Wine-Portugal.com",
       h1a: "BLACK",
       h1b: "FRIDAY",
+      headline: "6 flessen rode wijn uit de Douro, Portugal – {price}",
+      headlineNote: "Inclusief btw en gratis verzending",
       sub: "Poço do Canto Palhete 2019 · rode wijn uit de Douro",
       mix: ["6 flessen", "Oogst 2019", "Slechts 360 dozen"],
       countdownTitle: "De aanbieding eindigt over",
@@ -701,6 +708,8 @@ export const BF_OFFER_COPY: Record<Exclude<BfOfferId, "douro6">, Partial<Record<
       kicker: "Wine-Portugal.com",
       h1a: "BLACK",
       h1b: "FRIDAY",
+      headline: "6 bouteilles de vin rouge du Douro, Portugal – {price}",
+      headlineNote: "TVA incluse, livraison offerte",
       sub: "Poço do Canto Palhete 2019 · vin rouge du Douro",
       mix: ["6 bouteilles", "Millésime 2019", "Seulement 360 caisses"],
       countdownTitle: "L'offre se termine dans",
@@ -798,6 +807,8 @@ const GALHOFA_FR = BF_OFFER_COPY.pocoeu.fr!;
 BF_OFFER_COPY.galhofa = {
   nl: {
     ...GALHOFA_NL,
+    headline: undefined,
+    headlineNote: undefined,
     images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp", who: "/lp/bf/who-warehouse.webp" },
     who: { ...GALHOFA_NL.who, alt: "Wijn wordt ingepakt voor verzending" },
     metaTitle: "Black Friday · 6 Douro-wijnen Galhofa voor 68,50 € met gratis verzending",
@@ -838,6 +849,8 @@ BF_OFFER_COPY.galhofa = {
   },
   fr: {
     ...GALHOFA_FR,
+    headline: undefined,
+    headlineNote: undefined,
     images: { hero: "/lp/bf/bottles.webp", heroW: 1200, heroH: 712, cut: "/lp/bf/bottles-cut.webp", who: "/lp/bf/who-warehouse.webp" },
     who: { ...GALHOFA_FR.who, alt: "Du vin préparé pour l'envoi" },
     metaTitle: "Black Friday · 6 vins du Douro Galhofa pour 68,50 € livraison offerte",
@@ -909,7 +922,7 @@ BF_OFFER_COPY.sekt = {
       DE.story[0],
       DE.story[1],
       { img: "/lp/bf/story-harvest2.webp", h: "Im Keller", p: "Aus den Trauben entsteht ein frischer Grundwein, der danach zum Schaumwein wird." },
-      { img: "/lp/bf/espumoso-hero.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt in {days} Werktagen mit Sendungsverfolgung bei Ihnen an." },
+      { img: "/lp/bf/espumoso-hero.webp", h: "Zu Ihnen", p: "Ihre Box wird in unserem Lager in Belgien gepackt und kommt voraussichtlich {days} Werktage nach dem Versand mit Sendungsverfolgung bei Ihnen an." },
     ],
     eveningTitle: "Drei Momente zum Anstoßen",
     evening: [
@@ -923,7 +936,7 @@ BF_OFFER_COPY.sekt = {
       { h: "Nur zum Black Friday", p: "Die Hälfte des regulären Preises, Versand inklusive. Wenn der Countdown abläuft, endet das Angebot." },
     ],
     productName: "Black Friday · 3 D. Graça Sekt",
-    trust: ["🍾 3 Flaschen Brut-Schaumwein · Douro", "🚚 Gratisversand mit Sendungsverfolgung · {days} Werktage · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
+    trust: ["🍾 3 Flaschen Brut-Schaumwein · Douro", "🚚 Gratisversand mit Sendungsverfolgung · ca. {days} Werktage nach Versand · Bestellungen bis {date}", "🔒 Sichere Zahlung über Stripe · wir speichern keine Kartendaten", "↩️ Flasche beschädigt? Kostenloser Ersatz · 14 Tage Widerrufsrecht", "💬 Fragen? WhatsApp +351 910 348 577"],
     recovery: { ...DE.recovery, titleFirst: "Ihre 3 Flaschen Douro-Schaumwein warten auf Sie" },
   },
 };

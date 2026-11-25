@@ -60,10 +60,11 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
         name: bfCopy.productName,
         image: bfCopy.images.hero,
         bottlesPerBox: offer.bottlesPerBox,
-        defaultKey: bundles.find((b) => b.qty === 2)?.key ?? `${offer.prefix}2`,
+        defaultKey: bundles.find((b) => b.qty === 1)?.key ?? `${offer.prefix}1`, // 1 box, as on the offer page (25/11/2026)
         backHref: bfHref(locale, offer),
         trust: bfCopy.trust.map((l) => fmt(l, { days: deliveryDays, date: cutoffLabel })),
         banner: fmt(bfCopy.topBar, { date: cutoffLabel }),
+        vsOne: bfCopy.vsOne,
       }
     : undefined;
   // Verified reviews with text (Admin → Reviews) first; the manual list in Settings only while there are none.

@@ -79,6 +79,8 @@ export type CheckoutProduct = {
   trust: string[] | null; // replaces the default trust list
   /** Black Friday: the offer's top bar, so the checkout looks like the page the buyer came from. */
   banner?: string;
+  /** Black Friday: the bundle saving in euros, as on the offer page ("{save} günstiger als einzeln"). */
+  vsOne?: string;
 };
 
 /** Express checkout (Apple Pay / Google Pay at the top of the Black Friday checkout). */
@@ -1071,7 +1073,11 @@ export function CheckoutPage({
             <span className="block">{money(b.priceCents)}</span>
             {b.qty > 1 && singleCents ? (
               <span className="block font-semibold text-xmas">
-                {dealText(dealOf(b, singleCents), d.deal, moneyShort).short}
+                {(() => {
+                  const deal = dealOf(b, singleCents);
+                  // Black Friday: the saving in euros, the same words as the offer page (not "−12 %").
+                  return product?.vsOne && deal.saving > 0 ? fmt(product.vsOne, { save: moneyShort(deal.saving) }) : dealText(deal, d.deal, moneyShort).short;
+                })()}
               </span>
             ) : (
               <span className="block text-muted">
