@@ -239,3 +239,7 @@
 .bf-kicker-bf{color:var(--bf-red);font-weight:900;font-size:clamp(18px,5vw,26px);letter-spacing:.08em}
 .bf-h1-product{margin:6px auto 0;max-width:720px;font:900 clamp(26px,7.2vw,46px)/1.12 Arial,Helvetica,sans-serif;color:#fff;text-transform:none}
 .bf-headnote{margin-top:8px;font-weight:800;font-size:clamp(15px,4vw,19px);color:#7fd99a}
+/* Box photo next to the price in the first screen (Poço do Canto DE/NL/FR, 25/11/2026) */
+.bf-topimg{display:block;width:auto;max-width:100%;height:190px;margin:12px auto 0;object-fit:contain;filter:drop-shadow(0 14px 22px #000c)}
+@media(min-width:900px){.bf-topgrid{display:grid;grid-template-columns:auto 440px;justify-content:center;align-items:center;gap:28px;margin-top:10px}.bf-topgrid .bf-topimg{height:330px;margin:0}.bf-topgrid .bf-topbuy{margin:0}}
+.bf-hero .bf-h1-product{margin-left:auto;margin-right:auto;text-wrap:balance}

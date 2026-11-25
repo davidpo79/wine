@@ -344,6 +344,9 @@ export function BlackFridayPage({
               the fold). 1 box straight to the checkout; the bundles stay further down. */}
           {open && promoOn && <p className="bf-promo-on">{fmt(PROMO_ON[locale] ?? PROMO_ON.es, { code: leadCode, amount: money(off) })}</p>}
           {open && single && (
+            <div className={copy.headline ? "bf-topgrid" : undefined}>
+            {/* The wine next to the price, in the first screen (review of 25/11/2026: the photo sat below the fold). */}
+            {copy.headline && <img className="bf-topimg" src={img.cut} alt={copy.productName} width={640} height={693} fetchPriority="high" />}
             <div className="bf-topbuy">
               <p className="bf-topbuy-price">
                 {single.compareAtCents && single.compareAtCents > single.priceCents ? (
@@ -368,6 +371,7 @@ export function BlackFridayPage({
                   </a>
                 ) : null;
               })()}
+            </div>
             </div>
           )}
           <TrustIcons trust={copy.trust} locale={locale} vars={v} />

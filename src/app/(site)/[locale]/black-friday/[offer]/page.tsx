@@ -37,13 +37,22 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!r) return {};
   const c = bfCopyFor(r.offer.id, r.locale)!;
   const settings = await getSettings();
-  const description = fmt(c.metaDescription, { date: dateFor(r.locale, settings.black_friday.cutoff_at).slice(0, 5) });
+  const description = fmt(c.metaDescription, { date: cutoffText(r.locale, settings.black_friday.cutoff_at) });
   return {
     title: c.metaTitle,
     description,
     alternates: { canonical: bfHref(r.locale, r.offer) },
     openGraph: { locale: LOCALE_INFO[r.locale].og, title: c.metaTitle, description, images: [{ url: `${SITE.url}${c.images.hero}`, width: c.images.heroW, height: c.images.heroH }] },
   };
+}
+
+/** Dutch pages (review of 25/11/2026): the full deadline, "vrijdag 27 november, 23.59 uur", in Dutch time, instead of "27-11". */
+function cutoffText(locale: string, iso: string) {
+  if (locale !== "nl") return dateFor(locale as Parameters<typeof dateFor>[0], iso).slice(0, 5);
+  const d = new Date(iso);
+  const day = new Intl.DateTimeFormat("nl-NL", { timeZone: "Europe/Amsterdam", weekday: "long", day: "numeric", month: "long" }).format(d);
+  const time = new Intl.DateTimeFormat("nl-NL", { timeZone: "Europe/Amsterdam", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d).replace(":", ".");
+  return `${day}, ${time} uur`;
 }
 
 /** The other Black Friday offers (Spain only): same page as the Douro box, with their own product, prices and copy. */
@@ -58,8 +67,11 @@ export default async function BlackFridayOffer({ params, searchParams }: { param
   const bf = settings.black_friday;
   const country = bfCountryFor(locale);
   // These offers show the reference price set on their bundles (Admin → Products), unlike the Douro box.
-  const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, qty: b.qty, priceCents: b.priceCents, compareAtCents: b.compareAtCents }));
-  const cutoffLabel = dateFor(locale, bf.cutoff_at).slice(0, 5);
+  // Not on the Dutch pages: the Dutch Alcohol Act caps alcohol discounts at 25 % and a struck-through price must be the
+  // lowest of the last 30 days (review of 25/11/2026). The bundle saving against single boxes (8-12 %) stays.
+  const reference = locale !== "nl";
+  const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, qty: b.qty, priceCents: b.priceCents, compareAtCents: reference ? b.compareAtCents : null }));
+  const cutoffLabel = cutoffText(locale, bf.cutoff_at);
   const sells = bf.countries.includes(country);
   const open = sells && (bfOpen(bf) || (!!admin && new Date() <= new Date(bf.cutoff_at))) && bundles.length > 0;
   const jsonLd = {
