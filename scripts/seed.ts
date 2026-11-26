@@ -292,5 +292,23 @@ if (resetEmail && resetPw) {
   }
 }
 
+// One-time repair, 26/11/2026: saving Admin → Settings dropped NL and BE from the Black Friday countries (the form had
+// only DE/ES/PT boxes), which closed the Dutch and Belgian pages. Put them back; the form now has NL and BE boxes.
+{
+  const MARK = "patch_bf_nlbe_restore_20261126";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, "black_friday"));
+    const cur = row?.value as { countries?: string[]; vat_percent?: Record<string, number> } | undefined;
+    if (cur && Array.isArray(cur.countries)) {
+      const countries = [...new Set([...cur.countries, "NL", "BE"])];
+      const vat_percent = { NL: 21, BE: 21, ...(cur.vat_percent ?? {}) };
+      await db.update(schema.settings).set({ value: { ...cur, countries, vat_percent } }).where(eq(schema.settings.key, "black_friday"));
+    }
+    await db.insert(schema.settings).values({ key: MARK, value: true }).onConflictDoNothing();
+    console.log("patch applied: Black Friday open again in NL and BE");
+  }
+}
+
 console.log("seed done");
 await pg.end();
