@@ -310,5 +310,18 @@ if (resetEmail && resetPw) {
   }
 }
 
+// One-time update, 26/11/2026 (approved by Amir): Poço do Canto 2 and 3 boxes cheaper for the Black Friday weekend,
+// to clear the stock. Spain 95 / 125 €, Germany, Netherlands and Belgium 99 / 135 €; 1 box unchanged.
+{
+  const MARK = "patch_bf_poco_multibox_20261126";
+  const [done] = await db.select().from(schema.settings).where(eq(schema.settings.key, MARK));
+  if (!done) {
+    for (const [key, priceCents] of [["bfp2", 9500], ["bfp3", 12500], ["bfq2", 9900], ["bfq3", 13500]] as const)
+      await db.update(schema.bundles).set({ priceCents }).where(eq(schema.bundles.key, key));
+    await db.insert(schema.settings).values({ key: MARK, value: true }).onConflictDoNothing();
+    console.log("patch applied: Poço do Canto 2 and 3 boxes cheaper");
+  }
+}
+
 console.log("seed done");
 await pg.end();

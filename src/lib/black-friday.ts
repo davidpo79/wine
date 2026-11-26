@@ -101,9 +101,11 @@ export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed
   ],
   poco: [
     { key: "bfp1", label: "Black Friday · Poço do Canto · 1 caixa · 6 garrafas", qty: 1, priceCents: 5500, compareAtCents: 9000, shippingCents: 0, badge: null, sort: 31 },
-    { key: "bfp2", label: "Black Friday · Poço do Canto · 2 caixas · 12 garrafas", qty: 2, priceCents: 10400, compareAtCents: 18000, shippingCents: 0, badge: "Mais escolhido", sort: 32 },
-    { key: "bfp3", label: "Black Friday · Poço do Canto · 3 caixas · 18 garrafas", qty: 3, priceCents: 14900, compareAtCents: 27000, shippingCents: 0, badge: "Melhor preço", sort: 33 },
+    { key: "bfp2", label: "Black Friday · Poço do Canto · 2 caixas · 12 garrafas", qty: 2, priceCents: 9500, compareAtCents: 18000, shippingCents: 0, badge: "Mais escolhido", sort: 32 },
+    { key: "bfp3", label: "Black Friday · Poço do Canto · 3 caixas · 18 garrafas", qty: 3, priceCents: 12500, compareAtCents: 27000, shippingCents: 0, badge: "Melhor preço", sort: 33 },
   ],
+  // Black Friday weekend (26/11/2026, approved by Amir, to clear the stock): 2 and 3 boxes cheaper, 1 box unchanged.
+  // Spain 55 / 95 / 125 €; Germany, the Netherlands and Belgium 60 / 99 / 135 € (was 104/149 and 110/159).
   // Germany, the Netherlands and Belgium (David, 18/11/2026): 60 € a box, 2 boxes 110 €, 3 boxes 159 €; reference price
   // 120 € a box as in his ad (his choice, flagged: PAngV §11 / Omnibus wants the lowest price of the last 30 days).
   // Galhofa mix for the Netherlands and Belgium (David, 18/11/2026): the Douro box prices with his reference price of
@@ -129,8 +131,8 @@ export const BF_OFFER_BUNDLES: Record<Exclude<BfOfferId, "douro6">, BfBundleSeed
   ],
   pocoeu: [
     { key: "bfq1", label: "Black Friday · Poço do Canto DE/NL/BE · 1 caixa · 6 garrafas", qty: 1, priceCents: 6000, compareAtCents: 12000, shippingCents: 0, badge: null, sort: 41 },
-    { key: "bfq2", label: "Black Friday · Poço do Canto DE/NL/BE · 2 caixas · 12 garrafas", qty: 2, priceCents: 11000, compareAtCents: 24000, shippingCents: 0, badge: "Mais escolhido", sort: 42 },
-    { key: "bfq3", label: "Black Friday · Poço do Canto DE/NL/BE · 3 caixas · 18 garrafas", qty: 3, priceCents: 15900, compareAtCents: 36000, shippingCents: 0, badge: "Melhor preço", sort: 43 },
+    { key: "bfq2", label: "Black Friday · Poço do Canto DE/NL/BE · 2 caixas · 12 garrafas", qty: 2, priceCents: 9900, compareAtCents: 24000, shippingCents: 0, badge: "Mais escolhido", sort: 42 },
+    { key: "bfq3", label: "Black Friday · Poço do Canto DE/NL/BE · 3 caixas · 18 garrafas", qty: 3, priceCents: 13500, compareAtCents: 36000, shippingCents: 0, badge: "Melhor preço", sort: 43 },
   ],
 };
 

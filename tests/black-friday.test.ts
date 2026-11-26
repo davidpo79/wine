@@ -156,7 +156,7 @@ test("Poço do Canto for Germany, the Netherlands and Belgium: own offer, prices
   assert.equal(bfOfferByPath("poco-do-canto", "nl")?.id, "pocoeu");
   assert.equal(bfOfferByPath("poco-do-canto", "de")?.id, "pocoeu");
   assert.equal(bfOfferFor("bfq2")?.id, "pocoeu");
-  assert.deepEqual(BF_OFFER_BUNDLES.pocoeu.map((b) => [b.priceCents, b.compareAtCents]), [[6000, 12000], [11000, 24000], [15900, 36000]]);
+  assert.deepEqual(BF_OFFER_BUNDLES.pocoeu.map((b) => [b.priceCents, b.compareAtCents]), [[6000, 12000], [9900, 24000], [13500, 36000]]);
   assert.equal(bfBoxCost(DEFAULT_SETTINGS.black_friday, "pocoeu"), 2750); // 12 + 2,50 + 2,50 + 2 + 8,50 (+ 3% fee and 20% marketing = 41,30 €)
   for (const l of ["de", "nl", "fr"] as const) assert.ok(bfCopyFor("pocoeu", l), l);
   assert.equal(bfCopyFor("douro6", "nl"), null);
