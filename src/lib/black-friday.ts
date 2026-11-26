@@ -158,12 +158,17 @@ export const bfLocaleFor = (country: string | null | undefined): BfLocale | null
 export const bfCountryFor = (locale: BfLocale): Country => (locale === "pt" ? "PT" : locale === "es" ? "ES" : locale === "nl" ? "NL" : locale === "fr" ? "BE" : "DE");
 
 /** Countries taking Black Friday orders right now (none once switched off). */
+// David, 26/11/2026: the pages never close on their own (no deadline, no country list); the only way to stop
+// Black Friday orders is the "Black Friday orders open" switch in Admin → Settings. The deadline is shown only.
+export const BF_ALL_COUNTRIES: Country[] = ["DE", "ES", "PT", "NL", "BE"];
+
 export function bfOpenCountries(s: BlackFridaySettings): Country[] {
-  return s.enabled ? s.countries : [];
+  return s.enabled ? [...new Set([...BF_ALL_COUNTRIES, ...s.countries])] : [];
 }
 
-export function bfOpen(s: BlackFridaySettings, now = new Date()) {
-  return s.enabled && now.getTime() <= new Date(s.cutoff_at).getTime();
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function bfOpen(s: BlackFridaySettings, _now = new Date()) {
+  return s.enabled;
 }
 
 /** Costs of one box (cents, without recoverable VAT): wine, carton, transport to Belgium, handling, delivery. */

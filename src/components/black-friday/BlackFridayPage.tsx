@@ -402,7 +402,7 @@ export function BlackFridayPage({
           {open ? (
             <div className="bf-countwrap">
               <p className="bf-counttitle">{copy.countdownTitle}</p>
-              <Countdown cutoffIso={cutoffIso} units={copy.countdownUnits} onEnd={() => setOpen(false)} />
+              <Countdown cutoffIso={cutoffIso} units={copy.countdownUnits} onEnd={() => {}} />
               <p className="bf-countnote">{t(copy.countdownNote)}</p>
             </div>
           ) : (
