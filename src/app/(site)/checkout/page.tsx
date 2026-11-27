@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { guideFor } from "@/lib/ebook";
 import { cookies } from "next/headers";
 import { getCatalog } from "@/lib/catalog";
-import { bfCountryFor, bfHref, bfOfferCountries, bfOfferFor, bfOpenCountries, isBfLocale } from "@/lib/black-friday";
+import { BF_ALL_COUNTRIES, bfCountryFor, bfHref, bfOfferCountries, bfOfferFor, bfOpenCountries, isBfLocale } from "@/lib/black-friday";
 import { bfCopyFor } from "@/components/black-friday/copy";
 import { getAdmin } from "@/lib/auth";
 import { fmt } from "@/lib/i18n/rich";
@@ -41,7 +41,7 @@ export default async function Checkout({ searchParams }: { searchParams: SP }) {
   const saved = jar.get(LOCALE_COOKIE)?.value;
   let locale: Locale = isLocale(resumed?.locale) ? resumed.locale : isLocale(sp.l) ? sp.l : isLocale(saved) ? saved : "pt";
   if (offer && !(isBfLocale(locale) && offer.locales.includes(locale))) locale = offer.locales.includes("de") ? "de" : offer.locales[0];
-  const bfAll = offer ? bfOfferCountries(offer, (await getAdmin().catch(() => null)) ? settings.black_friday.countries : bfOpenCountries(settings.black_friday)) : [];
+  const bfAll = offer ? bfOfferCountries(offer, (await getAdmin().catch(() => null)) ? BF_ALL_COUNTRIES : bfOpenCountries(settings.black_friday)) : [];
   // The Russian Cheda page is for the community in Germany: it delivers to Germany only.
   const bfCountries = offer && locale === "ru" ? bfAll.filter((c) => c === "DE") : bfAll;
   const open = bf ? bfCountries : await enabledCountries(settings);

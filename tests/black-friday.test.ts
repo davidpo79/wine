@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 process.env.SESSION_SECRET = "x".repeat(40);
 const { DEFAULT_SETTINGS } = await import("../src/lib/settings-defaults");
-const { BF_BUNDLES, BF_OFFERS, BF_OFFER_BUNDLES, bfBoxCost, bfOfferByPath, bfOfferFor, bfOpen, bottlesPerBox, isBfBundle } = await import("../src/lib/black-friday");
+const { BF_BUNDLES, BF_OFFERS, BF_OFFER_BUNDLES, bfBoxCost, bfOfferByPath, bfOfferFor, bfOpen, bfOpenCountries, bottlesPerBox, isBfBundle } = await import("../src/lib/black-friday");
 const { bfCopyFor } = await import("../src/components/black-friday/copy");
 const { bfLocaleForVisitor } = await import("../src/lib/black-friday-visitor");
 const { computeOrderCosts } = await import("../src/lib/profit");
@@ -48,13 +48,14 @@ test("black friday prices ignore the Christmas discount codes", () => {
   assert.deepEqual(a, { subtotal: 6850, discount: 0, shipping: 0, total: 6850, promoCode: null });
 });
 
-test("black friday opens and closes with its own switch and cutoff", () => {
+test("black friday closes only with its own switch, never at the deadline or by country list (David, 26/11)", () => {
   assert.equal(DEFAULT_SETTINGS.black_friday.enabled, true);
   const bf = DEFAULT_SETTINGS.black_friday;
-  assert.equal(bf.cutoff_at, "2026-11-27T22:59:00Z"); // Black Friday itself, 27/11 23:59 in Madrid, Berlin, Amsterdam and Brussels (David, 18/11)
   assert.equal(bfOpen(bf, new Date("2026-11-27T22:58:00Z")), true);
-  assert.equal(bfOpen(bf, new Date("2026-11-27T23:00:00Z")), false);
+  assert.equal(bfOpen(bf, new Date("2026-12-05T12:00:00Z")), true); // after the shown deadline: still open
   assert.equal(bfOpen({ ...bf, enabled: false }, new Date("2026-11-01T12:00:00Z")), false);
+  assert.deepEqual([...bfOpenCountries({ ...bf, countries: ["DE"] })].sort(), ["BE", "DE", "ES", "NL", "PT"]); // a saved list cannot close a country
+  assert.deepEqual(bfOpenCountries({ ...bf, enabled: false }), []);
 });
 
 test("black friday language follows the saved choice, then the phone, then the location", () => {
@@ -155,7 +156,7 @@ test("Poço do Canto for Germany, the Netherlands and Belgium: own offer, prices
   assert.equal(bfOfferByPath("poco-do-canto", "nl")?.id, "pocoeu");
   assert.equal(bfOfferByPath("poco-do-canto", "de")?.id, "pocoeu");
   assert.equal(bfOfferFor("bfq2")?.id, "pocoeu");
-  assert.deepEqual(BF_OFFER_BUNDLES.pocoeu.map((b) => [b.priceCents, b.compareAtCents]), [[6000, 12000], [11000, 24000], [15900, 36000]]);
+  assert.deepEqual(BF_OFFER_BUNDLES.pocoeu.map((b) => [b.priceCents, b.compareAtCents]), [[6000, 12000], [9900, 24000], [13500, 36000]]);
   assert.equal(bfBoxCost(DEFAULT_SETTINGS.black_friday, "pocoeu"), 2750); // 12 + 2,50 + 2,50 + 2 + 8,50 (+ 3% fee and 20% marketing = 41,30 €)
   for (const l of ["de", "nl", "fr"] as const) assert.ok(bfCopyFor("pocoeu", l), l);
   assert.equal(bfCopyFor("douro6", "nl"), null);

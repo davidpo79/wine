@@ -8,7 +8,7 @@ import { dateFor, deliveryDaysFor, getDict } from "@/lib/i18n";
 import { fmt } from "@/lib/i18n/rich";
 import { LOCALE_INFO } from "@/lib/markets";
 import { getAdmin } from "@/lib/auth";
-import { BF_DOURO_ALIASES, bfCountryFor, bfHref, bfOfferByPath, bfOpen, isBfLocale, type BfLocale, type BfOffer } from "@/lib/black-friday";
+import { BF_DOURO_ALIASES, bfCountryFor, bfHref, bfOfferByPath, bfOpen, bfOpenCountries, isBfLocale, type BfLocale, type BfOffer } from "@/lib/black-friday";
 import DouroBox, { generateMetadata as douroMetadata } from "../page";
 import { bfCopyFor } from "@/components/black-friday/copy";
 import { BlackFridayPage } from "@/components/black-friday/BlackFridayPage";
@@ -72,8 +72,8 @@ export default async function BlackFridayOffer({ params, searchParams }: { param
   const reference = locale !== "nl";
   const bundles = (catalog?.bundles ?? []).map((b) => ({ key: b.key, qty: b.qty, priceCents: b.priceCents, compareAtCents: reference ? b.compareAtCents : null }));
   const cutoffLabel = cutoffText(locale, bf.cutoff_at);
-  const sells = bf.countries.includes(country);
-  const open = sells && (bfOpen(bf) || (!!admin && new Date() <= new Date(bf.cutoff_at))) && bundles.length > 0;
+  const sells = bfOpenCountries(bf).includes(country) || !!admin;
+  const open = sells && (bfOpen(bf) || !!admin) && bundles.length > 0;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",

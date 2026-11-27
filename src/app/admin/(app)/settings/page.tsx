@@ -87,7 +87,7 @@ export default async function SettingsPage() {
         </fieldset>
         <div id="black-friday" className="scroll-mt-16" aria-hidden />
         <fieldset className="rounded border p-3">
-          <legend className="px-1 font-semibold">Black Friday · 6-bottle box (Germany, Spain)</legend>
+          <legend className="px-1 font-semibold">Black Friday (Germany, Spain, Portugal, Netherlands, Belgium)</legend>
           <p className="text-xs text-muted">
             Pages /de/black-friday and /es/black-friday (one link for ads: /black-friday, it picks the language). Separate from the Christmas markets above: it sells in its
             countries while switched on and until its cutoff (the countdown runs to it). Prices of the 1, 2 and 3 box options: Admin → Products (bf1, bf2, bf3).
@@ -104,6 +104,9 @@ export default async function SettingsPage() {
             <label className="flex items-center gap-1"><input type="checkbox" name="bf_DE" defaultChecked={bf.countries.includes("DE")} /> DE</label>
             <label className="flex items-center gap-1"><input type="checkbox" name="bf_ES" defaultChecked={bf.countries.includes("ES")} /> ES</label>
             <label className="flex items-center gap-1"><input type="checkbox" name="bf_PT" defaultChecked={bf.countries.includes("PT")} /> PT</label>
+            {/* NL and BE sell Poço do Canto and Galhofa: without these boxes, saving the form closed them (26/11/2026). */}
+            <label className="flex items-center gap-1"><input type="checkbox" name="bf_NL" defaultChecked={bf.countries.includes("NL")} /> NL</label>
+            <label className="flex items-center gap-1"><input type="checkbox" name="bf_BE" defaultChecked={bf.countries.includes("BE")} /> BE</label>
             <label>VAT DE %<input name="bf_vat_DE" defaultValue={bf.vat_percent.DE ?? 19} className="mt-1 block w-16 rounded border p-2" /></label>
             <label>VAT ES %<input name="bf_vat_ES" defaultValue={bf.vat_percent.ES ?? 21} className="mt-1 block w-16 rounded border p-2" /></label>
             <label>VAT PT %<input name="bf_vat_PT" defaultValue={bf.vat_percent.PT ?? 13} className="mt-1 block w-16 rounded border p-2" /></label>
