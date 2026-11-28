@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const [done] = await db.select({ id: schema.webhookLog.id }).from(schema.webhookLog).where(and(eq(schema.webhookLog.eventId, event.id), isNotNull(schema.webhookLog.processedAt))).limit(1);
   if (done) return Response.json({ received: true, duplicate: true });
   try {
-    if (event.type === "payment_intent.succeeded" || event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled") {
+    if (event.type === "payment_intent.succeeded" || event.type === "payment_intent.payment_failed" || event.type === "payment_intent.canceled" || event.type === "payment_intent.requires_action") {
       await applyStripePi(event.data.object, `stripe:${event.id}`);
     } else if (event.type === "charge.refunded") {
       const ch = event.data.object;

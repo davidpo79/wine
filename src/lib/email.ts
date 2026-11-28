@@ -18,6 +18,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { bfProductName, bottlesPerBox, isBfBundle, isBfLocale } from "./black-friday";
 import { bfCopyForBundle } from "@/components/black-friday/copy";
+import { bankTransferCopy, formatIban, type BankTransferDetails } from "./bank-transfer";
 
 const localeOf = (o: Pick<Order, "locale"> | null): Locale => (o && isLocale(o.locale) ? o.locale : "pt");
 /** Dictionary strings use <b>/<em>; email HTML keeps them as they are. */
@@ -176,6 +177,34 @@ ${orderSummary(o)}
     locale,
   );
   return send(o, o.email, fmt(t.pendingSubject, { id: o.id }), html, "pending");
+}
+
+/** Bank transfer chosen at checkout (Stripe): IBAN, BIC, beneficiary and the reference the buyer must use. */
+export async function sendBankTransferPending(o: Order, bt: BankTransferDetails) {
+  if (!o.email) return;
+  const locale = localeOf(o);
+  const t = getDict(locale).email;
+  const c = bankTransferCopy(locale);
+  const row = (k: string, v: string) => `${esc(k)}: <strong>${esc(v)}</strong>`;
+  const rows = [
+    bt.holder ? row(c.holder, bt.holder) : "",
+    row(c.iban, formatIban(bt.iban)),
+    bt.bic ? row(c.bic, bt.bic) : "",
+    row(c.reference, bt.reference),
+    row(c.amount, moneyFor(locale)(bt.amountCents)),
+  ].filter(Boolean);
+  const html = layout(
+    c.title,
+    `<p>${t.helloPlain}</p>
+<p>${esc(c.emailText.charAt(0).toUpperCase() + c.emailText.slice(1))}</p>
+<p style="font-size:16px;background:#F6EFE2;padding:12px 14px">${rows.join("<br>")}</p>
+<p><strong>${esc(c.important)}</strong></p>
+<p>${esc(c.text)}</p>
+${bt.hostedUrl ? button(bt.hostedUrl, c.instructions) : ""}
+${orderSummary(o)}`,
+    locale,
+  );
+  return send(o, o.email, fmt(c.subject, { id: o.id }), html, "bank_transfer_pending");
 }
 
 /** trackingUrl: the carrier's page for parcels that do not go with CTT (ShipHero / UPS from the Belgian warehouse). */

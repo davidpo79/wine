@@ -5,7 +5,7 @@ import type Stripe from "stripe";
 import { db, schema } from "@/db";
 import type { Order, OrderAddon, Payment } from "@/db/schema";
 import { logOrderEvent, setStatus } from "./orders";
-import { sendAddonConfirmation, sendAdminAlert, sendConfirmation, sendPending, sendPaymentIssueAlert } from "./email";
+import { sendAddonConfirmation, sendAdminAlert, sendBankTransferPending, sendConfirmation, sendPending, sendPaymentIssueAlert } from "./email";
 import { logFunnel, reportPurchase, sendCapi } from "./tracking";
 import { getStripe, stripeConfigured } from "./stripe";
 import { getSettings } from "./settings";
@@ -15,6 +15,7 @@ import { normalizePtMobile } from "./leads";
 import { SITE } from "./site";
 import { getDict } from "./i18n";
 import { isCountry, isLocale, MARKETS, type Country } from "./markets";
+import { bankTransferCountry, bankTransferDetails } from "./bank-transfer";
 
 const countryOf = (o: Pick<Order, "country">): Country => (isCountry(o.country) ? o.country : "PT");
 const errorsOf = (o: Pick<Order, "locale">) => getDict(isLocale(o.locale) ? o.locale : "pt").checkout.errors;
@@ -44,7 +45,7 @@ export function stripeTypes(country: Country, paypal = true): string[] {
 /** Stripe refuses a PaymentIntent with a method the account has not activated: PayPal off must not stop card payments. */
 export function isPaypalUnavailable(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
-  return /paypal|klarna|amazon_pay/i.test(msg);
+  return /paypal|klarna|amazon_pay|customer_balance|bank_transfer/i.test(msg);
 }
 export function stripeSavesCard(country: Country): boolean {
   return MARKETS[country].stripeRedirectMethods.length === 0;
@@ -118,18 +119,28 @@ export async function startPayment(order: Order, method: ifp.PayMethod, opts: { 
         await db.update(schema.orders).set({ stripeCustomerId: customer }).where(eq(schema.orders.id, order.id));
       }
       const a = order.shippingAddress ?? {};
-      const params = (paypal: boolean): Stripe.PaymentIntentCreateParams => ({
+      const params = (paypal: boolean): Stripe.PaymentIntentCreateParams => {
+        const types = stripeTypes(country, paypal);
+        // Only the card is saved (for the one-click offer after paying); PayPal and bank redirects are not.
+        const pmo: Stripe.PaymentIntentCreateParams.PaymentMethodOptions = {
+          ...(stripeSavesCard(country) ? { card: { setup_future_usage: "on_session" as const } } : {}),
+          // Bank transfer: Stripe gives the buyer an IBAN + reference; the PaymentIntent succeeds when the money arrives.
+          ...(types.includes("customer_balance")
+            ? { customer_balance: { funding_type: "bank_transfer" as const, bank_transfer: { type: "eu_bank_transfer" as const, eu_bank_transfer: { country: bankTransferCountry(country) } } } }
+            : {}),
+        };
+        return {
           amount,
           currency: "eur",
           customer,
-          allowed_payment_method_types: stripeTypes(country, paypal),
-          // Only the card is saved (for the one-click offer after paying); PayPal and bank redirects are not.
-          ...(stripeSavesCard(country) ? { payment_method_options: { card: { setup_future_usage: "on_session" as const } } } : {}),
+          allowed_payment_method_types: types,
+          ...(Object.keys(pmo).length ? { payment_method_options: pmo } : {}),
           receipt_email: order.email ?? undefined,
           description,
           shipping: order.customerName && a.line1 ? { name: order.customerName, phone: order.phone ?? undefined, address: { line1: a.line1, line2: a.line2 ?? undefined, postal_code: a.postal_code ?? undefined, city: a.city ?? undefined, country } } : undefined,
           metadata: { kind: "order", order_id: order.id, ref },
-      });
+        };
+      };
       let pi: Stripe.PaymentIntent;
       try {
         pi = await stripe.paymentIntents.create(params(!opts.noPaypal), { idempotencyKey: `pi_${ref}` });
@@ -225,11 +236,11 @@ export async function confirmPayment(p: Payment, info: { amountCents: number | n
   return { ok: true as const };
 }
 
-const METHOD_LABEL: Record<string, string> = { mbway: "mb_way", multibanco: "multibanco", card: "card", wallet: "wallet" };
+const METHOD_LABEL: Record<string, string> = { mbway: "mb_way", multibanco: "multibanco", card: "card", wallet: "wallet", bank_transfer: "bank_transfer" };
 
 export async function markOrderPaid(order: Order, p: Payment, source: string) {
   if (!["pending_payment", "payment_failed", "cancelled"].includes(order.status)) return;
-  const wallet = p.paidMethod === "APPLE" ? "card:apple_pay" : p.paidMethod === "GOOGLE" ? "card:google_pay" : p.paidMethod === "LINK" ? "card:link" : p.paidMethod === "PAYPAL" ? "paypal" : p.paidMethod === "KLARNA" ? "klarna" : p.paidMethod === "AMAZON_PAY" ? "amazon_pay" : null;
+  const wallet = p.paidMethod === "APPLE" ? "card:apple_pay" : p.paidMethod === "GOOGLE" ? "card:google_pay" : p.paidMethod === "LINK" ? "card:link" : p.paidMethod === "PAYPAL" ? "paypal" : p.paidMethod === "KLARNA" ? "klarna" : p.paidMethod === "AMAZON_PAY" ? "amazon_pay" : p.paidMethod === "BANK_TRANSFER" ? "bank_transfer" : null;
   const paid = await setStatus(order, "paid", { paymentMethodType: wallet ?? METHOD_LABEL[p.method] ?? p.method }, { source, ref: p.ref, amount_cents: p.amountCents });
   if (!paid) return;
   const pendingAddons = await orderAddons(order.id, ["pending"]);
@@ -291,7 +302,7 @@ export async function applyStripePi(pi: Stripe.PaymentIntent, source: string) {
       const ch = full.latest_charge as Stripe.Charge | null;
       const w = ch?.payment_method_details?.card?.wallet?.type;
       const t = ch?.payment_method_details?.type;
-      wallet = t === "paypal" ? "PAYPAL" : t === "klarna" ? "KLARNA" : t === "amazon_pay" ? "AMAZON_PAY" : w === "apple_pay" ? "APPLE" : w === "google_pay" ? "GOOGLE" : w === "link" ? "LINK" : null;
+      wallet = t === "paypal" ? "PAYPAL" : t === "klarna" ? "KLARNA" : t === "amazon_pay" ? "AMAZON_PAY" : t === "customer_balance" ? "BANK_TRANSFER" : w === "apple_pay" ? "APPLE" : w === "google_pay" ? "GOOGLE" : w === "link" ? "LINK" : null;
       const pm = typeof full.payment_method === "string" ? full.payment_method : full.payment_method?.id;
       const customer = typeof full.customer === "string" ? full.customer : full.customer?.id;
       // Only a card (incl. Apple/Google Pay) can be charged again in one click; iDEAL/Bancontact cannot.
@@ -302,6 +313,24 @@ export async function applyStripePi(pi: Stripe.PaymentIntent, source: string) {
     }
     await confirmPayment(p, { amountCents: pi.amount_received || pi.amount, paidMethod: wallet ?? "CARD", source });
     return "paid";
+  }
+  if (pi.status === "requires_action" && !p.addonId) {
+    // Bank transfer chosen: the attempt waits for the money (not "card" any more, so it does not expire after 2 days),
+    // and the buyer gets the IBAN and reference by email, once.
+    const bt = bankTransferDetails(pi);
+    if (bt) {
+      const [first] = await db
+        .update(schema.payments)
+        .set({ method: "bank_transfer", entity: bt.iban, reference: bt.reference, redirectUrl: bt.hostedUrl })
+        .where(and(eq(schema.payments.id, p.id), eq(schema.payments.method, "card")))
+        .returning();
+      if (first) {
+        await logOrderEvent(p.orderId, "bank_transfer_issued", { ref: p.ref, reference: bt.reference, amount_cents: bt.amountCents, iban_country: bt.iban.slice(0, 2) });
+        const [order] = await db.select().from(schema.orders).where(eq(schema.orders.id, p.orderId)).limit(1);
+        if (order) await sendBankTransferPending(order, bt).catch((e) => console.error("[email] bank transfer", e));
+      }
+    }
+    return pi.status;
   }
   if (pi.status === "canceled" || (pi.status === "requires_payment_method" && pi.last_payment_error)) {
     await logOrderEvent(p.orderId, "payment_failed", { provider: "stripe", ref: p.ref, code: pi.last_payment_error?.code ?? pi.status, pm_type: pi.last_payment_error?.payment_method?.type ?? null });

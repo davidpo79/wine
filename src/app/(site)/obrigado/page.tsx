@@ -4,6 +4,8 @@ import { db, schema } from "@/db";
 import { loadDraft } from "@/lib/draft";
 import { latestPayment, refreshMbway } from "@/lib/payments";
 import { formatMbReference } from "@/lib/ifthenpay";
+import { bankTransferCopy, bankTransferDetails, formatIban, type BankTransferDetails } from "@/lib/bank-transfer";
+import { getStripe } from "@/lib/stripe";
 import { AutoRefresh } from "@/components/checkout/AutoRefresh";
 import { ebookLink } from "@/lib/email";
 import { ebookTitle, guideFor } from "@/lib/ebook";
@@ -51,8 +53,18 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
     if (p?.status === "paid") paid = true;
   }
   const mb = !paid && p?.method === "multibanco" && p.status === "pending" ? p : null;
+  // Bank transfer (Stripe): IBAN and reference, live from the PaymentIntent (BIC, beneficiary, amount still due).
+  let bank: BankTransferDetails | null = null;
+  if (!paid && p?.method === "bank_transfer" && ["pending", "superseded"].includes(p.status)) {
+    bank = { iban: p.entity ?? "", bic: null, holder: null, reference: p.reference ?? "", amountCents: p.amountCents, hostedUrl: p.redirectUrl };
+    try {
+      if (p.requestId) bank = bankTransferDetails(await getStripe().paymentIntents.retrieve(p.requestId)) ?? bank;
+    } catch (e) {
+      console.error("[thanks] bank transfer", e instanceof Error ? e.message : e);
+    }
+  }
   // Card / wallet / MB WAY: money may be on its way and the callback not in yet.
-  const processing = !paid && !!p && p.status === "pending" && p.method !== "multibanco";
+  const processing = !paid && !bank && !!p && p.status === "pending" && p.method !== "multibanco";
   const addons = await db.select().from(schema.orderAddons).where(and(eq(schema.orderAddons.orderId, order.id), eq(schema.orderAddons.status, paid ? "paid" : "pending")));
   const addonsTotal = addons.reduce((n, a) => n + a.amountCents, 0);
   // The purchase is complete here (after the post-purchase offer): it can be packed (CTT) and, for the Belgian warehouse,
@@ -94,7 +106,9 @@ export default async function Obrigado({ searchParams }: { searchParams: Promise
       )}
       {!paid && !processing && (
         <div className="mt-6 rounded-xl border border-gold/50 bg-white p-5">
-          {mb ? (
+          {bank ? (
+            <BankTransferBox locale={locale} bank={bank} />
+          ) : mb ? (
             <>
               <p className="text-ink">{tx.mbText}</p>
               <dl className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-paper p-4 text-center">
@@ -166,5 +180,35 @@ function Contact({ locale }: { locale: Locale }) {
       </a>{" "}
       {tx.or} <a href={`mailto:${SITE.email}`} className="font-semibold text-azulejo underline">{SITE.email}</a>
     </p>
+  );
+}
+
+function BankTransferBox({ locale, bank }: { locale: Locale; bank: BankTransferDetails }) {
+  const c = bankTransferCopy(locale);
+  const eur = moneyFor(locale);
+  const rows: [string, string][] = [
+    ...(bank.holder ? [[c.holder, bank.holder] as [string, string]] : []),
+    [c.iban, formatIban(bank.iban)],
+    ...(bank.bic ? [[c.bic, bank.bic] as [string, string]] : []),
+    [c.reference, bank.reference],
+    [c.amount, eur(bank.amountCents)],
+  ];
+  return (
+    <>
+      <p className="font-semibold text-night">{c.title}</p>
+      <p className="mt-1 text-ink">{c.text}</p>
+      <dl className="mt-4 space-y-3 rounded-lg bg-paper p-4">
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-xs uppercase tracking-wider text-muted">{k}</dt>
+            <dd className="select-all break-all text-xl font-bold">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-sm font-semibold text-terracotta-ink">{c.important}</p>
+      {bank.hostedUrl && (
+        <a href={bank.hostedUrl} target="_blank" rel="noopener noreferrer" className="btn-primary mt-4 w-full">{c.instructions}</a>
+      )}
+    </>
   );
 }

@@ -492,11 +492,12 @@ export function CheckoutPage({
 
   // Elements options shared by the Payment Element and the express buttons: they must match the PaymentIntent the
   // server creates (lib/payments): PayPal is offered, only the card is saved.
-  const elementsOptions = (amount: number, withPaypal = true): StripeElementsOptionsMode => ({
+  // Bank transfer (customer_balance) is only in the Payment Element: the express buttons cannot offer it.
+  const elementsOptions = (amount: number, withPaypal = true, express = false): StripeElementsOptionsMode => ({
     mode: "payment",
     amount,
     currency: "eur",
-    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, ...(withPaypal ? ["paypal", ...market.stripeExtraMethods] : [])],
+    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, ...(withPaypal ? ["paypal", ...market.stripeExtraMethods.filter((m) => !express || m !== "customer_balance")] : [])],
     ...(market.stripeRedirectMethods.length
       ? {}
       : { paymentMethodOptions: { card: { setup_future_usage: "on_session" as const } } }),
@@ -534,7 +535,7 @@ export function CheckoutPage({
       const stripe = await loadStripe(publishableKey!);
       if (!stripe || cancelled || !expressDivRef.current || expressElementsRef.current) return;
       expressStripeRef.current = stripe;
-      const elements = stripe.elements(elementsOptions(amounts.total));
+      const elements = stripe.elements(elementsOptions(amounts.total, true, true));
       expressElementsRef.current = elements;
       const ece = elements.create("expressCheckout", {
         buttonType: { applePay: "buy", googlePay: "buy" },
@@ -670,6 +671,16 @@ export function CheckoutPage({
         wallets: { applePay: "auto", googlePay: "auto" },
       });
       pe.on("ready", () => setCardReady(true));
+      // The form did not load with PayPal / Klarna / Amazon Pay / bank transfer: rebuild it with card, Apple Pay and Google Pay.
+      pe.on("loaderror", (e: { error?: { message?: string } }) => {
+        jlog("payment_error", { stage: "load", msg: String(e?.error?.message ?? "").slice(0, 100) }, draftRef.current?.o);
+        if (paypalOff) return;
+        pe.destroy();
+        paymentElRef.current = null;
+        elementsRef.current = null;
+        if (cardDivRef.current) cardDivRef.current.innerHTML = "";
+        setPaypalOff(true);
+      });
       pe.on("change", (e: { value?: { type?: string } }) => {
         if (e.value?.type) pmTypeRef.current = e.value.type;
       });

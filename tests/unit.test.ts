@@ -341,8 +341,8 @@ test("checkout accepts phone numbers typed with dashes, dots, invisible marks or
 
 test("Stripe form: PayPal offered in every market, card-only fallback, bank redirects kept", async () => {
   const { stripeTypes, stripeSavesCard, isPaypalUnavailable } = await import("../src/lib/payments");
-  assert.deepEqual(stripeTypes("DE"), ["card", "paypal", "klarna", "amazon_pay"]);
-  assert.deepEqual(stripeTypes("NL"), ["card", "ideal", "paypal", "klarna", "amazon_pay"]);
+  assert.deepEqual(stripeTypes("DE"), ["card", "paypal", "klarna", "amazon_pay", "customer_balance"]);
+  assert.deepEqual(stripeTypes("NL"), ["card", "ideal", "paypal", "klarna", "amazon_pay", "customer_balance"]);
   assert.deepEqual(stripeTypes("PT"), ["card", "paypal"]); // Portugal: MB WAY / Multibanco, no Klarna or Amazon Pay
   assert.equal(isPaypalUnavailable(new Error("The payment method type \"klarna\" is invalid.")), true);
   assert.deepEqual(stripeTypes("BE", false), ["card", "bancontact"]);
@@ -350,4 +350,26 @@ test("Stripe form: PayPal offered in every market, card-only fallback, bank redi
   assert.equal(stripeSavesCard("NL"), false);
   assert.equal(isPaypalUnavailable(new Error("The payment method type \"paypal\" is invalid. Please ensure it is activated")), true);
   assert.equal(isPaypalUnavailable(new Error("Your card was declined.")), false);
+});
+
+test("bank transfer: IBAN details from the PaymentIntent, Spanish buyers get a German IBAN", async () => {
+  const { bankTransferDetails, bankTransferCountry, formatIban } = await import("../src/lib/bank-transfer");
+  assert.equal(bankTransferCountry("ES"), "DE");
+  assert.equal(bankTransferCountry("BE"), "BE");
+  assert.equal(formatIban("DE89370400440532013000"), "DE89 3704 0044 0532 0130 00");
+  const pi = {
+    next_action: {
+      type: "display_bank_transfer_instructions",
+      display_bank_transfer_instructions: {
+        amount_remaining: 9900,
+        currency: "eur",
+        reference: "ABCD-1234",
+        hosted_instructions_url: "https://payments.stripe.com/x",
+        type: "eu_bank_transfer",
+        financial_addresses: [{ type: "iban", supported_networks: ["sepa"], iban: { iban: "DE89370400440532013000", bic: "COBADEFFXXX", country: "DE", account_holder_name: "W.O.P" } }],
+      },
+    },
+  } as never;
+  assert.deepEqual(bankTransferDetails(pi), { iban: "DE89370400440532013000", bic: "COBADEFFXXX", holder: "W.O.P", reference: "ABCD-1234", amountCents: 9900, hostedUrl: "https://payments.stripe.com/x" });
+  assert.equal(bankTransferDetails({ next_action: null } as never), null);
 });
