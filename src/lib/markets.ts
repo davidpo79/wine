@@ -36,17 +36,19 @@ export type Market = {
   localMethods: ("mbway" | "multibanco")[];
   /** Extra Stripe redirect methods (must be enabled in the Stripe dashboard). */
   stripeRedirectMethods: ("ideal" | "bancontact")[];
+  /** Extra Stripe methods offered next to PayPal (enabled in Stripe 28/11/2026): Klarna, Amazon Pay. Dropped with PayPal if Stripe refuses one. */
+  stripeExtraMethods: ("klarna" | "amazon_pay")[];
   warehouse: "douro" | "belgium";
 };
 
 export const MARKETS: Record<Country, Market> = {
-  PT: { country: "PT", locales: ["pt", "ru", "en"], callingCode: "+351", postal: /^\d{4}-?\d{3}$/, postalExample: "1000-001", postalExcluded: /^9/, localMethods: ["mbway", "multibanco"], stripeRedirectMethods: [], warehouse: "douro" },
-  DE: { country: "DE", locales: ["de"], callingCode: "+49", postal: /^\d{5}$/, postalExample: "10115", localMethods: [], stripeRedirectMethods: [], warehouse: "belgium" },
-  NL: { country: "NL", locales: ["nl"], callingCode: "+31", postal: /^\d{4} ?[A-Za-z]{2}$/, postalExample: "1012 AB", localMethods: [], stripeRedirectMethods: ["ideal"], warehouse: "belgium" },
-  BE: { country: "BE", locales: ["nl", "fr"], callingCode: "+32", postal: /^\d{4}$/, postalExample: "1000", localMethods: [], stripeRedirectMethods: ["bancontact"], warehouse: "belgium" },
-  LU: { country: "LU", locales: ["fr", "de"], callingCode: "+352", postal: /^(L-?)?\d{4}$/i, postalExample: "L-1009", localMethods: [], stripeRedirectMethods: [], warehouse: "belgium" },
+  PT: { country: "PT", locales: ["pt", "ru", "en"], callingCode: "+351", postal: /^\d{4}-?\d{3}$/, postalExample: "1000-001", postalExcluded: /^9/, localMethods: ["mbway", "multibanco"], stripeRedirectMethods: [], stripeExtraMethods: [], warehouse: "douro" },
+  DE: { country: "DE", locales: ["de"], callingCode: "+49", postal: /^\d{5}$/, postalExample: "10115", localMethods: [], stripeRedirectMethods: [], stripeExtraMethods: ["klarna", "amazon_pay"], warehouse: "belgium" },
+  NL: { country: "NL", locales: ["nl"], callingCode: "+31", postal: /^\d{4} ?[A-Za-z]{2}$/, postalExample: "1012 AB", localMethods: [], stripeRedirectMethods: ["ideal"], stripeExtraMethods: ["klarna", "amazon_pay"], warehouse: "belgium" },
+  BE: { country: "BE", locales: ["nl", "fr"], callingCode: "+32", postal: /^\d{4}$/, postalExample: "1000", localMethods: [], stripeRedirectMethods: ["bancontact"], stripeExtraMethods: ["klarna", "amazon_pay"], warehouse: "belgium" },
+  LU: { country: "LU", locales: ["fr", "de"], callingCode: "+352", postal: /^(L-?)?\d{4}$/i, postalExample: "L-1009", localMethods: [], stripeRedirectMethods: [], stripeExtraMethods: [], warehouse: "belgium" },
   // Mainland Spain and the Balearic Islands; the Canary Islands (35, 38), Ceuta (51) and Melilla (52) are outside the EU VAT area.
-  ES: { country: "ES", locales: ["es"], callingCode: "+34", postal: /^\d{5}$/, postalExample: "28001", postalExcluded: /^(35|38|51|52)/, localMethods: [], stripeRedirectMethods: [], warehouse: "belgium" },
+  ES: { country: "ES", locales: ["es"], callingCode: "+34", postal: /^\d{5}$/, postalExample: "28001", postalExcluded: /^(35|38|51|52)/, localMethods: [], stripeRedirectMethods: [], stripeExtraMethods: ["klarna", "amazon_pay"], warehouse: "belgium" },
 };
 
 /** Countries whose shop speaks this language (the order matters: first = the one we preselect). */

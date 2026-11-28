@@ -39,12 +39,12 @@ export function checkoutMethods(country: Country = "PT"): ifp.PayMethod[] {
 /** Stripe method types for a market. Redirect methods (iDEAL, Bancontact) cannot save a card for the one-click offer. */
 /** Payment methods of the Stripe form: card (with Apple Pay / Google Pay), the country's bank redirect, and PayPal. */
 export function stripeTypes(country: Country, paypal = true): string[] {
-  return ["card", ...MARKETS[country].stripeRedirectMethods, ...(paypal ? ["paypal"] : [])];
+  return ["card", ...MARKETS[country].stripeRedirectMethods, ...(paypal ? ["paypal", ...MARKETS[country].stripeExtraMethods] : [])];
 }
 /** Stripe refuses a PaymentIntent with a method the account has not activated: PayPal off must not stop card payments. */
 export function isPaypalUnavailable(e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
-  return /paypal/i.test(msg);
+  return /paypal|klarna|amazon_pay/i.test(msg);
 }
 export function stripeSavesCard(country: Country): boolean {
   return MARKETS[country].stripeRedirectMethods.length === 0;
@@ -229,7 +229,7 @@ const METHOD_LABEL: Record<string, string> = { mbway: "mb_way", multibanco: "mul
 
 export async function markOrderPaid(order: Order, p: Payment, source: string) {
   if (!["pending_payment", "payment_failed", "cancelled"].includes(order.status)) return;
-  const wallet = p.paidMethod === "APPLE" ? "card:apple_pay" : p.paidMethod === "GOOGLE" ? "card:google_pay" : p.paidMethod === "LINK" ? "card:link" : p.paidMethod === "PAYPAL" ? "paypal" : null;
+  const wallet = p.paidMethod === "APPLE" ? "card:apple_pay" : p.paidMethod === "GOOGLE" ? "card:google_pay" : p.paidMethod === "LINK" ? "card:link" : p.paidMethod === "PAYPAL" ? "paypal" : p.paidMethod === "KLARNA" ? "klarna" : p.paidMethod === "AMAZON_PAY" ? "amazon_pay" : null;
   const paid = await setStatus(order, "paid", { paymentMethodType: wallet ?? METHOD_LABEL[p.method] ?? p.method }, { source, ref: p.ref, amount_cents: p.amountCents });
   if (!paid) return;
   const pendingAddons = await orderAddons(order.id, ["pending"]);
@@ -290,7 +290,8 @@ export async function applyStripePi(pi: Stripe.PaymentIntent, source: string) {
       const full = await getStripe().paymentIntents.retrieve(pi.id, { expand: ["latest_charge"] });
       const ch = full.latest_charge as Stripe.Charge | null;
       const w = ch?.payment_method_details?.card?.wallet?.type;
-      wallet = ch?.payment_method_details?.type === "paypal" ? "PAYPAL" : w === "apple_pay" ? "APPLE" : w === "google_pay" ? "GOOGLE" : w === "link" ? "LINK" : null;
+      const t = ch?.payment_method_details?.type;
+      wallet = t === "paypal" ? "PAYPAL" : t === "klarna" ? "KLARNA" : t === "amazon_pay" ? "AMAZON_PAY" : w === "apple_pay" ? "APPLE" : w === "google_pay" ? "GOOGLE" : w === "link" ? "LINK" : null;
       const pm = typeof full.payment_method === "string" ? full.payment_method : full.payment_method?.id;
       const customer = typeof full.customer === "string" ? full.customer : full.customer?.id;
       // Only a card (incl. Apple/Google Pay) can be charged again in one click; iDEAL/Bancontact cannot.

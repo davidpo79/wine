@@ -341,8 +341,10 @@ test("checkout accepts phone numbers typed with dashes, dots, invisible marks or
 
 test("Stripe form: PayPal offered in every market, card-only fallback, bank redirects kept", async () => {
   const { stripeTypes, stripeSavesCard, isPaypalUnavailable } = await import("../src/lib/payments");
-  assert.deepEqual(stripeTypes("DE"), ["card", "paypal"]);
-  assert.deepEqual(stripeTypes("NL"), ["card", "ideal", "paypal"]);
+  assert.deepEqual(stripeTypes("DE"), ["card", "paypal", "klarna", "amazon_pay"]);
+  assert.deepEqual(stripeTypes("NL"), ["card", "ideal", "paypal", "klarna", "amazon_pay"]);
+  assert.deepEqual(stripeTypes("PT"), ["card", "paypal"]); // Portugal: MB WAY / Multibanco, no Klarna or Amazon Pay
+  assert.equal(isPaypalUnavailable(new Error("The payment method type \"klarna\" is invalid.")), true);
   assert.deepEqual(stripeTypes("BE", false), ["card", "bancontact"]);
   assert.equal(stripeSavesCard("DE"), true);
   assert.equal(stripeSavesCard("NL"), false);

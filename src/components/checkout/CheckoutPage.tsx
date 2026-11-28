@@ -496,7 +496,7 @@ export function CheckoutPage({
     mode: "payment",
     amount,
     currency: "eur",
-    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, ...(withPaypal ? ["paypal"] : [])],
+    allowedPaymentMethodTypes: ["card", ...market.stripeRedirectMethods, ...(withPaypal ? ["paypal", ...market.stripeExtraMethods] : [])],
     ...(market.stripeRedirectMethods.length
       ? {}
       : { paymentMethodOptions: { card: { setup_future_usage: "on_session" as const } } }),
@@ -896,7 +896,9 @@ export function CheckoutPage({
       if (error) {
         const pm = pmTypeRef.current;
         jlog("payment_error", { stage: "stripe", method, pm_type: pm, type: error.type ?? "", code: error.code ?? error.decline_code ?? "", msg: (error.message ?? "").slice(0, 100) }, draft.o);
-        if (pm === "paypal" && !paypalOff) {
+        // PayPal, Klarna or Amazon Pay failed: same fallback (they are offered and dropped together).
+        const EXTRA_LABEL: Record<string, string> = { paypal: "PayPal", klarna: "Klarna", amazon_pay: "Amazon Pay" };
+        if (EXTRA_LABEL[pm] && !paypalOff) {
           // PayPal failed: show the form again with card / Apple Pay / Google Pay only, and say so.
           paymentElRef.current?.destroy();
           paymentElRef.current = null;
@@ -905,7 +907,7 @@ export function CheckoutPage({
           setCardReady(false);
           if (cardDivRef.current) cardDivRef.current.innerHTML = "";
           setPaypalOff(true);
-          setFormError(PAYPAL_FAILED[locale] ?? PAYPAL_FAILED.en);
+          setFormError((PAYPAL_FAILED[locale] ?? PAYPAL_FAILED.en).replace("PayPal", EXTRA_LABEL[pm]));
           setPaying(false);
           return;
         }
