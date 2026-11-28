@@ -24,7 +24,7 @@ test("sales state", () => {
   const before = new Date("2026-11-30T23:58:00Z");
   const after = new Date("2026-12-01T00:00:00Z");
   assert.equal(salesState(s, 0, before).mode, "open");
-  assert.equal(salesState(s, 0, after).mode, "closed");
+  assert.equal(salesState(s, 0, after).mode, "open"); // the deadline no longer closes the shop (28/11/2026)
   assert.equal(salesState({ ...s, post_cutoff_mode: "after_christmas" }, 0, after).mode, "after_christmas");
   assert.equal(salesState({ ...s, sales_open: false }, 0, before).mode, "closed");
   assert.equal(salesState({ ...s, stock_cap_boxes: 10 }, 10, before).mode, "sold_out");

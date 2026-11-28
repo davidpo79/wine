@@ -54,7 +54,9 @@ export function salesState(s: Settings, boxesSold: number, now = new Date()): Sa
   if (!s.sales_open) return { mode: "closed", reason: "manual" };
   if (s.stock_cap_boxes != null && boxesSold >= s.stock_cap_boxes) return { mode: "sold_out" };
   if (now.getTime() > new Date(s.cutoff_at).getTime()) {
-    return s.post_cutoff_mode === "after_christmas" ? { mode: "after_christmas" } : { mode: "closed", reason: "cutoff" };
+    // David (28/11/2026): the deadline never closes the shop on its own; only the switch in Admin → Settings does.
+    // After the deadline the page keeps selling (with the "after Christmas" notice when that mode is chosen).
+    return s.post_cutoff_mode === "after_christmas" ? { mode: "after_christmas" } : { mode: "open" };
   }
   return { mode: "open" };
 }
